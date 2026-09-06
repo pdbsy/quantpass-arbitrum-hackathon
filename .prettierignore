@@ -1,0 +1,11 @@
+node_modules
+package-lock.json
+docs/module-board.html
+docs/BACKLOG-ARCHIVE-2026-09-05.md
+docs/REVIEW-2026-09-05.zh-CN.md
+.artifacts
+.checks
+dist
+build
+outputs
+work

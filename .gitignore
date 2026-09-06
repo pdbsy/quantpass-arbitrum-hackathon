@@ -1,0 +1,13 @@
+work/
+outputs/
+.env
+.env.*
+!.env.example
+.artifacts/
+.checks/
+.data/
+node_modules/
+dist/
+build/
+.DS_Store
+Thumbs.db
