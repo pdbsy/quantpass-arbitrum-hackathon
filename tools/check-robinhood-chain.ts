@@ -1,6 +1,6 @@
-import { readArbitrumConfig } from '../packages/arbitrum/src/network.ts';
+import { readRobinhoodChainConfig } from '../packages/robinhood-chain/src/network.ts';
 
-const config = readArbitrumConfig(process.env);
+const config = readRobinhoodChainConfig(process.env);
 console.log(
   JSON.stringify({
     network: config.network.name,

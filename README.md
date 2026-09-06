@@ -1,13 +1,13 @@
-# QuantPass Arbitrum Hackathon
+# QuantPass on Robinhood Chain Testnet
 
-QuantPass is a safety-first prototype for separating strategy access rights from user funds. The current demo makes allowance, idle cash, active strategy cash, pending withdrawals, positions and fees independently visible in an auditable ledger.
+QuantPass is a safety-first prototype for separating strategy access rights from user funds. It targets Robinhood Chain Testnet, an Arbitrum Chain built with Arbitrum Nitro. The current demo makes allowance, idle cash, active strategy cash, pending withdrawals, positions and fees independently visible in an auditable ledger.
 
 ## Hackathon status
 
 - Local end-to-end simulator with persistent SQLite state
 - Strict money parsing and vault invariants
 - Idempotent commands, optimistic revisions and audit history
-- Arbitrum Sepolia network metadata and fail-closed configuration guard
+- Robinhood Chain Testnet metadata and fail-closed configuration guard
 - Automated tests, linting, formatting, build and baseline secret checks
 
 No contract is deployed yet and the application does not sign or submit transactions. Every balance in the UI is simulated.
@@ -27,7 +27,7 @@ Open `http://127.0.0.1:4180`. Runtime data is written to `.data/` and is ignored
 To validate only the target network configuration:
 
 ```bash
-node --env-file=.env.example tools/check-arbitrum.ts
+npm run robinhood:check
 ```
 
 ## Project layout
@@ -35,7 +35,7 @@ node --env-file=.env.example tools/check-arbitrum.ts
 ```text
 apps/server/          Fastify API and SQLite-backed ledger
 apps/web/             React competition demo
-packages/arbitrum/    Arbitrum Sepolia network boundary
+packages/robinhood-chain/  Robinhood Chain Testnet boundary
 packages/config/      Runtime safety gate
 packages/domain/      Exact money and vault state machine
 src/security-model/   Threat and trust-boundary model
@@ -44,7 +44,7 @@ test/                 Unit, integration and HTTP end-to-end tests
 
 ## Current work
 
-The competition-only backlog is in [TODO.md](TODO.md), with execution status in [docs/TASK-BOARD.md](docs/TASK-BOARD.md). Network assumptions and authoritative references are documented in [docs/ARBITRUM.md](docs/ARBITRUM.md).
+The competition-only backlog is in [TODO.md](TODO.md), with execution status in [docs/TASK-BOARD.md](docs/TASK-BOARD.md). Network assumptions and authoritative references are documented in [docs/ROBINHOOD-CHAIN.md](docs/ROBINHOOD-CHAIN.md).
 
 ## Safety
 

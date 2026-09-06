@@ -266,7 +266,7 @@ export function App() {
       <main>
         <section className="page-heading">
           <div>
-            <p className="eyebrow">ARBITRUM HACKATHON / 本地演示</p>
+            <p className="eyebrow">ROBINHOOD CHAIN TESTNET / 本地演示</p>
             <h1>策略使用权与资金，分开管理。</h1>
             <p>1 Pass = 1 模拟 USDT 分配额度。多存的余额不参与策略，也不自动补亏损。</p>
           </div>

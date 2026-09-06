@@ -26,19 +26,28 @@ export async function scanWorkspace(root) {
     .split('\0')
     .filter(Boolean);
   const failures = [];
+  let scanned = 0;
   for (const file of new Set(files)) {
+    let bytes;
+    try {
+      bytes = await readFile(resolve(root, file));
+    } catch (error) {
+      // The index can still contain a path deleted or renamed in the working tree.
+      if (error && typeof error === 'object' && error.code === 'ENOENT') continue;
+      throw error;
+    }
+    scanned++;
     if (/(^|\/)\.env(?:\.|$)/.test(file) && !file.endsWith('.env.example')) {
       failures.push(`${file}: environment-file`);
       continue;
     }
-    const bytes = await readFile(resolve(root, file));
     if (bytes.includes(0)) continue; // Binary secrets require dedicated scanners.
     for (const kind of findSecretKinds(bytes.toString('utf8'))) failures.push(`${file}: ${kind}`);
   }
   if (failures.length)
     throw new Error(`Potential secrets detected (values redacted):\n${failures.join('\n')}`);
   console.log(
-    `Secret baseline passed: ${new Set(files).size} tracked/unignored files; ignored local .env and binary files are outside coverage.`,
+    `Secret baseline passed: ${scanned} tracked/unignored files; ignored local .env and binary files are outside coverage.`,
   );
 }
 
