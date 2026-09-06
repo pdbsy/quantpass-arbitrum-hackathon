@@ -1,28 +1,569 @@
-# Competition TODO
+# QuantPass 工程安全 TODO
 
-The list is intentionally limited to work required for an honest Robinhood Chain testnet submission.
+> 自动生成文件：唯一事实源为 `planning/roadmap.json`。请勿直接修改本文件。
+>
+> 范围：仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金和自动交易。
 
-## Done
+## 当前状态
 
-- [x] `RHC-001` Pin Robinhood Chain Testnet metadata and add a fail-closed configuration check.
-- [x] `REP-001` Create a lean public-repository layout without private planning history or unrelated evidence.
+- 唯一 WIP：**GOV-001 · 冻结测试网范围、角色与架构 ADR**
+- 总任务：40
+- 已完成：6
+- 已就绪：7
+- 未关闭 Critical/High：32
+- 计划版本：2.0（2026-09-06）
 
-## Now
+## 强制安全边界
 
-- [ ] `RHC-002` Define the minimal on-chain vault interface and an adapter boundary; keep local simulation as the default.
+- 默认拒绝：未识别网络、缺失配置、证据不完整或状态不确定时停止写操作。
+- 非托管优先：应用不得持有用户助记词、私钥，也不得获得提现或任意转账能力。
+- 测试网隔离：Chain ID 必须从配置、钱包与 RPC 三方核对为 46630。
+- 真实性：模拟、本地、测试网和未实现能力必须在界面与文档中明确区分。
+- 主网关闭：不存在可由单一环境变量或隐藏按钮绕过的主网写入路径。
 
-## Next
+## P0 · 已验证基线
 
-- [ ] `RHC-003` Implement wallet connection and explicit Robinhood Chain Testnet switching.
-- [ ] `RHC-004` Deploy contracts to Robinhood Chain Testnet and commit verified addresses plus transaction evidence.
-- [ ] `RHC-005` Add contract tests for ownership, replay protection, withdrawals and invariant failures.
-- [ ] `DEMO-001` Connect the web flow to the reviewed testnet adapter and show explorer links.
-- [ ] `DEMO-002` Record a reproducible judge walkthrough and recovery path.
+> 保留已有可复现证据，同时明确它们不是生产认证。
 
-## Submission gate
+- [x] **LEDGER-001 · 精确会计与幂等账本基线** — 已完成 / P0 / Critical / M
+  - 目标：本地状态机使用整数金额、显式余额分区、乐观版本和持久回执验证资金不变量。
+  - 依赖：`BASE-001`
+  - 交付：纯状态转换；SQLite 原子提交与摘要；确定性和重启测试
+  - 验收：
+    - 金额拒绝浮点、指数和越界输入
+    - 重复命令不重复记账，冲突版本不覆盖状态
+    - 账本重启、备份和损坏场景失败关闭
+  - 停用/回退：本基线仅用于模型验证；链上实现不一致时停用 adapter，不迁移真实状态。
+  - 证据：`packages/domain/src/vault.ts`、`apps/server/src/store.ts`、`test/domain.test.ts`、`test/server.test.ts`
 
-- [ ] CI is green from a clean checkout.
-- [ ] No secrets or personal data are committed.
-- [ ] README distinguishes simulated, testnet and unimplemented behavior.
-- [ ] Deployment addresses and explorer links are reproducible.
-- [ ] Known limitations and threat boundaries are documented.
+- [x] **PERMIT-001 · 离线交易许可安全模型基线** — 已完成 / P0 / Critical / M
+  - 目标：验证 Ed25519 签名、策略版本绑定、短时 trade-only 权限、风控限制和基础 nonce 重放保护。该模型尚不可直接上链。
+  - 依赖：`BASE-001`
+  - 交付：规范化签名载荷；短时执行许可；风控与篡改负向测试
+  - 验收：
+    - 许可不包含提现或转账权限
+    - 策略、政策、账户和时间窗口不匹配时拒绝
+    - 重放、篡改、仓位和亏损限额均有负向测试
+  - 停用/回退：该模型保持研究/本地用途，直至 TRUST-001 完成链域与持久信任根设计。
+  - 证据：`src/security-model/index.ts`、`test/security-model.test.ts`
+
+- [x] **NET-001 · Robinhood Chain Testnet 网络门禁基线** — 已完成 / P0 / High / S
+  - 目标：固定 Chain ID 46630、官方 HTTPS RPC 与浏览器，并拒绝错误网络或带凭据 URL。
+  - 依赖：`BASE-001`
+  - 交付：网络常量；配置校验工具；正负测试与官方来源文档
+  - 验收：
+    - 配置、钱包和 RPC 预期 Chain ID 均为 46630
+    - HTTP、错误链和嵌入凭据的 URL 被拒绝
+    - 运行检查不输出 URL 查询参数或凭据
+  - 停用/回退：端点异常或链身份不一致时关闭全部链写入并回退到本地模拟。
+  - 证据：`packages/robinhood-chain/src/network.ts`、`test/robinhood-chain.test.ts`、`docs/ROBINHOOD-CHAIN.md`
+
+- [x] **CI-001 · 基础工程门禁** — 已完成 / P1 / High / S
+  - 目标：固定 Node/npm 范围、锁定依赖、禁用生命周期脚本，并执行类型、lint、测试、secret、配置、构建和高危依赖审计。
+  - 依赖：`BASE-001`
+  - 交付：最小权限 CI；依赖锁和版本门禁；secret 与依赖审计
+  - 验收：
+    - 干净检出可运行完整 check
+    - GitHub Actions 使用固定 commit 且无写权限
+    - 高危依赖或潜在秘密导致失败
+  - 停用/回退：门禁不可用时禁止合并，不以手工成功替代自动证据。
+  - 证据：`.github/workflows/ci.yml`、`package-lock.json`、`tools/check-secrets.mjs`
+
+- [x] **LOCAL-001 · 本地演示 HTTP 安全边界基线** — 已完成 / P1 / High / M
+  - 目标：本地服务限制 loopback、同源、严格 Cookie、请求大小、速率和非敏感错误，仅作为模拟环境。
+  - 依赖：`LEDGER-001`
+  - 交付：loopback-only 服务；同源与请求校验；HTTP 崩溃恢复 E2E
+  - 验收：
+    - 非 loopback origin 无法启动
+    - 跨用户、跨源、未认证与畸形请求被拒绝
+    - 服务错误不泄露 SQL、文件路径或内部细节
+  - 停用/回退：任何非本地运行需求必须走新生产边界，不放宽本地门禁。
+  - 证据：`apps/server/src/app.ts`、`test/server.test.ts`、`test/http-e2e.test.ts`
+
+- [x] **BASE-001 · 比赛公开仓库精简基线** — 已完成 / P1 / Medium / S
+  - 目标：使用无私有历史的新提交，只公开运行代码、测试、CI 与比赛文档。
+  - 依赖：无
+  - 交付：公开仓库说明与边界；忽略规则和示例配置；可复现初始提交
+  - 验收：
+    - 仓库为 PUBLIC 且默认分支为 master
+    - 不存在内部评审记录、私有证据或本地环境文件
+    - README 明确当前能力边界
+  - 停用/回退：发现敏感内容时立即停止发布、轮换受影响凭据并重写公开历史。
+  - 证据：`README.md`、`.gitignore`、`commit 621a433`
+
+## P1 · 治理、威胁模型与规格
+
+> 先冻结资产、权限、会计和信任边界，再开始合约实现。
+
+- [ ] **GOV-001 · 冻结测试网范围、角色与架构 ADR** — 进行中 / P0 / Critical / M
+  - 目标：明确 MVP 是否非托管、支持资产、角色权限、升级策略、暂停与安全退出，并绘制链上/链下信任边界。
+  - 依赖：`NET-001`、`LEDGER-001`、`PERMIT-001`、`LOCAL-001`
+  - 交付：架构与数据流图；角色/能力矩阵；资产与禁止项 ADR；不可升级优先及迁移策略
+  - 验收：
+    - 用户、策略、风险签名者、执行者、暂停者和部署者权限互斥且最小化
+    - 明确支持 token、decimals、fee-on-transfer/rebasing 等拒绝策略
+    - 禁止任意 call/delegatecall、主网和真实资金路径
+    - 独立复核者能指出每个秘密、签名、资产和管理员边界
+  - 停用/回退：ADR 未通过前保持 local mock，禁止引入 testnet 写 adapter。
+  - 证据：待补
+
+- [ ] **TOOL-001 · 固定 Solidity 与安全工具链** — 就绪 / P0 / High / S
+  - 目标：选定并固定 Foundry、solc、OpenZeppelin、Slither 与格式化版本，不使用浮动 latest。
+  - 依赖：`CI-001`、`NET-001`
+  - 交付：工具版本文件；最小 Foundry 工程；依赖许可与哈希记录；CI 缓存与权限说明
+  - 验收：
+    - 干净环境可安装固定版本并重建相同字节码
+    - 依赖仅来自官方来源且许可证兼容
+    - CI 不执行未审查的安装脚本或浮动 Action
+  - 停用/回退：工具链升级单独提交；字节码变化必须解释，否则回退到已固定版本。
+  - 证据：待补
+
+- [ ] **SUPPLY-001 · 强化仓库与供应链策略** — 就绪 / P1 / High / M
+  - 目标：补齐 master 保护、Dependabot、安全更新、SBOM、license 和构建来源控制。
+  - 依赖：`CI-001`
+  - 交付：分支保护与 required checks；Dependabot 与 CodeQL 配置；SBOM/license 报告；锁文件与 Action 更新策略
+  - 验收：
+    - master 禁止未通过 required checks 的直接更新
+    - 依赖漏洞告警、安全更新和 CodeQL 启用且有处置 SLA
+    - 发布生成 SBOM 并拒绝不兼容许可证
+    - Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review
+  - 停用/回退：供应链门禁故障时冻结依赖更新与发布，不临时关闭所有检查。
+  - 证据：待补
+
+- [ ] **ASSET-001 · 测试资产与外部协议地址核验** — 待排期 / P0 / Critical / M
+  - 目标：核验 Robinhood Chain Testnet 上计划使用资产和协议的官方来源、地址、bytecode、decimals、代理关系与异常行为。
+  - 依赖：`GOV-001`、`THREAT-001`
+  - 交付：chain-specific 资产清单；地址与 runtime bytecode hash；decimals/行为探测；mock token 命名与隔离规则
+  - 验收：
+    - 每个地址至少由官方来源与链上 bytecode 双重核对
+    - 不按 symbol 猜测 token，明确 decimals、代理实现和升级风险
+    - 没有权威测试资产时只部署醒目标记、不可混淆的 Mock
+    - 未知、空代码、地址变化或异常 ERC-20 行为阻止 adapter 写入
+  - 停用/回退：资产身份或行为无法验证时从 allowlist 移除并关闭相关功能。
+  - 证据：待补
+
+- [ ] **CONFIG-001 · 独立且失败关闭的 Testnet 启动门禁** — 待排期 / P0 / Critical / S
+  - 目标：在保留 local mock 默认值的同时，新建显式 testnet adapter 配置；任何缺失或不一致都阻止写入。
+  - 依赖：`GOV-001`、`THREAT-001`
+  - 交付：区分 local/testnet 的判别联合配置；三方 Chain ID 校验；主网硬关闭与 feature flag
+  - 验收：
+    - 默认启动仍为 local mock
+    - 配置、钱包与 RPC 任一不为 46630 时写操作不可达
+    - 生产/mainnet 字符串、错误合约地址和空地址均有失败测试
+  - 停用/回退：关闭唯一 testnet feature flag 即恢复只读或本地模拟。
+  - 证据：待补
+
+- [ ] **PRIV-001 · 消除 Demo 用户到 Executor 的隐式提权** — 待排期 / P0 / Critical / M
+  - 目标：当前模拟路由会按命令类型自动映射 executor；生产边界必须将用户意图与受信执行结果彻底分离。
+  - 依赖：`GOV-001`、`THREAT-001`
+  - 交付：用户命令/执行者回执分离接口；服务身份验证；权限矩阵负向测试
+  - 验收：
+    - 普通用户不能直接触发 fill、mark、settle、confirm 或 fee payment
+    - executor 消息具有来源认证、nonce 和授权范围
+    - 演示快捷路径只能在编译/运行时 local-only 边界内存在
+  - 停用/回退：若服务身份不可验证，暂停执行者入口但保留用户只读与安全退出。
+  - 证据：待补
+
+- [ ] **SPEC-001 · 链上会计、资产与舍入规格** — 待排期 / P0 / Critical / L
+  - 目标：将本地 USD-micros 模型转化为明确的链上资产单位、不变量和异常 token 策略。
+  - 依赖：`GOV-001`、`THREAT-001`、`TOOL-001`、`ASSET-001`
+  - 交付：状态变量与单位表；存入/分配/提现/费用状态机；舍入与精度策略；会计不变量清单
+  - 验收：
+    - 每种资产的 decimals 与最小单位显式定义且不猜测
+    - 总资产、负债、待提取、费用和策略额度在每次转换后守恒
+    - 拒绝或专门处理 fee-on-transfer、rebasing、回调和非标准返回 token
+    - 零值、最大值、舍入尘埃、暂停和紧急退出有规范
+  - 停用/回退：规格不闭合时缩减到单一明确测试资产，不用兼容分支掩盖不确定性。
+  - 证据：待补
+
+- [ ] **SPEC-002 · 权限、事件、错误与重放规格** — 待排期 / P0 / Critical / M
+  - 目标：为每个外部函数定义调用者、前置条件、状态变化、事件、错误和重放语义。
+  - 依赖：`GOV-001`、`THREAT-001`、`TRUST-001`
+  - 交付：函数权限矩阵；事件/错误目录；nonce/deadline 规则；暂停与恢复状态机
+  - 验收：
+    - 所有状态写入都有明确角色和自定义错误
+    - 事件足以独立重建关键状态且不记录秘密
+    - 跨链、跨合约、跨账户和过期签名不能重放
+    - 暂停不锁死合法提现或指定安全退出
+  - 停用/回退：存在未定义权限或重放语义时不冻结 ABI。
+  - 证据：待补
+
+- [ ] **THREAT-001 · Robinhood Chain 专项威胁模型与风险登记** — 待排期 / P0 / Critical / M
+  - 目标：覆盖合约、钱包、RPC、前端、签名者、部署供应链、重组、管理员和事故场景。
+  - 依赖：`GOV-001`
+  - 交付：资产/攻击者/入口清单；STRIDE/滥用场景；风险负责人、缓解和接受记录
+  - 验收：
+    - 覆盖授权绕过、重入、重放、恶意 token、RPC 欺骗、前端替换和密钥泄露
+    - 每个 Critical/High 风险有负责人、缓解任务和截止门禁
+    - 威胁模型与实际数据流、ABI 和角色一致
+  - 停用/回退：出现未接受 Critical 风险时停止后续实现或撤回相关范围。
+  - 证据：待补
+
+- [ ] **TRUST-001 · 信任根、签名域与持久重放模型** — 待排期 / P0 / Critical / L
+  - 目标：把调用者可注入的 key/release/snapshot 改为受控信任根，并让授权精确绑定链、合约、账户与 calldata。
+  - 依赖：`GOV-001`、`THREAT-001`
+  - 交付：EIP-712 domain 与 schema；密钥来源/轮换/撤销模型；原子持久 nonce store；可信账户快照来源
+  - 验收：
+    - 签名绑定 chainId、verifyingContract、wallet、nonce、deadline 和 calldata hash
+    - 调用者不能替换 trusted release、public key 或账户快照来源
+    - 进程重启、并发和跨实例下重放仍被拒绝
+    - 密钥轮换与撤销不破坏安全退出
+  - 停用/回退：信任根不可用时不签发新许可，只允许读取与已授权安全退出。
+  - 证据：待补
+
+- [ ] **ABI-001 · 冻结 Vault v1 ABI 与 Adapter 边界** — 待排期 / P0 / High / M
+  - 目标：定义最小读写接口、事件映射和本地/测试网 adapter 端口，不让 UI 依赖合约内部布局。
+  - 依赖：`SPEC-001`、`SPEC-002`、`CONFIG-001`、`PRIV-001`
+  - 交付：Solidity interface；TypeScript 判别联合端口；事件到领域状态映射；ABI hash
+  - 验收：
+    - 接口只暴露必要存入、分配、提现、安全退出和状态读取能力
+    - local 与 testnet adapter 共享语义但不能混用配置
+    - ABI 变更由版本和兼容测试管理
+    - UI 不直接拼装任意 calldata
+  - 停用/回退：ABI 冻结后破坏性变更使用新版本和新部署地址，不静默替换。
+  - 证据：待补
+
+## P2 · 合约实现与安全验证
+
+> 用测试、fuzz、invariant、静态分析和独立复核证明最小合约。
+
+- [ ] **CON-001 · 实现最小非托管 Vault 合约** — 待排期 / P0 / Critical / L
+  - 目标：按冻结规格实现最小资产托管/额度边界，不包含任意外部执行或未经证明的策略逻辑。
+  - 依赖：`ABI-001`、`TOOL-001`
+  - 交付：Vault 合约；接口与事件；NatSpec 与状态不变量注释
+  - 验收：
+    - 实现与冻结 ABI、会计规格逐项对应
+    - 使用 checks-effects-interactions 和显式 SafeERC20 边界
+    - 所有外部写函数具备授权、暂停与重入分析
+    - 不包含任意 call、delegatecall 或可注入实现地址
+  - 停用/回退：合约不可升级；问题版本暂停新入口并迁移到重新部署的地址。
+  - 证据：待补
+
+- [ ] **CON-002 · 实现最小权限、暂停与安全退出** — 待排期 / P0 / Critical / M
+  - 目标：把管理员、暂停者、执行者和用户能力落实为最小角色，并确保事故时不会永久锁定退出。
+  - 依赖：`CON-001`、`SPEC-002`
+  - 交付：角色控制；暂停矩阵；紧急退出路径；角色转移/撤销流程
+  - 验收：
+    - 任何单一策略或执行者都无提现/任意转账权
+    - 暂停时禁止新增风险但保留规范定义的安全退出
+    - 角色变更有双步骤或明确确认、事件和负向测试
+    - 零地址、角色丢失和重复撤销场景可恢复
+  - 停用/回退：角色异常时先暂停新增风险，按演练流程撤销或迁移，不升级原合约。
+  - 证据：待补
+
+- [ ] **SEC-002 · 静态分析、字节码复现与独立安全复核** — 待排期 / P0 / Critical / M
+  - 目标：运行 Slither 和编译器门禁，核对 ABI/字节码/存储布局，并由非实现者复核高风险路径。
+  - 依赖：`TST-001`、`TST-002`、`SUPPLY-001`
+  - 交付：静态分析报告；可复现字节码 manifest；安全审查清单；风险接受记录
+  - 验收：
+    - 无未处置 High/Critical 静态分析发现
+    - 相同 commit 与编译参数生成相同 ABI 和字节码 hash
+    - 独立复核覆盖授权、会计、重入、签名、暂停和退出
+    - 例外均记录理由、负责人和失效时间
+  - 停用/回退：复核失败或字节码不一致时不得部署。
+  - 证据：待补
+
+- [ ] **TST-001 · 合约单元、负向与权限测试** — 待排期 / P0 / Critical / L
+  - 目标：逐函数覆盖成功、拒绝、边界、重入、恶意 token、角色和暂停场景。
+  - 依赖：`CON-001`、`CON-002`
+  - 交付：Foundry 单元测试；恶意 token/接收者夹具；覆盖率报告
+  - 验收：
+    - 关键授权和会计路径分支覆盖 100%，总体目标不低于 90%
+    - 未授权、错误状态、零/最大值、重入与异常 token 均失败关闭
+    - 每个公开自定义错误和关键事件都有断言
+    - 测试不依赖公共 RPC 或时间不稳定外部状态
+  - 停用/回退：覆盖率或负向测试下降时阻止合并。
+  - 证据：待补
+
+- [ ] **TST-002 · Fuzz、Invariant 与模型差分验证** — 待排期 / P0 / Critical / L
+  - 目标：对随机操作序列验证资产守恒、权限、重放和退出活性，并与 TypeScript 参考模型差分。
+  - 依赖：`TST-001`、`LEDGER-001`
+  - 交付：stateful invariant handler；固定种子与运行预算；TS/Solidity 差分夹具；失败最小化样例
+  - 验收：
+    - 资产守恒、负债覆盖、额度上限和无重复支付不变量持续成立
+    - 暂停、角色变更、失败 token 与随机顺序均纳入生成
+    - 失败可用种子和命令序列稳定复现
+    - CI 运行短预算，发布门禁运行长预算并保存报告
+  - 停用/回退：任何无法解释的 invariant 失败冻结 ABI 和部署。
+  - 证据：待补
+
+## P3 · 钱包、适配器与链数据
+
+> 所有链交互显式、可恢复、可核对，并在错误网络上失败关闭。
+
+- [ ] **DATA-001 · 持久状态、审计与资源上限** — 就绪 / P1 / High / M
+  - 目标：拆分快照、回执和追加审计事件，限制 map/history/payload 增长，并定义防损坏与防篡改的不同保证。
+  - 依赖：`LEDGER-001`、`CI-001`
+  - 交付：数据保留与分页策略；容量/并发/恢复测试；审计完整性语义；RPO/RTO 演练
+  - 验收：
+    - 状态、回执、事件和输入都有硬上限与分页，不随历史无限重写
+    - 普通 SHA 摘要只声明检测损坏，不被描述为对抗性防篡改
+    - 并发、长历史、大输入和磁盘故障测试保持资源有界
+    - 恢复演练验证备份一致性、RPO、RTO 和不可覆盖策略
+  - 停用/回退：容量或完整性无法保证时切换只读并保留原始证据，不自动截断资金记录。
+  - 证据：待补
+
+- [ ] **RPC-001 · RPC 身份、限流与故障策略** — 就绪 / P1 / High / M
+  - 目标：定义公共 RPC 仅用于开发的容量边界、超时、退避、熔断、健康检查和可信度模型。
+  - 依赖：`NET-001`、`CI-001`
+  - 交付：RPC client policy；eth_chainId/bytecode 健康检查；429/5xx/timeout 策略；观测指标
+  - 验收：
+    - 每次写入前验证 chainId，关键读取可交叉核对
+    - 指数退避带抖动且有总时间预算，不无限重试
+    - RPC 故障时 UI 显示过期/未知而非成功
+    - 日志不记录带 API key 的完整 URL
+  - 停用/回退：全部端点不可信时切换只读/离线状态并阻止广播。
+  - 证据：待补
+
+- [ ] **WEBSEC-001 · 浏览器与前端供应链安全** — 就绪 / P1 / High / M
+  - 目标：为钱包 UI 建立 CSP、依赖边界、地址校验、抗注入和敏感数据禁存规则。
+  - 依赖：`LOCAL-001`、`CI-001`
+  - 交付：生产 CSP；前端威胁测试；地址与金额确认组件；第三方脚本清单
+  - 验收：
+    - 无未审查远程脚本、eval、危险 HTML 注入或隐式分析代码
+    - 地址、金额、链和合约在签名前以不可混淆格式显示
+    - 私钥、签名、完整 RPC 凭据不进入 localStorage、日志或错误上报
+    - CSP、点击劫持、跨源和依赖篡改有自动检查
+  - 停用/回退：前端完整性不确定时下线写入口，链上资产仍可通过独立安全退出工具访问。
+  - 证据：待补
+
+- [ ] **TX-001 · 交易生命周期、替换与重组恢复** — 待排期 / P0 / Critical / L
+  - 目标：用持久客户端操作 ID 管理预模拟、签名、广播、替换、确认、掉落、重组和重试。
+  - 依赖：`ADAPTER-001`、`TRUST-001`
+  - 交付：交易状态机；操作 ID 与 tx hash 映射；确认/重组策略；恢复 UI
+  - 验收：
+    - 刷新、断网和重复点击不会导致重复经济动作
+    - replacement、dropped、reverted、timeout 与 reorg 有确定状态和恢复步骤
+    - 达到明确确认深度后才显示最终完成
+    - 浏览器链接与 receipt、事件、账户变化一致
+  - 停用/回退：状态不确定时冻结新动作，只允许按原操作 ID 对账或重试。
+  - 证据：待补
+
+- [ ] **ADAPTER-001 · 实现类型安全的只读与写入 Adapter** — 待排期 / P0 / High / L
+  - 目标：由固定 ABI 和地址构造调用，读取先于写入，禁止 UI 任意拼装目标与 calldata。
+  - 依赖：`ABI-001`、`CON-002`、`WALLET-001`
+  - 交付：read adapter；write adapter；地址/ABI hash manifest；领域错误映射
+  - 验收：
+    - 所有地址由 chain-specific manifest 加载并校验 bytecode
+    - 写入前模拟调用并展示资产、金额、目标和预期变化
+    - 错误、超时和用户拒绝不会被当作成功
+    - local/testnet adapter 通过相同契约测试
+  - 停用/回退：manifest 或 bytecode 不匹配时禁用写入并显示可诊断错误。
+  - 证据：待补
+
+- [ ] **WALLET-001 · 钱包连接与显式网络切换** — 待排期 / P0 / High / M
+  - 目标：实现 EIP-1193 连接、添加/切换 Robinhood Chain Testnet，并正确处理账户和链变化。
+  - 依赖：`ABI-001`、`CONFIG-001`
+  - 交付：连接状态机；wallet_add/switchEthereumChain 流程；accountsChanged/chainChanged/disconnect 处理
+  - 验收：
+    - 未连接、拒绝连接、错误链、切换失败和断开均有明确状态
+    - 每次签名前重新核对账户与 Chain ID 46630
+    - 页面永久展示 Testnet 且不自动请求签名
+    - 不把账户地址当作认证会话
+  - 停用/回退：关闭 testnet adapter 后钱包仅可断开和只读，不保留隐式重连写状态。
+  - 证据：待补
+
+- [ ] **BACKEND-001 · 隔离 Testnet 后端身份与 Demo 会话** — 待排期 / P1 / High / M
+  - 目标：若测试网路径需要后端，必须使用钱包签名身份、持久 nonce、TLS 与分布式防护；演示身份绝不复用。若无需后端则用 ADR 明确关闭。
+  - 依赖：`GOV-001`、`TRUST-001`、`CONFIG-001`
+  - 交付：后端必要性 ADR；SIWE/等价登录协议；会话与 CSRF/限流策略；Demo/测试网代码隔离测试
+  - 验收：
+    - alice/bob 演示身份无法访问任何测试网写路径
+    - 登录签名绑定 domain、nonce、URI、chainId、issuedAt 和 expiration
+    - 生产会话使用 Secure/HttpOnly/SameSite、持久撤销和分布式限流
+    - 若选择无后端架构，服务器无法获得代表用户签名的能力
+  - 停用/回退：身份或会话系统异常时撤销会话并禁用后端写路径，不降级到 Demo 认证。
+  - 证据：待补
+
+- [ ] **INDEX-001 · 幂等事件索引与链重组处理** — 待排期 / P1 / High / L
+  - 目标：使用 block hash、log index 和确认水位构建可回退重放的索引，不把 RPC 单次响应当最终事实。
+  - 依赖：`CON-001`、`SPEC-002`、`RPC-001`
+  - 交付：事件游标与唯一键；reorg rewind/replay；链上读取对账；RPC 限流退避
+  - 验收：
+    - 重复日志和进程重启不重复记账
+    - 检测 block hash 变化并回退到安全水位重放
+    - 索引状态定期与合约 view 对账
+    - RPC 429、超时和部分响应不产生伪完成
+  - 停用/回退：索引不一致时标记数据过期并重建，不允许驱动资金写入。
+  - 证据：待补
+
+## P4 · 部署、供应链与运维
+
+> 建立可重建发布、最小密钥暴露、监控和事故恢复能力。
+
+- [ ] **SECRET-001 · 完整历史秘密扫描与轮换演练** — 就绪 / P0 / High / S
+  - 目标：在现有基线之上增加 Git 历史、EVM 裸私钥、助记词、二进制与常见 provider 凭据扫描，并演练撤销。
+  - 依赖：`CI-001`
+  - 交付：gitleaks/等价规则与基线；历史和构建产物扫描；误报治理；撤销/轮换演练记录
+  - 验收：
+    - 当前工作树、完整 Git 历史和发布产物均被扫描
+    - 覆盖 64 位 EVM 私钥、助记词和主要 provider token 模式
+    - GitHub push protection 保持启用且 CI 失败时不打印秘密值
+    - 测试凭据泄露演练能完成撤销、轮换和影响范围确认
+  - 停用/回退：疑似秘密立即视为已泄露并轮换；删除文件不等同于完成处置。
+  - 证据：待补
+
+- [ ] **DEPLOY-001 · 确定性 Dry-run 与 Robinhood Testnet 部署** — 待排期 / P0 / Critical / M
+  - 目标：先在本地链复现部署和参数，再用人工确认的专用部署者广播到 Chain ID 46630。
+  - 依赖：`SEC-002`、`KEY-001`
+  - 交付：幂等部署脚本；参数预览与校验；部署交易；失败恢复步骤
+  - 验收：
+    - dry-run 的 bytecode、constructor args、角色和地址符合已复核 manifest
+    - 广播前从钱包与 RPC 双重确认 Chain ID 46630
+    - 脚本不会覆盖已有地址或在未知 nonce 下重复部署
+    - 失败时不自动提升 gas 或无限重播
+  - 停用/回退：错误部署不升级修补：暂停/弃用地址，重新部署并明确迁移。
+  - 证据：待补
+
+- [ ] **IR-001 · 事故响应、停用与迁移演练** — 待排期 / P0 / Critical / M
+  - 目标：为密钥泄露、恶意前端、RPC 欺骗、错误部署、合约漏洞和 testnet reset 建立可执行手册。
+  - 依赖：`CON-002`、`KEY-001`、`OBS-001`
+  - 交付：事故分级与联系人；暂停/前端禁用/安全退出步骤；新地址迁移流程；演练记录
+  - 验收：
+    - 每类事故明确检测、决策者、动作顺序和恢复证据
+    - 演练暂停新入口但保留规范允许的用户退出
+    - 旧地址、前端 manifest 和文档不会静默指向不同代码
+    - 演练后记录时间、缺口和改进任务
+  - 停用/回退：恢复条件未验证前保持停用，不以重新部署等同于资产自动迁移。
+  - 证据：待补
+
+- [ ] **KEY-001 · 测试网部署密钥与角色操作手册** — 待排期 / P0 / Critical / M
+  - 目标：使用低余额、仅测试网、可轮换的部署者，分离部署、暂停与执行角色。
+  - 依赖：`GOV-001`、`SUPPLY-001`、`SEC-002`
+  - 交付：密钥生成/存储/轮换流程；角色地址清单；泄露响应；最小测试 ETH 预算
+  - 验收：
+    - 密钥不进入仓库、终端记录、构建产物或普通浏览器存储
+    - 部署者不能作为日常执行者，角色可撤销或迁移
+    - 泄露、丢失和错误签名演练完成
+    - CI PR 无权读取部署秘密或自动广播
+  - 停用/回退：疑似泄露立即停止广播、撤销角色、轮换地址并更新风险登记。
+  - 证据：待补
+
+- [ ] **VERIFY-001 · 部署来源证明与后部署验收** — 待排期 / P0 / Critical / M
+  - 目标：提交可独立复查的 chainId、地址、区块、交易、部署者、commit、编译参数、ABI/bytecode hash 和源码验证链接。
+  - 依赖：`DEPLOY-001`
+  - 交付：deployment manifest；Blockscout 源码验证；链上 bytecode 比对；存取款/暂停 smoke 报告
+  - 验收：
+    - manifest 字段完整且由工具从交易回执生成
+    - Blockscout 源码、constructor args 和本地构建匹配
+    - 最小存入、分配、提现、暂停和恢复事件/余额核对通过
+    - 失败验收不会把地址暴露给 UI adapter
+  - 停用/回退：验收失败时不接入前端，标记部署为 rejected 并重新部署。
+  - 证据：待补
+
+- [ ] **OBS-001 · 可观测性、告警与隐私化日志** — 待排期 / P1 / High / M
+  - 目标：监控链身份、RPC、失败交易、重组、索引滞后、角色事件和会计对账，不采集秘密。
+  - 依赖：`TX-001`、`INDEX-001`、`VERIFY-001`
+  - 交付：结构化事件与指标；告警阈值；日志脱敏；健康/就绪语义
+  - 验收：
+    - 可区分 RPC 故障、链错误、合约回滚、索引滞后和客户端拒绝
+    - 告警包含操作 ID/tx hash 而非私钥、签名或 RPC 凭据
+    - 关键角色、暂停和异常资金事件触发告警
+    - 健康接口不因进程存活而错误宣称可写
+  - 停用/回退：观测不可用时降级为只读并阻止无人值守写入。
+  - 证据：待补
+
+## P5 · 对抗验收与比赛交付
+
+> 从新环境复现完整流程，交付可独立验证的证据包。
+
+- [ ] **DOC-001 · 安全声明、限制与证据索引** — 就绪 / P1 / Medium / M
+  - 目标：持续维护已实现/未实现、模拟/测试网、已知风险、部署与验证证据，不使用营销措辞替代安全事实。
+  - 依赖：`BASE-001`、`NET-001`、`CI-001`
+  - 交付：security.md；limitations.md；evidence index；架构和恢复说明
+  - 验收：
+    - 每项安全声明可链接到测试、代码、报告或链上证据
+    - 未实现能力和风险接受项醒目标注
+    - 网络、地址和交易链接可独立验证
+    - 文档不包含个人信息、秘密或误导性收益表达
+  - 停用/回退：证据过期或不匹配时撤回声明并将对应 gate 重新打开。
+  - 证据：待补
+
+- [ ] **E2E-001 · 对抗性 Testnet 端到端验收** — 待排期 / P0 / Critical / L
+  - 目标：在测试网验证连接、签名、存入、分配、提现、拒绝、掉线、替换、重组模拟和恢复。
+  - 依赖：`TX-001`、`INDEX-001`、`VERIFY-001`、`OBS-001`
+  - 交付：可重复 E2E 脚本；测试钱包/测试资产准备；失败注入矩阵；交易和对账证据
+  - 验收：
+    - 正向流程从新钱包可复现且每步有浏览器链接
+    - 错误链、拒签、余额不足、RPC 超时、revert 和重复点击均安全
+    - 刷新或进程重启后能从链上恢复而不重复动作
+    - 所有 UI 数值与事件、receipt、合约 view 对账
+  - 停用/回退：任何资金状态不确定时停止 Demo 写入并保留证据调查。
+  - 证据：待补
+
+- [ ] **RELEASE-001 · 最终发布门禁与独立复现** — 待排期 / P0 / Critical / M
+  - 目标：在新环境执行 G0–G4，全量复查安全、来源、部署、恢复和比赛材料后签署测试网提交。
+  - 依赖：`E2E-001`、`DEMO-001`、`SEC-002`、`IR-001`、`SUPPLY-001`
+  - 交付：release checklist；clean-room reproduction；最终风险登记；版本标签与证据包
+  - 验收：
+    - G0–G4 所有检查有最新证据且无人为跳过
+    - 无未接受 Critical/High 风险和未解释门禁失败
+    - 版本标签对应相同源码、ABI、字节码、地址和文档
+    - 明确声明不批准主网或真实资金
+  - 停用/回退：任一 gate 重新打开即撤回候选版本，修复后从受影响门禁重新验证。
+  - 证据：待补
+
+- [ ] **DEMO-001 · 评委演示与恢复流程** — 待排期 / P1 / Medium / M
+  - 目标：构建短、可重复、不隐藏失败状态的评委流程，并包含一次安全拒绝和一次恢复演示。
+  - 依赖：`E2E-001`、`DOC-001`、`IR-001`
+  - 交付：judge walkthrough；演示数据重置；失败/恢复分支；录屏和时间预算
+  - 验收：
+    - 新环境按 README 可在限定时间内跑通
+    - 页面始终显示 Robinhood Chain Testnet、账户、合约和交易状态
+    - 至少演示错误网络或重复操作被拒绝
+    - 演示失败不需要接触主网或私人账户
+  - 停用/回退：测试网不稳定时展示已验证录屏和证据，但不伪造实时成功。
+  - 证据：待补
+
+## 发布门禁
+
+### G0 · 公开基线 — 已通过
+
+- [x] 公开仓库只含比赛所需内容 — `README.md`
+- [x] Robinhood Chain Testnet 参数与 RPC Chain ID 已核对 — `test/robinhood-chain.test.ts`
+- [x] 基础 CI、secret baseline 与依赖审计通过 — `.github/workflows/ci.yml`
+- [x] README 明确模拟与未实现边界 — `README.md`
+
+### G1 · 设计冻结 — 未通过
+
+- [ ] 资产、角色、信任根和升级策略 ADR 获得复核
+- [ ] 会计、权限、签名域、事件和错误规格冻结
+- [ ] Robinhood Chain 专项威胁模型无未接受 Critical 风险
+- [ ] ABI 与 adapter v1 边界冻结
+
+### G2 · 安全验证 — 未通过
+
+- [ ] 合约单元、负向、fuzz、invariant 与差分测试通过
+- [ ] Slither、依赖、license、字节码与覆盖率门禁通过
+- [ ] 所有 Critical/High 发现已修复或由风险负责人书面接受
+- [ ] 独立安全复核完成
+
+### G3 · 测试网发布 — 未通过
+
+- [ ] 低余额专用部署者、参数清单和 dry-run 已复核
+- [ ] 源码验证、地址、交易、区块与构建 provenance 完整
+- [ ] 存入、分配、提现、暂停与恢复 smoke test 通过
+- [ ] RPC、重组、交易替换、告警和事故手册已演练
+
+### G4 · 比赛提交 — 未通过
+
+- [ ] 新环境从干净检出完成安装、测试、部署和演示
+- [ ] 评委流程、恢复路径与已知限制可独立复查
+- [ ] 最终 CI、secret scan 和依赖审计通过
+- [ ] 所有展示数据均标明模拟或测试网属性
+
+## Definition of Ready
+
+- 目标、范围、依赖和信任边界清楚，未决策项已登记。
+- 至少三个可验证验收条件，包含失败关闭或负向场景。
+- 已明确测试方法、证据位置和停用或回滚路径。
+- 所有前置依赖为完成状态，且没有未接受的 Critical/High 阻塞项。
+
+## Definition of Done
+
+- 实现、正向测试、负向测试和边界测试全部通过；关键授权与会计路径分支覆盖 100%。
+- 总体自动化覆盖率达到约定阈值（目标不低于 90%），fuzz/invariant 运行参数与种子可复现。
+- 威胁模型、README、接口和运维文档同步；无未说明的 Critical/High 风险。
+- 从干净检出可复现构建，CI 全绿，依赖、secret、license 与静态分析门禁通过。
+- 至少一次独立复核，并记录提交、报告、哈希、交易或浏览器链接等验收证据。
+- feature flag、暂停、降级、迁移或停用路径已演练，不把“可升级”误当作回滚。

@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; font-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="QuantPass Robinhood Chain Testnet 工程安全任务看板">
+  <title>QuantPass · 工程安全看板</title>
+  <link rel="stylesheet" href="./task-board.css">
+  <script src="./task-board.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <div class="shell">
+    <aside class="sidebar" aria-label="看板导航">
+      <div class="brand"><span aria-hidden="true">QP</span><div>QuantPass<small>工程安全看板</small></div></div>
+      <nav><a href="#phase-P0"><span>P0</span>已验证基线</a><a href="#phase-P1"><span>P1</span>治理、威胁模型与规格</a><a href="#phase-P2"><span>P2</span>合约实现与安全验证</a><a href="#phase-P3"><span>P3</span>钱包、适配器与链数据</a><a href="#phase-P4"><span>P4</span>部署、供应链与运维</a><a href="#phase-P5"><span>P5</span>对抗验收与比赛交付</a><a href="#gates"><span>G</span>发布门禁</a><a href="#standards"><span>D</span>完成定义</a></nav>
+      <div class="side-note"><strong>Robinhood Chain Testnet</strong><span>Chain ID 46630</span><span>仅测试网 · 主网硬关闭</span></div>
+    </aside>
+    <main id="main">
+      <header class="topbar"><div><span class="crumb">QuantPass / Security Engineering</span><span class="updated">计划 v2.0 · 2026-09-06</span></div><a href="./TASK-BOARD.md">查看 Markdown 看板</a></header>
+      <section class="hero" aria-labelledby="hero-title">
+        <div><p class="eyebrow">ROBINHOOD CHAIN TESTNET · ENGINEERING PLAN</p><h1 id="hero-title">用证据推进，而不是用进度制造安全感。</h1><p>仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金和自动交易。</p></div>
+        <div class="network-seal"><span>目标网络</span><strong>46630</strong><small>0xb626</small></div>
+      </section>
+      <section class="metrics" aria-label="计划统计">
+        <article><span>全部任务</span><strong>40</strong><small>六个工程阶段</small></article>
+        <article><span>已完成基线</span><strong>6</strong><small>不等于生产认证</small></article>
+        <article><span>当前 WIP</span><strong>1</strong><small>强制单任务推进</small></article>
+        <article class="danger"><span>未关闭高风险</span><strong>32</strong><small>Critical + High</small></article>
+      </section>
+      <section class="boundary" aria-labelledby="boundary-title"><div><span aria-hidden="true">!</span><h2 id="boundary-title">当前仍是安全隔离的本地原型</h2></div><p>测试网交易 adapter、合约、持久信任根与链上资产证明尚未完成。任何看板状态都不得解释为已获真实资金或主网批准。</p></section>
+      <section class="focus" aria-labelledby="focus-title"><div><span>唯一进行中</span><code>GOV-001</code></div><div><h2 id="focus-title">冻结测试网范围、角色与架构 ADR</h2><p>明确 MVP 是否非托管、支持资产、角色权限、升级策略、暂停与安全退出，并绘制链上/链下信任边界。</p></div><a href="#task-GOV-001" data-focus-link>查看验收标准</a></section>
+      <section class="controls" aria-label="看板筛选">
+        <label><span>搜索</span><input id="task-search" type="search" placeholder="任务、ID、验收或依赖" autocomplete="off"></label>
+        <label><span>阶段</span><select id="phase-filter"><option value="all">全部阶段</option><option value="P0">P0 · 已验证基线</option><option value="P1">P1 · 治理、威胁模型与规格</option><option value="P2">P2 · 合约实现与安全验证</option><option value="P3">P3 · 钱包、适配器与链数据</option><option value="P4">P4 · 部署、供应链与运维</option><option value="P5">P5 · 对抗验收与比赛交付</option></select></label>
+        <label><span>状态</span><select id="status-filter"><option value="all">全部状态</option><option value="done">已完成</option><option value="in_progress">进行中</option><option value="ready">就绪</option><option value="review">评审中</option><option value="blocked">阻塞</option><option value="backlog">待排期</option></select></label>
+        <label><span>风险</span><select id="risk-filter"><option value="all">全部风险</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+        <button id="reset-filter" type="button">重置筛选</button>
+        <p id="filter-status" role="status" aria-live="polite">显示 40 个任务</p>
+      </section>
+      <div id="task-board"><section class="phase" id="phase-P0" data-phase-section>
+  <div class="section-head"><div><span class="phase-id">P0</span><h2>已验证基线</h2></div><p>保留已有可复现证据，同时明确它们不是生产认证。</p></div>
+  <div class="task-grid"><article class="task-card status-done risk-border-critical" data-task data-status="done" data-risk="critical" data-phase="P0">
+  <div class="task-head"><div><span class="task-id">LEDGER-001</span><span class="status status-done">已完成</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>精确会计与幂等账本基线</h3>
+  <p class="task-summary">本地状态机使用整数金额、显式余额分区、乐观版本和持久回执验证资金不变量。</p>
+  <div class="dependency"><strong>依赖</strong><code>BASE-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>纯状态转换</li><li>SQLite 原子提交与摘要</li><li>确定性和重启测试</li></ul>
+      <h4>验收标准</h4><ol><li>金额拒绝浮点、指数和越界输入</li><li>重复命令不重复记账，冲突版本不覆盖状态</li><li>账本重启、备份和损坏场景失败关闭</li></ol>
+      <h4>停用 / 回退</h4><p>本基线仅用于模型验证；链上实现不一致时停用 adapter，不迁移真实状态。</p>
+      <h4>证据</h4><ul><li><code>packages/domain/src/vault.ts</code></li><li><code>apps/server/src/store.ts</code></li><li><code>test/domain.test.ts</code></li><li><code>test/server.test.ts</code></li></ul>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-done risk-border-critical" data-task data-status="done" data-risk="critical" data-phase="P0">
+  <div class="task-head"><div><span class="task-id">PERMIT-001</span><span class="status status-done">已完成</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>离线交易许可安全模型基线</h3>
+  <p class="task-summary">验证 Ed25519 签名、策略版本绑定、短时 trade-only 权限、风控限制和基础 nonce 重放保护。该模型尚不可直接上链。</p>
+  <div class="dependency"><strong>依赖</strong><code>BASE-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>规范化签名载荷</li><li>短时执行许可</li><li>风控与篡改负向测试</li></ul>
+      <h4>验收标准</h4><ol><li>许可不包含提现或转账权限</li><li>策略、政策、账户和时间窗口不匹配时拒绝</li><li>重放、篡改、仓位和亏损限额均有负向测试</li></ol>
+      <h4>停用 / 回退</h4><p>该模型保持研究/本地用途，直至 TRUST-001 完成链域与持久信任根设计。</p>
+      <h4>证据</h4><ul><li><code>src/security-model/index.ts</code></li><li><code>test/security-model.test.ts</code></li></ul>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-done risk-border-high" data-task data-status="done" data-risk="high" data-phase="P0">
+  <div class="task-head"><div><span class="task-id">NET-001</span><span class="status status-done">已完成</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-high">High</span><span class="tag size">S</span></div></div>
+  <h3>Robinhood Chain Testnet 网络门禁基线</h3>
+  <p class="task-summary">固定 Chain ID 46630、官方 HTTPS RPC 与浏览器，并拒绝错误网络或带凭据 URL。</p>
+  <div class="dependency"><strong>依赖</strong><code>BASE-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>网络常量</li><li>配置校验工具</li><li>正负测试与官方来源文档</li></ul>
+      <h4>验收标准</h4><ol><li>配置、钱包和 RPC 预期 Chain ID 均为 46630</li><li>HTTP、错误链和嵌入凭据的 URL 被拒绝</li><li>运行检查不输出 URL 查询参数或凭据</li></ol>
+      <h4>停用 / 回退</h4><p>端点异常或链身份不一致时关闭全部链写入并回退到本地模拟。</p>
+      <h4>证据</h4><ul><li><code>packages/robinhood-chain/src/network.ts</code></li><li><code>test/robinhood-chain.test.ts</code></li><li><code>docs/ROBINHOOD-CHAIN.md</code></li></ul>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-done risk-border-high" data-task data-status="done" data-risk="high" data-phase="P0">
+  <div class="task-head"><div><span class="task-id">CI-001</span><span class="status status-done">已完成</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-high">High</span><span class="tag size">S</span></div></div>
+  <h3>基础工程门禁</h3>
+  <p class="task-summary">固定 Node/npm 范围、锁定依赖、禁用生命周期脚本，并执行类型、lint、测试、secret、配置、构建和高危依赖审计。</p>
+  <div class="dependency"><strong>依赖</strong><code>BASE-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>最小权限 CI</li><li>依赖锁和版本门禁</li><li>secret 与依赖审计</li></ul>
+      <h4>验收标准</h4><ol><li>干净检出可运行完整 check</li><li>GitHub Actions 使用固定 commit 且无写权限</li><li>高危依赖或潜在秘密导致失败</li></ol>
+      <h4>停用 / 回退</h4><p>门禁不可用时禁止合并，不以手工成功替代自动证据。</p>
+      <h4>证据</h4><ul><li><code>.github/workflows/ci.yml</code></li><li><code>package-lock.json</code></li><li><code>tools/check-secrets.mjs</code></li></ul>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-done risk-border-high" data-task data-status="done" data-risk="high" data-phase="P0">
+  <div class="task-head"><div><span class="task-id">LOCAL-001</span><span class="status status-done">已完成</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-high">High</span><span class="tag size">M</span></div></div>
+  <h3>本地演示 HTTP 安全边界基线</h3>
+  <p class="task-summary">本地服务限制 loopback、同源、严格 Cookie、请求大小、速率和非敏感错误，仅作为模拟环境。</p>
+  <div class="dependency"><strong>依赖</strong><code>LEDGER-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>loopback-only 服务</li><li>同源与请求校验</li><li>HTTP 崩溃恢复 E2E</li></ul>
+      <h4>验收标准</h4><ol><li>非 loopback origin 无法启动</li><li>跨用户、跨源、未认证与畸形请求被拒绝</li><li>服务错误不泄露 SQL、文件路径或内部细节</li></ol>
+      <h4>停用 / 回退</h4><p>任何非本地运行需求必须走新生产边界，不放宽本地门禁。</p>
+      <h4>证据</h4><ul><li><code>apps/server/src/app.ts</code></li><li><code>test/server.test.ts</code></li><li><code>test/http-e2e.test.ts</code></li></ul>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-done risk-border-medium" data-task data-status="done" data-risk="medium" data-phase="P0">
+  <div class="task-head"><div><span class="task-id">BASE-001</span><span class="status status-done">已完成</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-medium">Medium</span><span class="tag size">S</span></div></div>
+  <h3>比赛公开仓库精简基线</h3>
+  <p class="task-summary">使用无私有历史的新提交，只公开运行代码、测试、CI 与比赛文档。</p>
+  <div class="dependency"><strong>依赖</strong><span>无</span></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>公开仓库说明与边界</li><li>忽略规则和示例配置</li><li>可复现初始提交</li></ul>
+      <h4>验收标准</h4><ol><li>仓库为 PUBLIC 且默认分支为 master</li><li>不存在内部评审记录、私有证据或本地环境文件</li><li>README 明确当前能力边界</li></ol>
+      <h4>停用 / 回退</h4><p>发现敏感内容时立即停止发布、轮换受影响凭据并重写公开历史。</p>
+      <h4>证据</h4><ul><li><code>README.md</code></li><li><code>.gitignore</code></li><li><code>commit 621a433</code></li></ul>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article></div>
+</section><section class="phase" id="phase-P1" data-phase-section>
+  <div class="section-head"><div><span class="phase-id">P1</span><h2>治理、威胁模型与规格</h2></div><p>先冻结资产、权限、会计和信任边界，再开始合约实现。</p></div>
+  <div class="task-grid"><article class="task-card status-in_progress risk-border-critical" id="task-GOV-001" data-task data-status="in_progress" data-risk="critical" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">GOV-001</span><span class="status status-in_progress">进行中</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>冻结测试网范围、角色与架构 ADR</h3>
+  <p class="task-summary">明确 MVP 是否非托管、支持资产、角色权限、升级策略、暂停与安全退出，并绘制链上/链下信任边界。</p>
+  <div class="dependency"><strong>依赖</strong><code>NET-001</code> <code>LEDGER-001</code> <code>PERMIT-001</code> <code>LOCAL-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>架构与数据流图</li><li>角色/能力矩阵</li><li>资产与禁止项 ADR</li><li>不可升级优先及迁移策略</li></ul>
+      <h4>验收标准</h4><ol><li>用户、策略、风险签名者、执行者、暂停者和部署者权限互斥且最小化</li><li>明确支持 token、decimals、fee-on-transfer/rebasing 等拒绝策略</li><li>禁止任意 call/delegatecall、主网和真实资金路径</li><li>独立复核者能指出每个秘密、签名、资产和管理员边界</li></ol>
+      <h4>停用 / 回退</h4><p>ADR 未通过前保持 local mock，禁止引入 testnet 写 adapter。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-ready risk-border-high" data-task data-status="ready" data-risk="high" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">TOOL-001</span><span class="status status-ready">就绪</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-high">High</span><span class="tag size">S</span></div></div>
+  <h3>固定 Solidity 与安全工具链</h3>
+  <p class="task-summary">选定并固定 Foundry、solc、OpenZeppelin、Slither 与格式化版本，不使用浮动 latest。</p>
+  <div class="dependency"><strong>依赖</strong><code>CI-001</code> <code>NET-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>工具版本文件</li><li>最小 Foundry 工程</li><li>依赖许可与哈希记录</li><li>CI 缓存与权限说明</li></ul>
+      <h4>验收标准</h4><ol><li>干净环境可安装固定版本并重建相同字节码</li><li>依赖仅来自官方来源且许可证兼容</li><li>CI 不执行未审查的安装脚本或浮动 Action</li></ol>
+      <h4>停用 / 回退</h4><p>工具链升级单独提交；字节码变化必须解释，否则回退到已固定版本。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-ready risk-border-high" data-task data-status="ready" data-risk="high" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">SUPPLY-001</span><span class="status status-ready">就绪</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-high">High</span><span class="tag size">M</span></div></div>
+  <h3>强化仓库与供应链策略</h3>
+  <p class="task-summary">补齐 master 保护、Dependabot、安全更新、SBOM、license 和构建来源控制。</p>
+  <div class="dependency"><strong>依赖</strong><code>CI-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>分支保护与 required checks</li><li>Dependabot 与 CodeQL 配置</li><li>SBOM/license 报告</li><li>锁文件与 Action 更新策略</li></ul>
+      <h4>验收标准</h4><ol><li>master 禁止未通过 required checks 的直接更新</li><li>依赖漏洞告警、安全更新和 CodeQL 启用且有处置 SLA</li><li>发布生成 SBOM 并拒绝不兼容许可证</li><li>Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review</li></ol>
+      <h4>停用 / 回退</h4><p>供应链门禁故障时冻结依赖更新与发布，不临时关闭所有检查。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">ASSET-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>测试资产与外部协议地址核验</h3>
+  <p class="task-summary">核验 Robinhood Chain Testnet 上计划使用资产和协议的官方来源、地址、bytecode、decimals、代理关系与异常行为。</p>
+  <div class="dependency"><strong>依赖</strong><code>GOV-001</code> <code>THREAT-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>chain-specific 资产清单</li><li>地址与 runtime bytecode hash</li><li>decimals/行为探测</li><li>mock token 命名与隔离规则</li></ul>
+      <h4>验收标准</h4><ol><li>每个地址至少由官方来源与链上 bytecode 双重核对</li><li>不按 symbol 猜测 token，明确 decimals、代理实现和升级风险</li><li>没有权威测试资产时只部署醒目标记、不可混淆的 Mock</li><li>未知、空代码、地址变化或异常 ERC-20 行为阻止 adapter 写入</li></ol>
+      <h4>停用 / 回退</h4><p>资产身份或行为无法验证时从 allowlist 移除并关闭相关功能。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">CONFIG-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">S</span></div></div>
+  <h3>独立且失败关闭的 Testnet 启动门禁</h3>
+  <p class="task-summary">在保留 local mock 默认值的同时，新建显式 testnet adapter 配置；任何缺失或不一致都阻止写入。</p>
+  <div class="dependency"><strong>依赖</strong><code>GOV-001</code> <code>THREAT-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>区分 local/testnet 的判别联合配置</li><li>三方 Chain ID 校验</li><li>主网硬关闭与 feature flag</li></ul>
+      <h4>验收标准</h4><ol><li>默认启动仍为 local mock</li><li>配置、钱包与 RPC 任一不为 46630 时写操作不可达</li><li>生产/mainnet 字符串、错误合约地址和空地址均有失败测试</li></ol>
+      <h4>停用 / 回退</h4><p>关闭唯一 testnet feature flag 即恢复只读或本地模拟。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">PRIV-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>消除 Demo 用户到 Executor 的隐式提权</h3>
+  <p class="task-summary">当前模拟路由会按命令类型自动映射 executor；生产边界必须将用户意图与受信执行结果彻底分离。</p>
+  <div class="dependency"><strong>依赖</strong><code>GOV-001</code> <code>THREAT-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>用户命令/执行者回执分离接口</li><li>服务身份验证</li><li>权限矩阵负向测试</li></ul>
+      <h4>验收标准</h4><ol><li>普通用户不能直接触发 fill、mark、settle、confirm 或 fee payment</li><li>executor 消息具有来源认证、nonce 和授权范围</li><li>演示快捷路径只能在编译/运行时 local-only 边界内存在</li></ol>
+      <h4>停用 / 回退</h4><p>若服务身份不可验证，暂停执行者入口但保留用户只读与安全退出。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">SPEC-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">L</span></div></div>
+  <h3>链上会计、资产与舍入规格</h3>
+  <p class="task-summary">将本地 USD-micros 模型转化为明确的链上资产单位、不变量和异常 token 策略。</p>
+  <div class="dependency"><strong>依赖</strong><code>GOV-001</code> <code>THREAT-001</code> <code>TOOL-001</code> <code>ASSET-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>状态变量与单位表</li><li>存入/分配/提现/费用状态机</li><li>舍入与精度策略</li><li>会计不变量清单</li></ul>
+      <h4>验收标准</h4><ol><li>每种资产的 decimals 与最小单位显式定义且不猜测</li><li>总资产、负债、待提取、费用和策略额度在每次转换后守恒</li><li>拒绝或专门处理 fee-on-transfer、rebasing、回调和非标准返回 token</li><li>零值、最大值、舍入尘埃、暂停和紧急退出有规范</li></ol>
+      <h4>停用 / 回退</h4><p>规格不闭合时缩减到单一明确测试资产，不用兼容分支掩盖不确定性。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">SPEC-002</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>权限、事件、错误与重放规格</h3>
+  <p class="task-summary">为每个外部函数定义调用者、前置条件、状态变化、事件、错误和重放语义。</p>
+  <div class="dependency"><strong>依赖</strong><code>GOV-001</code> <code>THREAT-001</code> <code>TRUST-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>函数权限矩阵</li><li>事件/错误目录</li><li>nonce/deadline 规则</li><li>暂停与恢复状态机</li></ul>
+      <h4>验收标准</h4><ol><li>所有状态写入都有明确角色和自定义错误</li><li>事件足以独立重建关键状态且不记录秘密</li><li>跨链、跨合约、跨账户和过期签名不能重放</li><li>暂停不锁死合法提现或指定安全退出</li></ol>
+      <h4>停用 / 回退</h4><p>存在未定义权限或重放语义时不冻结 ABI。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">THREAT-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>Robinhood Chain 专项威胁模型与风险登记</h3>
+  <p class="task-summary">覆盖合约、钱包、RPC、前端、签名者、部署供应链、重组、管理员和事故场景。</p>
+  <div class="dependency"><strong>依赖</strong><code>GOV-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>资产/攻击者/入口清单</li><li>STRIDE/滥用场景</li><li>风险负责人、缓解和接受记录</li></ul>
+      <h4>验收标准</h4><ol><li>覆盖授权绕过、重入、重放、恶意 token、RPC 欺骗、前端替换和密钥泄露</li><li>每个 Critical/High 风险有负责人、缓解任务和截止门禁</li><li>威胁模型与实际数据流、ABI 和角色一致</li></ol>
+      <h4>停用 / 回退</h4><p>出现未接受 Critical 风险时停止后续实现或撤回相关范围。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">TRUST-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">L</span></div></div>
+  <h3>信任根、签名域与持久重放模型</h3>
+  <p class="task-summary">把调用者可注入的 key/release/snapshot 改为受控信任根，并让授权精确绑定链、合约、账户与 calldata。</p>
+  <div class="dependency"><strong>依赖</strong><code>GOV-001</code> <code>THREAT-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>EIP-712 domain 与 schema</li><li>密钥来源/轮换/撤销模型</li><li>原子持久 nonce store</li><li>可信账户快照来源</li></ul>
+      <h4>验收标准</h4><ol><li>签名绑定 chainId、verifyingContract、wallet、nonce、deadline 和 calldata hash</li><li>调用者不能替换 trusted release、public key 或账户快照来源</li><li>进程重启、并发和跨实例下重放仍被拒绝</li><li>密钥轮换与撤销不破坏安全退出</li></ol>
+      <h4>停用 / 回退</h4><p>信任根不可用时不签发新许可，只允许读取与已授权安全退出。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-high" data-task data-status="backlog" data-risk="high" data-phase="P1">
+  <div class="task-head"><div><span class="task-id">ABI-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-high">High</span><span class="tag size">M</span></div></div>
+  <h3>冻结 Vault v1 ABI 与 Adapter 边界</h3>
+  <p class="task-summary">定义最小读写接口、事件映射和本地/测试网 adapter 端口，不让 UI 依赖合约内部布局。</p>
+  <div class="dependency"><strong>依赖</strong><code>SPEC-001</code> <code>SPEC-002</code> <code>CONFIG-001</code> <code>PRIV-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>Solidity interface</li><li>TypeScript 判别联合端口</li><li>事件到领域状态映射</li><li>ABI hash</li></ul>
+      <h4>验收标准</h4><ol><li>接口只暴露必要存入、分配、提现、安全退出和状态读取能力</li><li>local 与 testnet adapter 共享语义但不能混用配置</li><li>ABI 变更由版本和兼容测试管理</li><li>UI 不直接拼装任意 calldata</li></ol>
+      <h4>停用 / 回退</h4><p>ABI 冻结后破坏性变更使用新版本和新部署地址，不静默替换。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article></div>
+</section><section class="phase" id="phase-P2" data-phase-section>
+  <div class="section-head"><div><span class="phase-id">P2</span><h2>合约实现与安全验证</h2></div><p>用测试、fuzz、invariant、静态分析和独立复核证明最小合约。</p></div>
+  <div class="task-grid"><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P2">
+  <div class="task-head"><div><span class="task-id">CON-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">L</span></div></div>
+  <h3>实现最小非托管 Vault 合约</h3>
+  <p class="task-summary">按冻结规格实现最小资产托管/额度边界，不包含任意外部执行或未经证明的策略逻辑。</p>
+  <div class="dependency"><strong>依赖</strong><code>ABI-001</code> <code>TOOL-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>Vault 合约</li><li>接口与事件</li><li>NatSpec 与状态不变量注释</li></ul>
+      <h4>验收标准</h4><ol><li>实现与冻结 ABI、会计规格逐项对应</li><li>使用 checks-effects-interactions 和显式 SafeERC20 边界</li><li>所有外部写函数具备授权、暂停与重入分析</li><li>不包含任意 call、delegatecall 或可注入实现地址</li></ol>
+      <h4>停用 / 回退</h4><p>合约不可升级；问题版本暂停新入口并迁移到重新部署的地址。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P2">
+  <div class="task-head"><div><span class="task-id">CON-002</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>实现最小权限、暂停与安全退出</h3>
+  <p class="task-summary">把管理员、暂停者、执行者和用户能力落实为最小角色，并确保事故时不会永久锁定退出。</p>
+  <div class="dependency"><strong>依赖</strong><code>CON-001</code> <code>SPEC-002</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>角色控制</li><li>暂停矩阵</li><li>紧急退出路径</li><li>角色转移/撤销流程</li></ul>
+      <h4>验收标准</h4><ol><li>任何单一策略或执行者都无提现/任意转账权</li><li>暂停时禁止新增风险但保留规范定义的安全退出</li><li>角色变更有双步骤或明确确认、事件和负向测试</li><li>零地址、角色丢失和重复撤销场景可恢复</li></ol>
+      <h4>停用 / 回退</h4><p>角色异常时先暂停新增风险，按演练流程撤销或迁移，不升级原合约。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P2">
+  <div class="task-head"><div><span class="task-id">SEC-002</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>静态分析、字节码复现与独立安全复核</h3>
+  <p class="task-summary">运行 Slither 和编译器门禁，核对 ABI/字节码/存储布局，并由非实现者复核高风险路径。</p>
+  <div class="dependency"><strong>依赖</strong><code>TST-001</code> <code>TST-002</code> <code>SUPPLY-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>静态分析报告</li><li>可复现字节码 manifest</li><li>安全审查清单</li><li>风险接受记录</li></ul>
+      <h4>验收标准</h4><ol><li>无未处置 High/Critical 静态分析发现</li><li>相同 commit 与编译参数生成相同 ABI 和字节码 hash</li><li>独立复核覆盖授权、会计、重入、签名、暂停和退出</li><li>例外均记录理由、负责人和失效时间</li></ol>
+      <h4>停用 / 回退</h4><p>复核失败或字节码不一致时不得部署。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P2">
+  <div class="task-head"><div><span class="task-id">TST-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">L</span></div></div>
+  <h3>合约单元、负向与权限测试</h3>
+  <p class="task-summary">逐函数覆盖成功、拒绝、边界、重入、恶意 token、角色和暂停场景。</p>
+  <div class="dependency"><strong>依赖</strong><code>CON-001</code> <code>CON-002</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>Foundry 单元测试</li><li>恶意 token/接收者夹具</li><li>覆盖率报告</li></ul>
+      <h4>验收标准</h4><ol><li>关键授权和会计路径分支覆盖 100%，总体目标不低于 90%</li><li>未授权、错误状态、零/最大值、重入与异常 token 均失败关闭</li><li>每个公开自定义错误和关键事件都有断言</li><li>测试不依赖公共 RPC 或时间不稳定外部状态</li></ol>
+      <h4>停用 / 回退</h4><p>覆盖率或负向测试下降时阻止合并。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P2">
+  <div class="task-head"><div><span class="task-id">TST-002</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">L</span></div></div>
+  <h3>Fuzz、Invariant 与模型差分验证</h3>
+  <p class="task-summary">对随机操作序列验证资产守恒、权限、重放和退出活性，并与 TypeScript 参考模型差分。</p>
+  <div class="dependency"><strong>依赖</strong><code>TST-001</code> <code>LEDGER-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>stateful invariant handler</li><li>固定种子与运行预算</li><li>TS/Solidity 差分夹具</li><li>失败最小化样例</li></ul>
+      <h4>验收标准</h4><ol><li>资产守恒、负债覆盖、额度上限和无重复支付不变量持续成立</li><li>暂停、角色变更、失败 token 与随机顺序均纳入生成</li><li>失败可用种子和命令序列稳定复现</li><li>CI 运行短预算，发布门禁运行长预算并保存报告</li></ol>
+      <h4>停用 / 回退</h4><p>任何无法解释的 invariant 失败冻结 ABI 和部署。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article></div>
+</section><section class="phase" id="phase-P3" data-phase-section>
+  <div class="section-head"><div><span class="phase-id">P3</span><h2>钱包、适配器与链数据</h2></div><p>所有链交互显式、可恢复、可核对，并在错误网络上失败关闭。</p></div>
+  <div class="task-grid"><article class="task-card status-ready risk-border-high" data-task data-status="ready" data-risk="high" data-phase="P3">
+  <div class="task-head"><div><span class="task-id">DATA-001</span><span class="status status-ready">就绪</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-high">High</span><span class="tag size">M</span></div></div>
+  <h3>持久状态、审计与资源上限</h3>
+  <p class="task-summary">拆分快照、回执和追加审计事件，限制 map/history/payload 增长，并定义防损坏与防篡改的不同保证。</p>
+  <div class="dependency"><strong>依赖</strong><code>LEDGER-001</code> <code>CI-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>数据保留与分页策略</li><li>容量/并发/恢复测试</li><li>审计完整性语义</li><li>RPO/RTO 演练</li></ul>
+      <h4>验收标准</h4><ol><li>状态、回执、事件和输入都有硬上限与分页，不随历史无限重写</li><li>普通 SHA 摘要只声明检测损坏，不被描述为对抗性防篡改</li><li>并发、长历史、大输入和磁盘故障测试保持资源有界</li><li>恢复演练验证备份一致性、RPO、RTO 和不可覆盖策略</li></ol>
+      <h4>停用 / 回退</h4><p>容量或完整性无法保证时切换只读并保留原始证据，不自动截断资金记录。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-ready risk-border-high" data-task data-status="ready" data-risk="high" data-phase="P3">
+  <div class="task-head"><div><span class="task-id">RPC-001</span><span class="status status-ready">就绪</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-high">High</span><span class="tag size">M</span></div></div>
+  <h3>RPC 身份、限流与故障策略</h3>
+  <p class="task-summary">定义公共 RPC 仅用于开发的容量边界、超时、退避、熔断、健康检查和可信度模型。</p>
+  <div class="dependency"><strong>依赖</strong><code>NET-001</code> <code>CI-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>RPC client policy</li><li>eth_chainId/bytecode 健康检查</li><li>429/5xx/timeout 策略</li><li>观测指标</li></ul>
+      <h4>验收标准</h4><ol><li>每次写入前验证 chainId，关键读取可交叉核对</li><li>指数退避带抖动且有总时间预算，不无限重试</li><li>RPC 故障时 UI 显示过期/未知而非成功</li><li>日志不记录带 API key 的完整 URL</li></ol>
+      <h4>停用 / 回退</h4><p>全部端点不可信时切换只读/离线状态并阻止广播。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-ready risk-border-high" data-task data-status="ready" data-risk="high" data-phase="P3">
+  <div class="task-head"><div><span class="task-id">WEBSEC-001</span><span class="status status-ready">就绪</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-high">High</span><span class="tag size">M</span></div></div>
+  <h3>浏览器与前端供应链安全</h3>
+  <p class="task-summary">为钱包 UI 建立 CSP、依赖边界、地址校验、抗注入和敏感数据禁存规则。</p>
+  <div class="dependency"><strong>依赖</strong><code>LOCAL-001</code> <code>CI-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>生产 CSP</li><li>前端威胁测试</li><li>地址与金额确认组件</li><li>第三方脚本清单</li></ul>
+      <h4>验收标准</h4><ol><li>无未审查远程脚本、eval、危险 HTML 注入或隐式分析代码</li><li>地址、金额、链和合约在签名前以不可混淆格式显示</li><li>私钥、签名、完整 RPC 凭据不进入 localStorage、日志或错误上报</li><li>CSP、点击劫持、跨源和依赖篡改有自动检查</li></ol>
+      <h4>停用 / 回退</h4><p>前端完整性不确定时下线写入口，链上资产仍可通过独立安全退出工具访问。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P3">
+  <div class="task-head"><div><span class="task-id">TX-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">L</span></div></div>
+  <h3>交易生命周期、替换与重组恢复</h3>
+  <p class="task-summary">用持久客户端操作 ID 管理预模拟、签名、广播、替换、确认、掉落、重组和重试。</p>
+  <div class="dependency"><strong>依赖</strong><code>ADAPTER-001</code> <code>TRUST-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>交易状态机</li><li>操作 ID 与 tx hash 映射</li><li>确认/重组策略</li><li>恢复 UI</li></ul>
+      <h4>验收标准</h4><ol><li>刷新、断网和重复点击不会导致重复经济动作</li><li>replacement、dropped、reverted、timeout 与 reorg 有确定状态和恢复步骤</li><li>达到明确确认深度后才显示最终完成</li><li>浏览器链接与 receipt、事件、账户变化一致</li></ol>
+      <h4>停用 / 回退</h4><p>状态不确定时冻结新动作，只允许按原操作 ID 对账或重试。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-high" data-task data-status="backlog" data-risk="high" data-phase="P3">
+  <div class="task-head"><div><span class="task-id">ADAPTER-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-high">High</span><span class="tag size">L</span></div></div>
+  <h3>实现类型安全的只读与写入 Adapter</h3>
+  <p class="task-summary">由固定 ABI 和地址构造调用，读取先于写入，禁止 UI 任意拼装目标与 calldata。</p>
+  <div class="dependency"><strong>依赖</strong><code>ABI-001</code> <code>CON-002</code> <code>WALLET-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>read adapter</li><li>write adapter</li><li>地址/ABI hash manifest</li><li>领域错误映射</li></ul>
+      <h4>验收标准</h4><ol><li>所有地址由 chain-specific manifest 加载并校验 bytecode</li><li>写入前模拟调用并展示资产、金额、目标和预期变化</li><li>错误、超时和用户拒绝不会被当作成功</li><li>local/testnet adapter 通过相同契约测试</li></ol>
+      <h4>停用 / 回退</h4><p>manifest 或 bytecode 不匹配时禁用写入并显示可诊断错误。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-high" data-task data-status="backlog" data-risk="high" data-phase="P3">
+  <div class="task-head"><div><span class="task-id">WALLET-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-high">High</span><span class="tag size">M</span></div></div>
+  <h3>钱包连接与显式网络切换</h3>
+  <p class="task-summary">实现 EIP-1193 连接、添加/切换 Robinhood Chain Testnet，并正确处理账户和链变化。</p>
+  <div class="dependency"><strong>依赖</strong><code>ABI-001</code> <code>CONFIG-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>连接状态机</li><li>wallet_add/switchEthereumChain 流程</li><li>accountsChanged/chainChanged/disconnect 处理</li></ul>
+      <h4>验收标准</h4><ol><li>未连接、拒绝连接、错误链、切换失败和断开均有明确状态</li><li>每次签名前重新核对账户与 Chain ID 46630</li><li>页面永久展示 Testnet 且不自动请求签名</li><li>不把账户地址当作认证会话</li></ol>
+      <h4>停用 / 回退</h4><p>关闭 testnet adapter 后钱包仅可断开和只读，不保留隐式重连写状态。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-high" data-task data-status="backlog" data-risk="high" data-phase="P3">
+  <div class="task-head"><div><span class="task-id">BACKEND-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-high">High</span><span class="tag size">M</span></div></div>
+  <h3>隔离 Testnet 后端身份与 Demo 会话</h3>
+  <p class="task-summary">若测试网路径需要后端，必须使用钱包签名身份、持久 nonce、TLS 与分布式防护；演示身份绝不复用。若无需后端则用 ADR 明确关闭。</p>
+  <div class="dependency"><strong>依赖</strong><code>GOV-001</code> <code>TRUST-001</code> <code>CONFIG-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>后端必要性 ADR</li><li>SIWE/等价登录协议</li><li>会话与 CSRF/限流策略</li><li>Demo/测试网代码隔离测试</li></ul>
+      <h4>验收标准</h4><ol><li>alice/bob 演示身份无法访问任何测试网写路径</li><li>登录签名绑定 domain、nonce、URI、chainId、issuedAt 和 expiration</li><li>生产会话使用 Secure/HttpOnly/SameSite、持久撤销和分布式限流</li><li>若选择无后端架构，服务器无法获得代表用户签名的能力</li></ol>
+      <h4>停用 / 回退</h4><p>身份或会话系统异常时撤销会话并禁用后端写路径，不降级到 Demo 认证。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-high" data-task data-status="backlog" data-risk="high" data-phase="P3">
+  <div class="task-head"><div><span class="task-id">INDEX-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-high">High</span><span class="tag size">L</span></div></div>
+  <h3>幂等事件索引与链重组处理</h3>
+  <p class="task-summary">使用 block hash、log index 和确认水位构建可回退重放的索引，不把 RPC 单次响应当最终事实。</p>
+  <div class="dependency"><strong>依赖</strong><code>CON-001</code> <code>SPEC-002</code> <code>RPC-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>事件游标与唯一键</li><li>reorg rewind/replay</li><li>链上读取对账</li><li>RPC 限流退避</li></ul>
+      <h4>验收标准</h4><ol><li>重复日志和进程重启不重复记账</li><li>检测 block hash 变化并回退到安全水位重放</li><li>索引状态定期与合约 view 对账</li><li>RPC 429、超时和部分响应不产生伪完成</li></ol>
+      <h4>停用 / 回退</h4><p>索引不一致时标记数据过期并重建，不允许驱动资金写入。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article></div>
+</section><section class="phase" id="phase-P4" data-phase-section>
+  <div class="section-head"><div><span class="phase-id">P4</span><h2>部署、供应链与运维</h2></div><p>建立可重建发布、最小密钥暴露、监控和事故恢复能力。</p></div>
+  <div class="task-grid"><article class="task-card status-ready risk-border-high" data-task data-status="ready" data-risk="high" data-phase="P4">
+  <div class="task-head"><div><span class="task-id">SECRET-001</span><span class="status status-ready">就绪</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-high">High</span><span class="tag size">S</span></div></div>
+  <h3>完整历史秘密扫描与轮换演练</h3>
+  <p class="task-summary">在现有基线之上增加 Git 历史、EVM 裸私钥、助记词、二进制与常见 provider 凭据扫描，并演练撤销。</p>
+  <div class="dependency"><strong>依赖</strong><code>CI-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>gitleaks/等价规则与基线</li><li>历史和构建产物扫描</li><li>误报治理</li><li>撤销/轮换演练记录</li></ul>
+      <h4>验收标准</h4><ol><li>当前工作树、完整 Git 历史和发布产物均被扫描</li><li>覆盖 64 位 EVM 私钥、助记词和主要 provider token 模式</li><li>GitHub push protection 保持启用且 CI 失败时不打印秘密值</li><li>测试凭据泄露演练能完成撤销、轮换和影响范围确认</li></ol>
+      <h4>停用 / 回退</h4><p>疑似秘密立即视为已泄露并轮换；删除文件不等同于完成处置。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P4">
+  <div class="task-head"><div><span class="task-id">DEPLOY-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>确定性 Dry-run 与 Robinhood Testnet 部署</h3>
+  <p class="task-summary">先在本地链复现部署和参数，再用人工确认的专用部署者广播到 Chain ID 46630。</p>
+  <div class="dependency"><strong>依赖</strong><code>SEC-002</code> <code>KEY-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>幂等部署脚本</li><li>参数预览与校验</li><li>部署交易</li><li>失败恢复步骤</li></ul>
+      <h4>验收标准</h4><ol><li>dry-run 的 bytecode、constructor args、角色和地址符合已复核 manifest</li><li>广播前从钱包与 RPC 双重确认 Chain ID 46630</li><li>脚本不会覆盖已有地址或在未知 nonce 下重复部署</li><li>失败时不自动提升 gas 或无限重播</li></ol>
+      <h4>停用 / 回退</h4><p>错误部署不升级修补：暂停/弃用地址，重新部署并明确迁移。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P4">
+  <div class="task-head"><div><span class="task-id">IR-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>事故响应、停用与迁移演练</h3>
+  <p class="task-summary">为密钥泄露、恶意前端、RPC 欺骗、错误部署、合约漏洞和 testnet reset 建立可执行手册。</p>
+  <div class="dependency"><strong>依赖</strong><code>CON-002</code> <code>KEY-001</code> <code>OBS-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>事故分级与联系人</li><li>暂停/前端禁用/安全退出步骤</li><li>新地址迁移流程</li><li>演练记录</li></ul>
+      <h4>验收标准</h4><ol><li>每类事故明确检测、决策者、动作顺序和恢复证据</li><li>演练暂停新入口但保留规范允许的用户退出</li><li>旧地址、前端 manifest 和文档不会静默指向不同代码</li><li>演练后记录时间、缺口和改进任务</li></ol>
+      <h4>停用 / 回退</h4><p>恢复条件未验证前保持停用，不以重新部署等同于资产自动迁移。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P4">
+  <div class="task-head"><div><span class="task-id">KEY-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>测试网部署密钥与角色操作手册</h3>
+  <p class="task-summary">使用低余额、仅测试网、可轮换的部署者，分离部署、暂停与执行角色。</p>
+  <div class="dependency"><strong>依赖</strong><code>GOV-001</code> <code>SUPPLY-001</code> <code>SEC-002</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>密钥生成/存储/轮换流程</li><li>角色地址清单</li><li>泄露响应</li><li>最小测试 ETH 预算</li></ul>
+      <h4>验收标准</h4><ol><li>密钥不进入仓库、终端记录、构建产物或普通浏览器存储</li><li>部署者不能作为日常执行者，角色可撤销或迁移</li><li>泄露、丢失和错误签名演练完成</li><li>CI PR 无权读取部署秘密或自动广播</li></ol>
+      <h4>停用 / 回退</h4><p>疑似泄露立即停止广播、撤销角色、轮换地址并更新风险登记。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P4">
+  <div class="task-head"><div><span class="task-id">VERIFY-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>部署来源证明与后部署验收</h3>
+  <p class="task-summary">提交可独立复查的 chainId、地址、区块、交易、部署者、commit、编译参数、ABI/bytecode hash 和源码验证链接。</p>
+  <div class="dependency"><strong>依赖</strong><code>DEPLOY-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>deployment manifest</li><li>Blockscout 源码验证</li><li>链上 bytecode 比对</li><li>存取款/暂停 smoke 报告</li></ul>
+      <h4>验收标准</h4><ol><li>manifest 字段完整且由工具从交易回执生成</li><li>Blockscout 源码、constructor args 和本地构建匹配</li><li>最小存入、分配、提现、暂停和恢复事件/余额核对通过</li><li>失败验收不会把地址暴露给 UI adapter</li></ol>
+      <h4>停用 / 回退</h4><p>验收失败时不接入前端，标记部署为 rejected 并重新部署。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-high" data-task data-status="backlog" data-risk="high" data-phase="P4">
+  <div class="task-head"><div><span class="task-id">OBS-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-high">High</span><span class="tag size">M</span></div></div>
+  <h3>可观测性、告警与隐私化日志</h3>
+  <p class="task-summary">监控链身份、RPC、失败交易、重组、索引滞后、角色事件和会计对账，不采集秘密。</p>
+  <div class="dependency"><strong>依赖</strong><code>TX-001</code> <code>INDEX-001</code> <code>VERIFY-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>结构化事件与指标</li><li>告警阈值</li><li>日志脱敏</li><li>健康/就绪语义</li></ul>
+      <h4>验收标准</h4><ol><li>可区分 RPC 故障、链错误、合约回滚、索引滞后和客户端拒绝</li><li>告警包含操作 ID/tx hash 而非私钥、签名或 RPC 凭据</li><li>关键角色、暂停和异常资金事件触发告警</li><li>健康接口不因进程存活而错误宣称可写</li></ol>
+      <h4>停用 / 回退</h4><p>观测不可用时降级为只读并阻止无人值守写入。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article></div>
+</section><section class="phase" id="phase-P5" data-phase-section>
+  <div class="section-head"><div><span class="phase-id">P5</span><h2>对抗验收与比赛交付</h2></div><p>从新环境复现完整流程，交付可独立验证的证据包。</p></div>
+  <div class="task-grid"><article class="task-card status-ready risk-border-medium" data-task data-status="ready" data-risk="medium" data-phase="P5">
+  <div class="task-head"><div><span class="task-id">DOC-001</span><span class="status status-ready">就绪</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-medium">Medium</span><span class="tag size">M</span></div></div>
+  <h3>安全声明、限制与证据索引</h3>
+  <p class="task-summary">持续维护已实现/未实现、模拟/测试网、已知风险、部署与验证证据，不使用营销措辞替代安全事实。</p>
+  <div class="dependency"><strong>依赖</strong><code>BASE-001</code> <code>NET-001</code> <code>CI-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>security.md</li><li>limitations.md</li><li>evidence index</li><li>架构和恢复说明</li></ul>
+      <h4>验收标准</h4><ol><li>每项安全声明可链接到测试、代码、报告或链上证据</li><li>未实现能力和风险接受项醒目标注</li><li>网络、地址和交易链接可独立验证</li><li>文档不包含个人信息、秘密或误导性收益表达</li></ol>
+      <h4>停用 / 回退</h4><p>证据过期或不匹配时撤回声明并将对应 gate 重新打开。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P5">
+  <div class="task-head"><div><span class="task-id">E2E-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">L</span></div></div>
+  <h3>对抗性 Testnet 端到端验收</h3>
+  <p class="task-summary">在测试网验证连接、签名、存入、分配、提现、拒绝、掉线、替换、重组模拟和恢复。</p>
+  <div class="dependency"><strong>依赖</strong><code>TX-001</code> <code>INDEX-001</code> <code>VERIFY-001</code> <code>OBS-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>可重复 E2E 脚本</li><li>测试钱包/测试资产准备</li><li>失败注入矩阵</li><li>交易和对账证据</li></ul>
+      <h4>验收标准</h4><ol><li>正向流程从新钱包可复现且每步有浏览器链接</li><li>错误链、拒签、余额不足、RPC 超时、revert 和重复点击均安全</li><li>刷新或进程重启后能从链上恢复而不重复动作</li><li>所有 UI 数值与事件、receipt、合约 view 对账</li></ol>
+      <h4>停用 / 回退</h4><p>任何资金状态不确定时停止 Demo 写入并保留证据调查。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-critical" data-task data-status="backlog" data-risk="critical" data-phase="P5">
+  <div class="task-head"><div><span class="task-id">RELEASE-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P0</span><span class="tag risk risk-critical">Critical</span><span class="tag size">M</span></div></div>
+  <h3>最终发布门禁与独立复现</h3>
+  <p class="task-summary">在新环境执行 G0–G4，全量复查安全、来源、部署、恢复和比赛材料后签署测试网提交。</p>
+  <div class="dependency"><strong>依赖</strong><code>E2E-001</code> <code>DEMO-001</code> <code>SEC-002</code> <code>IR-001</code> <code>SUPPLY-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>release checklist</li><li>clean-room reproduction</li><li>最终风险登记</li><li>版本标签与证据包</li></ul>
+      <h4>验收标准</h4><ol><li>G0–G4 所有检查有最新证据且无人为跳过</li><li>无未接受 Critical/High 风险和未解释门禁失败</li><li>版本标签对应相同源码、ABI、字节码、地址和文档</li><li>明确声明不批准主网或真实资金</li></ol>
+      <h4>停用 / 回退</h4><p>任一 gate 重新打开即撤回候选版本，修复后从受影响门禁重新验证。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article><article class="task-card status-backlog risk-border-medium" data-task data-status="backlog" data-risk="medium" data-phase="P5">
+  <div class="task-head"><div><span class="task-id">DEMO-001</span><span class="status status-backlog">待排期</span></div><div class="tags" aria-label="任务属性"><span class="tag priority">P1</span><span class="tag risk risk-medium">Medium</span><span class="tag size">M</span></div></div>
+  <h3>评委演示与恢复流程</h3>
+  <p class="task-summary">构建短、可重复、不隐藏失败状态的评委流程，并包含一次安全拒绝和一次恢复演示。</p>
+  <div class="dependency"><strong>依赖</strong><code>E2E-001</code> <code>DOC-001</code> <code>IR-001</code></div>
+  <details>
+    <summary>查看交付、验收与停用策略</summary>
+    <div class="task-detail">
+      <h4>交付物</h4><ul><li>judge walkthrough</li><li>演示数据重置</li><li>失败/恢复分支</li><li>录屏和时间预算</li></ul>
+      <h4>验收标准</h4><ol><li>新环境按 README 可在限定时间内跑通</li><li>页面始终显示 Robinhood Chain Testnet、账户、合约和交易状态</li><li>至少演示错误网络或重复操作被拒绝</li><li>演示失败不需要接触主网或私人账户</li></ol>
+      <h4>停用 / 回退</h4><p>测试网不稳定时展示已验证录屏和证据，但不伪造实时成功。</p>
+      <h4>证据</h4><p class="pending-evidence">待完成后补充可复现证据</p>
+      <p class="updated">最后更新 2026-09-06</p>
+    </div>
+  </details>
+</article></div>
+</section></div>
+      <section class="gates" id="gates" aria-labelledby="gates-title"><div class="section-title"><p>RELEASE CONTROL</p><h2 id="gates-title">发布门禁</h2><span>不得跳级</span></div><div class="gate-grid"><article class="gate gate-passed"><div class="gate-head"><span>G0</span><div><h3>公开基线</h3><p>4/4 项通过</p></div><strong>已通过</strong></div><ul><li class="check-passed"><span aria-hidden="true">✓</span><div>公开仓库只含比赛所需内容<code>README.md</code></div></li><li class="check-passed"><span aria-hidden="true">✓</span><div>Robinhood Chain Testnet 参数与 RPC Chain ID 已核对<code>test/robinhood-chain.test.ts</code></div></li><li class="check-passed"><span aria-hidden="true">✓</span><div>基础 CI、secret baseline 与依赖审计通过<code>.github/workflows/ci.yml</code></div></li><li class="check-passed"><span aria-hidden="true">✓</span><div>README 明确模拟与未实现边界<code>README.md</code></div></li></ul></article><article class="gate gate-open"><div class="gate-head"><span>G1</span><div><h3>设计冻结</h3><p>0/4 项通过</p></div><strong>未通过</strong></div><ul><li class="check-open"><span aria-hidden="true">○</span><div>资产、角色、信任根和升级策略 ADR 获得复核</div></li><li class="check-open"><span aria-hidden="true">○</span><div>会计、权限、签名域、事件和错误规格冻结</div></li><li class="check-open"><span aria-hidden="true">○</span><div>Robinhood Chain 专项威胁模型无未接受 Critical 风险</div></li><li class="check-open"><span aria-hidden="true">○</span><div>ABI 与 adapter v1 边界冻结</div></li></ul></article><article class="gate gate-open"><div class="gate-head"><span>G2</span><div><h3>安全验证</h3><p>0/4 项通过</p></div><strong>未通过</strong></div><ul><li class="check-open"><span aria-hidden="true">○</span><div>合约单元、负向、fuzz、invariant 与差分测试通过</div></li><li class="check-open"><span aria-hidden="true">○</span><div>Slither、依赖、license、字节码与覆盖率门禁通过</div></li><li class="check-open"><span aria-hidden="true">○</span><div>所有 Critical/High 发现已修复或由风险负责人书面接受</div></li><li class="check-open"><span aria-hidden="true">○</span><div>独立安全复核完成</div></li></ul></article><article class="gate gate-open"><div class="gate-head"><span>G3</span><div><h3>测试网发布</h3><p>0/4 项通过</p></div><strong>未通过</strong></div><ul><li class="check-open"><span aria-hidden="true">○</span><div>低余额专用部署者、参数清单和 dry-run 已复核</div></li><li class="check-open"><span aria-hidden="true">○</span><div>源码验证、地址、交易、区块与构建 provenance 完整</div></li><li class="check-open"><span aria-hidden="true">○</span><div>存入、分配、提现、暂停与恢复 smoke test 通过</div></li><li class="check-open"><span aria-hidden="true">○</span><div>RPC、重组、交易替换、告警和事故手册已演练</div></li></ul></article><article class="gate gate-open"><div class="gate-head"><span>G4</span><div><h3>比赛提交</h3><p>0/4 项通过</p></div><strong>未通过</strong></div><ul><li class="check-open"><span aria-hidden="true">○</span><div>新环境从干净检出完成安装、测试、部署和演示</div></li><li class="check-open"><span aria-hidden="true">○</span><div>评委流程、恢复路径与已知限制可独立复查</div></li><li class="check-open"><span aria-hidden="true">○</span><div>最终 CI、secret scan 和依赖审计通过</div></li><li class="check-open"><span aria-hidden="true">○</span><div>所有展示数据均标明模拟或测试网属性</div></li></ul></article></div></section>
+      <section class="standards" id="standards" aria-labelledby="standards-title"><div class="section-title"><p>QUALITY BAR</p><h2 id="standards-title">工程统一标准</h2><span>Ready 与 Done 分离</span></div><div class="standard-grid"><article><h3>强制安全边界</h3><ul><li>默认拒绝：未识别网络、缺失配置、证据不完整或状态不确定时停止写操作。</li><li>非托管优先：应用不得持有用户助记词、私钥，也不得获得提现或任意转账能力。</li><li>测试网隔离：Chain ID 必须从配置、钱包与 RPC 三方核对为 46630。</li><li>真实性：模拟、本地、测试网和未实现能力必须在界面与文档中明确区分。</li><li>主网关闭：不存在可由单一环境变量或隐藏按钮绕过的主网写入路径。</li></ul></article><article><h3>Definition of Ready</h3><ol><li>目标、范围、依赖和信任边界清楚，未决策项已登记。</li><li>至少三个可验证验收条件，包含失败关闭或负向场景。</li><li>已明确测试方法、证据位置和停用或回滚路径。</li><li>所有前置依赖为完成状态，且没有未接受的 Critical/High 阻塞项。</li></ol></article><article><h3>Definition of Done</h3><ol><li>实现、正向测试、负向测试和边界测试全部通过；关键授权与会计路径分支覆盖 100%。</li><li>总体自动化覆盖率达到约定阈值（目标不低于 90%），fuzz/invariant 运行参数与种子可复现。</li><li>威胁模型、README、接口和运维文档同步；无未说明的 Critical/High 风险。</li><li>从干净检出可复现构建，CI 全绿，依赖、secret、license 与静态分析门禁通过。</li><li>至少一次独立复核，并记录提交、报告、哈希、交易或浏览器链接等验收证据。</li><li>feature flag、暂停、降级、迁移或停用路径已演练，不把“可升级”误当作回滚。</li></ol></article><article><h3>安全原则</h3><ul><li>最小权限与职责分离：用户、策略运行时、风险签名者、执行者和暂停者分别建模。</li><li>精确会计：链上金额使用整数，显式处理 decimals、舍入、手续费代币与异常 ERC-20。</li><li>签名有域：授权必须绑定 chainId、verifyingContract、账户、nonce、deadline 与具体 calldata。</li><li>幂等与可恢复：交易提交、替换、掉线、重组和重复回调都必须得到确定结果。</li><li>证据优先：完成状态只由可复现测试、哈希、交易和独立复核证据支撑。</li><li>供应链可追溯：工具链、依赖、Actions、ABI、字节码与部署参数全部固定并可重建。</li><li>无秘密进入仓库：密钥不写日志、不进浏览器存储、不进入示例文件或构建产物。</li><li>可停用而非假回滚：不可升级合约发生问题时暂停新入口、保留安全退出并迁移到新地址。</li></ul></article></div></section>
+      <footer><p>状态由 <code>planning/roadmap.json</code> 生成。TODO、Markdown 和 HTML 必须通过 CI 一致性校验。</p><p>Plan digest <code>84f7390d7705</code> · 无远程脚本、无统计、无网络请求</p></footer>
+    </main>
+  </div>
+</body>
+</html>

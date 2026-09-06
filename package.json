@@ -8,7 +8,7 @@
     "npm": ">=11.6.2 <12"
   },
   "scripts": {
-    "test": "node --test test/security-model.test.ts test/engineering.test.ts test/robinhood-chain.test.ts test/domain.test.ts test/server.test.ts test/http-e2e.test.ts test/web-messages.test.ts",
+    "test": "node --test test/security-model.test.ts test/engineering.test.ts test/robinhood-chain.test.ts test/planning.test.mjs test/domain.test.ts test/server.test.ts test/http-e2e.test.ts test/web-messages.test.ts",
     "typecheck": "tsc --noEmit && tsc --project apps/web/tsconfig.json",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write \"**/*.{js,mjs,ts,tsx,json,yml,yaml}\"",
@@ -16,11 +16,13 @@
     "secrets:check": "node tools/check-secrets.mjs",
     "config:check": "node tools/check-config.ts",
     "robinhood:check": "node --env-file=.env.example tools/check-robinhood-chain.ts",
-    "build": "npm run build:web",
+    "planning:build": "node tools/build-planning.mjs",
+    "planning:check": "node tools/build-planning.mjs --check",
+    "build": "npm run planning:check && npm run build:web",
     "build:web": "vite build apps/web --config apps/web/vite.config.ts",
     "demo": "npm run build:web && node --env-file=.env.example apps/server/src/main.ts",
     "demo:backup": "node --env-file=.env.example tools/backup-demo.ts",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run secrets:check && npm run robinhood:check && npm run build",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run secrets:check && npm run robinhood:check && npm run planning:check && npm run build:web",
     "audit:dependencies": "npm audit --audit-level=high"
   },
   "devDependencies": {

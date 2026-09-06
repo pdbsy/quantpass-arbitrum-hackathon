@@ -539,7 +539,10 @@ export function App() {
             <p className="empty">还没有资金操作。获得测试 Pass 后，可按上方流程存入、分配并取出。</p>
           )}
         </section>
-        <footer>QuantPass · 本地 SQLite 持久化 · 测试身份不构成真实认证 · 刷新页面不会重置账本</footer>
+        <footer>
+          QuantPass · 本地 SQLite 持久化 · 测试身份不构成真实认证 · 刷新页面不会重置账本
+          <a href="/task-board.html">查看工程安全看板</a>
+        </footer>
       </main>
     </>
   );

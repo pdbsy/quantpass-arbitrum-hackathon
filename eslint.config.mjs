@@ -20,4 +20,5 @@ export default [
   ...tseslint.configs.recommended,
   { files: ['**/*.{js,mjs,ts}'], languageOptions: { globals: globals.node } },
   { files: ['apps/web/**/*.{ts,tsx}'], languageOptions: { globals: globals.browser } },
+  { files: ['docs/task-board.js'], languageOptions: { globals: globals.browser } },
 ];

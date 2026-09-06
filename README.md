@@ -22,7 +22,7 @@ npm run check
 npm run demo
 ```
 
-Open `http://127.0.0.1:4180`. Runtime data is written to `.data/` and is ignored by Git.
+Open `http://127.0.0.1:4180`. The Chinese security board is available at `http://127.0.0.1:4180/task-board.html`. Runtime data is written to `.data/` and is ignored by Git.
 
 To validate only the target network configuration:
 
@@ -44,7 +44,7 @@ test/                 Unit, integration and HTTP end-to-end tests
 
 ## Current work
 
-The competition-only backlog is in [TODO.md](TODO.md), with execution status in [docs/TASK-BOARD.md](docs/TASK-BOARD.md). Network assumptions and authoritative references are documented in [docs/ROBINHOOD-CHAIN.md](docs/ROBINHOOD-CHAIN.md).
+The canonical plan is [planning/roadmap.json](planning/roadmap.json). It generates [TODO.md](TODO.md), the [Markdown board](docs/TASK-BOARD.md) and the standalone [Chinese HTML security board](docs/task-board.html), so CI can reject status drift. Network assumptions and authoritative references are documented in [docs/ROBINHOOD-CHAIN.md](docs/ROBINHOOD-CHAIN.md).
 
 ## Safety
 
