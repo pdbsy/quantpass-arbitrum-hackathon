@@ -23,8 +23,8 @@ test('planning validation rejects unsafe status and dependency drift', () => {
 
   const staleReady = structuredClone(plan);
   const ready = staleReady.tasks.find((task) => task.status === 'ready');
-  ready.dependsOn = ['GOV-001'];
-  assert.throws(() => validatePlan(staleReady), /dependency GOV-001 is not done/);
+  ready.dependsOn = ['THREAT-001'];
+  assert.throws(() => validatePlan(staleReady), /dependency THREAT-001 is not done/);
 
   const falseGate = structuredClone(plan);
   falseGate.releaseGates.find((gate) => gate.id === 'G1').status = 'passed';

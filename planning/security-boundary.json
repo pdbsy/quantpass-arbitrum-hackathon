@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-06",
+  "decision": {
+    "id": "ADR-0001",
+    "status": "accepted",
+    "scope": "Robinhood Chain Testnet hackathon MVP",
+    "supersedes": []
+  },
+  "environment": {
+    "allowed": ["local-simulation", "robinhood-chain-testnet"],
+    "chainId": 46630,
+    "mainnetSupported": false,
+    "realFundsSupported": false,
+    "testnetWrites": {
+      "enabled": false,
+      "failClosed": true,
+      "requiresCompletedTasks": ["THREAT-001", "CONFIG-001", "ASSET-001", "SEC-002", "KEY-001", "DEPLOY-001"],
+      "requiresPassedGates": ["G1", "G2"]
+    }
+  },
+  "custody": {
+    "model": "protocol-contract-custody",
+    "applicationHoldsUserKeys": false,
+    "operatorCanWithdraw": false,
+    "executorCanWithdraw": false,
+    "ownerExitDuringPause": true,
+    "description": "资产仅可进入用户选择的 Vault 合约；团队服务和执行器不托管用户密钥，也没有提取用户资产的能力。"
+  },
+  "contract": {
+    "upgradeability": "immutable-v1",
+    "proxyAllowed": false,
+    "delegatecallAllowed": false,
+    "arbitraryCallAllowed": false,
+    "targetPolicy": "immutable-explicit-allowlist",
+    "selectorPolicy": "immutable-explicit-allowlist",
+    "approvalPolicy": "exact-amount-reset-to-zero",
+    "migration": "pause-risk-increase-preserve-owner-exit-deploy-new-address-opt-in-migration"
+  },
+  "assetPolicy": {
+    "assetCountPerVault": 1,
+    "selection": "immutable-at-deployment",
+    "allowed": ["project-deployed-clearly-labelled-test-token-after-ASSET-001"],
+    "requiredProperties": [
+      "erc20-return-values-checked",
+      "decimals-pinned-and-validated",
+      "deposit-accounted-by-balance-delta",
+      "runtime-bytecode-hash-pinned",
+      "address-and-chain-id-pinned"
+    ],
+    "rejectedBehaviors": [
+      "fee-on-transfer",
+      "rebasing",
+      "erc777-or-callback-hooks",
+      "unknown-or-changing-decimals",
+      "unverified-runtime-bytecode",
+      "hidden-transfer-tax",
+      "admin-mint-or-confiscation-outside-project-mock"
+    ]
+  },
+  "roles": [
+    {
+      "id": "owner",
+      "authority": "wallet-signature",
+      "can": [
+        "deposit_test_asset",
+        "allocate_within_policy",
+        "deallocate",
+        "request_or_execute_withdrawal",
+        "cancel_pending_intent",
+        "stop_strategy",
+        "revoke_executor_permit"
+      ],
+      "cannot": ["upgrade_contract", "delegatecall", "bypass_accounting"]
+    },
+    {
+      "id": "strategy-runtime",
+      "authority": "registered-release-signature",
+      "can": ["propose_bounded_decision"],
+      "cannot": ["submit_transaction", "hold_user_key", "withdraw_assets", "change_policy"]
+    },
+    {
+      "id": "risk-signer",
+      "authority": "dedicated-key-provider",
+      "can": ["sign_bounded_execution_permit"],
+      "cannot": ["submit_transaction", "hold_user_key", "withdraw_assets", "change_contract_allowlist"]
+    },
+    {
+      "id": "executor",
+      "authority": "dedicated-low-balance-key",
+      "can": ["submit_bounded_allowlisted_execution"],
+      "cannot": [
+        "withdraw_assets",
+        "transfer_assets",
+        "change_owner",
+        "change_policy",
+        "change_contract_allowlist",
+        "upgrade_contract",
+        "pause_or_unpause"
+      ]
+    },
+    {
+      "id": "pause-guardian",
+      "authority": "separate-guardian-key",
+      "can": ["pause_risk_increasing_actions"],
+      "cannot": ["withdraw_assets", "transfer_assets", "block_owner_exit", "upgrade_contract", "change_owner"]
+    },
+    {
+      "id": "deployer",
+      "authority": "dedicated-low-balance-key",
+      "can": ["deploy_immutable_contract", "initialize_once", "nominate_guardian_once"],
+      "cannot": ["withdraw_assets", "upgrade_contract", "change_immutable_asset", "execute_strategy"]
+    },
+    {
+      "id": "indexer",
+      "authority": "read-only-rpc",
+      "can": ["read_confirmed_events", "reconcile_state"],
+      "cannot": ["sign_message", "submit_transaction", "declare_pending_as_final"]
+    }
+  ],
+  "capabilityOwners": {
+    "withdraw_assets": ["owner"],
+    "submit_bounded_execution": ["executor"],
+    "sign_bounded_execution_permit": ["risk-signer"],
+    "pause_risk_increasing_actions": ["pause-guardian"],
+    "deploy_immutable_contract": ["deployer"]
+  },
+  "safeExit": {
+    "availableDuringPause": true,
+    "riskIncreasingActionsBlocked": ["deposit", "allocate", "start_strategy", "new_order"],
+    "riskReducingActionsAllowed": [
+      "stop_strategy",
+      "cancel_pending_intent",
+      "deallocate",
+      "settle_existing_position",
+      "withdraw_idle_asset",
+      "revoke_executor_permit"
+    ],
+    "timeoutOrFallbackRequiredForStuckExecution": true
+  },
+  "signatures": [
+    {
+      "id": "owner-authorization",
+      "scheme": "EIP-712",
+      "implemented": false,
+      "trackedBy": "TRUST-001",
+      "requiredBindings": [
+        "chainId",
+        "verifyingContract",
+        "vault",
+        "owner",
+        "executor",
+        "asset",
+        "target",
+        "calldataHash",
+        "value",
+        "nonce",
+        "deadline",
+        "policyHash",
+        "slippageBps"
+      ]
+    },
+    {
+      "id": "strategy-release",
+      "scheme": "off-chain-registered-signature",
+      "implemented": false,
+      "trackedBy": "TRUST-001",
+      "requiredBindings": ["strategyFamilyId", "strategyVersionId", "codeMeasurement", "signerKeyId"]
+    },
+    {
+      "id": "account-snapshot",
+      "scheme": "designated-source-signature",
+      "implemented": false,
+      "trackedBy": "TRUST-001",
+      "requiredBindings": ["chainId", "vault", "owner", "blockNumber", "blockHash", "capturedAt"]
+    }
+  ],
+  "secrets": [
+    {
+      "id": "owner-private-key",
+      "holder": "user-wallet",
+      "allowedStorage": ["user-wallet-only"],
+      "forbiddenStorage": ["repository", "server", "browser-storage", "logs", "ci"]
+    },
+    {
+      "id": "risk-signer-private-key",
+      "holder": "dedicated-key-provider",
+      "allowedStorage": ["hardware-or-managed-key-provider"],
+      "forbiddenStorage": ["repository", "plaintext-env", "browser-storage", "logs", "ci"]
+    },
+    {
+      "id": "executor-private-key",
+      "holder": "dedicated-low-balance-wallet",
+      "allowedStorage": ["hardware-or-managed-key-provider"],
+      "forbiddenStorage": ["repository", "plaintext-env", "browser-storage", "logs", "ci"]
+    },
+    {
+      "id": "deployer-private-key",
+      "holder": "dedicated-low-balance-wallet",
+      "allowedStorage": ["hardware-wallet-or-managed-key-provider"],
+      "forbiddenStorage": ["repository", "plaintext-env", "browser-storage", "logs", "ci"]
+    },
+    {
+      "id": "pause-guardian-private-key",
+      "holder": "separate-guardian-wallet",
+      "allowedStorage": ["hardware-wallet-or-managed-key-provider"],
+      "forbiddenStorage": ["repository", "plaintext-env", "browser-storage", "logs", "ci"]
+    }
+  ],
+  "trustBoundaries": [
+    {
+      "id": "TB-01",
+      "from": "web-ui",
+      "to": "user-wallet",
+      "data": ["transaction-request", "human-readable-eip712"],
+      "rule": "钱包必须显示链、合约、资产、金额、截止时间与权限；拒绝静默或批量签名。"
+    },
+    {
+      "id": "TB-02",
+      "from": "strategy-runtime",
+      "to": "risk-service",
+      "data": ["signed-strategy-decision"],
+      "rule": "运行时仅提交提案；固定注册表、策略哈希、时效和账户快照全部验证后才可签发许可。"
+    },
+    {
+      "id": "TB-03",
+      "from": "risk-service",
+      "to": "executor",
+      "data": ["bounded-eip712-permit"],
+      "rule": "许可必须单次、短时、链域绑定且覆盖目标、calldata、金额、滑点和政策哈希。"
+    },
+    {
+      "id": "TB-04",
+      "from": "executor",
+      "to": "vault-contract",
+      "data": ["signed-transaction", "execution-permit"],
+      "rule": "合约原子消费 nonce，并独立验证角色、许可、目标、selector、资产和限额。"
+    },
+    {
+      "id": "TB-05",
+      "from": "rpc-provider",
+      "to": "adapter-and-indexer",
+      "data": ["chain-id", "bytecode", "receipts", "logs", "block-hash"],
+      "rule": "RPC 视为不可信；核对 chainId、runtime hash、确认深度和 block hash，重组时回滚后重放。"
+    },
+    {
+      "id": "TB-06",
+      "from": "vault-contract",
+      "to": "external-token-or-venue",
+      "data": ["erc20-transfer", "allowlisted-call"],
+      "rule": "仅固定地址和 selector；使用余额差会计、精确授权、返回值检查和重入保护。"
+    },
+    {
+      "id": "TB-07",
+      "from": "confirmed-chain-events",
+      "to": "application-view",
+      "data": ["finalized-or-confirmed-state"],
+      "rule": "pending 不得展示为成功；事件按 chainId/txHash/logIndex 去重，并可按 block hash 回滚。"
+    }
+  ],
+  "prohibited": [
+    "mainnet-or-unknown-network",
+    "real-value-assets",
+    "application-custody-of-user-keys",
+    "automatic-or-hidden-wallet-signing",
+    "arbitrary-call-or-delegatecall",
+    "proxy-upgrade-path",
+    "executor-withdrawal-or-transfer",
+    "unlimited-token-approval",
+    "caller-supplied-trust-root",
+    "in-memory-only-replay-protection",
+    "treating-pending-transaction-as-success",
+    "reusing-local-simulation-role-promotion-in-testnet"
+  ]
+}

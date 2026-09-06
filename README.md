@@ -28,6 +28,7 @@ To validate only the target network configuration:
 
 ```bash
 npm run robinhood:check
+npm run governance:check
 ```
 
 ## Project layout
@@ -44,7 +45,7 @@ test/                 Unit, integration and HTTP end-to-end tests
 
 ## Current work
 
-The canonical plan is [planning/roadmap.json](planning/roadmap.json). It generates [TODO.md](TODO.md), the [Markdown board](docs/TASK-BOARD.md) and the standalone [Chinese HTML security board](docs/task-board.html), so CI can reject status drift. Network assumptions and authoritative references are documented in [docs/ROBINHOOD-CHAIN.md](docs/ROBINHOOD-CHAIN.md).
+The canonical plan is [planning/roadmap.json](planning/roadmap.json). It generates [TODO.md](TODO.md), the [Markdown board](docs/TASK-BOARD.md) and the standalone [Chinese HTML security board](docs/task-board.html), so CI can reject status drift. Network assumptions and authoritative references are documented in [docs/ROBINHOOD-CHAIN.md](docs/ROBINHOOD-CHAIN.md). The accepted testnet scope and privilege boundaries live in [ADR-0001](docs/adr/0001-testnet-mvp-scope-and-authority.md) and are enforced by [planning/security-boundary.json](planning/security-boundary.json).
 
 ## Safety
 

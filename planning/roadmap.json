@@ -3,7 +3,7 @@
   "updatedAt": "2026-09-06",
   "project": {
     "name": "QuantPass × Robinhood Chain Testnet",
-    "planVersion": "2.0",
+    "planVersion": "2.1",
     "network": "Robinhood Chain Testnet",
     "chainId": 46630,
     "scope": "仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金和自动交易。",
@@ -262,7 +262,7 @@
       "id": "GOV-001",
       "phase": "P1",
       "title": "冻结测试网范围、角色与架构 ADR",
-      "status": "in_progress",
+      "status": "done",
       "priority": "P0",
       "risk": "critical",
       "size": "M",
@@ -275,7 +275,12 @@
         "禁止任意 call/delegatecall、主网和真实资金路径",
         "独立复核者能指出每个秘密、签名、资产和管理员边界"
       ],
-      "evidence": [],
+      "evidence": [
+        "docs/adr/0001-testnet-mvp-scope-and-authority.md",
+        "planning/security-boundary.json",
+        "tools/check-governance.mjs",
+        "test/governance.test.mjs"
+      ],
       "rollback": "ADR 未通过前保持 local mock，禁止引入 testnet 写 adapter。",
       "updatedAt": "2026-09-06"
     },
@@ -283,7 +288,7 @@
       "id": "THREAT-001",
       "phase": "P1",
       "title": "Robinhood Chain 专项威胁模型与风险登记",
-      "status": "backlog",
+      "status": "in_progress",
       "priority": "P0",
       "risk": "critical",
       "size": "M",
