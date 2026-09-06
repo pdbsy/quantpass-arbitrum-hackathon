@@ -38,43 +38,189 @@
   ],
   "securityObjectives": [
     { "id": "OBJ-01", "name": "资产安全", "statement": "除 owner 外没有角色可提取或任意转移 Vault 资产。" },
-    { "id": "OBJ-02", "name": "授权完整性", "statement": "每次执行均绑定链、合约、账户、策略、目标、金额、nonce 和时效。" },
-    { "id": "OBJ-03", "name": "会计守恒", "statement": "余额由实际转移差和链上状态决定，整数、decimals、手续费与舍入显式。" },
+    {
+      "id": "OBJ-02",
+      "name": "授权完整性",
+      "statement": "每次执行均绑定链、合约、账户、策略、目标、金额、nonce 和时效。"
+    },
+    {
+      "id": "OBJ-03",
+      "name": "会计守恒",
+      "statement": "余额由实际转移差和链上状态决定，整数、decimals、手续费与舍入显式。"
+    },
     { "id": "OBJ-04", "name": "安全退出", "statement": "暂停和服务故障不能永久阻止 owner 撤销与退出。" },
-    { "id": "OBJ-05", "name": "状态真实性", "statement": "模拟、pending、confirmed、reorged 和 failed 状态不可混淆。" },
-    { "id": "OBJ-06", "name": "可追溯发布", "statement": "源码、依赖、构建、ABI、字节码、配置和部署证据可复现。" }
+    {
+      "id": "OBJ-05",
+      "name": "状态真实性",
+      "statement": "模拟、pending、confirmed、reorged 和 failed 状态不可混淆。"
+    },
+    {
+      "id": "OBJ-06",
+      "name": "可追溯发布",
+      "statement": "源码、依赖、构建、ABI、字节码、配置和部署证据可复现。"
+    }
   ],
   "assets": [
-    { "id": "AST-01", "name": "Vault 测试资产与份额", "objective": "OBJ-01", "worstImpact": "未授权转移、永久锁定或错误归属" },
-    { "id": "AST-02", "name": "Owner 授权与 nonce", "objective": "OBJ-02", "worstImpact": "跨链、跨合约或重复执行" },
-    { "id": "AST-03", "name": "策略、政策与 release 信任根", "objective": "OBJ-02", "worstImpact": "恶意代码或宽松政策被当作可信" },
-    { "id": "AST-04", "name": "会计状态、账户快照与事件", "objective": "OBJ-03", "worstImpact": "虚假余额、超额交易或对账失真" },
-    { "id": "AST-05", "name": "安全退出可用性", "objective": "OBJ-04", "worstImpact": "用户资产被暂停、外部依赖或管理员永久锁定" },
-    { "id": "AST-06", "name": "部署、密钥与供应链完整性", "objective": "OBJ-06", "worstImpact": "恶意字节码、权限接管或秘密泄露" },
-    { "id": "AST-07", "name": "UI 与链状态真实性", "objective": "OBJ-05", "worstImpact": "用户被诱导签名或把未确认状态当成功" },
-    { "id": "AST-08", "name": "审计证据与隐私", "objective": "OBJ-06", "worstImpact": "无法追责、日志泄密或证据被覆盖" }
+    {
+      "id": "AST-01",
+      "name": "Vault 测试资产与份额",
+      "objective": "OBJ-01",
+      "worstImpact": "未授权转移、永久锁定或错误归属"
+    },
+    {
+      "id": "AST-02",
+      "name": "Owner 授权与 nonce",
+      "objective": "OBJ-02",
+      "worstImpact": "跨链、跨合约或重复执行"
+    },
+    {
+      "id": "AST-03",
+      "name": "策略、政策与 release 信任根",
+      "objective": "OBJ-02",
+      "worstImpact": "恶意代码或宽松政策被当作可信"
+    },
+    {
+      "id": "AST-04",
+      "name": "会计状态、账户快照与事件",
+      "objective": "OBJ-03",
+      "worstImpact": "虚假余额、超额交易或对账失真"
+    },
+    {
+      "id": "AST-05",
+      "name": "安全退出可用性",
+      "objective": "OBJ-04",
+      "worstImpact": "用户资产被暂停、外部依赖或管理员永久锁定"
+    },
+    {
+      "id": "AST-06",
+      "name": "部署、密钥与供应链完整性",
+      "objective": "OBJ-06",
+      "worstImpact": "恶意字节码、权限接管或秘密泄露"
+    },
+    {
+      "id": "AST-07",
+      "name": "UI 与链状态真实性",
+      "objective": "OBJ-05",
+      "worstImpact": "用户被诱导签名或把未确认状态当成功"
+    },
+    {
+      "id": "AST-08",
+      "name": "审计证据与隐私",
+      "objective": "OBJ-06",
+      "worstImpact": "无法追责、日志泄密或证据被覆盖"
+    }
   ],
   "actors": [
-    { "id": "ACT-01", "name": "恶意或受骗用户", "capabilities": ["提交畸形输入", "签署或重放消息", "切换钱包网络"], "notTrustedFor": ["提供系统信任根", "声明链上最终性"] },
-    { "id": "ACT-02", "name": "受控策略运行时或作者", "capabilities": ["产生极端仓位提案", "重放旧决策", "伪造 release 元数据"], "notTrustedFor": ["风险批准", "持有用户密钥"] },
-    { "id": "ACT-03", "name": "受控风险服务或签名者", "capabilities": ["尝试签发越权许可", "泄露或滥用服务密钥"], "notTrustedFor": ["提取资产", "单方面改变 allowlist"] },
-    { "id": "ACT-04", "name": "受控 Executor", "capabilities": ["抢跑、延迟、重复或替换交易", "选择 gas 与 RPC"], "notTrustedFor": ["提现", "改变政策或角色"] },
-    { "id": "ACT-05", "name": "恶意 Token、Venue 或回调合约", "capabilities": ["重入", "异常返回", "改余额语义", "消耗 gas"], "notTrustedFor": ["报告实际到账金额", "维持静态行为"] },
-    { "id": "ACT-06", "name": "恶意或故障 RPC/Sequencer", "capabilities": ["返回错误链、字节码或状态", "隐藏/重复日志", "重排交易"], "notTrustedFor": ["单独证明链身份", "单独证明最终性"] },
-    { "id": "ACT-07", "name": "受控前端、扩展或依赖", "capabilities": ["替换地址和 calldata", "诱导签名", "泄露页面数据"], "notTrustedFor": ["定义权限", "代替钱包确认"] },
-    { "id": "ACT-08", "name": "恶意或误操作管理员", "capabilities": ["错误部署", "错误暂停", "泄露 deployer/guardian 密钥"], "notTrustedFor": ["移动用户资产", "静默升级"] },
-    { "id": "ACT-09", "name": "外部网络攻击者", "capabilities": ["扫描 API", "供应链投毒", "资源耗尽", "窃取公开构建信息"], "notTrustedFor": ["任何身份或输入"] }
+    {
+      "id": "ACT-01",
+      "name": "恶意或受骗用户",
+      "capabilities": ["提交畸形输入", "签署或重放消息", "切换钱包网络"],
+      "notTrustedFor": ["提供系统信任根", "声明链上最终性"]
+    },
+    {
+      "id": "ACT-02",
+      "name": "受控策略运行时或作者",
+      "capabilities": ["产生极端仓位提案", "重放旧决策", "伪造 release 元数据"],
+      "notTrustedFor": ["风险批准", "持有用户密钥"]
+    },
+    {
+      "id": "ACT-03",
+      "name": "受控风险服务或签名者",
+      "capabilities": ["尝试签发越权许可", "泄露或滥用服务密钥"],
+      "notTrustedFor": ["提取资产", "单方面改变 allowlist"]
+    },
+    {
+      "id": "ACT-04",
+      "name": "受控 Executor",
+      "capabilities": ["抢跑、延迟、重复或替换交易", "选择 gas 与 RPC"],
+      "notTrustedFor": ["提现", "改变政策或角色"]
+    },
+    {
+      "id": "ACT-05",
+      "name": "恶意 Token、Venue 或回调合约",
+      "capabilities": ["重入", "异常返回", "改余额语义", "消耗 gas"],
+      "notTrustedFor": ["报告实际到账金额", "维持静态行为"]
+    },
+    {
+      "id": "ACT-06",
+      "name": "恶意或故障 RPC/Sequencer",
+      "capabilities": ["返回错误链、字节码或状态", "隐藏/重复日志", "重排交易"],
+      "notTrustedFor": ["单独证明链身份", "单独证明最终性"]
+    },
+    {
+      "id": "ACT-07",
+      "name": "受控前端、扩展或依赖",
+      "capabilities": ["替换地址和 calldata", "诱导签名", "泄露页面数据"],
+      "notTrustedFor": ["定义权限", "代替钱包确认"]
+    },
+    {
+      "id": "ACT-08",
+      "name": "恶意或误操作管理员",
+      "capabilities": ["错误部署", "错误暂停", "泄露 deployer/guardian 密钥"],
+      "notTrustedFor": ["移动用户资产", "静默升级"]
+    },
+    {
+      "id": "ACT-09",
+      "name": "外部网络攻击者",
+      "capabilities": ["扫描 API", "供应链投毒", "资源耗尽", "窃取公开构建信息"],
+      "notTrustedFor": ["任何身份或输入"]
+    }
   ],
   "entryPoints": [
-    { "id": "EP-01", "name": "钱包连接、切链、交易和 EIP-712 请求", "boundary": "TB-01", "inputs": ["provider events", "address", "chainId", "signature", "transaction"] },
-    { "id": "EP-02", "name": "策略决策与 release 注册", "boundary": "TB-02", "inputs": ["decision", "policyHash", "codeMeasurement", "runtime signature"] },
-    { "id": "EP-03", "name": "账户快照与风险许可", "boundary": "TB-03", "inputs": ["snapshot", "block reference", "permit", "deadline", "nonce"] },
-    { "id": "EP-04", "name": "Executor 到 Vault 的交易入口", "boundary": "TB-04", "inputs": ["calldata", "value", "permit", "gas", "replacement"] },
-    { "id": "EP-05", "name": "RPC、receipt、logs 与区块头", "boundary": "TB-05", "inputs": ["chainId", "bytecode", "receipt", "logs", "blockHash"] },
-    { "id": "EP-06", "name": "Vault 到 Token/Venue 的外部交互", "boundary": "TB-06", "inputs": ["transfer", "approval", "return data", "callback"] },
-    { "id": "EP-07", "name": "Indexer、缓存与 UI 状态", "boundary": "TB-07", "inputs": ["pending state", "confirmed state", "reorg", "checkpoint"] },
-    { "id": "EP-08", "name": "HTTP API 与本地 Demo 会话", "boundary": "TB-01", "inputs": ["cookie", "origin", "command", "owner identifier"] },
-    { "id": "EP-09", "name": "配置、CI、依赖与部署工件", "boundary": "TB-05", "inputs": ["environment", "lockfile", "workflow", "artifact", "deployment manifest"] }
+    {
+      "id": "EP-01",
+      "name": "钱包连接、切链、交易和 EIP-712 请求",
+      "boundary": "TB-01",
+      "inputs": ["provider events", "address", "chainId", "signature", "transaction"]
+    },
+    {
+      "id": "EP-02",
+      "name": "策略决策与 release 注册",
+      "boundary": "TB-02",
+      "inputs": ["decision", "policyHash", "codeMeasurement", "runtime signature"]
+    },
+    {
+      "id": "EP-03",
+      "name": "账户快照与风险许可",
+      "boundary": "TB-03",
+      "inputs": ["snapshot", "block reference", "permit", "deadline", "nonce"]
+    },
+    {
+      "id": "EP-04",
+      "name": "Executor 到 Vault 的交易入口",
+      "boundary": "TB-04",
+      "inputs": ["calldata", "value", "permit", "gas", "replacement"]
+    },
+    {
+      "id": "EP-05",
+      "name": "RPC、receipt、logs 与区块头",
+      "boundary": "TB-05",
+      "inputs": ["chainId", "bytecode", "receipt", "logs", "blockHash"]
+    },
+    {
+      "id": "EP-06",
+      "name": "Vault 到 Token/Venue 的外部交互",
+      "boundary": "TB-06",
+      "inputs": ["transfer", "approval", "return data", "callback"]
+    },
+    {
+      "id": "EP-07",
+      "name": "Indexer、缓存与 UI 状态",
+      "boundary": "TB-07",
+      "inputs": ["pending state", "confirmed state", "reorg", "checkpoint"]
+    },
+    {
+      "id": "EP-08",
+      "name": "HTTP API 与本地 Demo 会话",
+      "boundary": "TB-01",
+      "inputs": ["cookie", "origin", "command", "owner identifier"]
+    },
+    {
+      "id": "EP-09",
+      "name": "配置、CI、依赖与部署工件",
+      "boundary": "TB-05",
+      "inputs": ["environment", "lockfile", "workflow", "artifact", "deployment manifest"]
+    }
   ],
   "requiredScenarioClasses": [
     "authorization-bypass",
@@ -104,7 +250,7 @@
       "targetGate": "G1",
       "assets": ["AST-02", "AST-03"],
       "actors": ["ACT-01", "ACT-02"],
-      "boundaries": ["TB-02", "TB-03"],
+      "boundaries": ["TB-02", "TB-03", "TB-09"],
       "entryPoints": ["EP-02", "EP-03"],
       "scenario": "请求方同时提供用户公钥、可信 release、账户快照或风险签名者，因而可以把攻击者材料声明为可信。",
       "mitigationTasks": ["TRUST-001", "SPEC-002"],
@@ -124,7 +270,7 @@
       "targetGate": "G2",
       "assets": ["AST-01", "AST-02"],
       "actors": ["ACT-03", "ACT-04"],
-      "boundaries": ["TB-03", "TB-04"],
+      "boundaries": ["TB-04", "TB-05"],
       "entryPoints": ["EP-03", "EP-04"],
       "scenario": "现有 ExecutionPermit 未绑定 chainId、verifyingContract、Vault、资产、target 或 calldata，旧许可可用于另一上下文。",
       "mitigationTasks": ["TRUST-001", "SPEC-002", "CON-001", "TST-001"],
@@ -144,7 +290,7 @@
       "targetGate": "G1",
       "assets": ["AST-01", "AST-02"],
       "actors": ["ACT-01", "ACT-09"],
-      "boundaries": ["TB-04"],
+      "boundaries": ["TB-01", "TB-05"],
       "entryPoints": ["EP-04", "EP-08"],
       "scenario": "localSimulation 根据命令类型自动把普通 demo 请求作为 executor 执行；若复用会形成直接越权。",
       "mitigationTasks": ["PRIV-001", "ADAPTER-001", "BACKEND-001"],
@@ -164,7 +310,7 @@
       "targetGate": "G2",
       "assets": ["AST-01", "AST-04", "AST-07"],
       "actors": ["ACT-01", "ACT-04", "ACT-06"],
-      "boundaries": ["TB-05", "TB-06", "TB-07"],
+      "boundaries": ["TB-03", "TB-06", "TB-07", "TB-08"],
       "entryPoints": ["EP-05", "EP-06", "EP-07", "EP-08"],
       "scenario": "本地 deposit、mark 和 settlement 接受调用参数；错误复用会制造没有 Token 转移或 receipt 支撑的余额。",
       "mitigationTasks": ["SPEC-001", "CON-001", "ADAPTER-001", "INDEX-001"],
@@ -184,7 +330,7 @@
       "targetGate": "G2",
       "assets": ["AST-01"],
       "actors": ["ACT-03", "ACT-04", "ACT-05"],
-      "boundaries": ["TB-04", "TB-06"],
+      "boundaries": ["TB-05", "TB-07"],
       "entryPoints": ["EP-04", "EP-06"],
       "scenario": "过宽 target/selector、任意 calldata、delegatecall 或无限授权让 executor/venue 绕过 withdraw 限制。",
       "mitigationTasks": ["SPEC-002", "CON-001", "CON-002", "TST-001"],
@@ -204,7 +350,7 @@
       "targetGate": "G2",
       "assets": ["AST-01", "AST-04"],
       "actors": ["ACT-05"],
-      "boundaries": ["TB-06"],
+      "boundaries": ["TB-07"],
       "entryPoints": ["EP-06"],
       "scenario": "恶意 Token/Venue 在 transfer、approve 或执行期间回调 Vault，重复提现、重复结算或打破会计顺序。",
       "mitigationTasks": ["CON-001", "TST-001", "TST-002"],
@@ -224,7 +370,7 @@
       "targetGate": "G2",
       "assets": ["AST-01", "AST-04"],
       "actors": ["ACT-05", "ACT-08"],
-      "boundaries": ["TB-06"],
+      "boundaries": ["TB-07", "TB-09"],
       "entryPoints": ["EP-06", "EP-09"],
       "scenario": "fee-on-transfer、rebasing、callback、假返回值、可变 decimals 或管理员没收造成账面和实际余额分离。",
       "mitigationTasks": ["ASSET-001", "SPEC-001", "CON-001", "TST-001"],
@@ -244,7 +390,7 @@
       "targetGate": "G2",
       "assets": ["AST-01", "AST-05"],
       "actors": ["ACT-04", "ACT-05", "ACT-08"],
-      "boundaries": ["TB-04", "TB-06"],
+      "boundaries": ["TB-05", "TB-07"],
       "entryPoints": ["EP-04", "EP-06"],
       "scenario": "guardian 全局暂停、executor 消失或 Venue 卡住，使 owner 无法撤销、结算或提取 idle 资产。",
       "mitigationTasks": ["SPEC-002", "CON-002", "TST-002", "IR-001"],
@@ -264,7 +410,7 @@
       "targetGate": "G3",
       "assets": ["AST-01", "AST-06", "AST-07"],
       "actors": ["ACT-06", "ACT-07", "ACT-08"],
-      "boundaries": ["TB-01", "TB-05"],
+      "boundaries": ["TB-01", "TB-06", "TB-09"],
       "entryPoints": ["EP-01", "EP-05", "EP-09"],
       "scenario": "配置或 RPC 返回错误 Chain ID、合约地址、代理 bytecode 或交易状态，UI 仍诱导用户发送。",
       "mitigationTasks": ["CONFIG-001", "RPC-001", "DEPLOY-001", "VERIFY-001"],
@@ -284,7 +430,7 @@
       "targetGate": "G3",
       "assets": ["AST-01", "AST-02", "AST-04", "AST-07"],
       "actors": ["ACT-04", "ACT-06"],
-      "boundaries": ["TB-04", "TB-05", "TB-07"],
+      "boundaries": ["TB-05", "TB-06", "TB-08"],
       "entryPoints": ["EP-04", "EP-05", "EP-07"],
       "scenario": "掉线重试、同 nonce replacement、短重组和重复日志让系统重复提交或错误确认。",
       "mitigationTasks": ["TRUST-001", "TX-001", "INDEX-001", "E2E-001"],
@@ -324,7 +470,7 @@
       "targetGate": "G3",
       "assets": ["AST-01", "AST-02", "AST-03", "AST-06"],
       "actors": ["ACT-03", "ACT-04", "ACT-08", "ACT-09"],
-      "boundaries": ["TB-03", "TB-04"],
+      "boundaries": ["TB-02", "TB-03", "TB-04", "TB-05"],
       "entryPoints": ["EP-03", "EP-04", "EP-09"],
       "scenario": "risk、executor、deployer 或 guardian 私钥进入仓库、明文 env、日志或同一热钱包并被盗用。",
       "mitigationTasks": ["KEY-001", "SECRET-001", "CON-002", "IR-001"],
@@ -344,7 +490,7 @@
       "targetGate": "G2",
       "assets": ["AST-01", "AST-04"],
       "actors": ["ACT-01", "ACT-02", "ACT-05"],
-      "boundaries": ["TB-04", "TB-06"],
+      "boundaries": ["TB-05", "TB-07"],
       "entryPoints": ["EP-02", "EP-04", "EP-06"],
       "scenario": "单位混用、向错误方向舍入、溢出、手续费先后顺序或份额换算导致资产/负债不守恒。",
       "mitigationTasks": ["SPEC-001", "CON-001", "TST-001", "TST-002"],
@@ -364,7 +510,7 @@
       "targetGate": "G3",
       "assets": ["AST-03", "AST-06", "AST-07"],
       "actors": ["ACT-07", "ACT-08", "ACT-09"],
-      "boundaries": ["TB-02", "TB-05"],
+      "boundaries": ["TB-02", "TB-06", "TB-09"],
       "entryPoints": ["EP-02", "EP-09"],
       "scenario": "依赖、Action、编译器、ABI、前端 bundle 或部署清单与已评审源码不一致。",
       "mitigationTasks": ["TOOL-001", "SUPPLY-001", "SEC-002", "VERIFY-001"],
@@ -384,7 +530,7 @@
       "targetGate": "G2",
       "assets": ["AST-03", "AST-04"],
       "actors": ["ACT-01", "ACT-02", "ACT-06"],
-      "boundaries": ["TB-02", "TB-03", "TB-05"],
+      "boundaries": ["TB-02", "TB-03", "TB-06"],
       "entryPoints": ["EP-02", "EP-03", "EP-05"],
       "scenario": "攻击者提供旧的、有利的或跨账户快照，使仓位、亏损和杠杆检查基于错误状态。",
       "mitigationTasks": ["TRUST-001", "SPEC-002", "RPC-001", "E2E-001"],
@@ -404,7 +550,7 @@
       "targetGate": "G3",
       "assets": ["AST-01", "AST-02", "AST-07"],
       "actors": ["ACT-01", "ACT-09"],
-      "boundaries": ["TB-01", "TB-04"],
+      "boundaries": ["TB-01", "TB-05"],
       "entryPoints": ["EP-01", "EP-04", "EP-08"],
       "scenario": "本地 alice/bob cookie 或 URL owner 字段被错误复用为钱包主体，导致跨用户或执行器冒充。",
       "mitigationTasks": ["WALLET-001", "BACKEND-001", "PRIV-001"],
@@ -424,7 +570,7 @@
       "targetGate": "G3",
       "assets": ["AST-05", "AST-08"],
       "actors": ["ACT-01", "ACT-05", "ACT-06", "ACT-09"],
-      "boundaries": ["TB-02", "TB-05", "TB-07"],
+      "boundaries": ["TB-02", "TB-06", "TB-08"],
       "entryPoints": ["EP-02", "EP-05", "EP-07", "EP-08"],
       "scenario": "超大 calldata、决策数组、事件历史、重试队列或 RPC 响应耗尽内存、磁盘、连接和 gas。",
       "mitigationTasks": ["DATA-001", "RPC-001", "OBS-001", "E2E-001"],
@@ -444,7 +590,7 @@
       "targetGate": "G3",
       "assets": ["AST-02", "AST-04", "AST-05", "AST-07"],
       "actors": ["ACT-04", "ACT-06"],
-      "boundaries": ["TB-05", "TB-07"],
+      "boundaries": ["TB-06", "TB-08"],
       "entryPoints": ["EP-05", "EP-07"],
       "scenario": "超时后系统不知道交易是否广播，重新签名或递增 nonce，造成重复、卡死或错误状态。",
       "mitigationTasks": ["RPC-001", "TX-001", "INDEX-001", "OBS-001"],
@@ -464,7 +610,7 @@
       "targetGate": "G3",
       "assets": ["AST-04", "AST-07", "AST-08"],
       "actors": ["ACT-06", "ACT-07"],
-      "boundaries": ["TB-05", "TB-07"],
+      "boundaries": ["TB-06", "TB-08"],
       "entryPoints": ["EP-05", "EP-07"],
       "scenario": "日志重复、乱序或被重组移除，但数据库/UI 保留成功状态或重复累计余额。",
       "mitigationTasks": ["TX-001", "INDEX-001", "WEBSEC-001", "E2E-001"],
@@ -484,7 +630,7 @@
       "targetGate": "G3",
       "assets": ["AST-06", "AST-08"],
       "actors": ["ACT-07", "ACT-08", "ACT-09"],
-      "boundaries": ["TB-01", "TB-03", "TB-05"],
+      "boundaries": ["TB-01", "TB-02", "TB-03", "TB-04", "TB-09"],
       "entryPoints": ["EP-01", "EP-03", "EP-09"],
       "scenario": "裸 EVM 私钥、助记词、provider token 或签名材料出现在 Git 历史、env、前端 bundle、错误或 CI 日志。",
       "mitigationTasks": ["SECRET-001", "KEY-001", "WEBSEC-001", "OBS-001"],
@@ -504,7 +650,7 @@
       "targetGate": "G3",
       "assets": ["AST-01", "AST-06", "AST-07"],
       "actors": ["ACT-06", "ACT-07", "ACT-08"],
-      "boundaries": ["TB-01", "TB-04", "TB-05", "TB-06"],
+      "boundaries": ["TB-01", "TB-05", "TB-06", "TB-07", "TB-09"],
       "entryPoints": ["EP-01", "EP-04", "EP-05", "EP-09"],
       "scenario": "UI、adapter 或部署清单指向空地址、错误构造参数、代理或与本地编译不同的 runtime code。",
       "mitigationTasks": ["CONFIG-001", "SEC-002", "DEPLOY-001", "VERIFY-001"],
@@ -524,7 +670,7 @@
       "targetGate": "G4",
       "assets": ["AST-04", "AST-08"],
       "actors": ["ACT-08", "ACT-09"],
-      "boundaries": ["TB-07"],
+      "boundaries": ["TB-08", "TB-09"],
       "entryPoints": ["EP-07", "EP-09"],
       "scenario": "普通数据库写权限可同时修改快照和 SHA 摘要，或日志记录签名、token、完整 calldata 和用户隐私。",
       "mitigationTasks": ["DATA-001", "OBS-001", "IR-001"],

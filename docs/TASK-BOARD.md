@@ -4,11 +4,11 @@
 
 更新时间：2026-09-06 · 计划版本：2.1
 
-- 当前任务：**THREAT-001 · Robinhood Chain 专项威胁模型与风险登记**
-- 已完成：7/40
+- 当前任务：**GOV-001 · 冻结测试网范围、角色与架构 ADR**
+- 已完成：6/40
 - 就绪：7
-- 未关闭 Critical/High：31
-- 硬边界：仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金和自动交易。
+- 未关闭 Critical/High：32
+- 硬边界：仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金以及无人值守或自主交易。
 
 ## P0 · 已验证基线
 
@@ -29,8 +29,7 @@
 
 | ID | 任务 | 状态 | 优先级 | 风险 | 依赖 |
 | --- | --- | --- | --- | --- | --- |
-| GOV-001 | 冻结测试网范围、角色与架构 ADR | 已完成 | P0 | Critical | NET-001, LEDGER-001, PERMIT-001, LOCAL-001 |
-| THREAT-001 | Robinhood Chain 专项威胁模型与风险登记 | 进行中 | P0 | Critical | GOV-001 |
+| GOV-001 | 冻结测试网范围、角色与架构 ADR | 进行中 | P0 | Critical | NET-001, LEDGER-001, PERMIT-001, LOCAL-001 |
 | TOOL-001 | 固定 Solidity 与安全工具链 | 就绪 | P0 | High | CI-001, NET-001 |
 | SUPPLY-001 | 强化仓库与供应链策略 | 就绪 | P1 | High | CI-001 |
 | ASSET-001 | 测试资产与外部协议地址核验 | 待排期 | P0 | Critical | GOV-001, THREAT-001 |
@@ -38,6 +37,7 @@
 | PRIV-001 | 消除 Demo 用户到 Executor 的隐式提权 | 待排期 | P0 | Critical | GOV-001, THREAT-001 |
 | SPEC-001 | 链上会计、资产与舍入规格 | 待排期 | P0 | Critical | GOV-001, THREAT-001, TOOL-001, ASSET-001 |
 | SPEC-002 | 权限、事件、错误与重放规格 | 待排期 | P0 | Critical | GOV-001, THREAT-001, TRUST-001 |
+| THREAT-001 | Robinhood Chain 专项威胁模型与风险登记 | 待排期 | P0 | Critical | GOV-001 |
 | TRUST-001 | 信任根、签名域与持久重放模型 | 待排期 | P0 | Critical | GOV-001, THREAT-001 |
 | ABI-001 | 冻结 Vault v1 ABI 与 Adapter 边界 | 待排期 | P0 | High | SPEC-001, SPEC-002, CONFIG-001, PRIV-001 |
 
@@ -48,7 +48,7 @@
 | ID | 任务 | 状态 | 优先级 | 风险 | 依赖 |
 | --- | --- | --- | --- | --- | --- |
 | CON-001 | 实现最小非托管 Vault 合约 | 待排期 | P0 | Critical | ABI-001, TOOL-001 |
-| CON-002 | 实现最小权限、暂停与安全退出 | 待排期 | P0 | Critical | CON-001, SPEC-002 |
+| CON-002 | 实现最小权限、不可逆暂停与安全退出 | 待排期 | P0 | Critical | CON-001, SPEC-002 |
 | SEC-002 | 静态分析、字节码复现与独立安全复核 | 待排期 | P0 | Critical | TST-001, TST-002, SUPPLY-001 |
 | TST-001 | 合约单元、负向与权限测试 | 待排期 | P0 | Critical | CON-001, CON-002 |
 | TST-002 | Fuzz、Invariant 与模型差分验证 | 待排期 | P0 | Critical | TST-001, LEDGER-001 |

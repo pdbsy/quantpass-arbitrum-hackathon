@@ -6,7 +6,7 @@
     "planVersion": "2.1",
     "network": "Robinhood Chain Testnet",
     "chainId": 46630,
-    "scope": "仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金和自动交易。",
+    "scope": "仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金以及无人值守或自主交易。",
     "hardBoundaries": [
       "默认拒绝：未识别网络、缺失配置、证据不完整或状态不确定时停止写操作。",
       "非托管优先：应用不得持有用户助记词、私钥，也不得获得提现或任意转账能力。",
@@ -16,7 +16,7 @@
     ]
   },
   "securityPrinciples": [
-    "最小权限与职责分离：用户、策略运行时、风险签名者、执行者和暂停者分别建模。",
+    "最小权限与职责分离：用户、策略运行时、风险签名者、快照签名者、执行者、暂停者和部署者分别建模。",
     "精确会计：链上金额使用整数，显式处理 decimals、舍入、手续费代币与异常 ERC-20。",
     "签名有域：授权必须绑定 chainId、verifyingContract、账户、nonce、deadline 与具体 calldata。",
     "幂等与可恢复：交易提交、替换、掉线、重组和重复回调都必须得到确定结果。",
@@ -88,7 +88,7 @@
       "checks": [
         { "name": "低余额专用部署者、参数清单和 dry-run 已复核", "status": "open" },
         { "name": "源码验证、地址、交易、区块与构建 provenance 完整", "status": "open" },
-        { "name": "存入、分配、提现、暂停与恢复 smoke test 通过", "status": "open" },
+        { "name": "存入、逐笔双签执行、不可逆暂停、Owner 退出与显式迁移 smoke test 通过", "status": "open" },
         { "name": "RPC、重组、交易替换、告警和事故手册已演练", "status": "open" }
       ]
     },
@@ -262,33 +262,28 @@
       "id": "GOV-001",
       "phase": "P1",
       "title": "冻结测试网范围、角色与架构 ADR",
-      "status": "done",
+      "status": "in_progress",
       "priority": "P0",
       "risk": "critical",
       "size": "M",
       "dependsOn": ["NET-001", "LEDGER-001", "PERMIT-001", "LOCAL-001"],
-      "summary": "明确 MVP 是否非托管、支持资产、角色权限、升级策略、暂停与安全退出，并绘制链上/链下信任边界。",
+      "summary": "冻结协议托管/应用非托管边界、逐笔用户确认、支持资产、闭集角色权限、不可升级策略、不可逆暂停与安全退出。",
       "deliverables": ["架构与数据流图", "角色/能力矩阵", "资产与禁止项 ADR", "不可升级优先及迁移策略"],
       "acceptance": [
-        "用户、策略、风险签名者、执行者、暂停者和部署者权限互斥且最小化",
+        "Owner、策略、风险/快照签名者、Executor、暂停者、部署者和 Indexer 权限为闭集、互斥且最小化",
         "明确支持 token、decimals、fee-on-transfer/rebasing 等拒绝策略",
         "禁止任意 call/delegatecall、主网和真实资金路径",
         "独立复核者能指出每个秘密、签名、资产和管理员边界"
       ],
-      "evidence": [
-        "docs/adr/0001-testnet-mvp-scope-and-authority.md",
-        "planning/security-boundary.json",
-        "tools/check-governance.mjs",
-        "test/governance.test.mjs"
-      ],
-      "rollback": "ADR 未通过前保持 local mock，禁止引入 testnet 写 adapter。",
+      "evidence": [],
+      "rollback": "ADR 未通过前保持 local mock，部署写平面与应用写平面均保持关闭。",
       "updatedAt": "2026-09-06"
     },
     {
       "id": "THREAT-001",
       "phase": "P1",
       "title": "Robinhood Chain 专项威胁模型与风险登记",
-      "status": "in_progress",
+      "status": "backlog",
       "priority": "P0",
       "risk": "critical",
       "size": "M",
@@ -366,7 +361,7 @@
       "summary": "把调用者可注入的 key/release/snapshot 改为受控信任根，并让授权精确绑定链、合约、账户与 calldata。",
       "deliverables": [
         "EIP-712 domain 与 schema",
-        "密钥来源/轮换/撤销模型",
+        "固定信任根、失效与新部署替换模型",
         "原子持久 nonce store",
         "可信账户快照来源"
       ],
@@ -374,7 +369,7 @@
         "签名绑定 chainId、verifyingContract、wallet、nonce、deadline 和 calldata hash",
         "调用者不能替换 trusted release、public key 或账户快照来源",
         "进程重启、并发和跨实例下重放仍被拒绝",
-        "密钥轮换与撤销不破坏安全退出"
+        "密钥失效时停止签发许可；替换信任根必须走不可逆暂停、Owner 退出、新部署和重新授权"
       ],
       "evidence": [],
       "rollback": "信任根不可用时不签发新许可，只允许读取与已授权安全退出。",
@@ -390,10 +385,10 @@
       "size": "M",
       "dependsOn": ["GOV-001", "THREAT-001"],
       "summary": "当前模拟路由会按命令类型自动映射 executor；生产边界必须将用户意图与受信执行结果彻底分离。",
-      "deliverables": ["用户命令/执行者回执分离接口", "服务身份验证", "权限矩阵负向测试"],
+      "deliverables": ["本地命令/Testnet 双签意图分离接口", "不可信 Relay 边界", "权限矩阵负向测试"],
       "acceptance": [
         "普通用户不能直接触发 fill、mark、settle、confirm 或 fee payment",
-        "executor 消息具有来源认证、nonce 和授权范围",
+        "Executor 身份不构成授权；链上只接受 Owner+Risk 双签、独立 nonce 和完整调用绑定",
         "演示快捷路径只能在编译/运行时 local-only 边界内存在"
       ],
       "evidence": [],
@@ -434,7 +429,7 @@
       "acceptance": [
         "每种资产的 decimals 与最小单位显式定义且不猜测",
         "总资产、负债、待提取、费用和策略额度在每次转换后守恒",
-        "拒绝或专门处理 fee-on-transfer、rebasing、回调和非标准返回 token",
+        "拒绝 fee-on-transfer、rebasing、回调、可变实现和非标准返回 token",
         "零值、最大值、舍入尘埃、暂停和紧急退出有规范"
       ],
       "evidence": [],
@@ -451,7 +446,12 @@
       "size": "M",
       "dependsOn": ["GOV-001", "THREAT-001", "TRUST-001"],
       "summary": "为每个外部函数定义调用者、前置条件、状态变化、事件、错误和重放语义。",
-      "deliverables": ["函数权限矩阵", "事件/错误目录", "nonce/deadline 规则", "暂停与恢复状态机"],
+      "deliverables": [
+        "函数权限矩阵",
+        "事件/错误目录",
+        "nonce/deadline 规则",
+        "不可逆暂停、Owner 退出与新地址迁移状态机"
+      ],
       "acceptance": [
         "所有状态写入都有明确角色和自定义错误",
         "事件足以独立重建关键状态且不记录秘密",
@@ -518,13 +518,13 @@
       "risk": "critical",
       "size": "L",
       "dependsOn": ["ABI-001", "TOOL-001"],
-      "summary": "按冻结规格实现最小资产托管/额度边界，不包含任意外部执行或未经证明的策略逻辑。",
+      "summary": "按冻结规格实现最小资产托管与逐笔双签执行边界；只允许类型化固定 target/selector，不包含任意外部调用。",
       "deliverables": ["Vault 合约", "接口与事件", "NatSpec 与状态不变量注释"],
       "acceptance": [
         "实现与冻结 ABI、会计规格逐项对应",
         "使用 checks-effects-interactions 和显式 SafeERC20 边界",
         "所有外部写函数具备授权、暂停与重入分析",
-        "不包含任意 call、delegatecall 或可注入实现地址"
+        "不包含任意 target/calldata、delegatecall 或可注入实现地址；类型化固定调用逐项验证"
       ],
       "evidence": [],
       "rollback": "合约不可升级；问题版本暂停新入口并迁移到重新部署的地址。",
@@ -533,19 +533,19 @@
     {
       "id": "CON-002",
       "phase": "P2",
-      "title": "实现最小权限、暂停与安全退出",
+      "title": "实现最小权限、不可逆暂停与安全退出",
       "status": "backlog",
       "priority": "P0",
       "risk": "critical",
       "size": "M",
       "dependsOn": ["CON-001", "SPEC-002"],
-      "summary": "把管理员、暂停者、执行者和用户能力落实为最小角色，并确保事故时不会永久锁定退出。",
-      "deliverables": ["角色控制", "暂停矩阵", "紧急退出路径", "角色转移/撤销流程"],
+      "summary": "把 Owner、双签者、不可信 Relay、不可逆暂停者和一次性部署者落实为闭集最小角色，并确保事故时不会锁死退出。",
+      "deliverables": ["闭集角色控制", "不可逆暂停矩阵", "Owner 直接退出路径", "新地址替换与显式迁移流程"],
       "acceptance": [
         "任何单一策略或执行者都无提现/任意转账权",
-        "暂停时禁止新增风险但保留规范定义的安全退出",
-        "角色变更有双步骤或明确确认、事件和负向测试",
-        "零地址、角色丢失和重复撤销场景可恢复"
+        "不可逆暂停时禁止新增风险，但 Owner 可直接撤销意图和提取测试资产",
+        "部署时拒绝零地址并验证安全角色地址两两不同；不存在原地角色变更或 unpause",
+        "角色丢失或泄露时按暂停、Owner 退出、新合约和重新授权流程恢复"
       ],
       "evidence": [],
       "rollback": "角色异常时先暂停新增风险，按演练流程撤销或迁移，不升级原合约。",
@@ -590,7 +590,7 @@
       ],
       "acceptance": [
         "资产守恒、负债覆盖、额度上限和无重复支付不变量持续成立",
-        "暂停、角色变更、失败 token 与随机顺序均纳入生成",
+        "不可逆暂停、角色失效、显式迁移、失败 token 与随机顺序均纳入生成",
         "失败可用种子和命令序列稳定复现",
         "CI 运行短预算，发布门禁运行长预算并保存报告"
       ],

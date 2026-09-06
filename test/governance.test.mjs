@@ -4,68 +4,83 @@ import test from 'node:test';
 
 import {
   loadGovernanceArtifacts,
-  validateAdrCoverage,
+  renderSecurityBoundaryAppendix,
+  semanticBoundaryDigest,
   validateSecurityBoundary,
-} from '../tools/check-governance.mjs';
+  validateRoadmapAlignment,
+} from '../tools/check-governance-v2.mjs';
 
 const boundary = JSON.parse(
   await readFile(new URL('../planning/security-boundary.json', import.meta.url), 'utf8'),
 );
+const roadmap = JSON.parse(await readFile(new URL('../planning/roadmap.json', import.meta.url), 'utf8'));
 
-test('accepted governance boundary is complete and documented', async () => {
+test('review governance boundary is complete, closed and documented', async () => {
   assert.equal(validateSecurityBoundary(boundary), boundary);
+  assert.equal(validateRoadmapAlignment(boundary, roadmap), roadmap);
   const artifacts = await loadGovernanceArtifacts();
   assert.equal(artifacts.boundary.environment.chainId, 46_630);
-  assert.equal(artifacts.boundary.environment.testnetWrites.enabled, false);
-  assert.equal(artifacts.boundary.capabilityOwners.withdraw_assets[0], 'owner');
+  assert.equal(artifacts.boundary.environment.writePlanes.deployment.enabled, false);
+  assert.equal(artifacts.boundary.environment.writePlanes.application.enabled, false);
+  assert.equal(artifacts.boundary.operatingModel.unattendedExecution, false);
+  assert.equal(semanticBoundaryDigest(artifacts.boundary).length, 64);
+  assert.equal(artifacts.appendix, renderSecurityBoundaryAppendix(artifacts.boundary));
 });
 
-test('governance boundary rejects premature network and value expansion', () => {
-  const testnetWrite = structuredClone(boundary);
-  testnetWrite.environment.testnetWrites.enabled = true;
-  assert.throws(() => validateSecurityBoundary(testnetWrite), /testnet writes must remain disabled/);
+test('closed governance baseline rejects every reviewed semantic bypass', () => {
+  const mutations = [
+    ['unattended execution', (item) => (item.operatingModel.unattendedExecution = true)],
+    ['deployment write enable', (item) => (item.environment.writePlanes.deployment.enabled = true)],
+    ['application write enable', (item) => (item.environment.writePlanes.application.enabled = true)],
+    ['mainnet enable', (item) => (item.environment.mainnetSupported = true)],
+    ['real funds enable', (item) => (item.environment.realFundsSupported = true)],
+    ['executor caller authority', (item) => (item.roles[4].authority = 'caller-supplied')],
+    ['executor arbitrary call', (item) => item.roles[4].capabilities.push('arbitrary_external_call')],
+    ['deploy privilege transfer', (item) => (item.capabilities[9].owners = ['executor'])],
+    ['owner withdrawal removal', (item) => item.roles[0].capabilities.splice(1, 1)],
+    ['proxy enable', (item) => (item.contract.proxyAllowed = true)],
+    ['admin upgrade migration', (item) => (item.contract.migration = 'proxy-admin-upgrade')],
+    ['unpause enable', (item) => (item.contract.unpauseAllowed = true)],
+    ['blocked exit', (item) => (item.safeExit.availableDuringPause = false)],
+    ['empty pause blocks', (item) => (item.safeExit.riskIncreasingActionsBlocked = [])],
+    ['real token activation', (item) => item.assetPolicy.activeAllowlist.push('real-token')],
+    ['admin token exception', (item) => item.assetPolicy.rejectedBehaviors.splice(6, 3)],
+    ['cross-chain replay', (item) => item.signatures[0].requiredBindings.splice(0, 1)],
+    ['risk permit signer swap', (item) => (item.signatures[1].signerRole = 'executor')],
+    ['strategy bindings cleared', (item) => (item.signatures[2].requiredBindings = [])],
+    ['memory nonce', (item) => (item.nonceDomains[2].persistence = 'memory')],
+    ['owner secret removed', (item) => item.secrets.splice(0, 1)],
+    ['repository allowed for key', (item) => item.secrets[2].allowedStorage.push('repository')],
+    ['trust endpoint substitution', (item) => (item.trustBoundaries[0].to = 'attacker-wallet')],
+    ['trust controls cleared', (item) => (item.trustBoundaries[0].controls = [])],
+    ['blind signing prohibition removed', (item) => item.prohibited.splice(4, 1)],
+    ['extra unsafe field', (item) => (item.emergencyAdmin = true)],
+  ];
 
-  const mainnet = structuredClone(boundary);
-  mainnet.environment.mainnetSupported = true;
-  assert.throws(() => validateSecurityBoundary(mainnet), /mainnet must remain unsupported/);
-
-  const realFunds = structuredClone(boundary);
-  realFunds.environment.realFundsSupported = true;
-  assert.throws(() => validateSecurityBoundary(realFunds), /real funds must remain unsupported/);
+  for (const [name, mutate] of mutations) {
+    const candidate = structuredClone(boundary);
+    mutate(candidate);
+    assert.throws(
+      () => validateSecurityBoundary(candidate),
+      /Invalid governance boundary/,
+      `${name} must be rejected`,
+    );
+  }
 });
 
-test('governance boundary rejects privilege escalation and blocked exits', () => {
-  const executorWithdrawal = structuredClone(boundary);
-  executorWithdrawal.capabilityOwners.withdraw_assets.push('executor');
-  assert.throws(() => validateSecurityBoundary(executorWithdrawal), /withdraw capability owners/);
-
-  const proxy = structuredClone(boundary);
-  proxy.contract.proxyAllowed = true;
-  assert.throws(() => validateSecurityBoundary(proxy), /proxy must be forbidden/);
-
-  const blockedExit = structuredClone(boundary);
-  blockedExit.safeExit.availableDuringPause = false;
-  assert.throws(() => validateSecurityBoundary(blockedExit), /safe exit must remain available/);
+test('coordinated capability escalation is rejected even when role and owner catalog agree', () => {
+  const candidate = structuredClone(boundary);
+  candidate.roles[4].capabilities.push('arbitrary_external_call');
+  candidate.capabilities.push({ id: 'arbitrary_external_call', owners: ['executor'] });
+  assert.throws(() => validateSecurityBoundary(candidate), /Invalid governance boundary/);
 });
 
-test('governance boundary rejects weakened asset and signature rules', () => {
-  const rebasing = structuredClone(boundary);
-  rebasing.assetPolicy.rejectedBehaviors = rebasing.assetPolicy.rejectedBehaviors.filter(
-    (behavior) => behavior !== 'rebasing',
-  );
-  assert.throws(() => validateSecurityBoundary(rebasing), /must include rebasing/);
+test('roadmap alignment rejects unknown prerequisites and dishonest acceptance', () => {
+  const unknownTask = structuredClone(boundary);
+  unknownTask.environment.writePlanes.application.requiresCompletedTasks[0] = 'MISSING-001';
+  assert.throws(() => validateRoadmapAlignment(unknownTask, roadmap), /unknown task MISSING-001/);
 
-  const crossChainReplay = structuredClone(boundary);
-  const ownerAuthorization = crossChainReplay.signatures.find(
-    (signature) => signature.id === 'owner-authorization',
-  );
-  ownerAuthorization.requiredBindings = ownerAuthorization.requiredBindings.filter(
-    (binding) => binding !== 'chainId',
-  );
-  assert.throws(() => validateSecurityBoundary(crossChainReplay), /must include chainId/);
-});
-
-test('ADR coverage rejects missing trust-boundary documentation', () => {
-  const incompleteAdr = '# ADR-0001\nChain ID `46630`\n本 ADR 不开启 Testnet 写入';
-  assert.throws(() => validateAdrCoverage(boundary, incompleteAdr), /ADR must identify role owner/);
+  const prematureAcceptance = structuredClone(boundary);
+  prematureAcceptance.decision.status = 'accepted';
+  assert.throws(() => validateRoadmapAlignment(prematureAcceptance, roadmap), /requires GOV-001 done/);
 });
