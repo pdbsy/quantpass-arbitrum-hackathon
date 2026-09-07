@@ -17,6 +17,10 @@ test('planning validation rejects unsafe status and dependency drift', () => {
   duplicate.tasks[1].id = duplicate.tasks[0].id;
   assert.throws(() => validatePlan(duplicate), /duplicate task/);
 
+  const impossibleDate = structuredClone(plan);
+  impossibleDate.updatedAt = '2026-99-99';
+  assert.throws(() => validatePlan(impossibleDate), /must be a real YYYY-MM-DD date/);
+
   const extraWip = structuredClone(plan);
   extraWip.tasks.find((task) => task.status === 'ready').status = 'in_progress';
   assert.throws(() => validatePlan(extraWip), /exactly one task must be in_progress/);

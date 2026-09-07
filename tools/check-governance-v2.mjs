@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,31 @@ const reviewRecordPath = resolve(root, 'docs/reviews/GOV-001.json');
 const reviewReportPath = resolve(root, 'docs/reviews/GOV-001.md');
 const governanceTestPath = resolve(root, 'test/governance.test.mjs');
 const validatorPath = fileURLToPath(import.meta.url);
+
+const VERIFIED_REVIEW = Symbol('verified-governance-review');
+const REVIEWABLE_PATHS = Object.freeze([
+  '.github/workflows/ci.yml',
+  'README.md',
+  'docs/adr/0001-security-boundary.generated.md',
+  'docs/adr/0001-testnet-mvp-scope-and-authority.md',
+  'planning/roadmap.json',
+  'planning/security-boundary.json',
+  'test/governance.test.mjs',
+  'tools/check-governance-v2.mjs',
+]);
+const ACCEPTANCE_TRANSITION_PATHS = Object.freeze([
+  'README.md',
+  'TODO.md',
+  'docs/TASK-BOARD.md',
+  'docs/adr/0001-security-boundary.generated.md',
+  'docs/adr/0001-testnet-mvp-scope-and-authority.md',
+  'docs/reviews/GOV-001.json',
+  'docs/reviews/GOV-001.md',
+  'docs/task-board.html',
+  'planning/roadmap.json',
+  'planning/security-boundary.json',
+]);
+const REVIEWER_IDS = Object.freeze(['gov-architecture', 'gov-roles-assets', 'gov-validation']);
 
 // This digest excludes only review state and date. Every other byte of semantic JSON is a closed,
 // review-required baseline; changing it requires updating this constant and the mutation tests.
@@ -63,6 +89,21 @@ function canonicalJson(value) {
 
 function sha256Text(value) {
   return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function isRealIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+export function semanticReadmeDigest(readme) {
+  requireString(readme, 'README document');
+  const statusPattern =
+    /^Governance decision status: \*\*(accepted|independent review \(not accepted\))\*\*\.$/gm;
+  const matches = readme.match(statusPattern) ?? [];
+  requireCondition(matches.length === 1, 'README must contain exactly one recognized governance status');
+  return sha256Text(readme.replace(statusPattern, 'Governance decision status: **__DECISION_STATUS__**.'));
 }
 
 export function semanticAdrDigest(adr) {
@@ -138,8 +179,8 @@ export function validateGovernanceReview(review, boundary, artifactDigests) {
     'governanceReview.reviewedCommit must be a nonzero full Git commit',
   );
   requireCondition(
-    /^\d{4}-\d{2}-\d{2}$/.test(review.reviewedAt),
-    'governanceReview.reviewedAt must be YYYY-MM-DD',
+    isRealIsoDate(review.reviewedAt),
+    'governanceReview.reviewedAt must be a real YYYY-MM-DD calendar date',
   );
   requireCondition(
     review.reviewMethod === 'three-independent-read-only-reviews',
@@ -151,7 +192,13 @@ export function validateGovernanceReview(review, boundary, artifactDigests) {
   );
   requireExactKeys(
     review.artifactDigests,
-    ['adrNormalizedSha256', 'validatorSha256', 'regressionTestsSha256'],
+    [
+      'adrNormalizedSha256',
+      'readmeNormalizedSha256',
+      'roadmapSha256',
+      'validatorSha256',
+      'regressionTestsSha256',
+    ],
     'governanceReview.artifactDigests',
   );
   for (const [name, digest] of Object.entries(review.artifactDigests)) {
@@ -187,7 +234,10 @@ export function validateGovernanceReview(review, boundary, artifactDigests) {
       `governanceReview.reviewers[${index}]`,
     );
     requireCondition(reviewer.area === expectedAreas[index], `reviewer ${index} area changed`);
-    requireString(reviewer.reviewerId, `reviewer ${index}.reviewerId`);
+    requireCondition(
+      reviewer.reviewerId === REVIEWER_IDS[index],
+      `reviewer ${index}.reviewerId must be ${REVIEWER_IDS[index]}`,
+    );
     requireCondition(!reviewerIds.has(reviewer.reviewerId), 'reviewer IDs must be distinct');
     reviewerIds.add(reviewer.reviewerId);
     requireCondition(
@@ -564,7 +614,7 @@ export function validateSecurityBoundary(boundary) {
     'root',
   );
   requireCondition(boundary.schemaVersion === 3, 'schemaVersion must be 3');
-  requireCondition(/^\d{4}-\d{2}-\d{2}$/.test(boundary.updatedAt), 'updatedAt must be YYYY-MM-DD');
+  requireCondition(isRealIsoDate(boundary.updatedAt), 'updatedAt must be a real YYYY-MM-DD date');
   requireExactKeys(boundary.decision, ['id', 'status', 'scope', 'supersedes'], 'decision');
   requireCondition(boundary.decision.id === 'ADR-0001', 'decision.id must be ADR-0001');
   requireCondition(
@@ -1028,7 +1078,7 @@ export function validateSecurityBoundary(boundary) {
   return boundary;
 }
 
-export function validateRoadmapAlignment(boundary, roadmap, review = null) {
+export function validateRoadmapAlignment(boundary, roadmap, review = null, reviewVerification = null) {
   requireCondition(roadmap?.project?.chainId === boundary.environment.chainId, 'roadmap Chain ID mismatch');
   const tasks = new Map(roadmap.tasks.map((task) => [task.id, task]));
   const gates = new Map(roadmap.releaseGates.map((gate) => [gate.id, gate]));
@@ -1050,7 +1100,7 @@ export function validateRoadmapAlignment(boundary, roadmap, review = null) {
     requireCondition(governance.status === 'in_progress', 'review decision requires GOV-001 in progress');
   } else {
     requireCondition(governance.status === 'done', 'accepted decision requires GOV-001 done');
-    for (const evidence of [
+    const expectedEvidence = [
       'docs/adr/0001-testnet-mvp-scope-and-authority.md',
       'docs/adr/0001-security-boundary.generated.md',
       'docs/reviews/GOV-001.json',
@@ -1058,10 +1108,13 @@ export function validateRoadmapAlignment(boundary, roadmap, review = null) {
       'planning/security-boundary.json',
       'tools/check-governance-v2.mjs',
       'test/governance.test.mjs',
-    ]) {
-      requireCondition(governance.evidence.includes(evidence), `GOV-001 evidence missing ${evidence}`);
-    }
+    ];
+    requireExactArray(governance.evidence, expectedEvidence, 'GOV-001.evidence');
     validateGovernanceReview(review, boundary);
+    requireCondition(
+      reviewVerification?.[VERIFIED_REVIEW] === true && reviewVerification.review === review,
+      'accepted decision requires verified Git review provenance',
+    );
   }
   return roadmap;
 }
@@ -1211,7 +1264,276 @@ export function renderGovernanceReview(review) {
       : review.nonBlockingRecommendations.map((item) => `- ${item}`).join('\n');
   const limitations =
     review.limitations.length === 0 ? '- none' : review.limitations.map((item) => `- ${item}`).join('\n');
-  return `# GOV-001 独立复核记录\n\n> 自动生成文件。唯一事实源为 \`docs/reviews/GOV-001.json\`；禁止手工修改。\n\n- Decision：\`${review.decisionId}\`\n- Reviewed commit：\`${review.reviewedCommit}\`\n- Reviewed at：\`${review.reviewedAt}\`\n- Method：\`${review.reviewMethod}\`\n- Semantic digest：\`${review.reviewedSemanticDigest}\`\n- Aggregate verdict：\`${review.verdict}\`\n- Aggregate blockers：none\n\n## 受复核工件摘要\n\n- ADR（状态归一化）：\`${review.artifactDigests.adrNormalizedSha256}\`\n- Validator：\`${review.artifactDigests.validatorSha256}\`\n- Regression tests：\`${review.artifactDigests.regressionTestsSha256}\`\n\n${reviewers}\n\n## 非阻断建议\n\n${recommendations}\n\n## 局限\n\n${limitations}\n`;
+  return `# GOV-001 独立复核记录\n\n> 自动生成文件。唯一事实源为 \`docs/reviews/GOV-001.json\`；禁止手工修改。\n\n- Decision：\`${review.decisionId}\`\n- Reviewed commit：\`${review.reviewedCommit}\`\n- Reviewed at：\`${review.reviewedAt}\`\n- Method：\`${review.reviewMethod}\`\n- Semantic digest：\`${review.reviewedSemanticDigest}\`\n- Aggregate verdict：\`${review.verdict}\`\n- Aggregate blockers：none\n- Git provenance：复核提交必须真实存在，并位于首次验收提交的 first-parent 路径上；首次验收只允许闭集状态转换。\n\n## 受复核工件摘要\n\n- ADR（状态归一化）：\`${review.artifactDigests.adrNormalizedSha256}\`\n- README（状态归一化）：\`${review.artifactDigests.readmeNormalizedSha256}\`\n- Roadmap（复核快照）：\`${review.artifactDigests.roadmapSha256}\`\n- Validator：\`${review.artifactDigests.validatorSha256}\`\n- Regression tests：\`${review.artifactDigests.regressionTestsSha256}\`\n\n${reviewers}\n\n## 非阻断建议\n\n${recommendations}\n\n## 局限\n\n${limitations}\n`;
+}
+
+function runGit(repositoryRoot, args, allowFailure = false) {
+  try {
+    return execFileSync('git', ['-C', repositoryRoot, ...args], {
+      encoding: 'utf8',
+      maxBuffer: 8 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch {
+    if (allowFailure) return null;
+    throw new Error(`Invalid governance boundary: Git provenance command failed: git ${args[0]}`);
+  }
+}
+
+function readCommitBlob(repositoryRoot, commit, path) {
+  const content = runGit(repositoryRoot, ['show', `${commit}:${path}`], true);
+  requireCondition(content !== null, `reviewed Git snapshot is missing ${path}`);
+  return content;
+}
+
+function readOptionalCommitBlob(repositoryRoot, commit, path) {
+  return runGit(repositoryRoot, ['show', `${commit}:${path}`], true);
+}
+
+function parseNulPaths(value) {
+  return value.split('\0').filter(Boolean);
+}
+
+function requireExactTransitionPaths(actualPaths) {
+  const actual = [...new Set(actualPaths)].sort();
+  const expected = [...ACCEPTANCE_TRANSITION_PATHS].sort();
+  requireCondition(
+    JSON.stringify(actual) === JSON.stringify(expected),
+    `acceptance transition paths must be exactly ${expected.join(', ')}; got ${actual.join(', ')}`,
+  );
+}
+
+function normalizeRoadmapTransition(roadmap) {
+  const normalized = structuredClone(roadmap);
+  requireCondition(isRealIsoDate(normalized.updatedAt), 'roadmap.updatedAt must be a real date');
+  normalized.updatedAt = '__TRANSITION_DATE__';
+  const governance = normalized.tasks?.find((task) => task.id === 'GOV-001');
+  const threat = normalized.tasks?.find((task) => task.id === 'THREAT-001');
+  requireCondition(governance && threat, 'governance transition tasks are missing');
+  requireCondition(isRealIsoDate(governance.updatedAt), 'GOV-001.updatedAt must be a real date');
+  requireCondition(isRealIsoDate(threat.updatedAt), 'THREAT-001.updatedAt must be a real date');
+  governance.status = '__GOVERNANCE_TRANSITION_STATUS__';
+  governance.evidence = '__GOVERNANCE_TRANSITION_EVIDENCE__';
+  governance.updatedAt = '__TRANSITION_DATE__';
+  threat.status = '__NEXT_TASK_STATUS__';
+  threat.updatedAt = '__TRANSITION_DATE__';
+  return canonicalJson(normalized);
+}
+
+function parseSnapshot(snapshot, expectedStatus) {
+  const boundary = validateSecurityBoundary(JSON.parse(snapshot.boundaryText));
+  const roadmap = JSON.parse(snapshot.roadmapText);
+  requireCondition(
+    boundary.decision.status === expectedStatus,
+    `Git snapshot decision status must be ${expectedStatus}`,
+  );
+  validateGovernanceDocumentStatus(boundary, snapshot.adr, snapshot.readme);
+  requireCondition(
+    snapshot.appendix === renderSecurityBoundaryAppendix(boundary),
+    'Git snapshot contains a stale generated boundary appendix',
+  );
+
+  if (expectedStatus === 'review') {
+    requireCondition(snapshot.reviewText === null, 'reviewed commit must not contain a final review record');
+    requireCondition(
+      snapshot.reviewReport === null,
+      'reviewed commit must not contain a final review report',
+    );
+    validateRoadmapAlignment(boundary, roadmap);
+    return { ...snapshot, boundary, roadmap, review: null };
+  }
+
+  requireCondition(snapshot.reviewText !== null, 'acceptance snapshot is missing the review record');
+  requireCondition(snapshot.reviewReport !== null, 'acceptance snapshot is missing the review report');
+  const review = validateGovernanceReview(JSON.parse(snapshot.reviewText), boundary);
+  requireCondition(
+    snapshot.reviewReport === renderGovernanceReview(review),
+    'acceptance snapshot contains a stale governance review report',
+  );
+  const provisionalVerification = { [VERIFIED_REVIEW]: true, review };
+  validateRoadmapAlignment(boundary, roadmap, review, provisionalVerification);
+  return { ...snapshot, boundary, roadmap, review };
+}
+
+function loadCommitSnapshot(repositoryRoot, commit) {
+  return {
+    boundaryText: readCommitBlob(repositoryRoot, commit, 'planning/security-boundary.json'),
+    roadmapText: readCommitBlob(repositoryRoot, commit, 'planning/roadmap.json'),
+    adr: readCommitBlob(repositoryRoot, commit, 'docs/adr/0001-testnet-mvp-scope-and-authority.md'),
+    appendix: readCommitBlob(repositoryRoot, commit, 'docs/adr/0001-security-boundary.generated.md'),
+    readme: readCommitBlob(repositoryRoot, commit, 'README.md'),
+    reviewText: readOptionalCommitBlob(repositoryRoot, commit, 'docs/reviews/GOV-001.json'),
+    reviewReport: readOptionalCommitBlob(repositoryRoot, commit, 'docs/reviews/GOV-001.md'),
+    validatorText: readCommitBlob(repositoryRoot, commit, 'tools/check-governance-v2.mjs'),
+    governanceTest: readCommitBlob(repositoryRoot, commit, 'test/governance.test.mjs'),
+  };
+}
+
+function validateReviewerEvidence(review, baseline) {
+  const reviewedFiles = new Map(
+    REVIEWABLE_PATHS.map((path) => [
+      path,
+      readCommitBlob(baseline.repositoryRoot, review.reviewedCommit, path),
+    ]),
+  );
+  for (const reviewer of review.reviewers) {
+    const referencedPaths = new Set();
+    for (const evidence of reviewer.evidence) {
+      const match = /^([^:]+):(\d+)(?:-(\d+))?$/.exec(evidence);
+      requireCondition(match, `${reviewer.area} evidence must be path:start or path:start-end`);
+      const [, path, startText, endText = startText] = match;
+      requireCondition(reviewedFiles.has(path), `${reviewer.area} evidence references an unreviewed path`);
+      const start = Number(startText);
+      const end = Number(endText);
+      const lineCount = reviewedFiles.get(path).split('\n').length;
+      requireCondition(
+        start >= 1 && end >= start && end <= lineCount,
+        `${reviewer.area} evidence range is invalid`,
+      );
+      referencedPaths.add(path);
+    }
+    requireCondition(
+      referencedPaths.size >= 2,
+      `${reviewer.area} evidence must cover at least two reviewed files`,
+    );
+    for (const command of reviewer.commands) {
+      const prefix = `git show ${review.reviewedCommit}:`;
+      requireCondition(
+        command.startsWith(prefix) && command.endsWith(' | nl -ba'),
+        `${reviewer.area} command must be a pinned read-only git show command`,
+      );
+      const path = command.slice(prefix.length, -' | nl -ba'.length);
+      requireCondition(reviewedFiles.has(path), `${reviewer.area} command references an unreviewed path`);
+    }
+  }
+}
+
+function validateAcceptanceTransition(baseline, acceptance, changedPaths) {
+  requireExactTransitionPaths(changedPaths);
+  requireCondition(baseline.boundary.decision.status === 'review', 'baseline must be in review');
+  requireCondition(acceptance.boundary.decision.status === 'accepted', 'transition must end accepted');
+  requireCondition(
+    semanticBoundaryDigest(baseline.boundary) === semanticBoundaryDigest(acceptance.boundary),
+    'acceptance changed reviewed boundary semantics',
+  );
+  requireCondition(
+    semanticAdrDigest(baseline.adr) === semanticAdrDigest(acceptance.adr),
+    'acceptance changed reviewed ADR semantics',
+  );
+  requireCondition(
+    semanticReadmeDigest(baseline.readme) === semanticReadmeDigest(acceptance.readme),
+    'acceptance changed README outside its governance status marker',
+  );
+
+  const baselineGovernance = baseline.roadmap.tasks.find((task) => task.id === 'GOV-001');
+  const acceptanceGovernance = acceptance.roadmap.tasks.find((task) => task.id === 'GOV-001');
+  const baselineThreat = baseline.roadmap.tasks.find((task) => task.id === 'THREAT-001');
+  const acceptanceThreat = acceptance.roadmap.tasks.find((task) => task.id === 'THREAT-001');
+  requireCondition(
+    baselineGovernance?.status === 'in_progress' && baselineGovernance.evidence.length === 0,
+    'reviewed roadmap must keep GOV-001 in progress without final evidence',
+  );
+  requireCondition(acceptanceGovernance?.status === 'done', 'acceptance must complete GOV-001');
+  requireCondition(baselineThreat?.status === 'backlog', 'reviewed roadmap must keep THREAT-001 backlog');
+  requireCondition(acceptanceThreat?.status === 'in_progress', 'acceptance must start THREAT-001');
+  requireCondition(
+    normalizeRoadmapTransition(baseline.roadmap) === normalizeRoadmapTransition(acceptance.roadmap),
+    'acceptance changed roadmap content outside the closed task transition',
+  );
+}
+
+export function validateGovernanceReviewProvenance(review, current, options = {}) {
+  const repositoryRoot = resolve(options.repositoryRoot ?? root);
+  validateGovernanceReview(review, current.boundary);
+  requireCondition(
+    runGit(repositoryRoot, ['cat-file', '-e', `${review.reviewedCommit}^{commit}`], true) !== null,
+    'governanceReview.reviewedCommit does not exist as a Git commit',
+  );
+  const head = runGit(repositoryRoot, ['rev-parse', 'HEAD']).trim();
+  requireCondition(
+    runGit(repositoryRoot, ['merge-base', '--is-ancestor', review.reviewedCommit, head], true) !== null,
+    'governanceReview.reviewedCommit is not an ancestor of HEAD',
+  );
+
+  const commitDate = runGit(repositoryRoot, ['show', '-s', '--format=%cs', review.reviewedCommit]).trim();
+  const today = (options.now ?? new Date()).toISOString().slice(0, 10);
+  requireCondition(
+    review.reviewedAt >= commitDate,
+    'governanceReview.reviewedAt predates the reviewed commit',
+  );
+  requireCondition(review.reviewedAt <= today, 'governanceReview.reviewedAt is in the future');
+
+  const baseline = parseSnapshot(loadCommitSnapshot(repositoryRoot, review.reviewedCommit), 'review');
+  baseline.repositoryRoot = repositoryRoot;
+  validateGovernanceReview(review, current.boundary, {
+    adrNormalizedSha256: semanticAdrDigest(baseline.adr),
+    readmeNormalizedSha256: semanticReadmeDigest(baseline.readme),
+    roadmapSha256: sha256Text(baseline.roadmapText),
+    validatorSha256: sha256Text(baseline.validatorText),
+    regressionTestsSha256: sha256Text(baseline.governanceTest),
+  });
+  validateReviewerEvidence(review, baseline);
+
+  let acceptance;
+  let acceptanceCommit = null;
+  let changedPaths;
+  if (head === review.reviewedCommit) {
+    acceptance = parseSnapshot(current, 'accepted');
+    const tracked = parseNulPaths(
+      runGit(repositoryRoot, ['diff', '--no-renames', '--name-only', '-z', review.reviewedCommit, '--']),
+    );
+    const untracked = parseNulPaths(
+      runGit(repositoryRoot, ['ls-files', '--others', '--exclude-standard', '-z']),
+    );
+    changedPaths = [...tracked, ...untracked];
+  } else {
+    const firstParentHistory = runGit(repositoryRoot, ['rev-list', '--first-parent', head])
+      .trim()
+      .split('\n');
+    requireCondition(
+      firstParentHistory.includes(review.reviewedCommit),
+      'governanceReview.reviewedCommit is not on the HEAD first-parent history',
+    );
+    const transitionCommits = runGit(repositoryRoot, [
+      'rev-list',
+      '--first-parent',
+      '--reverse',
+      `${review.reviewedCommit}..${head}`,
+    ])
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    requireCondition(transitionCommits.length > 0, 'accepted history has no transition commit');
+    [acceptanceCommit] = transitionCommits;
+    acceptance = parseSnapshot(loadCommitSnapshot(repositoryRoot, acceptanceCommit), 'accepted');
+    changedPaths = parseNulPaths(
+      runGit(repositoryRoot, [
+        'diff',
+        '--no-renames',
+        '--name-only',
+        '-z',
+        review.reviewedCommit,
+        acceptanceCommit,
+        '--',
+      ]),
+    );
+    requireCondition(
+      canonicalJson(acceptance.review) === canonicalJson(review),
+      'governance review record changed after the acceptance transition',
+    );
+  }
+
+  validateAcceptanceTransition(baseline, acceptance, changedPaths);
+  requireCondition(
+    canonicalJson(acceptance.review) === canonicalJson(review),
+    'acceptance transition review record differs from the current record',
+  );
+  return {
+    [VERIFIED_REVIEW]: true,
+    review,
+    reviewedCommit: review.reviewedCommit,
+    acceptanceCommit,
+  };
 }
 
 export async function loadGovernanceArtifacts() {
@@ -1238,7 +1560,7 @@ export async function loadGovernanceArtifacts() {
   ]);
   const boundary = validateSecurityBoundary(JSON.parse(boundaryText));
   const review = reviewText.length > 0 ? JSON.parse(reviewText) : null;
-  const roadmap = validateRoadmapAlignment(boundary, JSON.parse(roadmapText), review);
+  const roadmap = JSON.parse(roadmapText);
   validateGovernanceDocumentStatus(boundary, adr, readme);
   requireCondition(
     adr.includes('[机器约束附录](0001-security-boundary.generated.md)'),
@@ -1253,16 +1575,26 @@ export async function loadGovernanceArtifacts() {
     'generated boundary appendix is stale',
   );
   if (boundary.decision.status === 'accepted') {
-    validateGovernanceReview(review, boundary, {
-      adrNormalizedSha256: semanticAdrDigest(adr),
-      validatorSha256: sha256Text(validatorText),
-      regressionTestsSha256: sha256Text(governanceTest),
+    const reviewVerification = validateGovernanceReviewProvenance(review, {
+      boundaryText,
+      roadmapText,
+      boundary,
+      roadmap,
+      adr,
+      appendix,
+      readme,
+      reviewText,
+      reviewReport,
+      validatorText,
+      governanceTest,
     });
+    validateRoadmapAlignment(boundary, roadmap, review, reviewVerification);
     requireCondition(
       reviewReport === renderGovernanceReview(review),
       'generated governance review report is missing or stale',
     );
   } else {
+    validateRoadmapAlignment(boundary, roadmap);
     requireCondition(review === null, 'review state must not contain a final governance review record');
     requireCondition(
       reviewReport.length === 0,
@@ -1278,19 +1610,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (process.argv.includes('--write')) {
       let renderedReview = null;
       if (boundary.decision.status === 'accepted') {
-        const [reviewText, adr, readme, validatorText, governanceTest] = await Promise.all([
+        const [reviewText, adr, readme] = await Promise.all([
           readFile(reviewRecordPath, 'utf8'),
           readFile(adrPath, 'utf8'),
           readFile(readmePath, 'utf8'),
-          readFile(validatorPath, 'utf8'),
-          readFile(governanceTestPath, 'utf8'),
         ]);
         validateGovernanceDocumentStatus(boundary, adr, readme);
-        const review = validateGovernanceReview(JSON.parse(reviewText), boundary, {
-          adrNormalizedSha256: semanticAdrDigest(adr),
-          validatorSha256: sha256Text(validatorText),
-          regressionTestsSha256: sha256Text(governanceTest),
-        });
+        const review = validateGovernanceReview(JSON.parse(reviewText), boundary);
         renderedReview = renderGovernanceReview(review);
       }
       await writeFile(appendixPath, renderSecurityBoundaryAppendix(boundary), 'utf8');

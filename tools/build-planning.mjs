@@ -41,10 +41,16 @@ function requireStringArray(value, field, minimum = 1) {
   value.forEach((item, index) => requireString(item, `${field}[${index}]`));
 }
 
+function isRealIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 export function validatePlan(plan) {
   requireCondition(plan && typeof plan === 'object', 'root must be an object');
   requireCondition(plan.schemaVersion === 2, 'schemaVersion must be 2');
-  requireCondition(/^\d{4}-\d{2}-\d{2}$/.test(plan.updatedAt), 'updatedAt must be YYYY-MM-DD');
+  requireCondition(isRealIsoDate(plan.updatedAt), 'updatedAt must be a real YYYY-MM-DD date');
   requireString(plan.project?.name, 'project.name');
   requireString(plan.project?.scope, 'project.scope');
   requireCondition(plan.project?.chainId === 46_630, 'project.chainId must be Robinhood testnet 46630');
@@ -78,7 +84,7 @@ export function validatePlan(plan) {
     requireString(task.title, `${field}.title`);
     requireString(task.summary, `${field}.summary`);
     requireString(task.rollback, `${field}.rollback`);
-    requireCondition(/^\d{4}-\d{2}-\d{2}$/.test(task.updatedAt), `${task.id} has invalid updatedAt`);
+    requireCondition(isRealIsoDate(task.updatedAt), `${task.id} has invalid updatedAt`);
     requireStringArray(task.deliverables, `${task.id}.deliverables`, 2);
     requireStringArray(task.acceptance, `${task.id}.acceptance`, 3);
     requireCondition(Array.isArray(task.dependsOn), `${task.id}.dependsOn must be an array`);

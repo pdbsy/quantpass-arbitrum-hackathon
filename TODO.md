@@ -98,13 +98,14 @@
 - [ ] **GOV-001 · 冻结测试网范围、角色与架构 ADR** — 进行中 / P0 / Critical / M
   - 目标：冻结协议托管/应用非托管边界、逐笔用户确认、支持资产、闭集角色权限、不可升级策略、不可逆暂停与安全退出。
   - 依赖：`NET-001`、`LEDGER-001`、`PERMIT-001`、`LOCAL-001`
-  - 交付：架构与数据流图；角色/能力矩阵；资产与禁止项 ADR；不可升级优先及迁移策略
+  - 交付：架构与数据流图；角色/能力矩阵；资产与禁止项 ADR；不可升级优先及迁移策略；真实 Git 祖先与闭集验收转换证据
   - 验收：
     - Owner、策略、风险/快照签名者、暂停者、部署者和 Indexer 权限为闭集、互斥且最小化；relayer 无权限且不绑定身份
     - 明确支持 token、decimals、管理员冻结/门控、fee-on-transfer/rebasing 等拒绝策略
     - 禁止任意 call/delegatecall、主网和真实资金路径
     - 签名和快照绑定 Vault 状态版本/哈希，合约原子递增且风险签发按版本串行
     - 独立复核者能指出每个秘密、签名、资产、manifest 自举和管理员边界
+    - 复核摘要从真实 reviewed commit 重算，首次接受提交不能夹带业务代码、校验器或测试变更
   - 停用/回退：ADR 未通过前保持 local mock，部署写平面与应用写平面均保持关闭。
   - 证据：待补
 
@@ -120,11 +121,11 @@
   - 证据：待补
 
 - [ ] **SUPPLY-001 · 强化仓库与供应链策略** — 就绪 / P1 / High / M
-  - 目标：补齐 master 保护、Dependabot、安全更新、SBOM、license 和构建来源控制。
+  - 目标：补齐 master 保护、reviewer 身份级 attestation、Dependabot、安全更新、SBOM、license 和构建来源控制。
   - 依赖：`CI-001`
-  - 交付：分支保护与 required checks；Dependabot 与 CodeQL 配置；SBOM/license 报告；锁文件与 Action 更新策略
+  - 交付：分支保护、CODEOWNERS/required review 与签名 attestation；Dependabot 与 CodeQL 配置；SBOM/license 报告；锁文件与 Action 更新策略
   - 验收：
-    - master 禁止未通过 required checks 的直接更新
+    - master 禁止未通过 required checks 和所需身份复核的直接更新
     - 依赖漏洞告警、安全更新和 CodeQL 启用且有处置 SLA
     - 发布生成 SBOM 并拒绝不兼容许可证
     - Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review

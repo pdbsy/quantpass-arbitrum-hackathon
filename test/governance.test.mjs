@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -8,8 +12,10 @@ import {
   renderSecurityBoundaryAppendix,
   semanticAdrDigest,
   semanticBoundaryDigest,
+  semanticReadmeDigest,
   validateGovernanceDocumentStatus,
   validateGovernanceReview,
+  validateGovernanceReviewProvenance,
   validateSecurityBoundary,
   validateRoadmapAlignment,
 } from '../tools/check-governance-v2.mjs';
@@ -30,6 +36,8 @@ function makeValidReview() {
     reviewedSemanticDigest: semanticBoundaryDigest(boundary),
     artifactDigests: {
       adrNormalizedSha256: 'a'.repeat(64),
+      readmeNormalizedSha256: 'd'.repeat(64),
+      roadmapSha256: 'e'.repeat(64),
       validatorSha256: 'b'.repeat(64),
       regressionTestsSha256: 'c'.repeat(64),
     },
@@ -39,7 +47,7 @@ function makeValidReview() {
       'validator-and-state-transition',
     ].map((area, index) => ({
       area,
-      reviewerId: `independent-reviewer-${index + 1}`,
+      reviewerId: ['gov-architecture', 'gov-roles-assets', 'gov-validation'][index],
       independence: 'read-only-no-edits-no-delegation',
       verdict: 'pass',
       blockers: [],
@@ -52,6 +60,23 @@ function makeValidReview() {
     nonBlockingRecommendations: [],
     limitations: [],
   };
+}
+
+function git(repository, args) {
+  return execFileSync('git', ['-C', repository, ...args], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+async function writeRepositoryFile(repository, path, content) {
+  const target = resolve(repository, path);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, content, 'utf8');
+}
+
+function sha256(value) {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
 }
 
 test('review governance boundary is complete, closed and documented', async () => {
@@ -70,6 +95,7 @@ test('review governance boundary is complete, closed and documented', async () =
 
 test('closed governance baseline rejects every reviewed semantic bypass', () => {
   const mutations = [
+    ['impossible boundary date', (item) => (item.updatedAt = '2026-99-99')],
     ['unattended execution', (item) => (item.operatingModel.unattendedExecution = true)],
     ['deployment write enable', (item) => (item.environment.writePlanes.deployment.enabled = true)],
     ['application write enable', (item) => (item.environment.writePlanes.application.enabled = true)],
@@ -136,7 +162,7 @@ test('closed governance baseline rejects every reviewed semantic bypass', () => 
 test('coordinated guardian capability escalation is rejected even when role and owner catalog agree', () => {
   const candidate = structuredClone(boundary);
   candidate.roles[4].capabilities.push('arbitrary_external_call');
-  candidate.capabilities.push({ id: 'arbitrary_external_call', owners: ['executor'] });
+  candidate.capabilities.push({ id: 'arbitrary_external_call', owners: ['pause-guardian'] });
   assert.throws(() => validateSecurityBoundary(candidate), /Invalid governance boundary/);
 });
 
@@ -165,9 +191,9 @@ test('roadmap alignment rejects unknown prerequisites and acceptance without a r
     () => validateRoadmapAlignment(prematureAcceptance, fakeAcceptedRoadmap),
     /governanceReview must be an object/,
   );
-  assert.equal(
-    validateRoadmapAlignment(prematureAcceptance, fakeAcceptedRoadmap, makeValidReview()),
-    fakeAcceptedRoadmap,
+  assert.throws(
+    () => validateRoadmapAlignment(prematureAcceptance, fakeAcceptedRoadmap, makeValidReview()),
+    /requires verified Git review provenance/,
   );
 });
 
@@ -213,6 +239,22 @@ test('governance review record fails closed on missing, mismatched or non-PASS e
       /differs from the required closed set/,
     ],
     [
+      'impossible review date',
+      (item) => {
+        item.reviewedAt = '2026-99-99';
+        return item;
+      },
+      /real YYYY-MM-DD calendar date/,
+    ],
+    [
+      'fabricated reviewer identity',
+      (item) => {
+        item.reviewers[0].reviewerId = 'fabricated-reviewer';
+        return item;
+      },
+      /reviewerId must be gov-architecture/,
+    ],
+    [
       'aggregate blocker',
       (item) => {
         item.aggregateBlockers.push('open');
@@ -229,6 +271,8 @@ test('governance review record fails closed on missing, mismatched or non-PASS e
       /does not match reviewed content/,
       {
         adrNormalizedSha256: 'a'.repeat(64),
+        readmeNormalizedSha256: 'd'.repeat(64),
+        roadmapSha256: 'e'.repeat(64),
         validatorSha256: 'b'.repeat(64),
         regressionTestsSha256: 'c'.repeat(64),
       },
@@ -244,6 +288,224 @@ test('governance review record fails closed on missing, mismatched or non-PASS e
       `${name} must be rejected`,
     );
   }
+});
+
+test('Git provenance rejects forged review baselines and constrains the first acceptance transition', async (t) => {
+  const repository = await mkdtemp(resolve(tmpdir(), 'quantpass-governance-provenance-'));
+  t.after(() => rm(repository, { recursive: true, force: true }));
+
+  const fixturePaths = [
+    '.github/workflows/ci.yml',
+    'README.md',
+    'TODO.md',
+    'docs/TASK-BOARD.md',
+    'docs/adr/0001-security-boundary.generated.md',
+    'docs/adr/0001-testnet-mvp-scope-and-authority.md',
+    'docs/task-board.html',
+    'planning/roadmap.json',
+    'planning/security-boundary.json',
+    'test/governance.test.mjs',
+    'tools/check-governance-v2.mjs',
+  ];
+  const baselineFiles = new Map(
+    await Promise.all(
+      fixturePaths.map(async (path) => [
+        path,
+        await readFile(new URL(`../${path}`, import.meta.url), 'utf8'),
+      ]),
+    ),
+  );
+  for (const [path, content] of baselineFiles) await writeRepositoryFile(repository, path, content);
+
+  git(repository, ['init', '--quiet']);
+  git(repository, ['config', 'user.name', 'Governance Test']);
+  git(repository, ['config', 'user.email', 'governance-test@example.invalid']);
+  git(repository, ['config', 'commit.gpgsign', 'false']);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'reviewed baseline']);
+  const reviewedCommit = git(repository, ['rev-parse', 'HEAD']).trim();
+  const reviewedAt = git(repository, ['show', '-s', '--format=%cs', reviewedCommit]).trim();
+  const unrelatedCommit = git(repository, [
+    'commit-tree',
+    git(repository, ['rev-parse', `${reviewedCommit}^{tree}`]).trim(),
+    '-m',
+    'unrelated baseline',
+  ]).trim();
+
+  const acceptedBoundary = structuredClone(boundary);
+  acceptedBoundary.decision.status = 'accepted';
+  const acceptedRoadmap = structuredClone(roadmap);
+  const governance = acceptedRoadmap.tasks.find((task) => task.id === 'GOV-001');
+  governance.status = 'done';
+  governance.evidence = [
+    'docs/adr/0001-testnet-mvp-scope-and-authority.md',
+    'docs/adr/0001-security-boundary.generated.md',
+    'docs/reviews/GOV-001.json',
+    'docs/reviews/GOV-001.md',
+    'planning/security-boundary.json',
+    'tools/check-governance-v2.mjs',
+    'test/governance.test.mjs',
+  ];
+  acceptedRoadmap.tasks.find((task) => task.id === 'THREAT-001').status = 'in_progress';
+
+  const review = makeValidReview();
+  review.reviewedCommit = reviewedCommit;
+  review.reviewedAt = reviewedAt;
+  review.reviewedSemanticDigest = semanticBoundaryDigest(boundary);
+  review.artifactDigests = {
+    adrNormalizedSha256: semanticAdrDigest(
+      baselineFiles.get('docs/adr/0001-testnet-mvp-scope-and-authority.md'),
+    ),
+    readmeNormalizedSha256: semanticReadmeDigest(baselineFiles.get('README.md')),
+    roadmapSha256: sha256(baselineFiles.get('planning/roadmap.json')),
+    validatorSha256: sha256(baselineFiles.get('tools/check-governance-v2.mjs')),
+    regressionTestsSha256: sha256(baselineFiles.get('test/governance.test.mjs')),
+  };
+  review.reviewers.forEach((reviewer) => {
+    reviewer.evidence = [
+      'planning/security-boundary.json:1',
+      'docs/adr/0001-testnet-mvp-scope-and-authority.md:1',
+    ];
+    reviewer.commands = [`git show ${reviewedCommit}:planning/security-boundary.json | nl -ba`];
+  });
+
+  const acceptanceFiles = {
+    'README.md': baselineFiles
+      .get('README.md')
+      .replace(
+        'Governance decision status: **independent review (not accepted)**.',
+        'Governance decision status: **accepted**.',
+      ),
+    'TODO.md': `${baselineFiles.get('TODO.md')}\nacceptance transition\n`,
+    'docs/TASK-BOARD.md': `${baselineFiles.get('docs/TASK-BOARD.md')}\nacceptance transition\n`,
+    'docs/adr/0001-security-boundary.generated.md': renderSecurityBoundaryAppendix(acceptedBoundary),
+    'docs/adr/0001-testnet-mvp-scope-and-authority.md': baselineFiles
+      .get('docs/adr/0001-testnet-mvp-scope-and-authority.md')
+      .replace('- 状态：独立复核中', '- 状态：已接受'),
+    'docs/reviews/GOV-001.json': `${JSON.stringify(review, null, 2)}\n`,
+    'docs/reviews/GOV-001.md': renderGovernanceReview(review),
+    'docs/task-board.html': `${baselineFiles.get('docs/task-board.html')}\n<!-- acceptance transition -->\n`,
+    'planning/roadmap.json': `${JSON.stringify(acceptedRoadmap, null, 2)}\n`,
+    'planning/security-boundary.json': `${JSON.stringify(acceptedBoundary, null, 2)}\n`,
+  };
+  for (const [path, content] of Object.entries(acceptanceFiles)) {
+    await writeRepositoryFile(repository, path, content);
+  }
+
+  const current = {
+    boundaryText: acceptanceFiles['planning/security-boundary.json'],
+    roadmapText: acceptanceFiles['planning/roadmap.json'],
+    boundary: acceptedBoundary,
+    roadmap: acceptedRoadmap,
+    adr: acceptanceFiles['docs/adr/0001-testnet-mvp-scope-and-authority.md'],
+    appendix: acceptanceFiles['docs/adr/0001-security-boundary.generated.md'],
+    readme: acceptanceFiles['README.md'],
+    reviewText: acceptanceFiles['docs/reviews/GOV-001.json'],
+    reviewReport: acceptanceFiles['docs/reviews/GOV-001.md'],
+    validatorText: baselineFiles.get('tools/check-governance-v2.mjs'),
+    governanceTest: baselineFiles.get('test/governance.test.mjs'),
+  };
+  const now = new Date(`${reviewedAt}T12:00:00.000Z`);
+
+  const nonexistent = structuredClone(review);
+  nonexistent.reviewedCommit = 'a'.repeat(40);
+  assert.throws(
+    () => validateGovernanceReviewProvenance(nonexistent, current, { repositoryRoot: repository, now }),
+    /does not exist as a Git commit/,
+  );
+
+  const nonAncestor = structuredClone(review);
+  nonAncestor.reviewedCommit = unrelatedCommit;
+  assert.throws(
+    () => validateGovernanceReviewProvenance(nonAncestor, current, { repositoryRoot: repository, now }),
+    /is not an ancestor of HEAD/,
+  );
+
+  const digestDrift = structuredClone(review);
+  digestDrift.artifactDigests.validatorSha256 = '0'.repeat(64);
+  assert.throws(
+    () => validateGovernanceReviewProvenance(digestDrift, current, { repositoryRoot: repository, now }),
+    /validatorSha256 does not match reviewed content/,
+  );
+
+  const futureReview = structuredClone(review);
+  futureReview.reviewedAt = '2999-01-01';
+  assert.throws(
+    () => validateGovernanceReviewProvenance(futureReview, current, { repositoryRoot: repository, now }),
+    /reviewedAt is in the future/,
+  );
+
+  const fakeEvidence = structuredClone(review);
+  fakeEvidence.reviewers[0].evidence = ['fake:1', 'fake:2'];
+  assert.throws(
+    () => validateGovernanceReviewProvenance(fakeEvidence, current, { repositoryRoot: repository, now }),
+    /evidence references an unreviewed path/,
+  );
+
+  const fakeCommand = structuredClone(review);
+  fakeCommand.reviewers[0].commands = ['true'];
+  assert.throws(
+    () => validateGovernanceReviewProvenance(fakeCommand, current, { repositoryRoot: repository, now }),
+    /command must be a pinned read-only git show command/,
+  );
+
+  await writeRepositoryFile(repository, 'src/backdoor.ts', 'export const bypass = true;\n');
+  assert.throws(
+    () => validateGovernanceReviewProvenance(review, current, { repositoryRoot: repository, now }),
+    /acceptance transition paths must be exactly/,
+  );
+  await rm(resolve(repository, 'src/backdoor.ts'));
+
+  await writeRepositoryFile(
+    repository,
+    'tools/check-governance-v2.mjs',
+    `${baselineFiles.get('tools/check-governance-v2.mjs')}\n// unreviewed weakening\n`,
+  );
+  assert.throws(
+    () => validateGovernanceReviewProvenance(review, current, { repositoryRoot: repository, now }),
+    /acceptance transition paths must be exactly/,
+  );
+  await writeRepositoryFile(
+    repository,
+    'tools/check-governance-v2.mjs',
+    baselineFiles.get('tools/check-governance-v2.mjs'),
+  );
+
+  const verification = validateGovernanceReviewProvenance(review, current, {
+    repositoryRoot: repository,
+    now,
+  });
+  assert.equal(verification.acceptanceCommit, null);
+  assert.equal(
+    validateRoadmapAlignment(acceptedBoundary, acceptedRoadmap, review, verification),
+    acceptedRoadmap,
+  );
+
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'accept governance decision']);
+  const committedVerification = validateGovernanceReviewProvenance(review, current, {
+    repositoryRoot: repository,
+    now,
+  });
+  assert.match(committedVerification.acceptanceCommit, /^[0-9a-f]{40}$/);
+
+  await writeRepositoryFile(repository, 'src/feature.ts', 'export const feature = true;\n');
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'continue normal development']);
+  assert.doesNotThrow(() =>
+    validateGovernanceReviewProvenance(review, current, { repositoryRoot: repository, now }),
+  );
+
+  const tamperedReview = structuredClone(review);
+  tamperedReview.nonBlockingRecommendations.push('fabricated after acceptance');
+  assert.throws(
+    () =>
+      validateGovernanceReviewProvenance(tamperedReview, current, {
+        repositoryRoot: repository,
+        now,
+      }),
+    /review record changed after the acceptance transition/,
+  );
 });
 
 test('human-facing governance status must match the machine decision', () => {
@@ -266,5 +528,10 @@ test('human-facing governance status must match the machine decision', () => {
       '# ADR\n\n- 状态：已接受\n',
       'Governance decision status: **accepted**.\n',
     ),
+  );
+  assert.equal(semanticReadmeDigest(reviewReadme).length, 64);
+  assert.equal(
+    semanticReadmeDigest(reviewReadme),
+    semanticReadmeDigest('Governance decision status: **accepted**.\n'),
   );
 });
