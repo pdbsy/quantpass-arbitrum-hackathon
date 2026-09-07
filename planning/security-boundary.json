@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 2,
-  "updatedAt": "2026-09-06",
+  "schemaVersion": 3,
+  "updatedAt": "2026-09-07",
   "decision": {
     "id": "ADR-0001",
     "status": "review",
@@ -39,7 +39,8 @@
           "TST-001",
           "TST-002",
           "SEC-002",
-          "KEY-001"
+          "KEY-001",
+          "DRYRUN-001"
         ],
         "requiresPassedGates": ["G1", "G2"]
       },
@@ -79,6 +80,7 @@
     "callPolicy": "typed-fixed-target-and-selector-only",
     "externalTargetUpgradeability": "reject-proxy-or-mutable-implementation",
     "approvalPolicy": "exact-amount-reset-to-zero",
+    "nativeValuePolicy": "zero-only-no-native-asset",
     "externalPositionModel": "atomic-only-no-async-external-custody",
     "pauseMode": "irreversible-for-address",
     "unpauseAllowed": false,
@@ -97,7 +99,10 @@
       "runtime-bytecode-hash-pinned",
       "address-and-chain-id-pinned",
       "fixed-supply",
-      "no-admin-balance-mutation"
+      "no-admin-balance-mutation",
+      "no-owner-admin-or-privileged-role",
+      "holder-transfers-cannot-be-paused-frozen-or-gated",
+      "source-bytecode-and-negative-behavior-tests-required"
     ],
     "rejectedBehaviors": [
       "fee-on-transfer",
@@ -109,7 +114,10 @@
       "admin-mint-to-vault",
       "confiscation-or-blacklist",
       "burn-from-vault",
-      "proxy-or-mutable-implementation"
+      "proxy-or-mutable-implementation",
+      "global-pause-or-freeze",
+      "transfer-allowlist-or-gating",
+      "owner-admin-or-access-control-role"
     ]
   },
   "capabilities": [
@@ -120,7 +128,6 @@
     { "id": "propose_bounded_decision", "owners": ["strategy-runtime"] },
     { "id": "sign_bounded_execution_permit", "owners": ["risk-signer"] },
     { "id": "sign_confirmed_account_snapshot", "owners": ["snapshot-signer"] },
-    { "id": "relay_dual_signed_execution", "owners": ["executor"] },
     { "id": "irreversibly_pause_risk_increase", "owners": ["pause-guardian"] },
     { "id": "deploy_immutable_contract", "owners": ["deployer"] },
     { "id": "read_confirmed_events", "owners": ["indexer"] },
@@ -153,11 +160,6 @@
       "capabilities": ["sign_confirmed_account_snapshot"]
     },
     {
-      "id": "executor",
-      "authority": "untrusted-relay-low-balance-account",
-      "capabilities": ["relay_dual_signed_execution"]
-    },
-    {
       "id": "pause-guardian",
       "authority": "immutable-separate-guardian-address",
       "capabilities": ["irreversibly_pause_risk_increase"]
@@ -174,29 +176,39 @@
     }
   ],
   "roleLifecycle": {
-    "zeroAddressAllowed": false,
-    "securityRoleAddressesPairwiseDistinct": [
-      "risk-signer",
-      "snapshot-signer",
-      "executor",
-      "pause-guardian",
-      "deployer"
-    ],
+    "zeroAddressOrKeyAllowed": false,
+    "evmRoleAddressesPairwiseDistinct": ["risk-signer", "pause-guardian", "deployer"],
+    "ed25519TrustKeysPairwiseDistinct": ["strategy-runtime", "snapshot-signer"],
+    "crossRoleKeyMaterialReuseAllowed": false,
+    "identityComparison": "canonical-address-or-public-key-fingerprint-as-applicable",
     "inPlaceRotation": false,
     "replacement": "irreversible-pause-owner-exit-new-manifest-new-contract-explicit-owner-reauthorization",
     "deployerRetainsPostDeploymentPrivilege": false
   },
   "safeExit": {
     "availableDuringPause": true,
-    "riskIncreasingActionsBlocked": ["deposit", "new_execution_intent", "new_external_call"],
+    "riskIncreasingActionsBlocked": ["deposit", "new_execution_intent", "new_strategy_or_venue_call"],
     "ownerActionsAlwaysAllowed": ["revoke_pending_intent", "withdraw_test_asset"],
+    "onlyAssetOutflowDuringPause": "vault-to-owner-withdrawal",
     "asyncExternalPositionsAllowed": false,
     "unpauseOrAdminMigrationAllowed": false
+  },
+  "executionConcurrency": {
+    "stateVersion": "monotonic-on-chain-increment-on-every-successful-vault-state-mutation",
+    "signedPrecondition": "owner-and-risk-bind-expected-state-version-and-state-hash",
+    "contractEnforcement": "exact-match-then-atomic-state-change-and-increment",
+    "riskServiceIssuance": "serializable-single-reservation-per-vault-and-state-version",
+    "snapshotReuse": "at-most-one-execution-per-vault-state-version"
   },
   "nonceDomains": [
     { "id": "owner-intent", "consumer": "vault-contract", "persistence": "on-chain-atomic" },
     { "id": "risk-permit", "consumer": "vault-contract", "persistence": "on-chain-atomic" },
-    { "id": "strategy-decision", "consumer": "risk-service", "persistence": "durable-transactional" }
+    { "id": "strategy-decision", "consumer": "risk-service", "persistence": "durable-transactional" },
+    {
+      "id": "vault-state-version",
+      "consumer": "vault-contract",
+      "persistence": "on-chain-atomic-exact-match-and-increment"
+    }
   ],
   "signatures": [
     {
@@ -218,6 +230,8 @@
         "value",
         "amountIn",
         "minimumAmountOut",
+        "expectedVaultStateVersion",
+        "vaultStateHash",
         "nonce",
         "deadline",
         "policyHash"
@@ -242,6 +256,8 @@
         "value",
         "amountIn",
         "minimumAmountOut",
+        "expectedVaultStateVersion",
+        "vaultStateHash",
         "ownerIntentHash",
         "decisionCommitment",
         "accountSnapshotCommitment",
@@ -284,6 +300,8 @@
         "owner",
         "blockNumber",
         "blockHash",
+        "vaultStateVersion",
+        "vaultStateHash",
         "capturedAt",
         "balancesCommitment",
         "positionsCommitment"
@@ -326,19 +344,6 @@
     {
       "id": "snapshot-signer-private-key",
       "holder": "isolated-snapshot-signer",
-      "allowedStorage": ["managed-key-provider"],
-      "forbiddenStorage": [
-        "repository",
-        "server-filesystem",
-        "plaintext-env",
-        "browser-storage",
-        "logs",
-        "ci"
-      ]
-    },
-    {
-      "id": "executor-private-key",
-      "holder": "untrusted-low-balance-relay",
       "allowedStorage": ["managed-key-provider"],
       "forbiddenStorage": [
         "repository",
@@ -405,16 +410,29 @@
     {
       "id": "TB-04",
       "from": "risk-service",
-      "to": "executor",
+      "to": "user-wallet-or-permissionless-relayer",
       "data": ["risk-execution-permit", "owner-execution-intent"],
-      "controls": ["dual-signature", "full-call-binding", "independent-nonce", "short-deadline"]
+      "controls": [
+        "dual-signature",
+        "full-call-binding",
+        "independent-nonce",
+        "expected-vault-state-version",
+        "short-deadline"
+      ]
     },
     {
       "id": "TB-05",
-      "from": "executor",
+      "from": "user-wallet-or-permissionless-relayer",
       "to": "vault-contract",
       "data": ["signed-transaction", "dual-signed-execution"],
-      "controls": ["contract-revalidation", "atomic-nonce-consumption", "typed-call", "fixed-target-selector"]
+      "controls": [
+        "msg-sender-is-not-authorization",
+        "contract-revalidation",
+        "atomic-nonce-consumption",
+        "exact-state-version-and-hash",
+        "typed-call",
+        "fixed-target-selector"
+      ]
     },
     {
       "id": "TB-06",
@@ -454,13 +472,38 @@
       "to": "web-adapter-risk-service",
       "data": ["trusted-addresses", "runtime-hashes", "abi-hash", "release-key", "policy-hash"],
       "controls": [
+        "compile-time-pinned-expected-digest",
+        "no-runtime-or-request-selection",
         "content-addressed-manifest",
         "build-provenance",
         "clean-rebuild",
         "cross-component-hash-check"
       ]
+    },
+    {
+      "id": "TB-10",
+      "from": "local-browser",
+      "to": "local-demo-http-server",
+      "data": ["session-cookie", "origin", "simulation-command"],
+      "controls": [
+        "loopback-only-listener",
+        "origin-and-csrf-enforcement",
+        "http-only-session",
+        "local-simulation-isolation",
+        "no-testnet-adapter-import"
+      ]
     }
   ],
+  "trustBootstrap": {
+    "mode": "reviewed-manifest-digest-compiled-into-web-and-risk-service-releases",
+    "currentManifestDigest": null,
+    "runtimeOrRequestSelectionAllowed": false,
+    "requiredConsumers": ["web-release", "risk-service-release"],
+    "mismatchPolicy": "fail-closed-disable-all-testnet-writes",
+    "rotation": "new-independent-review-new-release-and-adr-required",
+    "walletDisplay": "chain-contract-addresses-and-manifest-digest-required",
+    "activationTask": "TRUST-001"
+  },
   "prohibited": [
     "mainnet-or-unknown-network",
     "real-value-assets",
@@ -468,15 +511,18 @@
     "application-custody-of-user-keys",
     "automatic-hidden-or-batch-wallet-signing",
     "arbitrary-target-calldata-or-delegatecall",
+    "native-asset-custody-or-nonzero-call-value",
     "proxy-upgrade-path",
     "non-owner-withdrawal-or-arbitrary-recipient-transfer",
     "unlimited-token-approval",
     "caller-supplied-trust-root",
+    "runtime-or-request-selected-manifest-digest",
     "in-memory-only-replay-protection",
     "pending-transaction-presented-as-success",
     "local-simulation-role-promotion-reaching-testnet",
     "async-external-custody-or-pending-position",
     "admin-mint-confiscate-blacklist-or-burn-from-vault",
-    "admin-bulk-migration-or-silent-address-replacement"
+    "admin-bulk-migration-or-silent-address-replacement",
+    "privileged-or-identity-bound-relayer"
   ]
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "modelVersion": "1.0",
-  "updatedAt": "2026-09-06",
+  "modelVersion": "1.1",
+  "updatedAt": "2026-09-07",
   "scope": {
     "system": "QuantPass Robinhood Chain Testnet hackathon MVP",
     "chainId": 46630,
@@ -22,8 +22,8 @@
     },
     {
       "id": "ASM-03",
-      "statement": "策略运行时、风险服务、执行器、部署者和 guardian 可能分别被攻陷。",
-      "failurePolicy": "合约独立验证最小权限；任何单一角色都不能提取用户资产。"
+      "statement": "策略运行时、风险服务、快照签名者、部署者和 guardian 可能分别被攻陷；relayer 始终不可信。",
+      "failurePolicy": "合约独立验证最小权限、完整双签与状态版本；任何单一角色或 relayer 都不能提取用户资产。"
     },
     {
       "id": "ASM-04",
@@ -41,7 +41,7 @@
     {
       "id": "OBJ-02",
       "name": "授权完整性",
-      "statement": "每次执行均绑定链、合约、账户、策略、目标、金额、nonce 和时效。"
+      "statement": "每次执行均绑定链、合约、账户、策略、目标、金额、Vault 状态版本/哈希、nonce 和时效。"
     },
     {
       "id": "OBJ-03",
@@ -75,7 +75,7 @@
     },
     {
       "id": "AST-03",
-      "name": "策略、政策与 release 信任根",
+      "name": "策略、政策、release 与 manifest 自举信任根",
       "objective": "OBJ-02",
       "worstImpact": "恶意代码或宽松政策被当作可信"
     },
@@ -131,9 +131,9 @@
     },
     {
       "id": "ACT-04",
-      "name": "受控 Executor",
-      "capabilities": ["抢跑、延迟、重复或替换交易", "选择 gas 与 RPC"],
-      "notTrustedFor": ["提现", "改变政策或角色"]
+      "name": "无权限 Relayer 或 MEV 搜索者",
+      "capabilities": ["抢跑、延迟、重复或替换交易", "选择 gas、RPC 与提交地址"],
+      "notTrustedFor": ["任何授权", "提现", "改变参数、政策或角色"]
     },
     {
       "id": "ACT-05",
@@ -187,38 +187,38 @@
     },
     {
       "id": "EP-04",
-      "name": "Executor 到 Vault 的交易入口",
-      "boundary": "TB-04",
+      "name": "钱包或无权限 Relayer 到 Vault 的交易入口",
+      "boundary": "TB-05",
       "inputs": ["calldata", "value", "permit", "gas", "replacement"]
     },
     {
       "id": "EP-05",
       "name": "RPC、receipt、logs 与区块头",
-      "boundary": "TB-05",
+      "boundary": "TB-06",
       "inputs": ["chainId", "bytecode", "receipt", "logs", "blockHash"]
     },
     {
       "id": "EP-06",
       "name": "Vault 到 Token/Venue 的外部交互",
-      "boundary": "TB-06",
+      "boundary": "TB-07",
       "inputs": ["transfer", "approval", "return data", "callback"]
     },
     {
       "id": "EP-07",
       "name": "Indexer、缓存与 UI 状态",
-      "boundary": "TB-07",
+      "boundary": "TB-08",
       "inputs": ["pending state", "confirmed state", "reorg", "checkpoint"]
     },
     {
       "id": "EP-08",
       "name": "HTTP API 与本地 Demo 会话",
-      "boundary": "TB-01",
+      "boundary": "TB-10",
       "inputs": ["cookie", "origin", "command", "owner identifier"]
     },
     {
       "id": "EP-09",
       "name": "配置、CI、依赖与部署工件",
-      "boundary": "TB-05",
+      "boundary": "TB-09",
       "inputs": ["environment", "lockfile", "workflow", "artifact", "deployment manifest"]
     }
   ],
@@ -252,10 +252,10 @@
       "actors": ["ACT-01", "ACT-02"],
       "boundaries": ["TB-02", "TB-03", "TB-09"],
       "entryPoints": ["EP-02", "EP-03"],
-      "scenario": "请求方同时提供用户公钥、可信 release、账户快照或风险签名者，因而可以把攻击者材料声明为可信。",
+      "scenario": "请求方提供可信 release、账户快照或 manifest 与配套 hash；若系统没有独立自举锚，攻击者可把自己的 Vault、target、key 与 policy 声明为可信。",
       "mitigationTasks": ["TRUST-001", "SPEC-002"],
-      "verification": "固定注册表与指定快照源的负向测试证明请求字段不能替换信任根。",
-      "residualRisk": "信任注册表维护者仍可能误登记，需职责分离与审计日志。"
+      "verification": "Web 与 risk service 只接受各自编译期固定且一致的已复核 manifest digest；请求、env、RPC 和运行时覆盖向量全部失败关闭。",
+      "residualRisk": "同时攻陷发布流水线和两端 release 仍可替换锚，需独立复核、来源证明和分支保护。"
     },
     {
       "id": "R-002",
@@ -272,9 +272,9 @@
       "actors": ["ACT-03", "ACT-04"],
       "boundaries": ["TB-04", "TB-05"],
       "entryPoints": ["EP-03", "EP-04"],
-      "scenario": "现有 ExecutionPermit 未绑定 chainId、verifyingContract、Vault、资产、target 或 calldata，旧许可可用于另一上下文。",
+      "scenario": "若 ExecutionPermit 漏绑 chainId、verifyingContract、Vault、资产、target、calldata 或 Vault 状态版本/哈希，旧许可可用于另一上下文或陈旧状态。",
       "mitigationTasks": ["TRUST-001", "SPEC-002", "CON-001", "TST-001"],
-      "verification": "EIP-712 域和每个绑定字段的篡改测试、跨链测试及链上 nonce 单次消费测试全部拒绝。",
+      "verification": "EIP-712 域、状态版本/哈希和每个绑定字段的篡改测试、跨链测试及链上 nonce 单次消费测试全部拒绝。",
       "residualRisk": "用户仍可能签署恶意但格式有效的请求，需可读签名 UI。"
     },
     {
@@ -290,11 +290,11 @@
       "targetGate": "G1",
       "assets": ["AST-01", "AST-02"],
       "actors": ["ACT-01", "ACT-09"],
-      "boundaries": ["TB-01", "TB-05"],
+      "boundaries": ["TB-01", "TB-05", "TB-10"],
       "entryPoints": ["EP-04", "EP-08"],
       "scenario": "localSimulation 根据命令类型自动把普通 demo 请求作为 executor 执行；若复用会形成直接越权。",
       "mitigationTasks": ["PRIV-001", "ADAPTER-001", "BACKEND-001"],
-      "verification": "Testnet adapter 无任何 localSimulation 导入，身份来自钱包/专用 executor，越权命令端到端拒绝。",
+      "verification": "Testnet adapter 无任何 localSimulation 导入；msg.sender 不构成授权，钱包与任意 relayer 提交相同双签材料结果一致，越权命令端到端拒绝。",
       "residualRisk": "演示与 Testnet UI 相似仍可能误导，需持续显式环境标记。"
     },
     {
@@ -332,9 +332,9 @@
       "actors": ["ACT-03", "ACT-04", "ACT-05"],
       "boundaries": ["TB-05", "TB-07"],
       "entryPoints": ["EP-04", "EP-06"],
-      "scenario": "过宽 target/selector、任意 calldata、delegatecall 或无限授权让 executor/venue 绕过 withdraw 限制。",
+      "scenario": "过宽 target/selector、任意 calldata、delegatecall、非零原生 value 或无限授权让 relayer/venue 绕过 withdraw 限制。",
       "mitigationTasks": ["SPEC-002", "CON-001", "CON-002", "TST-001"],
-      "verification": "allowlist、selector、value 和精确 approve 的负向测试；静态分析确认不存在任意调用路径。",
+      "verification": "allowlist、selector、value==0 和精确 approve 的负向测试；静态分析确认不存在任意调用或原生币托管路径。",
       "residualRisk": "允许目标自身仍可能有漏洞，因此 MVP 目标数量必须最小且字节码固定。"
     },
     {
@@ -372,10 +372,10 @@
       "actors": ["ACT-05", "ACT-08"],
       "boundaries": ["TB-07", "TB-09"],
       "entryPoints": ["EP-06", "EP-09"],
-      "scenario": "fee-on-transfer、rebasing、callback、假返回值、可变 decimals 或管理员没收造成账面和实际余额分离。",
+      "scenario": "fee-on-transfer、rebasing、callback、假返回值、可变 decimals、全局 pause/freeze、转账门控或管理员能力造成账面失真或 owner 无法退出。",
       "mitigationTasks": ["ASSET-001", "SPEC-001", "CON-001", "TST-001"],
-      "verification": "固定测试资产 bytecode；异常 ERC-20 mock 全部拒绝；deposit 按余额差验证。",
-      "residualRisk": "目标资产管理员若能改变行为仍有治理风险，部署清单必须披露。"
+      "verification": "固定测试资产源码和 runtime bytecode；部署后无 owner/admin/AccessControl；异常 ERC-20 与 pause/freeze/gating mock 全部拒绝；deposit 按余额差验证。",
+      "residualRisk": "底层链故障仍可阻断转账；资产合约自身不保留可人为启用的冻结能力。"
     },
     {
       "id": "R-008",
@@ -392,10 +392,10 @@
       "actors": ["ACT-04", "ACT-05", "ACT-08"],
       "boundaries": ["TB-05", "TB-07"],
       "entryPoints": ["EP-04", "EP-06"],
-      "scenario": "guardian 全局暂停、executor 消失或 Venue 卡住，使 owner 无法撤销、结算或提取 idle 资产。",
+      "scenario": "guardian 的通用外部调用暂停误伤 ERC-20 提现、Token 管理员冻结转账或 Venue 卡住，使 owner 无法撤销或提取 idle 资产。",
       "mitigationTasks": ["SPEC-002", "CON-002", "TST-002", "IR-001"],
-      "verification": "暂停/故障状态机 invariant 证明 owner 的直接退出和 timeout/fallback 始终可达。",
-      "residualRisk": "外部 Venue 本身可能冻结资产，必须在 UI 和残余风险中单独披露。"
+      "verification": "暂停/故障状态机 invariant 证明唯一允许资产外流为 Vault→owner，直接退出不依赖 relayer/后端/Venue；资产门禁拒绝冻结能力。",
+      "residualRisk": "链整体停止仍会阻断退出，必须明确为底层网络残余风险。"
     },
     {
       "id": "R-009",
@@ -469,12 +469,12 @@
       "owner": "key-operations",
       "targetGate": "G3",
       "assets": ["AST-01", "AST-02", "AST-03", "AST-06"],
-      "actors": ["ACT-03", "ACT-04", "ACT-08", "ACT-09"],
-      "boundaries": ["TB-02", "TB-03", "TB-04", "TB-05"],
-      "entryPoints": ["EP-03", "EP-04", "EP-09"],
-      "scenario": "risk、executor、deployer 或 guardian 私钥进入仓库、明文 env、日志或同一热钱包并被盗用。",
+      "actors": ["ACT-02", "ACT-03", "ACT-08", "ACT-09"],
+      "boundaries": ["TB-02", "TB-03", "TB-04", "TB-09"],
+      "entryPoints": ["EP-02", "EP-03", "EP-09"],
+      "scenario": "risk、strategy、snapshot、deployer 或 guardian 私钥进入仓库、明文 env、日志或复用同一密钥材料并被盗用。",
       "mitigationTasks": ["KEY-001", "SECRET-001", "CON-002", "IR-001"],
-      "verification": "密钥提供方接口、角色分离、最小余额、轮换/吊销和泄露演练；完整历史 secret scan。",
+      "verification": "EVM 地址和 Ed25519 key 指纹分别互异、跨角色底层密钥不复用；密钥提供方接口、最小余额、替换/泄露演练与完整历史 secret scan。",
       "residualRisk": "比赛操作仍有人为失误风险，所有地址和操作必须双人复核。"
     },
     {
@@ -512,19 +512,19 @@
       "actors": ["ACT-07", "ACT-08", "ACT-09"],
       "boundaries": ["TB-02", "TB-06", "TB-09"],
       "entryPoints": ["EP-02", "EP-09"],
-      "scenario": "依赖、Action、编译器、ABI、前端 bundle 或部署清单与已评审源码不一致。",
-      "mitigationTasks": ["TOOL-001", "SUPPLY-001", "SEC-002", "VERIFY-001"],
-      "verification": "固定版本、SBOM、依赖审查、可复现 bytecode、provenance 与干净环境复建。",
+      "scenario": "依赖、Action、编译器、ABI、前端 bundle、编译期 manifest digest 或部署清单与已评审源码不一致。",
+      "mitigationTasks": ["TOOL-001", "SUPPLY-001", "SEC-002", "DRYRUN-001", "VERIFY-001"],
+      "verification": "固定版本、SBOM、依赖审查、可复现 bytecode、双消费者 manifest digest、独立 dry-run、provenance 与干净环境复建。",
       "residualRisk": "上游工具签名或发布基础设施仍可能同时失陷，需最小依赖与多源验证。"
     },
     {
       "id": "R-015",
-      "title": "过期或伪造账户快照绕过风控",
+      "title": "过期、伪造或并发复用账户快照绕过风控",
       "scenarioClass": "authorization-bypass",
       "stride": ["S", "T"],
-      "severity": "high",
+      "severity": "critical",
       "likelihood": "possible",
-      "impact": "major",
+      "impact": "catastrophic",
       "status": "open",
       "owner": "risk-platform",
       "targetGate": "G2",
@@ -532,10 +532,10 @@
       "actors": ["ACT-01", "ACT-02", "ACT-06"],
       "boundaries": ["TB-02", "TB-03", "TB-06"],
       "entryPoints": ["EP-02", "EP-03", "EP-05"],
-      "scenario": "攻击者提供旧的、有利的或跨账户快照，使仓位、亏损和杠杆检查基于错误状态。",
+      "scenario": "攻击者提供旧的、有利的或跨账户快照，或风险服务基于同一 Vault 状态版本并发签发多个不同 nonce 的许可，使多个交易分别通过但合计突破敞口限制。",
       "mitigationTasks": ["TRUST-001", "SPEC-002", "RPC-001", "E2E-001"],
-      "verification": "指定来源签名并绑定 chain/vault/owner/block；未来、过期、重组和跨账户向量全部拒绝。",
-      "residualRisk": "合法但延迟的数据仍可能产生市场风险，需短时效和保守限额。"
+      "verification": "快照绑定 chain/vault/owner/block/stateVersion/stateHash；owner/risk 同时绑定预期状态；合约精确匹配并原子递增；风险服务以可串行化事务证明每版本只有一个签发槽。",
+      "residualRisk": "合法但延迟的数据仍可能导致许可被安全拒绝并影响可用性，不得以放宽版本校验恢复。"
     },
     {
       "id": "R-016",
@@ -653,7 +653,7 @@
       "boundaries": ["TB-01", "TB-05", "TB-06", "TB-07", "TB-09"],
       "entryPoints": ["EP-01", "EP-04", "EP-05", "EP-09"],
       "scenario": "UI、adapter 或部署清单指向空地址、错误构造参数、代理或与本地编译不同的 runtime code。",
-      "mitigationTasks": ["CONFIG-001", "SEC-002", "DEPLOY-001", "VERIFY-001"],
+      "mitigationTasks": ["CONFIG-001", "SEC-002", "DRYRUN-001", "DEPLOY-001", "VERIFY-001"],
       "verification": "确定性 dry-run、干净环境重建、源码验证、runtime hash 和多处地址一致性检查。",
       "residualRisk": "Explorer 验证界面不是信任根，客户端仍必须比较 bytecode hash。"
     },

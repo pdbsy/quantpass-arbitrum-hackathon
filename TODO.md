@@ -7,11 +7,11 @@
 ## 当前状态
 
 - 唯一 WIP：**GOV-001 · 冻结测试网范围、角色与架构 ADR**
-- 总任务：40
+- 总任务：41
 - 已完成：6
 - 已就绪：7
-- 未关闭 Critical/High：32
-- 计划版本：2.1（2026-09-06）
+- 未关闭 Critical/High：33
+- 计划版本：2.2（2026-09-07）
 
 ## 强制安全边界
 
@@ -100,10 +100,11 @@
   - 依赖：`NET-001`、`LEDGER-001`、`PERMIT-001`、`LOCAL-001`
   - 交付：架构与数据流图；角色/能力矩阵；资产与禁止项 ADR；不可升级优先及迁移策略
   - 验收：
-    - Owner、策略、风险/快照签名者、Executor、暂停者、部署者和 Indexer 权限为闭集、互斥且最小化
-    - 明确支持 token、decimals、fee-on-transfer/rebasing 等拒绝策略
+    - Owner、策略、风险/快照签名者、暂停者、部署者和 Indexer 权限为闭集、互斥且最小化；relayer 无权限且不绑定身份
+    - 明确支持 token、decimals、管理员冻结/门控、fee-on-transfer/rebasing 等拒绝策略
     - 禁止任意 call/delegatecall、主网和真实资金路径
-    - 独立复核者能指出每个秘密、签名、资产和管理员边界
+    - 签名和快照绑定 Vault 状态版本/哈希，合约原子递增且风险签发按版本串行
+    - 独立复核者能指出每个秘密、签名、资产、manifest 自举和管理员边界
   - 停用/回退：ADR 未通过前保持 local mock，部署写平面与应用写平面均保持关闭。
   - 证据：待补
 
@@ -131,14 +132,15 @@
   - 证据：待补
 
 - [ ] **ASSET-001 · 测试资产与外部协议地址核验** — 待排期 / P0 / Critical / M
-  - 目标：核验 Robinhood Chain Testnet 上计划使用资产和协议的官方来源、地址、bytecode、decimals、代理关系与异常行为。
+  - 目标：核验 Robinhood Chain Testnet 上计划使用资产和协议的来源、地址、bytecode、decimals、特权角色、代理关系与异常行为。
   - 依赖：`GOV-001`、`THREAT-001`
-  - 交付：chain-specific 资产清单；地址与 runtime bytecode hash；decimals/行为探测；mock token 命名与隔离规则
+  - 交付：chain-specific 资产清单；地址与 runtime bytecode hash；decimals/管理员能力/行为探测；mock token 命名与隔离规则
   - 验收：
     - 每个地址至少由官方来源与链上 bytecode 双重核对
-    - 不按 symbol 猜测 token，明确 decimals、代理实现和升级风险
-    - 没有权威测试资产时只部署醒目标记、不可混淆的 Mock
-    - 未知、空代码、地址变化或异常 ERC-20 行为阻止 adapter 写入
+    - 不按 symbol 猜测 token，明确 decimals、代理实现、owner/admin/AccessControl 和升级风险
+    - 没有权威测试资产时只部署醒目标记、固定供应、部署后无特权角色且不可混淆的 Mock
+    - 源码、runtime bytecode 与负向测试证明 holder 转账不能被 pause、freeze、allowlist 或管理员门控
+    - 未知、空代码、地址变化、特权角色或异常 ERC-20 行为阻止 adapter 写入
   - 停用/回退：资产身份或行为无法验证时从 allowlist 移除并关闭相关功能。
   - 证据：待补
 
@@ -153,15 +155,16 @@
   - 停用/回退：关闭唯一 testnet feature flag 即恢复只读或本地模拟。
   - 证据：待补
 
-- [ ] **PRIV-001 · 消除 Demo 用户到 Executor 的隐式提权** — 待排期 / P0 / Critical / M
-  - 目标：当前模拟路由会按命令类型自动映射 executor；生产边界必须将用户意图与受信执行结果彻底分离。
+- [ ] **PRIV-001 · 消除 Demo Executor 隐式提权并采用无权限 Relay** — 待排期 / P0 / Critical / M
+  - 目标：当前模拟路由会按命令类型自动映射 executor；Testnet 必须移除特权 Executor，让提交者身份与授权结果彻底分离。
   - 依赖：`GOV-001`、`THREAT-001`
   - 交付：本地命令/Testnet 双签意图分离接口；不可信 Relay 边界；权限矩阵负向测试
   - 验收：
     - 普通用户不能直接触发 fill、mark、settle、confirm 或 fee payment
-    - Executor 身份不构成授权；链上只接受 Owner+Risk 双签、独立 nonce 和完整调用绑定
+    - msg.sender/relayer 身份不构成授权；链上只接受 Owner+Risk 双签、独立 nonce、状态版本和完整调用绑定
+    - 用户钱包与任意 relayer 提交同一签名材料得到相同结果，且 relayer 不能成为收款人或业务参数
     - 演示快捷路径只能在编译/运行时 local-only 边界内存在
-  - 停用/回退：若服务身份不可验证，暂停执行者入口但保留用户只读与安全退出。
+  - 停用/回退：若提交路径异常，停用项目提供的广播入口；用户仍可直接由钱包读取、提交或安全退出。
   - 证据：待补
 
 - [ ] **SPEC-001 · 链上会计、资产与舍入规格** — 待排期 / P0 / Critical / L
@@ -200,13 +203,14 @@
   - 证据：待补
 
 - [ ] **TRUST-001 · 信任根、签名域与持久重放模型** — 待排期 / P0 / Critical / L
-  - 目标：把调用者可注入的 key/release/snapshot 改为受控信任根，并让授权精确绑定链、合约、账户与 calldata。
+  - 目标：把调用者可注入的 key/release/snapshot 改为编译期固定的受控信任根，并让授权精确绑定链、合约、账户、Vault 状态与 calldata。
   - 依赖：`GOV-001`、`THREAT-001`
-  - 交付：EIP-712 domain 与 schema；固定信任根、失效与新部署替换模型；原子持久 nonce store；可信账户快照来源
+  - 交付：EIP-712 domain 与 schema；Web/risk-service 编译期固定且一致的 manifest digest；原子持久 nonce store；可信账户快照来源
   - 验收：
-    - 签名绑定 chainId、verifyingContract、wallet、nonce、deadline 和 calldata hash
-    - 调用者不能替换 trusted release、public key 或账户快照来源
-    - 进程重启、并发和跨实例下重放仍被拒绝
+    - 签名绑定 chainId、verifyingContract、wallet、Vault 状态版本/哈希、nonce、deadline 和 calldata hash
+    - 请求、环境变量和运行时响应不能选择或覆盖 trusted manifest、release、public key 或账户快照来源
+    - Web 与 risk service 的编译期 manifest digest 不一致时失败关闭，digest 变化要求新 release、ADR 与复核
+    - 进程重启、并发和跨实例下重放仍被拒绝；每个 Vault 状态版本只能保留一个签发槽
     - 密钥失效时停止签发许可；替换信任根必须走不可逆暂停、Owner 退出、新部署和重新授权
   - 停用/回退：信任根不可用时不签发新许可，只允许读取与已授权安全退出。
   - 证据：待补
@@ -240,13 +244,14 @@
   - 证据：待补
 
 - [ ] **CON-002 · 实现最小权限、不可逆暂停与安全退出** — 待排期 / P0 / Critical / M
-  - 目标：把 Owner、双签者、不可信 Relay、不可逆暂停者和一次性部署者落实为闭集最小角色，并确保事故时不会锁死退出。
+  - 目标：把 Owner、双签者、不可逆暂停者和一次性部署者落实为闭集最小角色，将 Relay 明确定义为无权限参与者，并确保事故时不会锁死退出。
   - 依赖：`CON-001`、`SPEC-002`
   - 交付：闭集角色控制；不可逆暂停矩阵；Owner 直接退出路径；新地址替换与显式迁移流程
   - 验收：
-    - 任何单一策略或执行者都无提现/任意转账权
+    - 任何单一策略、签名者或 relayer 都无提现/任意转账权
     - 不可逆暂停时禁止新增风险，但 Owner 可直接撤销意图和提取测试资产
-    - 部署时拒绝零地址并验证安全角色地址两两不同；不存在原地角色变更或 unpause
+    - 暂停后唯一资产外流是 Vault 到 Owner 的提现，不能被通用外部调用暂停误伤
+    - 部署时拒绝零地址/空 key，分别验证 EVM 地址与 Ed25519 key 指纹互异且禁止跨角色复用密钥材料；不存在原地角色变更或 unpause
     - 角色丢失或泄露时按暂停、Owner 退出、新合约和重新授权流程恢复
   - 停用/回退：角色异常时先暂停新增风险，按演练流程撤销或迁移，不升级原合约。
   - 证据：待补
@@ -403,16 +408,28 @@
   - 停用/回退：疑似秘密立即视为已泄露并轮换；删除文件不等同于完成处置。
   - 证据：待补
 
-- [ ] **DEPLOY-001 · 确定性 Dry-run 与 Robinhood Testnet 部署** — 待排期 / P0 / Critical / M
-  - 目标：先在本地链复现部署和参数，再用人工确认的专用部署者广播到 Chain ID 46630。
-  - 依赖：`SEC-002`、`KEY-001`
-  - 交付：幂等部署脚本；参数预览与校验；部署交易；失败恢复步骤
+- [ ] **DEPLOY-001 · Robinhood Testnet 人工部署** — 待排期 / P0 / Critical / M
+  - 目标：仅在独立 dry-run 通过且部署写平面临时开启后，用人工确认的专用部署者向 Chain ID 46630 广播已冻结交易。
+  - 依赖：`DRYRUN-001`
+  - 交付：参数最终预览；部署交易；广播回执；失败恢复步骤
   - 验收：
-    - dry-run 的 bytecode、constructor args、角色和地址符合已复核 manifest
+    - 广播的 bytecode、constructor args、角色、nonce 和地址与 DRYRUN-001 复核 manifest 完全一致
     - 广播前从钱包与 RPC 双重确认 Chain ID 46630
     - 脚本不会覆盖已有地址或在未知 nonce 下重复部署
     - 失败时不自动提升 gas 或无限重播
   - 停用/回退：错误部署不升级修补：暂停/弃用地址，重新部署并明确迁移。
+  - 证据：待补
+
+- [ ] **DRYRUN-001 · 确定性部署 Dry-run 与广播前复核** — 待排期 / P0 / Critical / M
+  - 目标：在隔离本地链完整复现部署、角色、地址和参数，冻结广播前 manifest，并在不开放 Testnet 部署写权限的情况下形成独立证据。
+  - 依赖：`SEC-002`、`KEY-001`
+  - 交付：幂等部署脚本；本地链 dry-run 记录；constructor/角色/预计算地址 manifest；独立复核记录
+  - 验收：
+    - 干净检出的 bytecode、constructor args、角色和预计算地址与复核 manifest 完全一致
+    - 脚本在本地链重复运行不会覆盖地址或因未知 nonce 产生不同结果
+    - EVM 地址、Ed25519 key 指纹、资产与 manifest trust anchor 满足 GOV-001/TRUST-001
+    - 复核证据包含 commit、工具版本、命令、输出哈希和明确 PASS，且没有 Testnet 广播
+  - 停用/回退：dry-run 任一哈希或参数漂移即废弃候选 manifest，保持部署写平面关闭并重新复核。
   - 证据：待补
 
 - [ ] **IR-001 · 事故响应、停用与迁移演练** — 待排期 / P0 / Critical / M
@@ -428,12 +445,13 @@
   - 证据：待补
 
 - [ ] **KEY-001 · 测试网部署密钥与角色操作手册** — 待排期 / P0 / Critical / M
-  - 目标：使用低余额、仅测试网、可轮换的部署者，分离部署、暂停与执行角色。
+  - 目标：使用低余额、仅测试网的部署者，分离部署、暂停、风险与 Ed25519 信任 key；Relay 不使用项目特权密钥。
   - 依赖：`GOV-001`、`SUPPLY-001`、`SEC-002`
-  - 交付：密钥生成/存储/轮换流程；角色地址清单；泄露响应；最小测试 ETH 预算
+  - 交付：密钥生成/存储/替换流程；EVM 地址与 Ed25519 公钥指纹清单；泄露响应；最小测试 ETH 预算
   - 验收：
     - 密钥不进入仓库、终端记录、构建产物或普通浏览器存储
-    - 部署者不能作为日常执行者，角色可撤销或迁移
+    - 部署者、guardian、risk signer 地址互异，strategy/snapshot key 指纹互异且底层密钥不复用
+    - 部署者不保留部署后权限；特权身份替换必须通过暂停、Owner 退出、新部署与重新授权
     - 泄露、丢失和错误签名演练完成
     - CI PR 无权读取部署秘密或自动广播
   - 停用/回退：疑似泄露立即停止广播、撤销角色、轮换地址并更新风险登记。
@@ -540,7 +558,7 @@
 
 ### G3 · 测试网发布 — 未通过
 
-- [ ] 低余额专用部署者、参数清单和 dry-run 已复核
+- [ ] 低余额专用部署者、参数清单和独立 dry-run 证据已复核
 - [ ] 源码验证、地址、交易、区块与构建 provenance 完整
 - [ ] 存入、逐笔双签执行、不可逆暂停、Owner 退出与显式迁移 smoke test 通过
 - [ ] RPC、重组、交易替换、告警和事故手册已演练

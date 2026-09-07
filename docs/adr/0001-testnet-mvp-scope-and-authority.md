@@ -1,7 +1,7 @@
 # ADR-0001：测试网 MVP 范围、角色与安全边界
 
 - 状态：独立复核中
-- 日期：2026-09-06
+- 日期：2026-09-07
 - 决策任务：`GOV-001`
 - 机器可读约束：`planning/security-boundary.json`
 - [机器约束附录](0001-security-boundary.generated.md)
@@ -11,9 +11,9 @@
 
 QuantPass v1 采用“协议合约托管、应用与团队非托管”的最小架构：测试资产可以进入用户主动选择的不可升级 Vault 合约，但浏览器、服务端、策略运行时、风险签名者、执行器和项目团队均不得持有用户私钥，也不得获得提取用户资产的权限。
 
-MVP 只允许本地模拟和 Robinhood Chain Testnet（Chain ID `46630`）。执行模式冻结为“每笔意图由用户查看并签名，风险服务再对同一笔意图签发许可，executor 只能转发双签交易”。禁止后台无人值守、连续或自主交易。当前部署写平面和应用写平面都关闭，并且不能靠单个环境变量或隐藏开关启用。
+MVP 只允许本地模拟和 Robinhood Chain Testnet（Chain ID `46630`）。执行模式冻结为“每笔意图由用户查看并签名，风险服务再对同一笔意图签发许可，用户钱包或任意无权限 relayer 只能提交内容完全绑定的双签调用”。`msg.sender` 不构成授权，系统没有特权 Executor 账户。禁止后台无人值守、连续或自主交易。当前部署写平面和应用写平面都关闭，并且不能靠单个环境变量或隐藏开关启用。
 
-合约 v1 不使用 proxy、`delegatecall`、任意 target 或任意 calldata；只允许 ABI 类型化且在部署时固定的 target/selector 调用。外部目标不得是 proxy 或可变 implementation。出现缺陷时不原地升级：执行不可逆安全暂停，始终保留 owner 的撤销和直接提现路径，部署新地址，并由用户通过钱包主动迁移。
+合约 v1 不使用 proxy、`delegatecall`、任意 target 或任意 calldata；只允许 ABI 类型化且在部署时固定的 target/selector 调用。外部目标不得是 proxy 或可变 implementation。v1 只处理指定 ERC-20 测试资产，所有执行的原生币 `value` 必须为零，Vault 不接受原生币托管。出现缺陷时不原地升级：执行不可逆安全暂停，始终保留 owner 的撤销和直接提现路径，部署新地址，并由用户通过钱包主动迁移。
 
 ## 为什么这样选择
 
@@ -50,8 +50,8 @@ flowchart LR
   SS -->|绑定区块的签名快照| RS
   MAN[内容寻址部署/release/policy manifest] --> UI
   MAN --> RS
-  RS -->|owner 意图 + risk EIP-712 permit| EX[不可信 Executor relay]
-  EX -->|双签受限交易| RPC
+  RS -->|risk EIP-712 permit| W
+  W -->|owner 意图 + risk permit\n用户或任意无权限 relayer 提交| RPC
   RPC --> V[不可升级 Vault]
   V -->|类型化固定 target / selector| EXT[固定非代理测试 Token/Venue]
   RPC --> IX[可回滚 Indexer]
@@ -62,9 +62,9 @@ flowchart LR
 
 端到端写入状态机必须是：
 
-`prepare → show → owner sign → validate confirmed snapshot/decision → risk sign → simulate → relay → confirm → reconcile`
+`prepare → read confirmed state/version → show → owner sign → reserve state version → validate snapshot/decision → risk sign → simulate → submit → confirm → reconcile`
 
-任何阶段超时、链身份不一致、字节码不一致、签名缺字段、nonce 冲突、回执失败或重组，都进入明确失败或待确认状态；不得跳过步骤，也不得把 pending 展示为成功。
+任何阶段超时、链身份不一致、字节码不一致、签名缺字段、nonce/状态版本冲突、回执失败或重组，都进入明确失败或待确认状态；不得跳过步骤，也不得把 pending 展示为成功。owner intent、risk permit 与签名快照都绑定同一个 `expectedVaultStateVersion`/`vaultStateHash`；Vault 精确匹配后在同一交易内完成状态变化并递增版本。风险服务必须以可串行化事务为每个 `(chainId, vault, stateVersion)` 只保留一个签发槽，禁止同一快照并发签发多个可执行许可。
 
 ### 信任边界清单
 
@@ -72,26 +72,27 @@ flowchart LR
 
 ## 角色与能力矩阵
 
-| 角色                                  | 信任凭证                        | 允许能力                                      | 明确禁止                             |
-| ------------------------------------- | ------------------------------- | --------------------------------------------- | ------------------------------------ |
-| Owner (`owner`)                       | 用户钱包签名                    | 存入/提取测试资产、撤销意图、签署单笔执行意图 | 升级、后台授权、绕过会计             |
-| Strategy runtime (`strategy-runtime`) | manifest 固定的 Ed25519 key     | 产生受限决策提案                              | 发交易、持有用户密钥、批准风险       |
-| Risk signer (`risk-signer`)           | manifest 固定的独立 EVM key     | 对 owner 已签的同一笔意图签发受限许可         | 发交易、提现、改变调用内容           |
-| Snapshot signer (`snapshot-signer`)   | manifest 固定的独立 Ed25519 key | 对确认区块的账户快照签名                      | 签交易、接受 pending 状态、改政策    |
-| Executor (`executor`)                 | 不可信低余额 relay 账户         | 转发 owner+risk 双签交易                      | 创造权限、改变 calldata/收款人、提现 |
-| Pause guardian (`pause-guardian`)     | immutable 独立 guardian 地址    | 不可逆暂停风险增加动作                        | unpause、提现、阻止 owner 退出       |
-| Deployer (`deployer`)                 | 一次性低余额部署账户            | 部署不可升级合约                              | 部署后保留权限、升级、执行策略       |
-| Indexer (`indexer`)                   | 无签名 key 的只读 RPC           | 读取确认事件、回滚和对账                      | 签名、发交易、把 pending 宣布为成功  |
+| 角色                                  | 信任凭证                        | 允许能力                                      | 明确禁止                            |
+| ------------------------------------- | ------------------------------- | --------------------------------------------- | ----------------------------------- |
+| Owner (`owner`)                       | 用户钱包签名                    | 存入/提取测试资产、撤销意图、签署单笔执行意图 | 升级、后台授权、绕过会计            |
+| Strategy runtime (`strategy-runtime`) | manifest 固定的 Ed25519 key     | 产生受限决策提案                              | 发交易、持有用户密钥、批准风险      |
+| Risk signer (`risk-signer`)           | manifest 固定的独立 EVM key     | 对 owner 已签的同一笔意图签发受限许可         | 单方面授权、提现、改变调用内容      |
+| Snapshot signer (`snapshot-signer`)   | manifest 固定的独立 Ed25519 key | 对确认区块的账户快照签名                      | 签交易、接受 pending 状态、改政策   |
+| Pause guardian (`pause-guardian`)     | immutable 独立 guardian 地址    | 不可逆暂停风险增加动作                        | unpause、提现、阻止 owner 退出      |
+| Deployer (`deployer`)                 | 一次性低余额部署账户            | 部署不可升级合约                              | 部署后保留权限、升级、执行策略      |
+| Indexer (`indexer`)                   | 无签名 key 的只读 RPC           | 读取确认事件、回滚和对账                      | 签名、发交易、把 pending 宣布为成功 |
 
 强制职责分离如下：
 
-- 只有 owner 可以获得 `withdraw_test_asset` 能力；owner 的直接提现不需要 risk signer 或 executor；
-- owner 先签可读的单笔意图，risk signer 只能对同一 commitment 签许可，executor 只能 relay；三者不能互相替代；
+- 只有 owner 可以获得 `withdraw_test_asset` 能力；owner 的直接提现不需要 risk signer、后端或 relayer；
+- owner 先签可读的单笔意图，risk signer 只能对同一 commitment 和同一 Vault 状态签许可；任何地址都可提交完整双签调用，但 `msg.sender` 不参与授权、收款或业务结果；
 - pause guardian 只能降低风险，不能移动资产；
 - deployer 完成一次性配置后不拥有升级或提款后门；
 - indexer 的展示状态没有链上授权效果。
 
-Risk signer、snapshot signer、executor、pause guardian 和 deployer 的地址必须非零且两两不同。比赛演示可以由同一位自然人操作多个专用测试账户，但地址、密钥材料和软件权限仍必须分开，且不得因此合并合约角色。
+Risk signer、pause guardian 和 deployer 的 EVM 地址必须非零且两两不同；strategy runtime 与 snapshot signer 的 Ed25519 公钥必须非空且指纹不同。所有安全角色禁止跨算法或跨角色复用底层密钥材料。比赛演示可以由同一位自然人操作多个专用测试账户，但地址、公钥指纹、密钥材料和软件权限仍必须分开，且不得因此合并角色。
+
+Relayer 是权限外的不可信参与者，不属于角色或能力闭集，也没有项目专用密钥。用户可以直接由钱包提交，第三方也可以代为广播；抢跑、重复、延迟或替换只会遇到相同的完整调用校验、独立 nonce 与 Vault 状态版本校验，不能改变目标、收款人或结果。
 
 v1 不提供原地角色轮换或 unpause。特权 key 丢失、泄露或需更换时，流程固定为：不可逆暂停 → owner 退出 → 发布新 manifest/新合约 → owner 明确重新授权。这样避免引入一个可静默改变信任根的超级管理员。
 
@@ -107,33 +108,32 @@ v1 不提供原地角色轮换或 unpause。特权 key 丢失、泄露或需更�
 - 合约对外授权使用精确金额，用后清零；
 - 部署清单与 UI 使用同一份资产元数据。
 
-MVP 无条件拒绝 fee-on-transfer、rebasing、ERC-777/回调 hook、未知或可变化 decimals、未核验字节码、隐藏转账税、proxy/可变 implementation，以及任何可对 Vault 增发、没收、拉黑或 burn 的管理员能力。遇到异常资产行为必须回滚交易或关闭入口，不能用 UI 补偿账目。
+MVP 无条件拒绝 fee-on-transfer、rebasing、ERC-777/回调 hook、未知或可变化 decimals、未核验字节码、隐藏转账税、proxy/可变 implementation，以及任何 owner/admin/AccessControl 角色、全局 pause/freeze、转账 allowlist/gating，或可对 Vault 增发、没收、拉黑或 burn 的能力。候选 Token 必须在部署后不存在任何特权角色，并以源码检查、runtime bytecode 固定及暂停/冻结/门控负向测试共同证明 holder 的转账能力不能被管理员关闭。遇到异常资产行为必须回滚交易或关闭入口，不能用 UI 补偿账目。
 
 ## 签名、信任根与秘密
 
-链上执行采用两份独立签名：owner 的单笔 EIP-712 intent，以及 risk signer 对同一 `ownerIntentHash` 签发的 EIP-712 permit。两者都绑定 `chainId`、`verifyingContract`、Vault、owner、asset、target、selector、`calldataHash`、value、输入金额、最小输出、独立 nonce、deadline 和 `policyHash`；risk permit 还绑定策略决策与账户快照 commitment。owner nonce 与 risk nonce 在合约中使用独立命名空间并原子消费，trade permit 永远不能授权提现。
+链上执行采用两份独立签名：owner 的单笔 EIP-712 intent，以及 risk signer 对同一 `ownerIntentHash` 签发的 EIP-712 permit。两者都绑定 `chainId`、`verifyingContract`、Vault、owner、asset、target、selector、`calldataHash`、value、输入金额、最小输出、`expectedVaultStateVersion`、`vaultStateHash`、独立 nonce、deadline 和 `policyHash`；risk permit 还绑定策略决策与账户快照 commitment。owner nonce 与 risk nonce 在合约中使用独立命名空间并原子消费；每次成功 Vault 状态变化都递增状态版本，陈旧或并发许可整笔回滚；trade permit 永远不能授权提现。ERC-20-only v1 还必须校验 `value == 0`。
 
-策略决策使用 manifest 固定的 runtime key，并绑定 release、policy、账户快照 commitment、目标意图 hash、时效和由风险服务持久消费的 nonce。账户快照由独立 snapshot signer 签名并绑定 block number、block hash、owner、Vault、Chain ID 与余额/仓位 commitment。信任根来自内容寻址 manifest，不得由同一个 API 请求连同待验证内容一起传入。
+策略决策使用 manifest 固定的 runtime key，并绑定 release、policy、账户快照 commitment、目标意图 hash、时效和由风险服务持久消费的 nonce。账户快照由独立 snapshot signer 签名并绑定 block number、block hash、owner、Vault、Chain ID、Vault 状态版本/哈希与余额/仓位 commitment。信任根来自内容寻址 manifest，但内容寻址本身不负责选择可信 digest：经独立复核的 manifest digest 必须分别编译进 Web 与 risk-service release，禁止请求参数、环境变量或运行时响应覆盖；两端不一致时所有 Testnet 写入失败关闭。当前 digest 未设置，`TRUST-001` 完成并重新独立复核前不得开启写入。
 
 秘密边界：
 
-| 秘密                  | 唯一持有位置               | 禁止位置                                        |
-| --------------------- | -------------------------- | ----------------------------------------------- |
-| 用户私钥              | 用户钱包                   | 仓库、服务端、浏览器存储、日志、CI              |
-| Strategy runtime 私钥 | 隔离 runtime key provider  | 仓库、服务端文件、明文 `.env`、浏览器、日志、CI |
-| Risk signer 私钥      | 硬件或托管密钥提供方       | 仓库、明文 `.env`、浏览器、日志、CI             |
-| Snapshot signer 私钥  | 独立托管密钥提供方         | 仓库、服务端文件、明文 `.env`、浏览器、日志、CI |
-| Executor 私钥         | 独立低余额钱包或密钥提供方 | 仓库、明文 `.env`、浏览器、日志、CI             |
-| Deployer 私钥         | 硬件钱包或密钥提供方       | 仓库、明文 `.env`、浏览器、日志、CI             |
-| Pause guardian 私钥   | 独立 guardian 钱包         | 仓库、明文 `.env`、浏览器、日志、CI             |
+| 秘密                  | 唯一持有位置              | 禁止位置                                        |
+| --------------------- | ------------------------- | ----------------------------------------------- |
+| 用户私钥              | 用户钱包                  | 仓库、服务端、浏览器存储、日志、CI              |
+| Strategy runtime 私钥 | 隔离 runtime key provider | 仓库、服务端文件、明文 `.env`、浏览器、日志、CI |
+| Risk signer 私钥      | 硬件或托管密钥提供方      | 仓库、明文 `.env`、浏览器、日志、CI             |
+| Snapshot signer 私钥  | 独立托管密钥提供方        | 仓库、服务端文件、明文 `.env`、浏览器、日志、CI |
+| Deployer 私钥         | 硬件钱包或密钥提供方      | 仓库、明文 `.env`、浏览器、日志、CI             |
+| Pause guardian 私钥   | 独立 guardian 钱包        | 仓库、明文 `.env`、浏览器、日志、CI             |
 
 当前 `.env.example` 只能包含公开网络元数据。任何要求把裸私钥放入环境文件的实现都不满足本 ADR。
 
 ## 暂停、安全退出与迁移
 
-暂停对当前地址不可逆，阻止新存入、新执行意图和新外部调用；不存在 unpause。暂停时 owner 仍可不依赖服务端直接撤销待处理意图和提取测试资产。
+暂停对当前地址不可逆，阻止新存入、新执行意图和新的策略/Venue 调用；不存在 unpause。暂停时唯一允许的资产外流是 Vault 直接向 owner 提现，owner 仍可不依赖服务端直接撤销待处理意图和提取测试资产。实现不得把 ERC-20 提现误归类为被全局暂停的“外部调用”。
 
-MVP 禁止异步外部托管、挂单或需要第三方后续结算的仓位。任何允许的 Venue 调用必须在同一交易中原子完成，结束时资产回到 Vault；否则交易回滚。这样 owner 的退出不依赖 executor、guardian 或 Venue 的后续配合。
+MVP 禁止异步外部托管、挂单或需要第三方后续结算的仓位。任何允许的 Venue 调用必须在同一交易中原子完成，结束时资产回到 Vault；否则交易回滚。这样 owner 的退出不依赖 relayer、guardian、风险服务或 Venue 的后续配合。
 
 不可升级合约的迁移流程：
 
@@ -152,23 +152,26 @@ MVP 禁止异步外部托管、挂单或需要第三方后续结算的仓位。�
 - 应用持有用户助记词或私钥；
 - 隐式、自动或不可读的钱包签名；
 - 任意 target、任意 calldata、`delegatecall`、proxy 升级和无限 allowance；
-- executor、guardian、deployer 或团队管理员提现，或把资产发送到任意收款人；类型化固定 Venue 的原子执行不属于任意转账；
+- 原生币托管或任何非零调用 `value`；
+- guardian、deployer、relayer 或团队管理员提现，或把资产发送到任意收款人；类型化固定 Venue 的原子执行不属于任意转账；
 - 调用方自带公钥、release 或账户快照并将其声明为信任根；
+- 由请求、环境变量或运行时响应选择/覆盖可信 manifest digest；
 - 仅内存 nonce、防重放或幂等记录；
 - 把 pending 交易、单节点响应或未确认日志展示为成功；
 - 将 `localSimulation` 的自动角色选择逻辑接入 Testnet；
 - 无人值守、自主、批量或后台连续交易；每笔意图必须单独由用户确认；
 - 异步外部托管、pending position、管理员批量迁移或静默换地址；
+- 特权或身份绑定的 relayer；
 - 用“测试网”标签掩盖未实现、模拟或用户输入驱动的数据。
 
 ## 两个 Testnet 写平面
 
 本 ADR 不开启任何 Testnet 写平面。部署写入和应用资产写入必须分开审核，避免“必须先部署才能允许部署”的循环。
 
-- 部署写平面：仅用于人工一次性部署。完成 G1/G2、威胁模型、配置/资产/信任规格、合约实现与测试、安全复核、密钥手册和 dry-run 后，才可临时开放；`DEPLOY-001` 不是它自己的前置条件。
+- 部署写平面：仅用于人工一次性部署。完成 G1/G2、威胁模型、配置/资产/信任规格、合约实现与测试、安全复核、密钥手册和独立的 `DRYRUN-001` 后，才可临时开放；广播任务 `DEPLOY-001` 不是它自己的前置条件。
 - 应用写平面：部署完成并通过 `VERIFY-001` 后，还必须完成 `PRIV-001`、钱包、adapter、交易恢复、indexer、RPC、前端安全、监控和事故演练，并通过 G3，才可由显式 feature flag 开启。
 
-两个写平面都必须实时核对配置、钱包与 RPC 的 Chain ID `46630`，并核验 Vault、资产、Venue 的非空 code、非 proxy 属性和 runtime hash。任意证据缺失时失败关闭，回退到只读或本地模拟。
+两个写平面都必须实时核对配置、钱包与 RPC 的 Chain ID `46630`，并核验 Vault、资产、Venue 的非空 code、非 proxy 属性和 runtime hash。应用写平面还必须确认 Web 与 risk service 内编译的 manifest digest 一致且等于复核值；该 digest 的任何变更都要求新 release、新 ADR 与独立复核。任意证据缺失时失败关闭，回退到只读或本地模拟。
 
 ## 可复核证据
 

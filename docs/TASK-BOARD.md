@@ -2,12 +2,12 @@
 
 > 自动生成文件：唯一事实源为 `planning/roadmap.json`。HTML 版见 [task-board.html](task-board.html)。
 
-更新时间：2026-09-06 · 计划版本：2.1
+更新时间：2026-09-07 · 计划版本：2.2
 
 - 当前任务：**GOV-001 · 冻结测试网范围、角色与架构 ADR**
-- 已完成：6/40
+- 已完成：6/41
 - 就绪：7
-- 未关闭 Critical/High：32
+- 未关闭 Critical/High：33
 - 硬边界：仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金以及无人值守或自主交易。
 
 ## P0 · 已验证基线
@@ -34,7 +34,7 @@
 | SUPPLY-001 | 强化仓库与供应链策略 | 就绪 | P1 | High | CI-001 |
 | ASSET-001 | 测试资产与外部协议地址核验 | 待排期 | P0 | Critical | GOV-001, THREAT-001 |
 | CONFIG-001 | 独立且失败关闭的 Testnet 启动门禁 | 待排期 | P0 | Critical | GOV-001, THREAT-001 |
-| PRIV-001 | 消除 Demo 用户到 Executor 的隐式提权 | 待排期 | P0 | Critical | GOV-001, THREAT-001 |
+| PRIV-001 | 消除 Demo Executor 隐式提权并采用无权限 Relay | 待排期 | P0 | Critical | GOV-001, THREAT-001 |
 | SPEC-001 | 链上会计、资产与舍入规格 | 待排期 | P0 | Critical | GOV-001, THREAT-001, TOOL-001, ASSET-001 |
 | SPEC-002 | 权限、事件、错误与重放规格 | 待排期 | P0 | Critical | GOV-001, THREAT-001, TRUST-001 |
 | THREAT-001 | Robinhood Chain 专项威胁模型与风险登记 | 待排期 | P0 | Critical | GOV-001 |
@@ -75,7 +75,8 @@
 | ID | 任务 | 状态 | 优先级 | 风险 | 依赖 |
 | --- | --- | --- | --- | --- | --- |
 | SECRET-001 | 完整历史秘密扫描与轮换演练 | 就绪 | P0 | High | CI-001 |
-| DEPLOY-001 | 确定性 Dry-run 与 Robinhood Testnet 部署 | 待排期 | P0 | Critical | SEC-002, KEY-001 |
+| DEPLOY-001 | Robinhood Testnet 人工部署 | 待排期 | P0 | Critical | DRYRUN-001 |
+| DRYRUN-001 | 确定性部署 Dry-run 与广播前复核 | 待排期 | P0 | Critical | SEC-002, KEY-001 |
 | IR-001 | 事故响应、停用与迁移演练 | 待排期 | P0 | Critical | CON-002, KEY-001, OBS-001 |
 | KEY-001 | 测试网部署密钥与角色操作手册 | 待排期 | P0 | Critical | GOV-001, SUPPLY-001, SEC-002 |
 | VERIFY-001 | 部署来源证明与后部署验收 | 待排期 | P0 | Critical | DEPLOY-001 |

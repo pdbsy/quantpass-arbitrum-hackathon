@@ -2,25 +2,25 @@
 
 > 自动生成文件：唯一事实源为 `planning/risk-register.json`。完成本模型不表示风险已修复。
 
-- 模型版本：1.0
-- 日期：2026-09-06
+- 模型版本：1.1
+- 日期：2026-09-07
 - 目标网络：Robinhood Chain Testnet · Chain ID `46630`
 - 风险数：22
-- Open Critical：14
-- Open High：8
+- Open Critical：15
+- Open High：7
 
 ## 强制假设
 
 - **ASM-01** 钱包、RPC、Sequencer、Token、Venue、浏览器扩展和依赖均可能失效或被恶意控制。 失败策略：任何身份、字节码、签名或最终性证据不确定时停止写入。
 - **ASM-02** Testnet 资产没有经济价值保证，也不能代表主网上线安全性。 失败策略：界面和文档持续标明 Testnet/模拟；检测到真实价值资产时拒绝。
-- **ASM-03** 策略运行时、风险服务、执行器、部署者和 guardian 可能分别被攻陷。 失败策略：合约独立验证最小权限；任何单一角色都不能提取用户资产。
+- **ASM-03** 策略运行时、风险服务、快照签名者、部署者和 guardian 可能分别被攻陷；relayer 始终不可信。 失败策略：合约独立验证最小权限、完整双签与状态版本；任何单一角色或 relayer 都不能提取用户资产。
 - **ASM-04** 链可发生延迟、交易替换、短重组、日志重复或 RPC 视图分叉。 失败策略：状态保持 pending，按 block hash 回滚并从安全 checkpoint 重放。
 - **ASM-05** 比赛 MVP 的不可升级合约可能包含必须停用的缺陷。 失败策略：暂停风险增加、保留 owner 退出、发布新地址并由用户主动迁移。
 
 ## 安全目标
 
 - **OBJ-01 · 资产安全**：除 owner 外没有角色可提取或任意转移 Vault 资产。
-- **OBJ-02 · 授权完整性**：每次执行均绑定链、合约、账户、策略、目标、金额、nonce 和时效。
+- **OBJ-02 · 授权完整性**：每次执行均绑定链、合约、账户、策略、目标、金额、Vault 状态版本/哈希、nonce 和时效。
 - **OBJ-03 · 会计守恒**：余额由实际转移差和链上状态决定，整数、decimals、手续费与舍入显式。
 - **OBJ-04 · 安全退出**：暂停和服务故障不能永久阻止 owner 撤销与退出。
 - **OBJ-05 · 状态真实性**：模拟、pending、confirmed、reorged 和 failed 状态不可混淆。
@@ -32,7 +32,7 @@
 | --- | --- | --- |
 | `AST-01` | Vault 测试资产与份额 | 未授权转移、永久锁定或错误归属 |
 | `AST-02` | Owner 授权与 nonce | 跨链、跨合约或重复执行 |
-| `AST-03` | 策略、政策与 release 信任根 | 恶意代码或宽松政策被当作可信 |
+| `AST-03` | 策略、政策、release 与 manifest 自举信任根 | 恶意代码或宽松政策被当作可信 |
 | `AST-04` | 会计状态、账户快照与事件 | 虚假余额、超额交易或对账失真 |
 | `AST-05` | 安全退出可用性 | 用户资产被暂停、外部依赖或管理员永久锁定 |
 | `AST-06` | 部署、密钥与供应链完整性 | 恶意字节码、权限接管或秘密泄露 |
@@ -46,7 +46,7 @@
 | `ACT-01` | 恶意或受骗用户 | 提交畸形输入；签署或重放消息；切换钱包网络 | 提供系统信任根；声明链上最终性 |
 | `ACT-02` | 受控策略运行时或作者 | 产生极端仓位提案；重放旧决策；伪造 release 元数据 | 风险批准；持有用户密钥 |
 | `ACT-03` | 受控风险服务或签名者 | 尝试签发越权许可；泄露或滥用服务密钥 | 提取资产；单方面改变 allowlist |
-| `ACT-04` | 受控 Executor | 抢跑、延迟、重复或替换交易；选择 gas 与 RPC | 提现；改变政策或角色 |
+| `ACT-04` | 无权限 Relayer 或 MEV 搜索者 | 抢跑、延迟、重复或替换交易；选择 gas、RPC 与提交地址 | 任何授权；提现；改变参数、政策或角色 |
 | `ACT-05` | 恶意 Token、Venue 或回调合约 | 重入；异常返回；改余额语义；消耗 gas | 报告实际到账金额；维持静态行为 |
 | `ACT-06` | 恶意或故障 RPC/Sequencer | 返回错误链、字节码或状态；隐藏/重复日志；重排交易 | 单独证明链身份；单独证明最终性 |
 | `ACT-07` | 受控前端、扩展或依赖 | 替换地址和 calldata；诱导签名；泄露页面数据 | 定义权限；代替钱包确认 |
@@ -60,12 +60,12 @@
 | `EP-01` | 钱包连接、切链、交易和 EIP-712 请求 | `TB-01` | `provider events`<br>`address`<br>`chainId`<br>`signature`<br>`transaction` |
 | `EP-02` | 策略决策与 release 注册 | `TB-02` | `decision`<br>`policyHash`<br>`codeMeasurement`<br>`runtime signature` |
 | `EP-03` | 账户快照与风险许可 | `TB-03` | `snapshot`<br>`block reference`<br>`permit`<br>`deadline`<br>`nonce` |
-| `EP-04` | Executor 到 Vault 的交易入口 | `TB-04` | `calldata`<br>`value`<br>`permit`<br>`gas`<br>`replacement` |
-| `EP-05` | RPC、receipt、logs 与区块头 | `TB-05` | `chainId`<br>`bytecode`<br>`receipt`<br>`logs`<br>`blockHash` |
-| `EP-06` | Vault 到 Token/Venue 的外部交互 | `TB-06` | `transfer`<br>`approval`<br>`return data`<br>`callback` |
-| `EP-07` | Indexer、缓存与 UI 状态 | `TB-07` | `pending state`<br>`confirmed state`<br>`reorg`<br>`checkpoint` |
-| `EP-08` | HTTP API 与本地 Demo 会话 | `TB-01` | `cookie`<br>`origin`<br>`command`<br>`owner identifier` |
-| `EP-09` | 配置、CI、依赖与部署工件 | `TB-05` | `environment`<br>`lockfile`<br>`workflow`<br>`artifact`<br>`deployment manifest` |
+| `EP-04` | 钱包或无权限 Relayer 到 Vault 的交易入口 | `TB-05` | `calldata`<br>`value`<br>`permit`<br>`gas`<br>`replacement` |
+| `EP-05` | RPC、receipt、logs 与区块头 | `TB-06` | `chainId`<br>`bytecode`<br>`receipt`<br>`logs`<br>`blockHash` |
+| `EP-06` | Vault 到 Token/Venue 的外部交互 | `TB-07` | `transfer`<br>`approval`<br>`return data`<br>`callback` |
+| `EP-07` | Indexer、缓存与 UI 状态 | `TB-08` | `pending state`<br>`confirmed state`<br>`reorg`<br>`checkpoint` |
+| `EP-08` | HTTP API 与本地 Demo 会话 | `TB-10` | `cookie`<br>`origin`<br>`command`<br>`owner identifier` |
+| `EP-09` | 配置、CI、依赖与部署工件 | `TB-09` | `environment`<br>`lockfile`<br>`workflow`<br>`artifact`<br>`deployment manifest` |
 
 ## 风险总览
 
@@ -84,14 +84,14 @@
 | `R-011` | 前端或钱包扩展替换交易 | Critical | open | `frontend-security` | `G3` | `WALLET-001`<br>`WEBSEC-001`<br>`SUPPLY-001`<br>`E2E-001` |
 | `R-012` | 特权密钥泄露或角色集中 | Critical | open | `key-operations` | `G3` | `KEY-001`<br>`SECRET-001`<br>`CON-002`<br>`IR-001` |
 | `R-013` | 整数、decimals、舍入或手续费错误破坏守恒 | Critical | open | `accounting-and-contracts` | `G2` | `SPEC-001`<br>`CON-001`<br>`TST-001`<br>`TST-002` |
-| `R-014` | 部署或供应链工件被替换 | High | open | `release-engineering` | `G3` | `TOOL-001`<br>`SUPPLY-001`<br>`SEC-002`<br>`VERIFY-001` |
-| `R-015` | 过期或伪造账户快照绕过风控 | High | open | `risk-platform` | `G2` | `TRUST-001`<br>`SPEC-002`<br>`RPC-001`<br>`E2E-001` |
+| `R-014` | 部署或供应链工件被替换 | High | open | `release-engineering` | `G3` | `TOOL-001`<br>`SUPPLY-001`<br>`SEC-002`<br>`DRYRUN-001`<br>`VERIFY-001` |
+| `R-015` | 过期、伪造或并发复用账户快照绕过风控 | Critical | open | `risk-platform` | `G2` | `TRUST-001`<br>`SPEC-002`<br>`RPC-001`<br>`E2E-001` |
 | `R-016` | Demo 会话被当作 Testnet 钱包身份 | High | open | `backend-identity` | `G3` | `WALLET-001`<br>`BACKEND-001`<br>`PRIV-001` |
 | `R-017` | 状态、事件或请求资源无界导致拒绝服务 | High | open | `data-platform` | `G3` | `DATA-001`<br>`RPC-001`<br>`OBS-001`<br>`E2E-001` |
 | `R-018` | RPC 或 Sequencer 故障触发不安全重试 | High | open | `rpc-and-transaction` | `G3` | `RPC-001`<br>`TX-001`<br>`INDEX-001`<br>`OBS-001` |
 | `R-019` | Indexer 把 pending 或孤块日志展示为最终状态 | High | open | `indexing-and-frontend` | `G3` | `TX-001`<br>`INDEX-001`<br>`WEBSEC-001`<br>`E2E-001` |
 | `R-020` | 秘密进入仓库、构建产物或日志 | High | open | `security-operations` | `G3` | `SECRET-001`<br>`KEY-001`<br>`WEBSEC-001`<br>`OBS-001` |
-| `R-021` | 部署地址或 runtime bytecode 与评审结果不一致 | Critical | open | `release-engineering` | `G3` | `CONFIG-001`<br>`SEC-002`<br>`DEPLOY-001`<br>`VERIFY-001` |
+| `R-021` | 部署地址或 runtime bytecode 与评审结果不一致 | Critical | open | `release-engineering` | `G3` | `CONFIG-001`<br>`SEC-002`<br>`DRYRUN-001`<br>`DEPLOY-001`<br>`VERIFY-001` |
 | `R-022` | 审计记录可覆盖、伪造或泄露敏感信息 | High | open | `data-and-observability` | `G4` | `DATA-001`<br>`OBS-001`<br>`IR-001` |
 
 ## 风险详情
@@ -100,18 +100,18 @@
 
 - 分类：`authorization-bypass` · STRIDE S/E · CRITICAL · open
 - 负责人：`security-architecture`；截止门禁：`G1`
-- 场景：请求方同时提供用户公钥、可信 release、账户快照或风险签名者，因而可以把攻击者材料声明为可信。
+- 场景：请求方提供可信 release、账户快照或 manifest 与配套 hash；若系统没有独立自举锚，攻击者可把自己的 Vault、target、key 与 policy 声明为可信。
 - 缓解任务：`TRUST-001`、`SPEC-002`
-- 验证：固定注册表与指定快照源的负向测试证明请求字段不能替换信任根。
-- 残余风险：信任注册表维护者仍可能误登记，需职责分离与审计日志。
+- 验证：Web 与 risk service 只接受各自编译期固定且一致的已复核 manifest digest；请求、env、RPC 和运行时覆盖向量全部失败关闭。
+- 残余风险：同时攻陷发布流水线和两端 release 仍可替换锚，需独立复核、来源证明和分支保护。
 
 ### R-002 · 许可跨链、跨合约或参数替换重放
 
 - 分类：`replay` · STRIDE S/T/E · CRITICAL · open
 - 负责人：`contract-security`；截止门禁：`G2`
-- 场景：现有 ExecutionPermit 未绑定 chainId、verifyingContract、Vault、资产、target 或 calldata，旧许可可用于另一上下文。
+- 场景：若 ExecutionPermit 漏绑 chainId、verifyingContract、Vault、资产、target、calldata 或 Vault 状态版本/哈希，旧许可可用于另一上下文或陈旧状态。
 - 缓解任务：`TRUST-001`、`SPEC-002`、`CON-001`、`TST-001`
-- 验证：EIP-712 域和每个绑定字段的篡改测试、跨链测试及链上 nonce 单次消费测试全部拒绝。
+- 验证：EIP-712 域、状态版本/哈希和每个绑定字段的篡改测试、跨链测试及链上 nonce 单次消费测试全部拒绝。
 - 残余风险：用户仍可能签署恶意但格式有效的请求，需可读签名 UI。
 
 ### R-003 · Demo 隐式角色提升进入 Testnet
@@ -120,7 +120,7 @@
 - 负责人：`adapter-platform`；截止门禁：`G1`
 - 场景：localSimulation 根据命令类型自动把普通 demo 请求作为 executor 执行；若复用会形成直接越权。
 - 缓解任务：`PRIV-001`、`ADAPTER-001`、`BACKEND-001`
-- 验证：Testnet adapter 无任何 localSimulation 导入，身份来自钱包/专用 executor，越权命令端到端拒绝。
+- 验证：Testnet adapter 无任何 localSimulation 导入；msg.sender 不构成授权，钱包与任意 relayer 提交相同双签材料结果一致，越权命令端到端拒绝。
 - 残余风险：演示与 Testnet UI 相似仍可能误导，需持续显式环境标记。
 
 ### R-004 · 输入驱动余额被当作链上事实
@@ -136,9 +136,9 @@
 
 - 分类：`authorization-bypass` · STRIDE T/E · CRITICAL · open
 - 负责人：`contract-security`；截止门禁：`G2`
-- 场景：过宽 target/selector、任意 calldata、delegatecall 或无限授权让 executor/venue 绕过 withdraw 限制。
+- 场景：过宽 target/selector、任意 calldata、delegatecall、非零原生 value 或无限授权让 relayer/venue 绕过 withdraw 限制。
 - 缓解任务：`SPEC-002`、`CON-001`、`CON-002`、`TST-001`
-- 验证：allowlist、selector、value 和精确 approve 的负向测试；静态分析确认不存在任意调用路径。
+- 验证：allowlist、selector、value==0 和精确 approve 的负向测试；静态分析确认不存在任意调用或原生币托管路径。
 - 残余风险：允许目标自身仍可能有漏洞，因此 MVP 目标数量必须最小且字节码固定。
 
 ### R-006 · Token 或 Venue 回调重入破坏状态
@@ -154,19 +154,19 @@
 
 - 分类：`malicious-token` · STRIDE T/D · CRITICAL · open
 - 负责人：`asset-and-accounting`；截止门禁：`G2`
-- 场景：fee-on-transfer、rebasing、callback、假返回值、可变 decimals 或管理员没收造成账面和实际余额分离。
+- 场景：fee-on-transfer、rebasing、callback、假返回值、可变 decimals、全局 pause/freeze、转账门控或管理员能力造成账面失真或 owner 无法退出。
 - 缓解任务：`ASSET-001`、`SPEC-001`、`CON-001`、`TST-001`
-- 验证：固定测试资产 bytecode；异常 ERC-20 mock 全部拒绝；deposit 按余额差验证。
-- 残余风险：目标资产管理员若能改变行为仍有治理风险，部署清单必须披露。
+- 验证：固定测试资产源码和 runtime bytecode；部署后无 owner/admin/AccessControl；异常 ERC-20 与 pause/freeze/gating mock 全部拒绝；deposit 按余额差验证。
+- 残余风险：底层链故障仍可阻断转账；资产合约自身不保留可人为启用的冻结能力。
 
 ### R-008 · 暂停或外部故障永久阻止用户退出
 
 - 分类：`denial-of-exit` · STRIDE D/E · CRITICAL · open
 - 负责人：`contract-and-operations`；截止门禁：`G2`
-- 场景：guardian 全局暂停、executor 消失或 Venue 卡住，使 owner 无法撤销、结算或提取 idle 资产。
+- 场景：guardian 的通用外部调用暂停误伤 ERC-20 提现、Token 管理员冻结转账或 Venue 卡住，使 owner 无法撤销或提取 idle 资产。
 - 缓解任务：`SPEC-002`、`CON-002`、`TST-002`、`IR-001`
-- 验证：暂停/故障状态机 invariant 证明 owner 的直接退出和 timeout/fallback 始终可达。
-- 残余风险：外部 Venue 本身可能冻结资产，必须在 UI 和残余风险中单独披露。
+- 验证：暂停/故障状态机 invariant 证明唯一允许资产外流为 Vault→owner，直接退出不依赖 relayer/后端/Venue；资产门禁拒绝冻结能力。
+- 残余风险：链整体停止仍会阻断退出，必须明确为底层网络残余风险。
 
 ### R-009 · 错误网络、地址或 RPC 身份欺骗
 
@@ -199,9 +199,9 @@
 
 - 分类：`key-compromise` · STRIDE S/I/E · CRITICAL · open
 - 负责人：`key-operations`；截止门禁：`G3`
-- 场景：risk、executor、deployer 或 guardian 私钥进入仓库、明文 env、日志或同一热钱包并被盗用。
+- 场景：risk、strategy、snapshot、deployer 或 guardian 私钥进入仓库、明文 env、日志或复用同一密钥材料并被盗用。
 - 缓解任务：`KEY-001`、`SECRET-001`、`CON-002`、`IR-001`
-- 验证：密钥提供方接口、角色分离、最小余额、轮换/吊销和泄露演练；完整历史 secret scan。
+- 验证：EVM 地址和 Ed25519 key 指纹分别互异、跨角色底层密钥不复用；密钥提供方接口、最小余额、替换/泄露演练与完整历史 secret scan。
 - 残余风险：比赛操作仍有人为失误风险，所有地址和操作必须双人复核。
 
 ### R-013 · 整数、decimals、舍入或手续费错误破坏守恒
@@ -217,19 +217,19 @@
 
 - 分类：`supply-chain` · STRIDE T/R/E · HIGH · open
 - 负责人：`release-engineering`；截止门禁：`G3`
-- 场景：依赖、Action、编译器、ABI、前端 bundle 或部署清单与已评审源码不一致。
-- 缓解任务：`TOOL-001`、`SUPPLY-001`、`SEC-002`、`VERIFY-001`
-- 验证：固定版本、SBOM、依赖审查、可复现 bytecode、provenance 与干净环境复建。
+- 场景：依赖、Action、编译器、ABI、前端 bundle、编译期 manifest digest 或部署清单与已评审源码不一致。
+- 缓解任务：`TOOL-001`、`SUPPLY-001`、`SEC-002`、`DRYRUN-001`、`VERIFY-001`
+- 验证：固定版本、SBOM、依赖审查、可复现 bytecode、双消费者 manifest digest、独立 dry-run、provenance 与干净环境复建。
 - 残余风险：上游工具签名或发布基础设施仍可能同时失陷，需最小依赖与多源验证。
 
-### R-015 · 过期或伪造账户快照绕过风控
+### R-015 · 过期、伪造或并发复用账户快照绕过风控
 
-- 分类：`authorization-bypass` · STRIDE S/T · HIGH · open
+- 分类：`authorization-bypass` · STRIDE S/T · CRITICAL · open
 - 负责人：`risk-platform`；截止门禁：`G2`
-- 场景：攻击者提供旧的、有利的或跨账户快照，使仓位、亏损和杠杆检查基于错误状态。
+- 场景：攻击者提供旧的、有利的或跨账户快照，或风险服务基于同一 Vault 状态版本并发签发多个不同 nonce 的许可，使多个交易分别通过但合计突破敞口限制。
 - 缓解任务：`TRUST-001`、`SPEC-002`、`RPC-001`、`E2E-001`
-- 验证：指定来源签名并绑定 chain/vault/owner/block；未来、过期、重组和跨账户向量全部拒绝。
-- 残余风险：合法但延迟的数据仍可能产生市场风险，需短时效和保守限额。
+- 验证：快照绑定 chain/vault/owner/block/stateVersion/stateHash；owner/risk 同时绑定预期状态；合约精确匹配并原子递增；风险服务以可串行化事务证明每版本只有一个签发槽。
+- 残余风险：合法但延迟的数据仍可能导致许可被安全拒绝并影响可用性，不得以放宽版本校验恢复。
 
 ### R-016 · Demo 会话被当作 Testnet 钱包身份
 
@@ -281,7 +281,7 @@
 - 分类：`supply-chain` · STRIDE S/T/R · CRITICAL · open
 - 负责人：`release-engineering`；截止门禁：`G3`
 - 场景：UI、adapter 或部署清单指向空地址、错误构造参数、代理或与本地编译不同的 runtime code。
-- 缓解任务：`CONFIG-001`、`SEC-002`、`DEPLOY-001`、`VERIFY-001`
+- 缓解任务：`CONFIG-001`、`SEC-002`、`DRYRUN-001`、`DEPLOY-001`、`VERIFY-001`
 - 验证：确定性 dry-run、干净环境重建、源码验证、runtime hash 和多处地址一致性检查。
 - 残余风险：Explorer 验证界面不是信任根，客户端仍必须比较 bytecode hash。
 
