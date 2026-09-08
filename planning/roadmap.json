@@ -3,7 +3,7 @@
   "updatedAt": "2026-09-08",
   "project": {
     "name": "QuantPass × Robinhood Chain Testnet",
-    "planVersion": "2.5",
+    "planVersion": "2.6",
     "network": "Robinhood Chain Testnet",
     "chainId": 46630,
     "scope": "仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金以及无人值守或自主交易。",
@@ -529,6 +529,7 @@
         ".github/workflows/dependency-review.yml",
         "SECURITY.md",
         "docs/security/SUPPLY-CHAIN.md",
+        "docs/security/github-security-settings.json",
         "docs/security/npm-sbom.spdx.json",
         "planning/supply-chain-policy.json",
         "test/supply-chain.test.mjs",

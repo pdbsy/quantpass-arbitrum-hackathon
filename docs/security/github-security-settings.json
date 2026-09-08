@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-08T04:07:03Z",
+  "repository": "pdbsy/quantpass-arbitrum-hackathon",
+  "commit": "202e62562b38a62025d35b90056529799b7abdee",
+  "ownerType": "User",
+  "collaborators": [{ "login": "pdbsy", "role": "admin" }],
+  "actions": {
+    "enabled": true,
+    "allowedActions": "selected",
+    "githubOwnedAllowed": true,
+    "verifiedCreatorsAllowed": false,
+    "patternsAllowed": [],
+    "fullCommitShaRequired": true,
+    "defaultWorkflowPermissions": "read",
+    "canApprovePullRequestReviews": false
+  },
+  "securityFeatures": {
+    "secretScanning": "enabled",
+    "secretScanningPushProtection": "enabled",
+    "dependabotVulnerabilityAlerts": "enabled",
+    "dependabotSecurityUpdates": { "enabled": true, "paused": false },
+    "privateVulnerabilityReporting": "enabled",
+    "codeql": {
+      "runId": 34185459159,
+      "runUrl": "https://github.com/pdbsy/quantpass-arbitrum-hackathon/actions/runs/34185459159",
+      "conclusion": "success",
+      "openAlerts": 0
+    }
+  },
+  "masterRuleset": {
+    "id": 22507334,
+    "name": "master-protection",
+    "enforcement": "active",
+    "bypassActors": [],
+    "currentUserCanBypass": "never",
+    "requiresPullRequest": true,
+    "requiredApprovingReviewCount": 0,
+    "requiresCodeOwnerReview": false,
+    "requiresReviewThreadResolution": true,
+    "requiresLinearHistory": true,
+    "blocksDeletion": true,
+    "blocksForcePush": true,
+    "strictStatusChecks": true,
+    "requiredStatusChecks": [
+      { "context": "verify", "integrationId": 15368, "source": "github-actions" },
+      {
+        "context": "analyze-javascript-typescript",
+        "integrationId": 15368,
+        "source": "github-actions"
+      },
+      {
+        "context": "dependency-review",
+        "integrationId": 15368,
+        "source": "github-actions"
+      }
+    ]
+  },
+  "externalGovernanceGate": {
+    "status": "blocked",
+    "reason": "All required checks are still produced by code whose workflow entry point is selected from the inspected repository. The ruleset improves change control but does not supply an immutable repository-external verifier or an independent reviewer."
+  }
+}

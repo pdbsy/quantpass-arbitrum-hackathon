@@ -14,10 +14,14 @@ The offline source of truth is [`planning/supply-chain-policy.json`](../../plann
 - Dependabot covers npm and GitHub Actions weekly. Pull requests run dependency review and reject High/Critical advisories or licenses outside the reviewed allowlist.
 - CodeQL analyzes JavaScript and TypeScript on `master`, pull requests and a weekly schedule.
 - The committed SPDX document is generated deterministically from `package-lock.json` and fails CI when stale.
+- GitHub repository settings allow only GitHub-owned Actions and require full commit SHA pins. Secret scanning with push protection, dependency alerts, Dependabot security updates and private vulnerability reporting are enabled.
+- The active `master-protection` ruleset (ID `22507334`) has no bypass actor, requires pull requests, strict `verify`/CodeQL/dependency-review checks, linear history and resolved conversations, and blocks deletion and force pushes. Because `pdbsy` is currently the only collaborator, the approval count remains zero and CODEOWNER approval is not presented as independent review.
+
+The captured API readback is [`github-security-settings.json`](github-security-settings.json). It is dated evidence, not a live monitor; acceptance requires a fresh readback and tamper test.
 
 ## External trust boundary still required
 
-The current repository belongs to the personal account `pdbsy`. Repository-level status checks can require a job name and its GitHub App source, but a coordinated hostile commit could still replace the workflow and validator while preserving that name. Therefore ordinary branch protection plus the in-repository CI job is defense in depth, not proof of governance immutability.
+The current repository belongs to the personal account `pdbsy`. Repository-level status checks can require a job name and its GitHub App source, but a coordinated hostile commit could still replace the workflow and validator while preserving that name. Therefore the active ruleset plus the in-repository CI job is defense in depth, not proof of governance immutability.
 
 `GOV-001` may resume only after one of these controls is independently verified:
 
