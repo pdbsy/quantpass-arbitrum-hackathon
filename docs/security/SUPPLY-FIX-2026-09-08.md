@@ -1,6 +1,6 @@
 # PR #6 supply-chain hardening remediation
 
-Status: **implemented and locally verified; final review and remote checks pending**
+Status: **implemented and locally verified; updated-head review and remote checks required**
 
 ## Scope and boundary
 
@@ -29,8 +29,13 @@ policy JSON must not certify an external trust boundary that does not exist.
   separator. Regenerate the deterministic SPDX document from the updated lock.
 - Replace the Unix-only fake Git executable with real missing-object and invalid-tree
   failures in a newly created temporary test repository, restoring the object afterward.
-  Production Git execution is unchanged. Add a Windows engineering job alongside the
+  Add a Windows engineering job alongside the
   existing Linux `verify` check, without changing its name or the repository ruleset.
+- Canonicalize all three Git context paths with Windows native realpath resolution,
+  retaining exact root equality and the existing POSIX resolver. This handles the
+  filesystem's case/short-name aliases without indiscriminate case folding.
+- Fix Git author/committer timestamps only in temporary test fixtures. Their history
+  now precedes the test's noon verification instant regardless of the actual clock.
 
 ## Regression evidence
 
@@ -48,6 +53,29 @@ policy JSON must not certify an external trust boundary that does not exist.
   reported zero vulnerabilities. The existing Node SQLite experimental warning remains.
 - Final immutable-head security review and required GitHub checks must be recorded
   before this remediation is considered merge-ready.
+
+## Windows follow-up and scan checkpoint
+
+The hosted Windows job at `9efd99573517c123b9b6d36bad9f843b54c0de53`
+failed two tests because the requested and Git-reported root spellings differed.
+A new uppercase-root regression reproduced that error locally before the native
+resolver change. After the change it passes, while a similarly spelled subdirectory
+is still rejected. Existing forged-baseline, future-date, replacement-ref, shallow
+history and unreadable-object checks remain in place.
+
+Running the complete suite after noon UTC also reproduced an independent fixture
+bug: its real commit time exceeded its simulated verification time. Fixed fixture
+timestamps resolved that failure without changing production date validation.
+The updated local governance suite passes 10/10 and `npm run check` passes 91/91.
+
+Scan `30238ad5-8f14-4cb5-9c9f-ffd44e0bb7cc` is completed and sealed for
+`202e62562b38a62025d35b90056529799b7abdee..9efd99573517c123b9b6d36bad9f843b54c0de53`:
+19 changed artifacts reviewed, zero reportable security findings. That scan records
+the Windows compatibility failure and does not cover the subsequent path/time fix.
+Its findings SHA-256 is `ef872884f112151533714ce888f04a05cfceccd78dde40f85c86c05ae03037b3`;
+coverage SHA-256 is `36b6d7cad769bd5229260ea8ad4862ce09e7007e38c0e71758d19ccd6ae299b8`.
+The final follow-up review and hosted-check results are recorded on PR #6 so that
+they can bind the resulting commit without a self-referential evidence commit.
 
 ## Review and limitations
 

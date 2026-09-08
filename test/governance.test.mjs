@@ -70,6 +70,13 @@ function makeValidReview() {
 function git(repository, args) {
   return execFileSync('git', ['-C', repository, ...args], {
     encoding: 'utf8',
+    // Fixture history must precede the explicit verification instant, regardless
+    // of the wall clock and host timezone when the suite runs.
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: '2026-09-08T10:00:00+00:00',
+      GIT_COMMITTER_DATE: '2026-09-08T10:00:00+00:00',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
@@ -382,6 +389,17 @@ test('optional historical blobs distinguish absence from object-read failure', a
 
   assert.equal(readOptionalCommitBlob(repository, commit, 'docs/reviews/GOV-001.md'), null);
   assert.match(readOptionalCommitBlob(repository, commit, 'docs/reviews/GOV-001.json'), /present/);
+  if (process.platform === 'win32') {
+    // Git reports the filesystem's spelling, even when Node is given another case.
+    assert.match(
+      readOptionalCommitBlob(repository.toUpperCase(), commit, 'docs/reviews/GOV-001.json'),
+      /present/,
+    );
+    assert.throws(
+      () => readOptionalCommitBlob(resolve(repository, 'docs').toUpperCase(), commit, 'GOV-001.json'),
+      /repository root differs from the requested root/,
+    );
+  }
   await writeRepositoryFile(repository, 'docs/reviews/directory/child.txt', 'not a blob path\n');
   git(repository, ['add', '--all']);
   git(repository, ['commit', '--quiet', '-m', 'tree entry fixture']);
