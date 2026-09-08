@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
@@ -391,34 +391,25 @@ test('optional historical blobs distinguish absence from object-read failure', a
     /non-blob or mismatched entry/,
   );
 
-  const fakeBin = resolve(repository, 'fake-bin');
-  const fakeGit = resolve(fakeBin, 'git');
-  await mkdir(fakeBin, { recursive: true });
-  await writeFile(
-    fakeGit,
-    `#!/bin/sh\nfor argument in "$@"; do\n  if [ "$QP_GIT_FAILURE" = "tree" ] && [ "$argument" = "ls-tree" ]; then exit 41; fi\n  if [ "$QP_GIT_FAILURE" = "blob" ] && [ "$argument" = "${reviewBlob}" ]; then exit 42; fi\ndone\nPATH=/usr/bin:/bin exec git "$@"\n`,
-    'utf8',
-  );
-  await chmod(fakeGit, 0o755);
-  const originalPath = process.env.PATH;
-  const originalFailure = process.env.QP_GIT_FAILURE;
-  process.env.PATH = `${fakeBin}:${originalPath}`;
+  // Damage only this newly created fixture's loose object, not the process PATH.
+  // This exercises real Git failures on Windows and POSIX without a shell shim.
+  assert.match(reviewBlob, /^[0-9a-f]{40,64}$/);
+  const objectPath = resolve(repository, '.git/objects', reviewBlob.slice(0, 2), reviewBlob.slice(2));
+  const heldObject = resolve(repository, 'held-review-blob');
+  await rename(objectPath, heldObject);
   try {
-    process.env.QP_GIT_FAILURE = 'blob';
     assert.throws(
       () => readOptionalCommitBlob(repository, commit, 'docs/reviews/GOV-001.json'),
       /Git provenance command failed: git cat-file/,
     );
-    process.env.QP_GIT_FAILURE = 'tree';
-    assert.throws(
-      () => readOptionalCommitBlob(repository, commit, 'docs/reviews/GOV-001.json'),
-      /Git provenance command failed: git ls-tree/,
-    );
   } finally {
-    process.env.PATH = originalPath;
-    if (originalFailure === undefined) delete process.env.QP_GIT_FAILURE;
-    else process.env.QP_GIT_FAILURE = originalFailure;
+    await rename(heldObject, objectPath);
   }
+  assert.match(readOptionalCommitBlob(repository, commit, 'docs/reviews/GOV-001.json'), /present/);
+  assert.throws(
+    () => readOptionalCommitBlob(repository, '0'.repeat(commit.length), 'docs/reviews/GOV-001.json'),
+    /Git provenance command failed: git ls-tree/,
+  );
 });
 
 test('Git provenance rejects forged review baselines and constrains the first acceptance transition', async (t) => {
