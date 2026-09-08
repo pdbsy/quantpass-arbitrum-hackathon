@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-07",
+  "updatedAt": "2026-09-08",
   "project": {
     "name": "QuantPass × Robinhood Chain Testnet",
-    "planVersion": "2.2",
+    "planVersion": "2.4",
     "network": "Robinhood Chain Testnet",
     "chainId": 46630,
     "scope": "仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金以及无人值守或自主交易。",
@@ -262,18 +262,19 @@
       "id": "GOV-001",
       "phase": "P1",
       "title": "冻结测试网范围、角色与架构 ADR",
-      "status": "in_progress",
+      "status": "blocked",
       "priority": "P0",
       "risk": "critical",
       "size": "M",
-      "dependsOn": ["NET-001", "LEDGER-001", "PERMIT-001", "LOCAL-001"],
+      "dependsOn": ["NET-001", "LEDGER-001", "PERMIT-001", "LOCAL-001", "SUPPLY-001"],
       "summary": "冻结协议托管/应用非托管边界、逐笔用户确认、支持资产、闭集角色权限、不可升级策略、不可逆暂停与安全退出。",
       "deliverables": [
         "架构与数据流图",
         "角色/能力矩阵",
         "资产与禁止项 ADR",
         "不可升级优先及迁移策略",
-        "真实 Git 祖先与闭集验收转换证据"
+        "真实 Git 祖先与闭集验收转换证据",
+        "受仓库外强制门禁保护的验收后 ADR、roadmap 政策、validator、治理测试与 CI 持续语义锁定"
       ],
       "acceptance": [
         "Owner、策略、风险/快照签名者、暂停者、部署者和 Indexer 权限为闭集、互斥且最小化；relayer 无权限且不绑定身份",
@@ -281,11 +282,16 @@
         "禁止任意 call/delegatecall、主网和真实资金路径",
         "签名和快照绑定 Vault 状态版本/哈希，合约原子递增且风险签发按版本串行",
         "独立复核者能指出每个秘密、签名、资产、manifest 自举和管理员边界",
-        "复核摘要从真实 reviewed commit 重算，首次接受提交不能夹带业务代码、校验器或测试变更"
+        "复核摘要从真实 reviewed commit 重算，首次接受提交不能夹带业务代码、校验器或测试变更",
+        "在不可由同一受检 diff 修改的强制执行入口中，验收后 ADR、README 治理段、roadmap 非生命周期字段、validator、治理测试或 CI 漂移均失败关闭；计划版本、任务/gate 状态、证据、日期和阻塞原因仍可正常推进",
+        "仓库内 CI 不经 package.json 间接寻址，直接执行治理校验器和治理测试作为纵深防御；SUPPLY-001 提供仓库外 required workflow/status check，消除校验器自行证明自身未被替换的信任循环",
+        "Git provenance 查询忽略 GIT_* 污染与 replace refs，先以 tree 判定可选历史路径是否存在，存在后的读取错误不得降级为缺失",
+        "日期仅为 YYYY-MM-DD 时按 UTC-12 至 UTC+14 的可实现区间校验，不拒绝真实本地次日，也不接受尚未在全球任何时区开始的日期"
       ],
       "evidence": [],
+      "blockedReason": "仓库内 workflow、validator 与测试可被同一受检提交协调替换，无法自行建立不可变信任根；必须先完成 SUPPLY-001 的仓库外 required workflow/status check 与分支保护。",
       "rollback": "ADR 未通过前保持 local mock，部署写平面与应用写平面均保持关闭。",
-      "updatedAt": "2026-09-07"
+      "updatedAt": "2026-09-08"
     },
     {
       "id": "THREAT-001",
@@ -498,27 +504,27 @@
       "id": "SUPPLY-001",
       "phase": "P1",
       "title": "强化仓库与供应链策略",
-      "status": "ready",
+      "status": "in_progress",
       "priority": "P1",
       "risk": "high",
       "size": "M",
       "dependsOn": ["CI-001"],
-      "summary": "补齐 master 保护、reviewer 身份级 attestation、Dependabot、安全更新、SBOM、license 和构建来源控制。",
+      "summary": "先建立不可由受检 diff 改写的仓库外治理校验信任根，再补齐 master 保护、reviewer 身份级 attestation、Dependabot、安全更新、SBOM、license 和构建来源控制。",
       "deliverables": [
-        "分支保护、CODEOWNERS/required review 与签名 attestation",
+        "分支保护、CODEOWNERS/required review、仓库外 required workflow 与签名 attestation",
         "Dependabot 与 CodeQL 配置",
         "SBOM/license 报告",
         "锁文件与 Action 更新策略"
       ],
       "acceptance": [
-        "master 禁止未通过 required checks 和所需身份复核的直接更新",
+        "master 禁止未通过 required checks 和所需身份复核的直接更新，且治理 required workflow/status check 的定义、执行代码和必需性均不能由同一受检 diff 自行关闭或改写",
         "依赖漏洞告警、安全更新和 CodeQL 启用且有处置 SLA",
         "发布生成 SBOM 并拒绝不兼容许可证",
         "Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review"
       ],
       "evidence": [],
       "rollback": "供应链门禁故障时冻结依赖更新与发布，不临时关闭所有检查。",
-      "updatedAt": "2026-09-06"
+      "updatedAt": "2026-09-08"
     },
     {
       "id": "CON-001",

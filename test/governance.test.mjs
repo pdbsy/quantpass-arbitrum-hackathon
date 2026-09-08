@@ -1,21 +1,25 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
   loadGovernanceArtifacts,
+  readOptionalCommitBlob,
   renderGovernanceReview,
   renderSecurityBoundaryAppendix,
   semanticAdrDigest,
   semanticBoundaryDigest,
+  semanticReadmeGovernanceDigest,
   semanticReadmeDigest,
+  semanticRoadmapPolicyDigest,
   validateGovernanceDocumentStatus,
   validateGovernanceReview,
   validateGovernanceReviewProvenance,
+  validateReviewDateWindow,
   validateSecurityBoundary,
   validateRoadmapAlignment,
 } from '../tools/check-governance-v2.mjs';
@@ -36,6 +40,7 @@ function makeValidReview() {
     reviewedSemanticDigest: semanticBoundaryDigest(boundary),
     artifactDigests: {
       adrNormalizedSha256: 'a'.repeat(64),
+      ciSha256: 'f'.repeat(64),
       readmeNormalizedSha256: 'd'.repeat(64),
       roadmapSha256: 'e'.repeat(64),
       validatorSha256: 'b'.repeat(64),
@@ -79,6 +84,45 @@ function sha256(value) {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
 
+function addIsoDateDays(value, days) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+test('review civil-date window requires a possible instant after commit and before now', () => {
+  assert.doesNotThrow(() =>
+    validateReviewDateWindow('2026-09-08', '2026-09-07T18:00:00.000Z', new Date('2026-09-07T18:30:00.000Z')),
+  );
+  assert.throws(
+    () =>
+      validateReviewDateWindow(
+        '2026-09-08',
+        '2026-09-09T00:00:00.000Z',
+        new Date('2026-09-08T00:00:00.000Z'),
+      ),
+    /reviewed commit timestamp is in the future/,
+  );
+  assert.throws(
+    () =>
+      validateReviewDateWindow(
+        '2026-09-07',
+        '2026-09-08T12:00:00.000Z',
+        new Date('2026-09-09T00:00:00.000Z'),
+      ),
+    /reviewedAt predates the reviewed commit/,
+  );
+  assert.throws(
+    () =>
+      validateReviewDateWindow(
+        '2026-09-08',
+        '2026-09-07T09:00:00.000Z',
+        new Date('2026-09-07T09:59:59.999Z'),
+      ),
+    /reviewedAt is in the future/,
+  );
+});
+
 test('review governance boundary is complete, closed and documented', async () => {
   assert.equal(validateSecurityBoundary(boundary), boundary);
   assert.equal(validateRoadmapAlignment(boundary, roadmap), roadmap);
@@ -91,6 +135,8 @@ test('review governance boundary is complete, closed and documented', async () =
   assert.equal(semanticBoundaryDigest(artifacts.boundary).length, 64);
   assert.equal(semanticAdrDigest(artifacts.adr).length, 64);
   assert.equal(artifacts.appendix, renderSecurityBoundaryAppendix(artifacts.boundary));
+  assert.match(artifacts.ciText, /node tools\/check-governance-v2\.mjs/);
+  assert.match(artifacts.ciText, /node --test test\/governance\.test\.mjs/);
 });
 
 test('closed governance baseline rejects every reviewed semantic bypass', () => {
@@ -271,6 +317,7 @@ test('governance review record fails closed on missing, mismatched or non-PASS e
       /does not match reviewed content/,
       {
         adrNormalizedSha256: 'a'.repeat(64),
+        ciSha256: 'f'.repeat(64),
         readmeNormalizedSha256: 'd'.repeat(64),
         roadmapSha256: 'e'.repeat(64),
         validatorSha256: 'b'.repeat(64),
@@ -287,6 +334,90 @@ test('governance review record fails closed on missing, mismatched or non-PASS e
       pattern,
       `${name} must be rejected`,
     );
+  }
+});
+
+test('accepted-governance digests allow lifecycle progress but reject policy drift', () => {
+  const lifecycle = structuredClone(roadmap);
+  lifecycle.updatedAt = addIsoDateDays(lifecycle.updatedAt, 1);
+  lifecycle.project.planVersion = '99.0';
+  lifecycle.tasks[7].status = 'blocked';
+  lifecycle.tasks[7].evidence = ['docs/THREAT-MODEL.md'];
+  lifecycle.tasks[7].updatedAt = lifecycle.updatedAt;
+  lifecycle.tasks[7].blockedReason = 'waiting for a new independent review';
+  lifecycle.releaseGates[1].status = 'passed';
+  for (const check of lifecycle.releaseGates[1].checks) {
+    check.status = 'passed';
+    check.evidence = 'docs/reviews/GOV-001.json';
+  }
+  assert.equal(semanticRoadmapPolicyDigest(lifecycle), semanticRoadmapPolicyDigest(roadmap));
+
+  const policyDrift = structuredClone(roadmap);
+  policyDrift.tasks[7].acceptance[0] = 'skip trust-boundary review';
+  assert.notEqual(semanticRoadmapPolicyDigest(policyDrift), semanticRoadmapPolicyDigest(roadmap));
+
+  const readme =
+    '# Project\n\n## Current work\n\nGovernance decision status: **accepted**.\n\nFrozen policy.\n\n## Safety\n\nSafe.\n';
+  assert.equal(
+    semanticReadmeGovernanceDigest(readme),
+    semanticReadmeGovernanceDigest(readme.replace('## Safety', '## Quick start\n\nUpdated.\n\n## Safety')),
+  );
+  assert.notEqual(
+    semanticReadmeGovernanceDigest(readme),
+    semanticReadmeGovernanceDigest(readme.replace('Frozen policy.', 'Weakened policy.')),
+  );
+});
+
+test('optional historical blobs distinguish absence from object-read failure', async (t) => {
+  const repository = await mkdtemp(resolve(tmpdir(), 'quantpass-governance-optional-'));
+  t.after(() => rm(repository, { recursive: true, force: true }));
+  await writeRepositoryFile(repository, 'docs/reviews/GOV-001.json', '{"present":true}\n');
+  git(repository, ['init', '--quiet']);
+  git(repository, ['config', 'user.name', 'Governance Test']);
+  git(repository, ['config', 'user.email', 'governance-test@example.invalid']);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'historical review record']);
+  const commit = git(repository, ['rev-parse', 'HEAD']).trim();
+  const reviewBlob = git(repository, ['rev-parse', `${commit}:docs/reviews/GOV-001.json`]).trim();
+
+  assert.equal(readOptionalCommitBlob(repository, commit, 'docs/reviews/GOV-001.md'), null);
+  assert.match(readOptionalCommitBlob(repository, commit, 'docs/reviews/GOV-001.json'), /present/);
+  await writeRepositoryFile(repository, 'docs/reviews/directory/child.txt', 'not a blob path\n');
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'tree entry fixture']);
+  const treeCommit = git(repository, ['rev-parse', 'HEAD']).trim();
+  assert.throws(
+    () => readOptionalCommitBlob(repository, treeCommit, 'docs/reviews/directory'),
+    /non-blob or mismatched entry/,
+  );
+
+  const fakeBin = resolve(repository, 'fake-bin');
+  const fakeGit = resolve(fakeBin, 'git');
+  await mkdir(fakeBin, { recursive: true });
+  await writeFile(
+    fakeGit,
+    `#!/bin/sh\nfor argument in "$@"; do\n  if [ "$QP_GIT_FAILURE" = "tree" ] && [ "$argument" = "ls-tree" ]; then exit 41; fi\n  if [ "$QP_GIT_FAILURE" = "blob" ] && [ "$argument" = "${reviewBlob}" ]; then exit 42; fi\ndone\nPATH=/usr/bin:/bin exec git "$@"\n`,
+    'utf8',
+  );
+  await chmod(fakeGit, 0o755);
+  const originalPath = process.env.PATH;
+  const originalFailure = process.env.QP_GIT_FAILURE;
+  process.env.PATH = `${fakeBin}:${originalPath}`;
+  try {
+    process.env.QP_GIT_FAILURE = 'blob';
+    assert.throws(
+      () => readOptionalCommitBlob(repository, commit, 'docs/reviews/GOV-001.json'),
+      /Git provenance command failed: git cat-file/,
+    );
+    process.env.QP_GIT_FAILURE = 'tree';
+    assert.throws(
+      () => readOptionalCommitBlob(repository, commit, 'docs/reviews/GOV-001.json'),
+      /Git provenance command failed: git ls-tree/,
+    );
+  } finally {
+    process.env.PATH = originalPath;
+    if (originalFailure === undefined) delete process.env.QP_GIT_FAILURE;
+    else process.env.QP_GIT_FAILURE = originalFailure;
   }
 });
 
@@ -315,6 +446,14 @@ test('Git provenance rejects forged review baselines and constrains the first ac
       ]),
     ),
   );
+  const reviewRoadmap = structuredClone(roadmap);
+  const reviewGovernance = reviewRoadmap.tasks.find((task) => task.id === 'GOV-001');
+  const reviewSupply = reviewRoadmap.tasks.find((task) => task.id === 'SUPPLY-001');
+  reviewGovernance.status = 'in_progress';
+  delete reviewGovernance.blockedReason;
+  reviewSupply.status = 'done';
+  reviewSupply.evidence = ['.github/workflows/ci.yml'];
+  baselineFiles.set('planning/roadmap.json', `${JSON.stringify(reviewRoadmap, null, 2)}\n`);
   for (const [path, content] of baselineFiles) await writeRepositoryFile(repository, path, content);
 
   git(repository, ['init', '--quiet']);
@@ -334,7 +473,7 @@ test('Git provenance rejects forged review baselines and constrains the first ac
 
   const acceptedBoundary = structuredClone(boundary);
   acceptedBoundary.decision.status = 'accepted';
-  const acceptedRoadmap = structuredClone(roadmap);
+  const acceptedRoadmap = structuredClone(reviewRoadmap);
   const governance = acceptedRoadmap.tasks.find((task) => task.id === 'GOV-001');
   governance.status = 'done';
   governance.evidence = [
@@ -356,6 +495,7 @@ test('Git provenance rejects forged review baselines and constrains the first ac
     adrNormalizedSha256: semanticAdrDigest(
       baselineFiles.get('docs/adr/0001-testnet-mvp-scope-and-authority.md'),
     ),
+    ciSha256: sha256(baselineFiles.get('.github/workflows/ci.yml')),
     readmeNormalizedSha256: semanticReadmeDigest(baselineFiles.get('README.md')),
     roadmapSha256: sha256(baselineFiles.get('planning/roadmap.json')),
     validatorSha256: sha256(baselineFiles.get('tools/check-governance-v2.mjs')),
@@ -404,6 +544,7 @@ test('Git provenance rejects forged review baselines and constrains the first ac
     reviewReport: acceptanceFiles['docs/reviews/GOV-001.md'],
     validatorText: baselineFiles.get('tools/check-governance-v2.mjs'),
     governanceTest: baselineFiles.get('test/governance.test.mjs'),
+    ciText: baselineFiles.get('.github/workflows/ci.yml'),
   };
   const now = new Date(`${reviewedAt}T12:00:00.000Z`);
 
@@ -432,6 +573,36 @@ test('Git provenance rejects forged review baselines and constrains the first ac
   futureReview.reviewedAt = '2999-01-01';
   assert.throws(
     () => validateGovernanceReviewProvenance(futureReview, current, { repositoryRoot: repository, now }),
+    /reviewedAt is in the future/,
+  );
+
+  const nextCalendarDayReview = structuredClone(review);
+  nextCalendarDayReview.reviewedAt = addIsoDateDays(reviewedAt, 1);
+  const nextCalendarDayCurrent = {
+    ...current,
+    reviewText: `${JSON.stringify(nextCalendarDayReview, null, 2)}\n`,
+    reviewReport: renderGovernanceReview(nextCalendarDayReview),
+  };
+  assert.doesNotThrow(() =>
+    validateGovernanceReviewProvenance(nextCalendarDayReview, nextCalendarDayCurrent, {
+      repositoryRoot: repository,
+      now,
+    }),
+  );
+
+  const impossibleLocalDate = structuredClone(nextCalendarDayReview);
+  impossibleLocalDate.reviewedAt = addIsoDateDays(reviewedAt, 2);
+  const impossibleLocalCurrent = {
+    ...current,
+    reviewText: `${JSON.stringify(impossibleLocalDate, null, 2)}\n`,
+    reviewReport: renderGovernanceReview(impossibleLocalDate),
+  };
+  assert.throws(
+    () =>
+      validateGovernanceReviewProvenance(impossibleLocalDate, impossibleLocalCurrent, {
+        repositoryRoot: repository,
+        now,
+      }),
     /reviewedAt is in the future/,
   );
 
@@ -495,6 +666,233 @@ test('Git provenance rejects forged review baselines and constrains the first ac
   assert.doesNotThrow(() =>
     validateGovernanceReviewProvenance(review, current, { repositoryRoot: repository, now }),
   );
+
+  const decoyRepository = await mkdtemp(resolve(tmpdir(), 'quantpass-governance-decoy-'));
+  t.after(() => rm(decoyRepository, { recursive: true, force: true }));
+  git(decoyRepository, ['init', '--quiet']);
+  git(decoyRepository, ['config', 'user.name', 'Governance Test']);
+  git(decoyRepository, ['config', 'user.email', 'governance-test@example.invalid']);
+  await writeRepositoryFile(decoyRepository, 'decoy.txt', 'ambient Git repository\n');
+  git(decoyRepository, ['add', '--all']);
+  git(decoyRepository, ['commit', '--quiet', '-m', 'ambient repository']);
+  const poisonedGitEnvironment = {
+    GIT_DIR: resolve(decoyRepository, '.git'),
+    GIT_WORK_TREE: decoyRepository,
+    GIT_INDEX_FILE: resolve(decoyRepository, '.git/index'),
+    GIT_OBJECT_DIRECTORY: resolve(decoyRepository, '.git/objects'),
+    GIT_ALTERNATE_OBJECT_DIRECTORIES: resolve(decoyRepository, '.git/objects'),
+    GIT_SHALLOW_FILE: resolve(decoyRepository, '.git/shallow'),
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'core.repositoryformatversion',
+    GIT_CONFIG_VALUE_0: '99',
+    GIT_REPLACE_REF_BASE: 'refs/attacker-replacements/',
+  };
+  const originalGitEnvironment = Object.fromEntries(
+    Object.keys(poisonedGitEnvironment).map((name) => [name, process.env[name]]),
+  );
+  Object.assign(process.env, poisonedGitEnvironment);
+  try {
+    assert.doesNotThrow(() =>
+      validateGovernanceReviewProvenance(review, current, { repositoryRoot: repository, now }),
+    );
+  } finally {
+    for (const [name, value] of Object.entries(originalGitEnvironment)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+
+  git(repository, ['replace', reviewedCommit, unrelatedCommit]);
+  assert.equal(git(repository, ['show', '-s', '--format=%s', reviewedCommit]).trim(), 'unrelated baseline');
+  assert.doesNotThrow(() =>
+    validateGovernanceReviewProvenance(review, current, { repositoryRoot: repository, now }),
+  );
+  git(repository, ['replace', '-d', reviewedCommit]);
+
+  const nestedRoot = resolve(repository, 'nested-root');
+  await mkdir(nestedRoot, { recursive: true });
+  assert.throws(
+    () => validateGovernanceReviewProvenance(review, current, { repositoryRoot: nestedRoot, now }),
+    /repository root differs from the requested root/,
+  );
+
+  const shallowRepository = await mkdtemp(resolve(tmpdir(), 'quantpass-governance-shallow-'));
+  await rm(shallowRepository, { recursive: true, force: true });
+  t.after(() => rm(shallowRepository, { recursive: true, force: true }));
+  execFileSync('git', ['clone', '--quiet', '--depth', '1', `file://${repository}`, shallowRepository], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  assert.throws(
+    () =>
+      validateGovernanceReviewProvenance(review, current, {
+        repositoryRoot: shallowRepository,
+        now,
+      }),
+    /must contain complete history/,
+  );
+
+  const driftedAdr = `${current.adr}\n## Unreviewed post-acceptance override\n\nChange the accepted authority model.\n`;
+  await writeRepositoryFile(repository, 'docs/adr/0001-testnet-mvp-scope-and-authority.md', driftedAdr);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'drift accepted ADR']);
+  assert.throws(
+    () =>
+      validateGovernanceReviewProvenance(
+        review,
+        { ...current, adr: driftedAdr },
+        {
+          repositoryRoot: repository,
+          now,
+        },
+      ),
+    /current accepted ADR semantics differ from the reviewed artifact/,
+  );
+  await writeRepositoryFile(repository, 'docs/adr/0001-testnet-mvp-scope-and-authority.md', current.adr);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'restore reviewed ADR']);
+
+  const driftedRoadmap = structuredClone(current.roadmap);
+  driftedRoadmap.tasks.find((task) => task.id === 'THREAT-001').acceptance[0] =
+    'skip trust-boundary validation';
+  const driftedRoadmapText = `${JSON.stringify(driftedRoadmap, null, 2)}\n`;
+  await writeRepositoryFile(repository, 'planning/roadmap.json', driftedRoadmapText);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'drift roadmap policy']);
+  assert.throws(
+    () =>
+      validateGovernanceReviewProvenance(
+        review,
+        { ...current, roadmap: driftedRoadmap, roadmapText: driftedRoadmapText },
+        { repositoryRoot: repository, now },
+      ),
+    /current roadmap policy differs from the reviewed artifact/,
+  );
+  await writeRepositoryFile(repository, 'planning/roadmap.json', current.roadmapText);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'restore reviewed roadmap policy']);
+
+  const progressedRoadmap = structuredClone(current.roadmap);
+  const completedThreat = progressedRoadmap.tasks.find((task) => task.id === 'THREAT-001');
+  completedThreat.status = 'done';
+  completedThreat.evidence = ['docs/THREAT-MODEL.md'];
+  completedThreat.updatedAt = addIsoDateDays(completedThreat.updatedAt, 1);
+  const nextTask = progressedRoadmap.tasks.find((task) => task.id === 'CONFIG-001');
+  nextTask.status = 'in_progress';
+  nextTask.updatedAt = completedThreat.updatedAt;
+  progressedRoadmap.updatedAt = completedThreat.updatedAt;
+  progressedRoadmap.project.planVersion = '2.4';
+  const progressedRoadmapText = `${JSON.stringify(progressedRoadmap, null, 2)}\n`;
+  await writeRepositoryFile(repository, 'planning/roadmap.json', progressedRoadmapText);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'advance roadmap lifecycle']);
+  assert.doesNotThrow(() =>
+    validateGovernanceReviewProvenance(
+      review,
+      { ...current, roadmap: progressedRoadmap, roadmapText: progressedRoadmapText },
+      { repositoryRoot: repository, now },
+    ),
+  );
+  await writeRepositoryFile(repository, 'planning/roadmap.json', current.roadmapText);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'restore lifecycle fixture']);
+
+  const expandedReadme = `${current.readme}\nAdditional non-governance usage note.\n`;
+  await writeRepositoryFile(repository, 'README.md', expandedReadme);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'update README outside governance section']);
+  assert.doesNotThrow(() =>
+    validateGovernanceReviewProvenance(
+      review,
+      { ...current, readme: expandedReadme },
+      {
+        repositoryRoot: repository,
+        now,
+      },
+    ),
+  );
+
+  const driftedReadme = current.readme.replace(
+    'GOV-001 acceptance evidence is tied to a real Git ancestor and a closed first-transition diff.',
+    'GOV-001 acceptance may use an uncommitted or mutable snapshot.',
+  );
+  await writeRepositoryFile(repository, 'README.md', driftedReadme);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'drift README governance section']);
+  assert.throws(
+    () =>
+      validateGovernanceReviewProvenance(
+        review,
+        { ...current, readme: driftedReadme },
+        {
+          repositoryRoot: repository,
+          now,
+        },
+      ),
+    /current README governance section differs from the reviewed artifact/,
+  );
+  await writeRepositoryFile(repository, 'README.md', current.readme);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'restore README governance section']);
+
+  const driftedValidator = `${current.validatorText}\n// unreviewed post-acceptance validator change\n`;
+  await writeRepositoryFile(repository, 'tools/check-governance-v2.mjs', driftedValidator);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'drift governance validator']);
+  assert.throws(
+    () =>
+      validateGovernanceReviewProvenance(
+        review,
+        { ...current, validatorText: driftedValidator },
+        {
+          repositoryRoot: repository,
+          now,
+        },
+      ),
+    /current governance validator differs from the reviewed artifact/,
+  );
+  await writeRepositoryFile(repository, 'tools/check-governance-v2.mjs', current.validatorText);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'restore reviewed validator']);
+
+  const driftedTest = `${current.governanceTest}\n// unreviewed post-acceptance test weakening\n`;
+  await writeRepositoryFile(repository, 'test/governance.test.mjs', driftedTest);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'drift governance regression tests']);
+  assert.throws(
+    () =>
+      validateGovernanceReviewProvenance(
+        review,
+        { ...current, governanceTest: driftedTest },
+        {
+          repositoryRoot: repository,
+          now,
+        },
+      ),
+    /current governance regression tests differ from the reviewed artifact/,
+  );
+  await writeRepositoryFile(repository, 'test/governance.test.mjs', current.governanceTest);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'restore reviewed governance tests']);
+
+  const driftedCi = `${current.ciText}\n# unreviewed post-acceptance workflow change\n`;
+  await writeRepositoryFile(repository, '.github/workflows/ci.yml', driftedCi);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'drift CI workflow']);
+  assert.throws(
+    () =>
+      validateGovernanceReviewProvenance(
+        review,
+        { ...current, ciText: driftedCi },
+        {
+          repositoryRoot: repository,
+          now,
+        },
+      ),
+    /current CI workflow differs from the reviewed artifact/,
+  );
+  await writeRepositoryFile(repository, '.github/workflows/ci.yml', current.ciText);
+  git(repository, ['add', '--all']);
+  git(repository, ['commit', '--quiet', '-m', 'restore reviewed CI workflow']);
 
   const tamperedReview = structuredClone(review);
   tamperedReview.nonBlockingRecommendations.push('fabricated after acceptance');

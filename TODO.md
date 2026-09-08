@@ -6,12 +6,12 @@
 
 ## 当前状态
 
-- 唯一 WIP：**GOV-001 · 冻结测试网范围、角色与架构 ADR**
+- 唯一 WIP：**SUPPLY-001 · 强化仓库与供应链策略**
 - 总任务：41
 - 已完成：6
-- 已就绪：7
+- 已就绪：6
 - 未关闭 Critical/High：33
-- 计划版本：2.2（2026-09-07）
+- 计划版本：2.4（2026-09-08）
 
 ## 强制安全边界
 
@@ -95,18 +95,16 @@
 
 > 先冻结资产、权限、会计和信任边界，再开始合约实现。
 
-- [ ] **GOV-001 · 冻结测试网范围、角色与架构 ADR** — 进行中 / P0 / Critical / M
-  - 目标：冻结协议托管/应用非托管边界、逐笔用户确认、支持资产、闭集角色权限、不可升级策略、不可逆暂停与安全退出。
-  - 依赖：`NET-001`、`LEDGER-001`、`PERMIT-001`、`LOCAL-001`
-  - 交付：架构与数据流图；角色/能力矩阵；资产与禁止项 ADR；不可升级优先及迁移策略；真实 Git 祖先与闭集验收转换证据
+- [ ] **SUPPLY-001 · 强化仓库与供应链策略** — 进行中 / P1 / High / M
+  - 目标：先建立不可由受检 diff 改写的仓库外治理校验信任根，再补齐 master 保护、reviewer 身份级 attestation、Dependabot、安全更新、SBOM、license 和构建来源控制。
+  - 依赖：`CI-001`
+  - 交付：分支保护、CODEOWNERS/required review、仓库外 required workflow 与签名 attestation；Dependabot 与 CodeQL 配置；SBOM/license 报告；锁文件与 Action 更新策略
   - 验收：
-    - Owner、策略、风险/快照签名者、暂停者、部署者和 Indexer 权限为闭集、互斥且最小化；relayer 无权限且不绑定身份
-    - 明确支持 token、decimals、管理员冻结/门控、fee-on-transfer/rebasing 等拒绝策略
-    - 禁止任意 call/delegatecall、主网和真实资金路径
-    - 签名和快照绑定 Vault 状态版本/哈希，合约原子递增且风险签发按版本串行
-    - 独立复核者能指出每个秘密、签名、资产、manifest 自举和管理员边界
-    - 复核摘要从真实 reviewed commit 重算，首次接受提交不能夹带业务代码、校验器或测试变更
-  - 停用/回退：ADR 未通过前保持 local mock，部署写平面与应用写平面均保持关闭。
+    - master 禁止未通过 required checks 和所需身份复核的直接更新，且治理 required workflow/status check 的定义、执行代码和必需性均不能由同一受检 diff 自行关闭或改写
+    - 依赖漏洞告警、安全更新和 CodeQL 启用且有处置 SLA
+    - 发布生成 SBOM 并拒绝不兼容许可证
+    - Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review
+  - 停用/回退：供应链门禁故障时冻结依赖更新与发布，不临时关闭所有检查。
   - 证据：待补
 
 - [ ] **TOOL-001 · 固定 Solidity 与安全工具链** — 就绪 / P0 / High / S
@@ -120,16 +118,22 @@
   - 停用/回退：工具链升级单独提交；字节码变化必须解释，否则回退到已固定版本。
   - 证据：待补
 
-- [ ] **SUPPLY-001 · 强化仓库与供应链策略** — 就绪 / P1 / High / M
-  - 目标：补齐 master 保护、reviewer 身份级 attestation、Dependabot、安全更新、SBOM、license 和构建来源控制。
-  - 依赖：`CI-001`
-  - 交付：分支保护、CODEOWNERS/required review 与签名 attestation；Dependabot 与 CodeQL 配置；SBOM/license 报告；锁文件与 Action 更新策略
+- [ ] **GOV-001 · 冻结测试网范围、角色与架构 ADR** — 阻塞 / P0 / Critical / M
+  - 目标：冻结协议托管/应用非托管边界、逐笔用户确认、支持资产、闭集角色权限、不可升级策略、不可逆暂停与安全退出。
+  - 依赖：`NET-001`、`LEDGER-001`、`PERMIT-001`、`LOCAL-001`、`SUPPLY-001`
+  - 交付：架构与数据流图；角色/能力矩阵；资产与禁止项 ADR；不可升级优先及迁移策略；真实 Git 祖先与闭集验收转换证据；受仓库外强制门禁保护的验收后 ADR、roadmap 政策、validator、治理测试与 CI 持续语义锁定
   - 验收：
-    - master 禁止未通过 required checks 和所需身份复核的直接更新
-    - 依赖漏洞告警、安全更新和 CodeQL 启用且有处置 SLA
-    - 发布生成 SBOM 并拒绝不兼容许可证
-    - Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review
-  - 停用/回退：供应链门禁故障时冻结依赖更新与发布，不临时关闭所有检查。
+    - Owner、策略、风险/快照签名者、暂停者、部署者和 Indexer 权限为闭集、互斥且最小化；relayer 无权限且不绑定身份
+    - 明确支持 token、decimals、管理员冻结/门控、fee-on-transfer/rebasing 等拒绝策略
+    - 禁止任意 call/delegatecall、主网和真实资金路径
+    - 签名和快照绑定 Vault 状态版本/哈希，合约原子递增且风险签发按版本串行
+    - 独立复核者能指出每个秘密、签名、资产、manifest 自举和管理员边界
+    - 复核摘要从真实 reviewed commit 重算，首次接受提交不能夹带业务代码、校验器或测试变更
+    - 在不可由同一受检 diff 修改的强制执行入口中，验收后 ADR、README 治理段、roadmap 非生命周期字段、validator、治理测试或 CI 漂移均失败关闭；计划版本、任务/gate 状态、证据、日期和阻塞原因仍可正常推进
+    - 仓库内 CI 不经 package.json 间接寻址，直接执行治理校验器和治理测试作为纵深防御；SUPPLY-001 提供仓库外 required workflow/status check，消除校验器自行证明自身未被替换的信任循环
+    - Git provenance 查询忽略 GIT_* 污染与 replace refs，先以 tree 判定可选历史路径是否存在，存在后的读取错误不得降级为缺失
+    - 日期仅为 YYYY-MM-DD 时按 UTC-12 至 UTC+14 的可实现区间校验，不拒绝真实本地次日，也不接受尚未在全球任何时区开始的日期
+  - 停用/回退：ADR 未通过前保持 local mock，部署写平面与应用写平面均保持关闭。
   - 证据：待补
 
 - [ ] **ASSET-001 · 测试资产与外部协议地址核验** — 待排期 / P0 / Critical / M

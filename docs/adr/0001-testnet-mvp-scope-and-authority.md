@@ -68,7 +68,7 @@ flowchart LR
 
 ### 信任边界清单
 
-`TB-01` 至 `TB-09` 的来源、目标、数据和强制控制由 `planning/security-boundary.json` 定义，并自动生成到[机器约束附录](0001-security-boundary.generated.md)。手写 ADR 不复制这些字段，避免两份描述发生静默漂移。
+`TB-01` 至 `TB-10` 的来源、目标、数据和强制控制由 `planning/security-boundary.json` 定义，并自动生成到[机器约束附录](0001-security-boundary.generated.md)。手写 ADR 不复制这些字段，避免两份描述发生静默漂移。
 
 ## 角色与能力矩阵
 
@@ -175,9 +175,11 @@ MVP 禁止异步外部托管、挂单或需要第三方后续结算的仓位。�
 
 ## 可复核证据
 
-`GOV-001` 的接受不是单纯修改状态字段。复核记录必须绑定一个真实、完整的 Git commit；校验器从该对象直接重算安全边界、ADR、README、roadmap、校验器和回归测试摘要，并要求它位于当前 `HEAD` 的 first-parent 历史上。首次接受提交只能修改固定的状态、证据与生成文档路径，任何业务代码、校验器或测试夹带都会失败；CI 必须检出完整历史以复查这条链。
+`GOV-001` 的接受不是单纯修改状态字段。复核记录必须绑定一个真实、完整的 Git commit；校验器从该对象直接重算安全边界、ADR、README、roadmap、CI workflow、校验器和回归测试摘要，并要求它位于当前 `HEAD` 的 first-parent 历史上。首次接受提交只能修改固定的状态、证据与生成文档路径，任何业务代码、校验器或测试夹带都会失败；CI 必须检出完整历史以复查这条链。
 
-仓库内的 reviewer ID 是可审计的流程标签，不是密码学身份证明。分支保护、required review/CODEOWNERS 或签名 attestation 属于 `SUPPLY-001`；在该任务完成前，不把本记录表述为外部组织或真人身份背书，也不因此开启任何 Testnet 写平面。
+接受后，受保护且不可由同一受检 diff 修改的仓库外强制执行入口必须使用受信版本的校验逻辑，持续核对当前安全边界与复核摘要，并冻结 ADR 全部语义、README 的治理段、roadmap 的政策字段、CI workflow、治理校验器与治理测试。roadmap 只允许计划版本、任务/gate 的状态、证据、日期与阻塞原因等生命周期字段推进；任务依赖、验收标准、回滚、发布门禁定义或硬边界变化都要求新的 ADR 与独立复核。仓库内 CI 直接调用治理校验器和治理测试，不依赖可由 `package.json` 改写的间接脚本入口，但它只构成纵深防御。Git 查询清除调用方提供的 `GIT_*` 环境影响、禁用 replace refs，并先检查 commit tree 再读取可选历史工件；路径存在后的读取错误必须失败关闭，不能伪装成“文件不存在”。日期型复核证据按 UTC-12 至 UTC+14 的可实现日历区间校验，并要求 reviewed commit 的时间戳不晚于验证时刻，避免真实本地日期被 UTC 日期误拒绝或接受未来提交。
+
+仓库内的 reviewer ID 是可审计的流程标签，不是密码学身份证明。仓库内校验器不能证明自身、调用它的 workflow 和测试没有被同一受检提交协调替换；单靠当前仓库绿灯不能满足冻结条件。分支保护、仓库外 required workflow/status check、required review/CODEOWNERS 或签名 attestation 属于 `SUPPLY-001`，因此 `GOV-001` 在该外部信任根完成前保持阻塞。届时仍需重新进入独立复核，而不能沿用阻塞前的结论。在该任务完成前，不把本记录表述为外部组织或真人身份背书，也不因此开启任何 Testnet 写平面。
 
 运行以下命令检查机器约束和文档同步：
 

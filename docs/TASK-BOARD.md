@@ -2,11 +2,11 @@
 
 > 自动生成文件：唯一事实源为 `planning/roadmap.json`。HTML 版见 [task-board.html](task-board.html)。
 
-更新时间：2026-09-07 · 计划版本：2.2
+更新时间：2026-09-08 · 计划版本：2.4
 
-- 当前任务：**GOV-001 · 冻结测试网范围、角色与架构 ADR**
+- 当前任务：**SUPPLY-001 · 强化仓库与供应链策略**
 - 已完成：6/41
-- 就绪：7
+- 就绪：6
 - 未关闭 Critical/High：33
 - 硬边界：仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金以及无人值守或自主交易。
 
@@ -29,9 +29,9 @@
 
 | ID | 任务 | 状态 | 优先级 | 风险 | 依赖 |
 | --- | --- | --- | --- | --- | --- |
-| GOV-001 | 冻结测试网范围、角色与架构 ADR | 进行中 | P0 | Critical | NET-001, LEDGER-001, PERMIT-001, LOCAL-001 |
+| SUPPLY-001 | 强化仓库与供应链策略 | 进行中 | P1 | High | CI-001 |
 | TOOL-001 | 固定 Solidity 与安全工具链 | 就绪 | P0 | High | CI-001, NET-001 |
-| SUPPLY-001 | 强化仓库与供应链策略 | 就绪 | P1 | High | CI-001 |
+| GOV-001 | 冻结测试网范围、角色与架构 ADR | 阻塞 | P0 | Critical | NET-001, LEDGER-001, PERMIT-001, LOCAL-001, SUPPLY-001 |
 | ASSET-001 | 测试资产与外部协议地址核验 | 待排期 | P0 | Critical | GOV-001, THREAT-001 |
 | CONFIG-001 | 独立且失败关闭的 Testnet 启动门禁 | 待排期 | P0 | Critical | GOV-001, THREAT-001 |
 | PRIV-001 | 消除 Demo Executor 隐式提权并采用无权限 Relay | 待排期 | P0 | Critical | GOV-001, THREAT-001 |

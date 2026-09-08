@@ -28,6 +28,11 @@ jobs:
           cache: npm
       - name: Install locked dependencies without lifecycle scripts
         run: npm ci --ignore-scripts
+      # Defense in depth only. SUPPLY-001 must make an external trusted check required.
+      - name: Verify governance evidence directly
+        run: |
+          node tools/check-governance-v2.mjs
+          node --test test/governance.test.mjs
       - name: Check source, tests and Robinhood Chain configuration
         run: npm run check
       - name: Check dependency advisories (network required)

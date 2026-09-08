@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { validatePlan } from './build-planning.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const boundaryPath = resolve(root, 'planning/security-boundary.json');
@@ -14,6 +17,7 @@ const reviewRecordPath = resolve(root, 'docs/reviews/GOV-001.json');
 const reviewReportPath = resolve(root, 'docs/reviews/GOV-001.md');
 const governanceTestPath = resolve(root, 'test/governance.test.mjs');
 const validatorPath = fileURLToPath(import.meta.url);
+const ciPath = resolve(root, '.github/workflows/ci.yml');
 
 const VERIFIED_REVIEW = Symbol('verified-governance-review');
 const REVIEWABLE_PATHS = Object.freeze([
@@ -59,6 +63,15 @@ function requireStringArray(value, field, minimum = 1) {
   );
   value.forEach((item, index) => requireString(item, `${field}[${index}]`));
   requireCondition(new Set(value).size === value.length, `${field} must not contain duplicates`);
+}
+
+async function readOptionalTextFile(path, field) {
+  try {
+    return await readFile(path, 'utf8');
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ENOENT') return null;
+    throw new Error(`Invalid governance boundary: ${field} cannot be read`, { cause: error });
+  }
 }
 
 function requireExactKeys(value, expected, field) {
@@ -115,6 +128,60 @@ export function semanticAdrDigest(adr) {
     'ADR must contain exactly one recognized decision status',
   );
   return sha256Text(normalized);
+}
+
+export function semanticReadmeGovernanceDigest(readme) {
+  requireString(readme, 'README document');
+  const heading = '## Current work\n';
+  const start = readme.indexOf(heading);
+  requireCondition(start >= 0, 'README must contain the Current work section');
+  requireCondition(
+    readme.indexOf(heading, start + heading.length) === -1,
+    'README contains duplicate Current work sections',
+  );
+  const end = readme.indexOf('\n## ', start + heading.length);
+  const section = readme.slice(start, end === -1 ? readme.length : end);
+  return semanticReadmeDigest(section);
+}
+
+export function semanticRoadmapPolicyDigest(roadmap) {
+  validatePlan(roadmap);
+  const normalized = structuredClone(roadmap);
+  normalized.updatedAt = '__LIFECYCLE_DATE__';
+  requireCondition(
+    normalized.project && typeof normalized.project === 'object',
+    'roadmap.project must be an object',
+  );
+  normalized.project.planVersion = '__LIFECYCLE_VERSION__';
+  for (const task of normalized.tasks) {
+    task.status = '__LIFECYCLE_STATUS__';
+    task.evidence = '__LIFECYCLE_EVIDENCE__';
+    task.updatedAt = '__LIFECYCLE_DATE__';
+    delete task.blockedReason;
+  }
+  for (const gate of normalized.releaseGates) {
+    gate.status = '__LIFECYCLE_STATUS__';
+    requireCondition(Array.isArray(gate.checks), `${gate.id ?? 'release gate'}.checks must be an array`);
+    for (const check of gate.checks) {
+      check.status = '__LIFECYCLE_STATUS__';
+      check.evidence = '__LIFECYCLE_EVIDENCE__';
+    }
+  }
+  return sha256Text(canonicalJson(normalized));
+}
+
+export function validateReviewDateWindow(reviewedAt, commitTimestamp, now = new Date()) {
+  const reviewStart = Date.parse(`${reviewedAt}T00:00:00+14:00`);
+  const nextReviewDate = new Date(`${reviewedAt}T00:00:00.000Z`);
+  nextReviewDate.setUTCDate(nextReviewDate.getUTCDate() + 1);
+  const reviewEnd = Date.parse(`${nextReviewDate.toISOString().slice(0, 10)}T00:00:00-12:00`);
+  const commitInstant = Date.parse(commitTimestamp);
+  const nowInstant = now.valueOf();
+  requireCondition(Number.isFinite(commitInstant), 'reviewed commit timestamp is invalid');
+  requireCondition(Number.isFinite(nowInstant), 'current time is invalid');
+  requireCondition(commitInstant <= nowInstant, 'reviewed commit timestamp is in the future');
+  requireCondition(reviewEnd > commitInstant, 'governanceReview.reviewedAt predates the reviewed commit');
+  requireCondition(reviewStart <= nowInstant, 'governanceReview.reviewedAt is in the future');
 }
 
 export function semanticBoundaryDigest(boundary) {
@@ -194,6 +261,7 @@ export function validateGovernanceReview(review, boundary, artifactDigests) {
     review.artifactDigests,
     [
       'adrNormalizedSha256',
+      'ciSha256',
       'readmeNormalizedSha256',
       'roadmapSha256',
       'validatorSha256',
@@ -1097,7 +1165,16 @@ export function validateRoadmapAlignment(boundary, roadmap, review = null, revie
   const governance = tasks.get('GOV-001');
   requireCondition(governance, 'roadmap must contain GOV-001');
   if (boundary.decision.status === 'review') {
-    requireCondition(governance.status === 'in_progress', 'review decision requires GOV-001 in progress');
+    requireCondition(
+      governance.status === 'in_progress' || governance.status === 'blocked',
+      'review decision requires GOV-001 in progress or explicitly blocked',
+    );
+    if (governance.status === 'blocked') {
+      requireCondition(
+        governance.dependsOn.includes('SUPPLY-001'),
+        'blocked GOV-001 must depend on the external SUPPLY-001 enforcement boundary',
+      );
+    }
   } else {
     requireCondition(governance.status === 'done', 'accepted decision requires GOV-001 done');
     const expectedEvidence = [
@@ -1264,30 +1341,121 @@ export function renderGovernanceReview(review) {
       : review.nonBlockingRecommendations.map((item) => `- ${item}`).join('\n');
   const limitations =
     review.limitations.length === 0 ? '- none' : review.limitations.map((item) => `- ${item}`).join('\n');
-  return `# GOV-001 独立复核记录\n\n> 自动生成文件。唯一事实源为 \`docs/reviews/GOV-001.json\`；禁止手工修改。\n\n- Decision：\`${review.decisionId}\`\n- Reviewed commit：\`${review.reviewedCommit}\`\n- Reviewed at：\`${review.reviewedAt}\`\n- Method：\`${review.reviewMethod}\`\n- Semantic digest：\`${review.reviewedSemanticDigest}\`\n- Aggregate verdict：\`${review.verdict}\`\n- Aggregate blockers：none\n- Git provenance：复核提交必须真实存在，并位于首次验收提交的 first-parent 路径上；首次验收只允许闭集状态转换。\n\n## 受复核工件摘要\n\n- ADR（状态归一化）：\`${review.artifactDigests.adrNormalizedSha256}\`\n- README（状态归一化）：\`${review.artifactDigests.readmeNormalizedSha256}\`\n- Roadmap（复核快照）：\`${review.artifactDigests.roadmapSha256}\`\n- Validator：\`${review.artifactDigests.validatorSha256}\`\n- Regression tests：\`${review.artifactDigests.regressionTestsSha256}\`\n\n${reviewers}\n\n## 非阻断建议\n\n${recommendations}\n\n## 局限\n\n${limitations}\n`;
+  return `# GOV-001 独立复核记录\n\n> 自动生成文件。唯一事实源为 \`docs/reviews/GOV-001.json\`；禁止手工修改。\n\n- Decision：\`${review.decisionId}\`\n- Reviewed commit：\`${review.reviewedCommit}\`\n- Reviewed at：\`${review.reviewedAt}\`\n- Method：\`${review.reviewMethod}\`\n- Semantic digest：\`${review.reviewedSemanticDigest}\`\n- Aggregate verdict：\`${review.verdict}\`\n- Aggregate blockers：none\n- Git provenance：复核提交必须真实存在，并位于首次验收提交的 first-parent 路径上；首次验收只允许闭集状态转换。\n\n## 受复核工件摘要\n\n- ADR（状态归一化）：\`${review.artifactDigests.adrNormalizedSha256}\`\n- README（状态归一化）：\`${review.artifactDigests.readmeNormalizedSha256}\`\n- Roadmap（复核快照）：\`${review.artifactDigests.roadmapSha256}\`\n- CI workflow：\`${review.artifactDigests.ciSha256}\`\n- Validator：\`${review.artifactDigests.validatorSha256}\`\n- Regression tests：\`${review.artifactDigests.regressionTestsSha256}\`\n\n${reviewers}\n\n## 非阻断建议\n\n${recommendations}\n\n## 局限\n\n${limitations}\n`;
 }
 
-function runGit(repositoryRoot, args, allowFailure = false) {
+const GIT_GLOBAL_ARGS = Object.freeze([
+  '--no-replace-objects',
+  '--no-optional-locks',
+  '--no-pager',
+  '--literal-pathspecs',
+  '-c',
+  'core.fsmonitor=false',
+]);
+
+function sanitizedGitEnvironment() {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([name, value]) => !name.toUpperCase().startsWith('GIT_') && value !== undefined,
+    ),
+  );
+  return {
+    ...env,
+    GIT_NO_LAZY_FETCH: '1',
+    GIT_NO_REPLACE_OBJECTS: '1',
+    GIT_OPTIONAL_LOCKS: '0',
+    LC_ALL: 'C',
+  };
+}
+
+function executeGit(args, env, allowFailure = false, operation = args.at(-1)) {
   try {
-    return execFileSync('git', ['-C', repositoryRoot, ...args], {
+    return execFileSync('git', args, {
       encoding: 'utf8',
+      env,
       maxBuffer: 8 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch {
     if (allowFailure) return null;
-    throw new Error(`Invalid governance boundary: Git provenance command failed: git ${args[0]}`);
+    throw new Error(`Invalid governance boundary: Git provenance command failed: git ${operation}`);
   }
 }
 
-function readCommitBlob(repositoryRoot, commit, path) {
-  const content = runGit(repositoryRoot, ['show', `${commit}:${path}`], true);
+function createGitContext(repositoryRoot) {
+  try {
+    const expected = realpathSync(repositoryRoot);
+    const env = sanitizedGitEnvironment();
+    const discovery = executeGit(
+      [
+        ...GIT_GLOBAL_ARGS,
+        '-C',
+        expected,
+        'rev-parse',
+        '--show-toplevel',
+        '--absolute-git-dir',
+        '--is-bare-repository',
+        '--is-shallow-repository',
+      ],
+      env,
+      false,
+      'rev-parse',
+    )
+      .trim()
+      .split('\n');
+    requireCondition(discovery.length === 4, 'Git provenance repository discovery is incomplete');
+    const [topLevel, gitDirectory, isBare, isShallow] = discovery;
+    const actual = realpathSync(topLevel);
+    requireCondition(actual === expected, 'Git provenance repository root differs from the requested root');
+    requireCondition(isBare === 'false', 'Git provenance repository must not be bare');
+    requireCondition(isShallow === 'false', 'Git provenance repository must contain complete history');
+    return Object.freeze({
+      env: Object.freeze(env),
+      gitDirectory: realpathSync(gitDirectory),
+      workTree: expected,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Invalid governance boundary:')) throw error;
+    throw new Error('Invalid governance boundary: Git provenance repository root cannot be verified', {
+      cause: error,
+    });
+  }
+}
+
+function resolveGitContext(contextOrRoot) {
+  return typeof contextOrRoot === 'string' ? createGitContext(contextOrRoot) : contextOrRoot;
+}
+
+function runGit(contextOrRoot, args, allowFailure = false) {
+  const context = resolveGitContext(contextOrRoot);
+  return executeGit(
+    [...GIT_GLOBAL_ARGS, `--git-dir=${context.gitDirectory}`, `--work-tree=${context.workTree}`, ...args],
+    context.env,
+    allowFailure,
+    args[0],
+  );
+}
+
+function readCommitBlob(contextOrRoot, commit, path) {
+  const content = runGit(contextOrRoot, ['show', `${commit}:${path}`], true);
   requireCondition(content !== null, `reviewed Git snapshot is missing ${path}`);
   return content;
 }
 
-function readOptionalCommitBlob(repositoryRoot, commit, path) {
-  return runGit(repositoryRoot, ['show', `${commit}:${path}`], true);
+export function readOptionalCommitBlob(contextOrRoot, commit, path) {
+  const context = resolveGitContext(contextOrRoot);
+  const entries = parseNulPaths(runGit(context, ['ls-tree', '-z', '--full-tree', commit, '--', path]));
+  if (entries.length === 0) return null;
+  requireCondition(
+    entries.length === 1,
+    `reviewed Git snapshot returned an ambiguous tree entry for ${path}`,
+  );
+  const match = /^(\d{6}) (blob|tree|commit) ([0-9a-f]{40}|[0-9a-f]{64})\t([\s\S]+)$/.exec(entries[0]);
+  requireCondition(
+    match && match[2] === 'blob' && match[4] === path,
+    `reviewed Git snapshot contains a non-blob or mismatched entry for ${path}`,
+  );
+  return runGit(context, ['cat-file', 'blob', match[3]]);
 }
 
 function parseNulPaths(value) {
@@ -1366,15 +1534,13 @@ function loadCommitSnapshot(repositoryRoot, commit) {
     reviewReport: readOptionalCommitBlob(repositoryRoot, commit, 'docs/reviews/GOV-001.md'),
     validatorText: readCommitBlob(repositoryRoot, commit, 'tools/check-governance-v2.mjs'),
     governanceTest: readCommitBlob(repositoryRoot, commit, 'test/governance.test.mjs'),
+    ciText: readCommitBlob(repositoryRoot, commit, '.github/workflows/ci.yml'),
   };
 }
 
 function validateReviewerEvidence(review, baseline) {
   const reviewedFiles = new Map(
-    REVIEWABLE_PATHS.map((path) => [
-      path,
-      readCommitBlob(baseline.repositoryRoot, review.reviewedCommit, path),
-    ]),
+    REVIEWABLE_PATHS.map((path) => [path, readCommitBlob(baseline.gitContext, review.reviewedCommit, path)]),
   );
   for (const reviewer of review.reviewers) {
     const referencedPaths = new Set();
@@ -1444,35 +1610,57 @@ function validateAcceptanceTransition(baseline, acceptance, changedPaths) {
 
 export function validateGovernanceReviewProvenance(review, current, options = {}) {
   const repositoryRoot = resolve(options.repositoryRoot ?? root);
+  const gitContext = createGitContext(repositoryRoot);
   validateGovernanceReview(review, current.boundary);
   requireCondition(
-    runGit(repositoryRoot, ['cat-file', '-e', `${review.reviewedCommit}^{commit}`], true) !== null,
+    runGit(gitContext, ['cat-file', '-e', `${review.reviewedCommit}^{commit}`], true) !== null,
     'governanceReview.reviewedCommit does not exist as a Git commit',
   );
-  const head = runGit(repositoryRoot, ['rev-parse', 'HEAD']).trim();
+  const head = runGit(gitContext, ['rev-parse', '--verify', 'HEAD^{commit}']).trim();
   requireCondition(
-    runGit(repositoryRoot, ['merge-base', '--is-ancestor', review.reviewedCommit, head], true) !== null,
+    runGit(gitContext, ['merge-base', '--is-ancestor', review.reviewedCommit, head], true) !== null,
     'governanceReview.reviewedCommit is not an ancestor of HEAD',
   );
 
-  const commitDate = runGit(repositoryRoot, ['show', '-s', '--format=%cs', review.reviewedCommit]).trim();
-  const today = (options.now ?? new Date()).toISOString().slice(0, 10);
-  requireCondition(
-    review.reviewedAt >= commitDate,
-    'governanceReview.reviewedAt predates the reviewed commit',
-  );
-  requireCondition(review.reviewedAt <= today, 'governanceReview.reviewedAt is in the future');
+  const commitTimestamp = runGit(gitContext, ['show', '-s', '--format=%cI', review.reviewedCommit]).trim();
+  const now = options.now ?? new Date();
+  validateReviewDateWindow(review.reviewedAt, commitTimestamp, now);
 
-  const baseline = parseSnapshot(loadCommitSnapshot(repositoryRoot, review.reviewedCommit), 'review');
-  baseline.repositoryRoot = repositoryRoot;
+  const baseline = parseSnapshot(loadCommitSnapshot(gitContext, review.reviewedCommit), 'review');
+  baseline.gitContext = gitContext;
   validateGovernanceReview(review, current.boundary, {
     adrNormalizedSha256: semanticAdrDigest(baseline.adr),
+    ciSha256: sha256Text(baseline.ciText),
     readmeNormalizedSha256: semanticReadmeDigest(baseline.readme),
     roadmapSha256: sha256Text(baseline.roadmapText),
     validatorSha256: sha256Text(baseline.validatorText),
     regressionTestsSha256: sha256Text(baseline.governanceTest),
   });
   validateReviewerEvidence(review, baseline);
+  requireCondition(
+    semanticAdrDigest(current.adr) === review.artifactDigests.adrNormalizedSha256,
+    'current accepted ADR semantics differ from the reviewed artifact',
+  );
+  requireCondition(
+    semanticReadmeGovernanceDigest(current.readme) === semanticReadmeGovernanceDigest(baseline.readme),
+    'current README governance section differs from the reviewed artifact',
+  );
+  requireCondition(
+    semanticRoadmapPolicyDigest(current.roadmap) === semanticRoadmapPolicyDigest(baseline.roadmap),
+    'current roadmap policy differs from the reviewed artifact',
+  );
+  requireCondition(
+    sha256Text(current.validatorText) === review.artifactDigests.validatorSha256,
+    'current governance validator differs from the reviewed artifact',
+  );
+  requireCondition(
+    sha256Text(current.governanceTest) === review.artifactDigests.regressionTestsSha256,
+    'current governance regression tests differ from the reviewed artifact',
+  );
+  requireCondition(
+    sha256Text(current.ciText) === review.artifactDigests.ciSha256,
+    'current CI workflow differs from the reviewed artifact',
+  );
 
   let acceptance;
   let acceptanceCommit = null;
@@ -1480,21 +1668,26 @@ export function validateGovernanceReviewProvenance(review, current, options = {}
   if (head === review.reviewedCommit) {
     acceptance = parseSnapshot(current, 'accepted');
     const tracked = parseNulPaths(
-      runGit(repositoryRoot, ['diff', '--no-renames', '--name-only', '-z', review.reviewedCommit, '--']),
+      runGit(gitContext, [
+        'diff',
+        '--no-ext-diff',
+        '--no-textconv',
+        '--no-renames',
+        '--name-only',
+        '-z',
+        review.reviewedCommit,
+        '--',
+      ]),
     );
-    const untracked = parseNulPaths(
-      runGit(repositoryRoot, ['ls-files', '--others', '--exclude-standard', '-z']),
-    );
+    const untracked = parseNulPaths(runGit(gitContext, ['ls-files', '--others', '--exclude-standard', '-z']));
     changedPaths = [...tracked, ...untracked];
   } else {
-    const firstParentHistory = runGit(repositoryRoot, ['rev-list', '--first-parent', head])
-      .trim()
-      .split('\n');
+    const firstParentHistory = runGit(gitContext, ['rev-list', '--first-parent', head]).trim().split('\n');
     requireCondition(
       firstParentHistory.includes(review.reviewedCommit),
       'governanceReview.reviewedCommit is not on the HEAD first-parent history',
     );
-    const transitionCommits = runGit(repositoryRoot, [
+    const transitionCommits = runGit(gitContext, [
       'rev-list',
       '--first-parent',
       '--reverse',
@@ -1505,10 +1698,12 @@ export function validateGovernanceReviewProvenance(review, current, options = {}
       .filter(Boolean);
     requireCondition(transitionCommits.length > 0, 'accepted history has no transition commit');
     [acceptanceCommit] = transitionCommits;
-    acceptance = parseSnapshot(loadCommitSnapshot(repositoryRoot, acceptanceCommit), 'accepted');
+    acceptance = parseSnapshot(loadCommitSnapshot(gitContext, acceptanceCommit), 'accepted');
     changedPaths = parseNulPaths(
-      runGit(repositoryRoot, [
+      runGit(gitContext, [
         'diff',
+        '--no-ext-diff',
+        '--no-textconv',
         '--no-renames',
         '--name-only',
         '-z',
@@ -1547,19 +1742,21 @@ export async function loadGovernanceArtifacts() {
     reviewReport,
     validatorText,
     governanceTest,
+    ciText,
   ] = await Promise.all([
     readFile(boundaryPath, 'utf8'),
     readFile(roadmapPath, 'utf8'),
     readFile(adrPath, 'utf8'),
-    readFile(appendixPath, 'utf8').catch(() => ''),
+    readFile(appendixPath, 'utf8'),
     readFile(readmePath, 'utf8'),
-    readFile(reviewRecordPath, 'utf8').catch(() => ''),
-    readFile(reviewReportPath, 'utf8').catch(() => ''),
+    readOptionalTextFile(reviewRecordPath, 'governance review record'),
+    readOptionalTextFile(reviewReportPath, 'governance review report'),
     readFile(validatorPath, 'utf8'),
     readFile(governanceTestPath, 'utf8'),
+    readFile(ciPath, 'utf8'),
   ]);
   const boundary = validateSecurityBoundary(JSON.parse(boundaryText));
-  const review = reviewText.length > 0 ? JSON.parse(reviewText) : null;
+  const review = reviewText === null ? null : JSON.parse(reviewText);
   const roadmap = JSON.parse(roadmapText);
   validateGovernanceDocumentStatus(boundary, adr, readme);
   requireCondition(
@@ -1587,6 +1784,7 @@ export async function loadGovernanceArtifacts() {
       reviewReport,
       validatorText,
       governanceTest,
+      ciText,
     });
     validateRoadmapAlignment(boundary, roadmap, review, reviewVerification);
     requireCondition(
@@ -1596,12 +1794,9 @@ export async function loadGovernanceArtifacts() {
   } else {
     validateRoadmapAlignment(boundary, roadmap);
     requireCondition(review === null, 'review state must not contain a final governance review record');
-    requireCondition(
-      reviewReport.length === 0,
-      'review state must not contain a final governance review report',
-    );
+    requireCondition(reviewReport === null, 'review state must not contain a final governance review report');
   }
-  return { boundary, roadmap, adr, appendix, readme, review, reviewReport };
+  return { boundary, roadmap, adr, appendix, readme, review, reviewReport, ciText };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
