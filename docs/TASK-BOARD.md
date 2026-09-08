@@ -2,7 +2,7 @@
 
 > 自动生成文件：唯一事实源为 `planning/roadmap.json`。HTML 版见 [task-board.html](task-board.html)。
 
-更新时间：2026-09-08 · 计划版本：2.6
+更新时间：2026-09-08 · 计划版本：2.7
 
 - 当前任务：**SUPPLY-001 · 强化仓库与供应链策略**
 - 已完成：6/41

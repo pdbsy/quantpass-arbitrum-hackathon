@@ -19,6 +19,12 @@ The offline source of truth is [`planning/supply-chain-policy.json`](../../plann
 
 The captured API readback is [`github-security-settings.json`](github-security-settings.json). It is dated evidence, not a live monitor; acceptance requires a fresh readback and tamper test.
 
+## Security diff checkpoint
+
+The immutable range `d5de8c064069cf675c2bddf8f626b7add15aa8a0..940c11341d34ba1055ac75dde11ea1ce10889f09` completed a Codex Security diff scan. No reportable vulnerability survived validation and attack-path analysis because the current workflows are least-privileged and a lower-privileged actor cannot activate a workflow or policy change on protected `master`.
+
+The scan still reproduced workflow parser, permission-policy and governance-evidence weaknesses that should be hardened before requesting merge. The durable checkpoint, scope, limitations and next actions are recorded in [`SUPPLY-DIFF-SCAN-2026-09-08.md`](SUPPLY-DIFF-SCAN-2026-09-08.md). This does not change `SUPPLY-001` or `GOV-001` from their current incomplete/blocked states.
+
 ## External trust boundary still required
 
 The current repository belongs to the personal account `pdbsy`. Repository-level status checks can require a job name and its GitHub App source, but a coordinated hostile commit could still replace the workflow and validator while preserving that name. Therefore the active ruleset plus the in-repository CI job is defense in depth, not proof of governance immutability.
