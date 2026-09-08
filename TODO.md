@@ -11,7 +11,7 @@
 - 已完成：6
 - 已就绪：6
 - 未关闭 Critical/High：33
-- 计划版本：2.4（2026-09-08）
+- 计划版本：2.5（2026-09-08）
 
 ## 强制安全边界
 
@@ -105,7 +105,7 @@
     - 发布生成 SBOM 并拒绝不兼容许可证
     - Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review
   - 停用/回退：供应链门禁故障时冻结依赖更新与发布，不临时关闭所有检查。
-  - 证据：待补
+  - 证据：`.github/CODEOWNERS`、`.github/dependabot.yml`、`.github/workflows/codeql.yml`、`.github/workflows/dependency-review.yml`、`SECURITY.md`、`docs/security/SUPPLY-CHAIN.md`、`docs/security/npm-sbom.spdx.json`、`planning/supply-chain-policy.json`、`test/supply-chain.test.mjs`、`tools/check-supply-chain.mjs`
 
 - [ ] **TOOL-001 · 固定 Solidity 与安全工具链** — 就绪 / P0 / High / S
   - 目标：选定并固定 Foundry、solc、OpenZeppelin、Slither 与格式化版本，不使用浮动 latest。

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-08",
+  "repository": "pdbsy/quantpass-arbitrum-hackathon",
+  "defaultBranch": "master",
+  "dependencyPolicy": {
+    "registryOrigin": "https://registry.npmjs.org",
+    "requiredIntegrityAlgorithm": "sha512",
+    "allowedLicenses": [
+      "Apache-2.0",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "BlueOak-1.0.0",
+      "ISC",
+      "MIT",
+      "MPL-2.0"
+    ],
+    "vulnerabilitySlaDays": {
+      "critical": 1,
+      "high": 3,
+      "moderate": 14,
+      "low": 30
+    }
+  },
+  "actionPolicy": {
+    "allowedOwners": ["actions", "github"],
+    "allowedActions": [
+      "actions/checkout",
+      "actions/dependency-review-action",
+      "actions/setup-node",
+      "github/codeql-action/analyze",
+      "github/codeql-action/init"
+    ],
+    "requireFullCommitSha": true,
+    "forbidPullRequestTarget": true,
+    "repositoryShaPinningRequired": true
+  },
+  "externalGovernanceGate": {
+    "required": true,
+    "status": "blocked",
+    "acceptableImplementations": [
+      "organization-ruleset-required-workflow",
+      "trusted-github-app-required-status-check"
+    ],
+    "evidence": [],
+    "blockedReason": "The repository is owned by a personal account with no external trusted status producer; an in-repository GitHub Actions workflow cannot prove that its own verifier was not replaced by the inspected commit."
+  },
+  "sbom": {
+    "format": "SPDX-2.3",
+    "createdAt": "2026-09-08T00:00:00Z",
+    "documentNamespaceBase": "https://github.com/pdbsy/quantpass-arbitrum-hackathon/sbom"
+  }
+}

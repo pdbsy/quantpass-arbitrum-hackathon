@@ -1,0 +1,8 @@
+# Ownership requests are routing evidence only until an independent reviewer is added
+# and master requires CODEOWNER approval without administrator bypass.
+* @pdbsy
+/.github/ @pdbsy
+/planning/ @pdbsy
+/tools/ @pdbsy
+/test/ @pdbsy
+/docs/adr/ @pdbsy
