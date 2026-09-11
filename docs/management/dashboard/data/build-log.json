@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-11T11:28:14.701Z",
+  "generatedAt": "2026-09-11T12:46:41.557Z",
   "generatorVersion": "1.0.0",
   "generated": {
     "doNotEdit": true,
@@ -28,60 +28,60 @@
     { "level": "warning", "code": "OPTIONAL_SOURCE_NOT_AVAILABLE", "source": "docs/management/CHANGELOG.md" }
   ],
   "sources": [
-    { "status": "READY", "source": "planning/roadmap.json", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "planning/risk-register.json", "observedAt": "2026-09-11T11:28:14.701Z" },
+    { "status": "READY", "source": "planning/roadmap.json", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "planning/risk-register.json", "observedAt": "2026-09-11T12:46:41.557Z" },
     {
       "status": "READY",
       "source": "planning/security-boundary.json",
-      "observedAt": "2026-09-11T11:28:14.701Z"
+      "observedAt": "2026-09-11T12:46:41.557Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/workers/worker-a.md",
-      "observedAt": "2026-09-11T11:28:14.701Z"
+      "observedAt": "2026-09-11T12:46:41.557Z"
     },
     {
       "status": "READY",
       "source": "docs/management/workers/worker-b.md",
-      "observedAt": "2026-09-11T11:28:14.701Z"
+      "observedAt": "2026-09-11T12:46:41.557Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/CURRENT-STATUS.md",
-      "observedAt": "2026-09-11T11:28:14.701Z"
+      "observedAt": "2026-09-11T12:46:41.557Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/WORK-QUEUE.md",
-      "observedAt": "2026-09-11T11:28:14.701Z"
+      "observedAt": "2026-09-11T12:46:41.557Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/DECISIONS.md",
-      "observedAt": "2026-09-11T11:28:14.701Z"
+      "observedAt": "2026-09-11T12:46:41.557Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/CHANGELOG.md",
-      "observedAt": "2026-09-11T11:28:14.701Z"
+      "observedAt": "2026-09-11T12:46:41.557Z"
     },
-    { "status": "READY", "source": "docs/management/tasks/B1.md", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/management/tasks/B2.md", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/management/tasks/B3.md", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/management/tasks/B4.md", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/management/tasks/B5.md", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/management/tasks/B6.md", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/management/tasks/B7.md", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/management/tasks/B8.md", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/adr", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/security", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs/management/host", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": "docs", "observedAt": "2026-09-11T11:28:14.701Z" },
-    { "status": "READY", "source": ".git", "observedAt": "2026-09-11T11:28:14.701Z" },
+    { "status": "READY", "source": "docs/management/tasks/B1.md", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/management/tasks/B2.md", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/management/tasks/B3.md", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/management/tasks/B4.md", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/management/tasks/B5.md", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/management/tasks/B6.md", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/management/tasks/B7.md", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/management/tasks/B8.md", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/adr", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/security", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs/management/host", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": "docs", "observedAt": "2026-09-11T12:46:41.557Z" },
+    { "status": "READY", "source": ".git", "observedAt": "2026-09-11T12:46:41.557Z" },
     {
       "status": "READY",
       "source": ".checks/management/latest.json",
-      "observedAt": "2026-09-11T11:26:53.180Z"
+      "observedAt": "2026-09-11T12:46:17.859Z"
     }
   ]
 }
