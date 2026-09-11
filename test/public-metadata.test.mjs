@@ -320,6 +320,31 @@ test('public metadata detector resolves only bounded literal-only code concatena
   );
 });
 
+test('public metadata detector fails closed within bounded time for excessive static member chains', () => {
+  const source = `profile${'.member'.repeat(2_000)} = "build-" + "operator";`;
+  const startedAt = performance.now();
+
+  const kinds = findOperationalMetadataKinds(source, 'src/profile.ts');
+  const durationMs = performance.now() - startedAt;
+
+  assert.deepEqual(kinds, ['structured-record-budget']);
+  assert.ok(durationMs < 1_000, `static member-chain scan took ${durationMs.toFixed(1)}ms`);
+});
+
+test('public metadata detector preserves later identity findings after a bounded parse is exhausted', () => {
+  const overBudgetExpression = `${'('.repeat(9)}"placeholder"${')'.repeat(9)}`;
+  const account = ['build', 'operator'].join('-');
+  const source = [
+    `const username = ${overBudgetExpression};`,
+    `profile.hostname = ${JSON.stringify(account)};`,
+  ].join('\n');
+
+  assert.deepEqual(findOperationalMetadataKinds(source, 'src/profile.ts'), [
+    'host-identity',
+    'structured-record-budget',
+  ]);
+});
+
 test('public metadata detector inspects one bounded encoded structured layer', () => {
   const account = ['build', 'operator'].join('-');
   const userNameKey = ['user', 'name'].join('');

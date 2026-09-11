@@ -17,6 +17,7 @@ const maximumEmbeddedJsonStringScans = 10_000;
 const maximumStaticConcatenationParts = 8;
 const maximumStaticParenthesisDepth = 8;
 const maximumStaticConcatenationScans = 10_000;
+const maximumStaticMemberSegments = 128;
 const keyWordSeparatorPattern = '[ \\t_-]*';
 const boundedCodeWhitespacePattern = '[ \\t\\r\\n]{0,64}';
 const structuredAssignmentPattern = `["']?[ \\t]*(?::=|\\||:|=(?!=))[ \\t]*["']?`;
@@ -376,7 +377,6 @@ function parseStaticMemberAssignment(value, start) {
   const keys = [root.value];
   let cursor = root.end;
   let members = 0;
-  let concatenatedKey = false;
 
   while (true) {
     const assertion = skipStaticNonNullAssertion(value, cursor);
@@ -398,9 +398,10 @@ function parseStaticMemberAssignment(value, start) {
       if (whitespace.budgetExceeded) return { budgetExceeded: true };
       const member = parseStaticIdentifierAt(value, whitespace.cursor);
       if (!member) return null;
+      members++;
+      if (members > maximumStaticMemberSegments) return { budgetExceeded: true };
       keys.push(member.value);
       cursor = member.end;
-      members++;
       continue;
     }
 
@@ -410,19 +411,20 @@ function parseStaticMemberAssignment(value, start) {
       const trailing = skipBoundedCodeWhitespace(value, keyExpression.end);
       if (trailing.budgetExceeded) return { budgetExceeded: true };
       if (value[trailing.cursor] !== ']') return null;
-      keys.push(normalizedKey(keyExpression.value));
-      concatenatedKey ||= keyExpression.parts >= 2;
-      cursor = trailing.cursor + 1;
       members++;
+      if (members > maximumStaticMemberSegments) return { budgetExceeded: true };
+      keys.push(normalizedKey(keyExpression.value));
+      cursor = trailing.cursor + 1;
       continue;
     }
 
     if (optional) {
       const member = parseStaticIdentifierAt(value, cursor);
       if (!member) return null;
+      members++;
+      if (members > maximumStaticMemberSegments) return { budgetExceeded: true };
       keys.push(member.value);
       cursor = member.end;
-      members++;
       continue;
     }
     break;
@@ -435,7 +437,7 @@ function parseStaticMemberAssignment(value, start) {
   if (value[cursor] !== '=' || value[cursor + 1] === '=' || value[cursor + 1] === '>') return null;
   const expression = parseStaticStringConcatenation(value, cursor + 1);
   if (!expression || expression.budgetExceeded) return expression;
-  return { budgetExceeded: false, concatenatedKey, expression, keys };
+  return { budgetExceeded: false, expression, keys };
 }
 
 function analyzeStaticCodeIdentityConcatenations(value) {
@@ -448,7 +450,7 @@ function analyzeStaticCodeIdentityConcatenations(value) {
     if (scans > maximumStaticConcatenationScans) return { detected, budgetExceeded: true };
     const expression = parseStaticStringConcatenation(value, match.index + match[0].length);
     if (expression?.budgetExceeded) budgetExceeded = true;
-    else if (expression?.parts >= 2 && containsQuotedConcreteIdentity(expression.value)) detected = true;
+    else if (expression && containsQuotedConcreteIdentity(expression.value)) detected = true;
   }
 
   codeStaticNestedIdentityValueStartPattern.lastIndex = 0;
@@ -457,7 +459,7 @@ function analyzeStaticCodeIdentityConcatenations(value) {
     if (scans > maximumStaticConcatenationScans) return { detected, budgetExceeded: true };
     const expression = parseStaticStringConcatenation(value, match.index + match[0].length);
     if (expression?.budgetExceeded) budgetExceeded = true;
-    else if (expression?.parts >= 2 && containsQuotedConcreteIdentity(expression.value)) detected = true;
+    else if (expression && containsQuotedConcreteIdentity(expression.value)) detected = true;
   }
 
   codeStaticMemberIdentityValueStartPattern.lastIndex = 0;
@@ -471,7 +473,7 @@ function analyzeStaticCodeIdentityConcatenations(value) {
     if (!identityProperty) continue;
     const expression = parseStaticStringConcatenation(value, match.index + match[0].length);
     if (expression?.budgetExceeded) budgetExceeded = true;
-    else if (expression?.parts >= 2 && containsQuotedConcreteIdentity(expression.value)) detected = true;
+    else if (expression && containsQuotedConcreteIdentity(expression.value)) detected = true;
   }
 
   codeComputedStaticKeyStartPattern.lastIndex = 0;
@@ -483,7 +485,7 @@ function analyzeStaticCodeIdentityConcatenations(value) {
       budgetExceeded = true;
       continue;
     }
-    if (!keyExpression || keyExpression.parts < 2) continue;
+    if (!keyExpression) continue;
     const keyTrailing = skipBoundedCodeWhitespace(value, keyExpression.end);
     if (keyTrailing.budgetExceeded) {
       budgetExceeded = true;
@@ -517,20 +519,14 @@ function analyzeStaticCodeIdentityConcatenations(value) {
     const start = match.index + match[0].length - match[1].length;
     const assignment = parseStaticMemberAssignment(value, start);
     if (assignment?.budgetExceeded) {
-      budgetExceeded = true;
-      continue;
+      return { detected, budgetExceeded: true };
     }
     if (!assignment) continue;
     const last = assignment.keys.at(-1);
     const identityProperty =
       hostIdentityKeys.has(last) ||
       (last === 'name' && hostIdentityContainers.has(assignment.keys.at(-2) ?? ''));
-    if (
-      identityProperty &&
-      (assignment.concatenatedKey || assignment.expression.parts >= 2) &&
-      containsQuotedConcreteIdentity(assignment.expression.value)
-    )
-      detected = true;
+    if (identityProperty && containsQuotedConcreteIdentity(assignment.expression.value)) detected = true;
   }
   return { detected, budgetExceeded };
 }
@@ -1098,6 +1094,12 @@ export function findOperationalMetadataKinds(text, file = '') {
   const found = new Set();
   if (normalized.budgetExceeded) found.add('structured-record-budget');
   for (const variant of normalized.variants) {
+    const concatenations = codeSource ? analyzeStaticCodeIdentityConcatenations(variant) : null;
+    if (concatenations?.detected) found.add('host-identity');
+    if (concatenations?.budgetExceeded) {
+      found.add('structured-record-budget');
+      continue;
+    }
     const structured = analyzeStructuredRecord(variant);
     for (const kind of structured.kinds) found.add(kind);
     if (!structured.parsed && !codeSource) for (const kind of analyzeIndentedRecord(variant)) found.add(kind);
@@ -1118,11 +1120,6 @@ export function findOperationalMetadataKinds(text, file = '') {
     }
     if (!structured.parsed && !codeSource && nestedHostIdentityPattern.test(variant))
       found.add('host-identity');
-    if (codeSource) {
-      const concatenations = analyzeStaticCodeIdentityConcatenations(variant);
-      if (concatenations.detected) found.add('host-identity');
-      if (concatenations.budgetExceeded) found.add('structured-record-budget');
-    }
     if (
       structuredHostPackageRegex.test(variant) ||
       proseHostPackageRegex.test(variant) ||
