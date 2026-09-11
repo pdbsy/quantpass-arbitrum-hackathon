@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-11T14:57:20.737Z",
+  "generatedAt": "2026-09-11T16:17:23.061Z",
   "generatorVersion": "1.0.0",
   "generated": {
     "doNotEdit": true,
@@ -10,7 +10,7 @@
   "project": {
     "status": "READY",
     "source": "planning/roadmap.json",
-    "observedAt": "2026-09-11T14:57:20.737Z",
+    "observedAt": "2026-09-11T16:17:23.061Z",
     "name": "QuantPass × Robinhood Chain Testnet",
     "branch": "macbeth/dashboard",
     "network": "Robinhood Chain Testnet",
@@ -20,8 +20,8 @@
   "integration": {
     "status": "IN_PROGRESS",
     "source": ".git",
-    "observedAt": "2026-09-11T14:57:20.737Z",
-    "aheadBehind": { "ahead": 11, "behind": 0 },
+    "observedAt": "2026-09-11T16:17:23.061Z",
+    "aheadBehind": { "ahead": 14, "behind": 0 },
     "dirtyFiles": 0
   },
   "workers": [
@@ -30,14 +30,14 @@
       "label": "Worker A",
       "status": "NOT_AVAILABLE",
       "source": "docs/management/workers/worker-a.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "id": "worker-b",
       "label": "Worker B / Macbeth",
       "status": "VERIFIED_DONE",
       "source": "docs/management/workers/worker-b.md",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "current": {
         "currentTask": "B8 — FULL VALIDATION, SECURITY DIFF REVIEW, AND HANDOFF",
         "status": "VERIFIED_DONE",
@@ -277,7 +277,7 @@
       "title": "比赛公开仓库精简基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "medium",
@@ -296,7 +296,7 @@
       "title": "Robinhood Chain Testnet 网络门禁基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -319,7 +319,7 @@
       "title": "精确会计与幂等账本基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -343,7 +343,7 @@
       "title": "离线交易许可安全模型基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -362,7 +362,7 @@
       "title": "本地演示 HTTP 安全边界基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -381,7 +381,7 @@
       "title": "基础工程门禁",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -400,7 +400,7 @@
       "title": "冻结测试网范围、角色与架构 ADR",
       "status": "BLOCKED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -426,7 +426,7 @@
       "title": "Robinhood Chain 专项威胁模型与风险登记",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -445,7 +445,7 @@
       "title": "独立且失败关闭的 Testnet 启动门禁",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -464,7 +464,7 @@
       "title": "测试资产与外部协议地址核验",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -485,7 +485,7 @@
       "title": "信任根、签名域与持久重放模型",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -506,7 +506,7 @@
       "title": "消除 Demo Executor 隐式提权并采用无权限 Relay",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -526,7 +526,7 @@
       "title": "固定 Solidity 与安全工具链",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -545,7 +545,7 @@
       "title": "链上会计、资产与舍入规格",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -565,7 +565,7 @@
       "title": "权限、事件、错误与重放规格",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -585,7 +585,7 @@
       "title": "冻结 Vault v1 ABI 与 Adapter 边界",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -605,7 +605,7 @@
       "title": "强化仓库与供应链策略",
       "status": "IN_PROGRESS",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -640,7 +640,7 @@
       "title": "实现最小非托管 Vault 合约",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -660,7 +660,7 @@
       "title": "实现最小权限、不可逆暂停与安全退出",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -681,7 +681,7 @@
       "title": "合约单元、负向与权限测试",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -701,7 +701,7 @@
       "title": "Fuzz、Invariant 与模型差分验证",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -721,7 +721,7 @@
       "title": "静态分析、字节码复现与独立安全复核",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -741,7 +741,7 @@
       "title": "钱包连接与显式网络切换",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -761,7 +761,7 @@
       "title": "实现类型安全的只读与写入 Adapter",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -781,7 +781,7 @@
       "title": "交易生命周期、替换与重组恢复",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -801,7 +801,7 @@
       "title": "幂等事件索引与链重组处理",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -821,7 +821,7 @@
       "title": "持久状态、审计与资源上限",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -841,7 +841,7 @@
       "title": "隔离 Testnet 后端身份与 Demo 会话",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -861,7 +861,7 @@
       "title": "RPC 身份、限流与故障策略",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -881,7 +881,7 @@
       "title": "浏览器与前端供应链安全",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -901,7 +901,7 @@
       "title": "测试网部署密钥与角色操作手册",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -922,7 +922,7 @@
       "title": "完整历史秘密扫描与轮换演练",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -942,7 +942,7 @@
       "title": "确定性部署 Dry-run 与广播前复核",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -962,7 +962,7 @@
       "title": "Robinhood Testnet 人工部署",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -982,7 +982,7 @@
       "title": "部署来源证明与后部署验收",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -1002,7 +1002,7 @@
       "title": "可观测性、告警与隐私化日志",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -1022,7 +1022,7 @@
       "title": "事故响应、停用与迁移演练",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -1042,7 +1042,7 @@
       "title": "对抗性 Testnet 端到端验收",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -1062,7 +1062,7 @@
       "title": "安全声明、限制与证据索引",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "medium",
@@ -1082,7 +1082,7 @@
       "title": "评委演示与恢复流程",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "medium",
@@ -1102,7 +1102,7 @@
       "title": "最终发布门禁与独立复现",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-11T14:57:20.737Z",
+      "observedAt": "2026-09-11T16:17:23.061Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -1121,30 +1121,30 @@
   "decisions": {
     "status": "NOT_AVAILABLE",
     "source": "docs/management/DECISIONS.md",
-    "observedAt": "2026-09-11T14:57:20.737Z",
+    "observedAt": "2026-09-11T16:17:23.061Z",
     "items": []
   },
   "management": {
     "currentStatus": {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/CURRENT-STATUS.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     "workQueue": {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/WORK-QUEUE.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     "changelog": {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/CHANGELOG.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     }
   },
   "security": {
     "status": "BLOCKED",
     "source": "planning/risk-register.json",
-    "observedAt": "2026-09-11T14:57:20.737Z",
+    "observedAt": "2026-09-11T16:17:23.061Z",
     "counts": { "critical": 15, "high": 7, "medium": 0, "low": 0 },
     "findings": [
       {
@@ -1438,202 +1438,220 @@
   "tests": {
     "status": "PASS",
     "source": ".checks/management/latest.json",
-    "observedAt": "2026-09-11T14:56:30.899Z",
-    "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+    "observedAt": "2026-09-11T16:16:58.854Z",
+    "commit": "f958a80e00d339583bd105728b32988550897cbb",
     "profile": "full",
     "items": [
       {
         "id": "typecheck",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:08.361Z",
-        "finishedAt": "2026-09-11T14:56:11.451Z",
-        "durationMs": 3090,
+        "startedAt": "2026-09-11T16:16:35.660Z",
+        "finishedAt": "2026-09-11T16:16:38.789Z",
+        "durationMs": 3129,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/typecheck.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/typecheck.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "lint",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:11.511Z",
-        "finishedAt": "2026-09-11T14:56:12.623Z",
-        "durationMs": 1112,
+        "startedAt": "2026-09-11T16:16:38.852Z",
+        "finishedAt": "2026-09-11T16:16:40.002Z",
+        "durationMs": 1150,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/lint.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/lint.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "format",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:12.685Z",
-        "finishedAt": "2026-09-11T14:56:13.517Z",
-        "durationMs": 832,
+        "startedAt": "2026-09-11T16:16:40.065Z",
+        "finishedAt": "2026-09-11T16:16:40.940Z",
+        "durationMs": 875,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/format.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/format.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "unit",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:13.580Z",
-        "finishedAt": "2026-09-11T14:56:25.653Z",
-        "durationMs": 12073,
+        "startedAt": "2026-09-11T16:16:41.001Z",
+        "finishedAt": "2026-09-11T16:16:53.056Z",
+        "durationMs": 12055,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/unit.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/unit.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "integration",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:25.718Z",
-        "finishedAt": "2026-09-11T14:56:26.103Z",
-        "durationMs": 385,
+        "startedAt": "2026-09-11T16:16:53.120Z",
+        "finishedAt": "2026-09-11T16:16:53.474Z",
+        "durationMs": 354,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/integration.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/integration.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "e2e",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:26.165Z",
-        "finishedAt": "2026-09-11T14:56:26.695Z",
-        "durationMs": 530,
+        "startedAt": "2026-09-11T16:16:53.535Z",
+        "finishedAt": "2026-09-11T16:16:54.048Z",
+        "durationMs": 513,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/e2e.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/e2e.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "secret-scan",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:26.756Z",
-        "finishedAt": "2026-09-11T14:56:26.903Z",
-        "durationMs": 147,
+        "startedAt": "2026-09-11T16:16:54.111Z",
+        "finishedAt": "2026-09-11T16:16:54.261Z",
+        "durationMs": 150,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/secret-scan.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/secret-scan.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "public-metadata",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:26.967Z",
-        "finishedAt": "2026-09-11T14:56:27.398Z",
-        "durationMs": 431,
+        "startedAt": "2026-09-11T16:16:54.323Z",
+        "finishedAt": "2026-09-11T16:16:54.753Z",
+        "durationMs": 430,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/public-metadata.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/public-metadata.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "dependency-audit",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:27.460Z",
-        "finishedAt": "2026-09-11T14:56:29.804Z",
-        "durationMs": 2344,
+        "startedAt": "2026-09-11T16:16:54.818Z",
+        "finishedAt": "2026-09-11T16:16:57.754Z",
+        "durationMs": 2936,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/dependency-audit.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/dependency-audit.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "build",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:29.891Z",
-        "finishedAt": "2026-09-11T14:56:30.395Z",
-        "durationMs": 504,
+        "startedAt": "2026-09-11T16:16:57.837Z",
+        "finishedAt": "2026-09-11T16:16:58.344Z",
+        "durationMs": 507,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/build.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/build.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "planning-consistency",
         "status": "PASS",
-        "startedAt": "2026-09-11T14:56:30.456Z",
-        "finishedAt": "2026-09-11T14:56:30.586Z",
-        "durationMs": 130,
+        "startedAt": "2026-09-11T16:16:58.408Z",
+        "finishedAt": "2026-09-11T16:16:58.537Z",
+        "durationMs": 129,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/planning-consistency.log",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/planning-consistency.log",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "foundry",
         "status": "NOT_RUN",
-        "startedAt": "2026-09-11T14:56:30.649Z",
-        "finishedAt": "2026-09-11T14:56:30.649Z",
+        "startedAt": "2026-09-11T16:16:58.600Z",
+        "finishedAt": "2026-09-11T16:16:58.600Z",
         "durationMs": 0,
         "exitCode": null,
         "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "fuzz",
         "status": "NOT_RUN",
-        "startedAt": "2026-09-11T14:56:30.711Z",
-        "finishedAt": "2026-09-11T14:56:30.711Z",
+        "startedAt": "2026-09-11T16:16:58.663Z",
+        "finishedAt": "2026-09-11T16:16:58.663Z",
         "durationMs": 0,
         "exitCode": null,
         "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "invariant",
         "status": "NOT_RUN",
-        "startedAt": "2026-09-11T14:56:30.774Z",
-        "finishedAt": "2026-09-11T14:56:30.774Z",
+        "startedAt": "2026-09-11T16:16:58.725Z",
+        "finishedAt": "2026-09-11T16:16:58.725Z",
         "durationMs": 0,
         "exitCode": null,
         "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       },
       {
         "id": "slither",
         "status": "NOT_RUN",
-        "startedAt": "2026-09-11T14:56:30.838Z",
-        "finishedAt": "2026-09-11T14:56:30.838Z",
+        "startedAt": "2026-09-11T16:16:58.788Z",
+        "finishedAt": "2026-09-11T16:16:58.788Z",
         "durationMs": 0,
         "exitCode": null,
         "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE",
-        "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+        "commit": "f958a80e00d339583bd105728b32988550897cbb",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-11T14:56:30.899Z"
+        "observedAt": "2026-09-11T16:16:58.854Z"
       }
     ]
   },
   "git": {
     "status": "READY",
     "source": ".git",
-    "observedAt": "2026-09-11T14:57:20.737Z",
+    "observedAt": "2026-09-11T16:17:23.061Z",
     "branch": "macbeth/dashboard",
-    "commit": "633c96691e36ce62391116462419d63875eb83aa",
-    "tree": "d096fb3be0858a3bfba5addd3d46ed5a31cf070d",
+    "commit": "6c88b74f2de6f11221cb8ef2895e1510ba3a6902",
+    "tree": "69946aea05e15b6b93e9a8b388b6fb3b9b475640",
     "dirtyFiles": 0,
-    "aheadBehind": { "ahead": 11, "behind": 0 },
+    "aheadBehind": { "ahead": 14, "behind": 0 },
     "recentCommits": [
+      {
+        "hash": "6c88b74f2de6f11221cb8ef2895e1510ba3a6902",
+        "author": "Macbeth",
+        "authoredAt": "2026-09-12T00:17:14+08:00",
+        "subject": "chore(management): record security remediation evidence"
+      },
+      {
+        "hash": "f958a80e00d339583bd105728b32988550897cbb",
+        "author": "Macbeth",
+        "authoredAt": "2026-09-11T23:45:16+08:00",
+        "subject": "fix(security): eliminate regex backtracking paths"
+      },
+      {
+        "hash": "1d7c96a194286ce47f1834de27c11e65a0851378",
+        "author": "Macbeth",
+        "authoredAt": "2026-09-11T22:57:34+08:00",
+        "subject": "chore(management): publish final passing snapshot"
+      },
       {
         "hash": "633c96691e36ce62391116462419d63875eb83aa",
         "author": "Macbeth",
@@ -1735,43 +1753,25 @@
         "author": "pdbsy",
         "authoredAt": "2026-09-06T21:39:36+08:00",
         "subject": "update"
-      },
-      {
-        "hash": "af30051488bfcc51bce57d592c3e660a9abfeba7",
-        "author": "pdbsy",
-        "authoredAt": "2026-09-06T20:07:26+08:00",
-        "subject": "Add engineering security roadmap and Chinese board"
-      },
-      {
-        "hash": "2c1da7e879ad5aaa9a88afba23537f1d97d2d79b",
-        "author": "pdbsy",
-        "authoredAt": "2026-09-06T19:35:46+08:00",
-        "subject": "Target Robinhood Chain Testnet"
-      },
-      {
-        "hash": "621a43382b206f573e1f6a4958db16c75a1b7eb2",
-        "author": "pdbsy",
-        "authoredAt": "2026-09-06T19:24:36+08:00",
-        "subject": "Initial Arbitrum hackathon snapshot"
       }
     ]
   },
   "build": {
     "id": "build",
     "status": "PASS",
-    "startedAt": "2026-09-11T14:56:29.891Z",
-    "finishedAt": "2026-09-11T14:56:30.395Z",
-    "durationMs": 504,
+    "startedAt": "2026-09-11T16:16:57.837Z",
+    "finishedAt": "2026-09-11T16:16:58.344Z",
+    "durationMs": 507,
     "exitCode": 0,
-    "evidence": ".checks/management/2026-09-11T14-56-08-360Z-29b738e9a1ef/build.log",
-    "commit": "29b738e9a1ef465fef3860d9e34730d98c37ba45",
+    "evidence": ".checks/management/2026-09-11T16-16-35-659Z-f958a80e00d3/build.log",
+    "commit": "f958a80e00d339583bd105728b32988550897cbb",
     "source": ".checks/management/latest.json",
-    "observedAt": "2026-09-11T14:56:30.899Z"
+    "observedAt": "2026-09-11T16:16:58.854Z"
   },
   "hackathon": {
     "status": "NOT_STARTED",
     "source": "planning/roadmap.json",
-    "observedAt": "2026-09-11T14:57:20.737Z",
+    "observedAt": "2026-09-11T16:17:23.061Z",
     "gate": {
       "id": "G4",
       "name": "比赛提交",
@@ -1855,7 +1855,7 @@
   "network": {
     "status": "READY",
     "source": "planning/security-boundary.json",
-    "observedAt": "2026-09-11T14:57:20.737Z",
+    "observedAt": "2026-09-11T16:17:23.061Z",
     "chainId": 46630,
     "environment": {
       "allowed": ["local-simulation", "robinhood-chain-testnet"],
@@ -1912,7 +1912,7 @@
   "host": {
     "status": "BLOCKED",
     "source": "docs/management/tasks/B3.md",
-    "observedAt": "2026-09-11T14:57:20.737Z",
+    "observedAt": "2026-09-11T16:17:23.061Z",
     "title": "VERIFY REMOTE ACCESS + SESSION PERSISTENCE",
     "summary": "The user cancelled the experimental remote-development workflow before any external-client\nacceptance. Its temporary project session was removed, and branch-based collaboration replaced\nthe workflow. B3 is intentionally not reported as completed.",
     "links": [
@@ -1922,7 +1922,7 @@
         "kind": "host",
         "status": "READY",
         "source": "docs/management/host",
-        "observedAt": "2026-09-11T14:57:20.737Z"
+        "observedAt": "2026-09-11T16:17:23.061Z"
       },
       {
         "label": "docs/management/host/HOST-SETUP.md",
@@ -1930,7 +1930,7 @@
         "kind": "host",
         "status": "READY",
         "source": "docs/management/host",
-        "observedAt": "2026-09-11T14:57:20.737Z"
+        "observedAt": "2026-09-11T16:17:23.061Z"
       }
     ]
   },
@@ -2833,7 +2833,7 @@
       "kind": "architecture",
       "status": "READY",
       "source": "docs/adr",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "label": "docs/adr/0001-testnet-mvp-scope-and-authority.md",
@@ -2841,7 +2841,7 @@
       "kind": "architecture",
       "status": "READY",
       "source": "docs/adr",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "label": "docs/security/DASHBOARD-DIFF-SCAN-2026-09-09.md",
@@ -2849,7 +2849,7 @@
       "kind": "security",
       "status": "READY",
       "source": "docs/security",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "label": "docs/security/SUPPLY-CHAIN.md",
@@ -2857,7 +2857,7 @@
       "kind": "security",
       "status": "READY",
       "source": "docs/security",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "label": "docs/security/SUPPLY-DIFF-SCAN-2026-09-08.md",
@@ -2865,7 +2865,7 @@
       "kind": "security",
       "status": "READY",
       "source": "docs/security",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "label": "docs/management/host/HOST-BASELINE.md",
@@ -2873,7 +2873,7 @@
       "kind": "host",
       "status": "READY",
       "source": "docs/management/host",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "label": "docs/management/host/HOST-SETUP.md",
@@ -2881,7 +2881,7 @@
       "kind": "host",
       "status": "READY",
       "source": "docs/management/host",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "label": "docs/ROBINHOOD-CHAIN.md",
@@ -2889,7 +2889,7 @@
       "kind": "project",
       "status": "READY",
       "source": "docs",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "label": "docs/TASK-BOARD.md",
@@ -2897,7 +2897,7 @@
       "kind": "project",
       "status": "READY",
       "source": "docs",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "label": "docs/THREAT-MODEL.md",
@@ -2905,64 +2905,64 @@
       "kind": "project",
       "status": "READY",
       "source": "docs",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     }
   ],
   "sourceHealth": [
-    { "status": "READY", "source": "planning/roadmap.json", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "planning/risk-register.json", "observedAt": "2026-09-11T14:57:20.737Z" },
+    { "status": "READY", "source": "planning/roadmap.json", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "planning/risk-register.json", "observedAt": "2026-09-11T16:17:23.061Z" },
     {
       "status": "READY",
       "source": "planning/security-boundary.json",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/workers/worker-a.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "status": "READY",
       "source": "docs/management/workers/worker-b.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/CURRENT-STATUS.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/WORK-QUEUE.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/DECISIONS.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
     {
       "status": "NOT_AVAILABLE",
       "source": "docs/management/CHANGELOG.md",
-      "observedAt": "2026-09-11T14:57:20.737Z"
+      "observedAt": "2026-09-11T16:17:23.061Z"
     },
-    { "status": "READY", "source": "docs/management/tasks/B1.md", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/management/tasks/B2.md", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/management/tasks/B3.md", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/management/tasks/B4.md", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/management/tasks/B5.md", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/management/tasks/B6.md", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/management/tasks/B7.md", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/management/tasks/B8.md", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/adr", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/security", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs/management/host", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": "docs", "observedAt": "2026-09-11T14:57:20.737Z" },
-    { "status": "READY", "source": ".git", "observedAt": "2026-09-11T14:57:20.737Z" },
+    { "status": "READY", "source": "docs/management/tasks/B1.md", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/management/tasks/B2.md", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/management/tasks/B3.md", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/management/tasks/B4.md", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/management/tasks/B5.md", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/management/tasks/B6.md", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/management/tasks/B7.md", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/management/tasks/B8.md", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/adr", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/security", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs/management/host", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": "docs", "observedAt": "2026-09-11T16:17:23.061Z" },
+    { "status": "READY", "source": ".git", "observedAt": "2026-09-11T16:17:23.061Z" },
     {
       "status": "READY",
       "source": ".checks/management/latest.json",
-      "observedAt": "2026-09-11T14:56:30.899Z"
+      "observedAt": "2026-09-11T16:16:58.854Z"
     }
   ],
   "dashboardLog": [
