@@ -931,6 +931,71 @@ test('redaction only exempts type-valid scalar security metadata', () => {
   }
 });
 
+test('redaction bounds malformed structured assignment tails', () => {
+  const input = `tokenCount=2${'\tA:""'.repeat(22)}\t!`;
+  const startedAt = performance.now();
+  const output = sanitizeLog(input);
+  const durationMs = performance.now() - startedAt;
+
+  assert.ok(durationMs < 250, `structured assignment scan took ${durationMs.toFixed(1)}ms`);
+  assert.equal(output, '[REDACTED KEY]= [REDACTED]');
+});
+
+test('redaction bounds malformed structured CLI tails', () => {
+  const input = `command --tokenCount=2${'\t--A\t""'.repeat(22)}\t!`;
+  const startedAt = performance.now();
+  const output = sanitizeLog(input);
+  const durationMs = performance.now() - startedAt;
+
+  assert.ok(durationMs < 250, `structured CLI scan took ${durationMs.toFixed(1)}ms`);
+  assert.equal(output, 'command --[REDACTED KEY]=[REDACTED]');
+});
+
+test('redaction preserves valid quoted and unquoted structured tails', () => {
+  for (const input of [
+    `tokenCount=2 message="public value" note='it\\'s public' plain=value`,
+    `command --tokenCount=2 --message "public value" --note 'it\\'s public' --plain=value`,
+  ])
+    assert.equal(sanitizeLog(input), input);
+});
+
+test('redaction does not reuse CLI-tail validation across flag syntaxes', () => {
+  const credential = ['cli', 'tail', 'bypass', 'credential', '0123456789'].join('-');
+  const input = `command --tokenCount 2 ${credential} --authenticationStatus=VALID`;
+  const output = sanitizeLog(input);
+
+  assert.doesNotMatch(output, new RegExp(credential));
+  assert.match(output, /\[REDACTED\]/);
+});
+
+test('redaction limits assignment-tail validation to parsed boundaries', () => {
+  const credential = ['assignment', 'tail', 'bypass', 'credential', '0123456789'].join('-');
+  const input = `code=STALE_CHECK_EVIDENCE message="tokenCount=2 ${credential}"`;
+  const output = sanitizeLog(input);
+
+  assert.doesNotMatch(output, new RegExp(credential));
+  assert.match(output, /\[REDACTED\]/);
+});
+
+test('redaction fails closed on malformed structured quotes and escaped line separators', () => {
+  const malformedValues = [
+    '"unterminated',
+    '"ok"suffix',
+    ...['\u2028', '\u2029'].flatMap((separator) => [
+      `"public\\${separator}value"`,
+      `'public\\${separator}value'`,
+      `"public${separator}value"`,
+      `'public${separator}value'`,
+    ]),
+  ];
+  for (const malformedValue of malformedValues)
+    for (const input of [
+      `tokenCount=2 status=${malformedValue}`,
+      `command --tokenCount=2 --status ${malformedValue}`,
+    ])
+      assert.match(sanitizeLog(input), /\[REDACTED\]/, input);
+});
+
 test('standalone authorization schemes redact challenges without erasing safe prose', () => {
   const credential = ['standalone', 'challenge', 'credential', '0123456789'].join('-');
   for (const challenge of [
@@ -1266,6 +1331,27 @@ test('redaction scans maximum-sized scalar candidates within a linear time budge
     assert.ok(durationMs < 1500, `bounded scalar scan took ${durationMs.toFixed(1)}ms`);
     assert.ok(output.length > 0);
   }
+});
+
+test('redaction scans repeated safe diagnostic assignments within a linear time budget', () => {
+  const input = 'code=STALE_CHECK_EVIDENCE '.repeat(6_400);
+  const startedAt = performance.now();
+  const output = sanitizeLog(input, { maxBytes: 200_000 });
+  const durationMs = performance.now() - startedAt;
+
+  assert.ok(durationMs < 1_000, `diagnostic assignment scan took ${durationMs.toFixed(1)}ms`);
+  assert.equal(output, input);
+});
+
+test('redaction scans repeated standalone authorization phrases within a linear time budget', () => {
+  const unit = 'OAuth x\n';
+  const input = unit.repeat(Math.floor(250_000 / unit.length));
+  const startedAt = performance.now();
+  const output = sanitizeLog(input, { maxBytes: 260_000 });
+  const durationMs = performance.now() - startedAt;
+
+  assert.ok(durationMs < 750, `authorization phrase scan took ${durationMs.toFixed(1)}ms`);
+  assert.equal(output, input);
 });
 
 test('redaction truncates multibyte logs linearly at a valid UTF-8 boundary', () => {

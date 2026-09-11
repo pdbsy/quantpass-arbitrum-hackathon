@@ -597,6 +597,16 @@ test('public metadata detector recognizes nested YAML identity and access record
     assert.deepEqual(findOperationalMetadataKinds(record, 'records/schema.yaml'), [], record);
 });
 
+test('public metadata detector bounds ambiguous YAML annotation parsing', () => {
+  const record = `profile: ${'!'.repeat(35)}@`;
+  const startedAt = performance.now();
+  const kinds = findOperationalMetadataKinds(record, 'records/profile.yaml');
+  const durationMs = performance.now() - startedAt;
+
+  assert.ok(durationMs < 250, `YAML annotation scan took ${durationMs.toFixed(1)}ms`);
+  assert.deepEqual(kinds, []);
+});
+
 test('public metadata detector fails closed on sensitive YAML scalar ambiguity and decodes quoted keys', () => {
   const account = ['build', 'operator'].join('-');
   const userNameKey = ['user', 'name'].join('');

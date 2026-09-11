@@ -14,6 +14,8 @@ const standaloneAuthorizationSchemePattern =
 const authorizationChallengeAssignmentPattern =
   /(?:^|[,\s])(?:algorithm|cnonce|credential|nc|nonce|oauth_[a-z0-9_]{1,64}|opaque|proof|qop|realm|response|token|uri|username)\s*=/i;
 const authorizationOpaqueTokenPattern = /([-A-Za-z0-9._~+/=]{12,262144})/g;
+const authorizationMetadataKeyPattern =
+  /^(?:auth|authentication|authorization)(?:method|provider|scheme|type)$/i;
 const cookieHeaderPattern = /\b((?:set-)?cookie)\s*[:=]\s*[^\r\n]*(?:(?:\r\n|\r|\n)[ \t]+[^\r\n]*)*/gi;
 const sshPublicKeyLinePattern =
   /(?<![A-Za-z0-9@._-])(?:ssh-(?:dss|ed25519|rsa)|sk-(?:ecdsa-sha2-nistp256|ssh-ed25519)@openssh\.com|ecdsa-sha2-nistp(?:256|384|521)|(?:ssh-(?:dss|ed25519|rsa)|sk-(?:ecdsa-sha2-nistp256|ssh-ed25519)|ecdsa-sha2-nistp(?:256|384|521))-cert-v01@openssh\.com)\s+[A-Za-z0-9+/]{32,262144}={0,3}(?=$|[ \t\r\n])[^\r\n]*/gi;
@@ -375,16 +377,151 @@ function isCredentialSchemeValue(key, value) {
   return true;
 }
 
-function isStructuredAssignmentTail(value) {
-  return /^(?:[ \t]+[A-Za-z][A-Za-z0-9_.[\]-]{0,255}[ \t]*[=:][ \t]*(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|[^\s]+))*[ \t]*$/.test(
-    value,
+function isAsciiLetter(character) {
+  const code = character?.charCodeAt(0) ?? -1;
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+function isAsciiDigit(character) {
+  const code = character?.charCodeAt(0) ?? -1;
+  return code >= 48 && code <= 57;
+}
+
+function skipHorizontalWhitespace(value, start) {
+  let cursor = start;
+  while (value[cursor] === ' ' || value[cursor] === '\t') cursor++;
+  return cursor;
+}
+
+function isStructuredAssignmentNameCharacter(character) {
+  return (
+    isAsciiLetter(character) ||
+    isAsciiDigit(character) ||
+    character === '_' ||
+    character === '.' ||
+    character === '[' ||
+    character === ']' ||
+    character === '-'
   );
 }
 
-function isStructuredCliTail(value) {
-  return /^(?:[ \t]+--[A-Za-z][A-Za-z0-9_.-]{0,255}(?:=[^\s]+|[ \t]+(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|[^\s]+)))*[ \t]*$/.test(
-    value,
+function isStructuredCliNameCharacter(character) {
+  return (
+    isAsciiLetter(character) ||
+    isAsciiDigit(character) ||
+    character === '_' ||
+    character === '.' ||
+    character === '-'
   );
+}
+
+function isWhitespace(character) {
+  return character !== undefined && /\s/u.test(character);
+}
+
+function isLineTerminator(character) {
+  // Structured log tails reject every ECMAScript line terminator, including the two not split above.
+  return character === '\r' || character === '\n' || character === '\u2028' || character === '\u2029';
+}
+
+function scanStructuredValue(value, start) {
+  const quote = value[start];
+  if (quote !== '"' && quote !== "'") {
+    let cursor = start;
+    while (cursor < value.length && !isWhitespace(value[cursor])) cursor++;
+    return cursor === start ? -1 : cursor;
+  }
+
+  let cursor = start + 1;
+  while (cursor < value.length) {
+    const character = value[cursor];
+    if (character === quote) return cursor + 1;
+    if (isLineTerminator(character)) return -1;
+    if (character === '\\') {
+      if (cursor + 1 >= value.length || isLineTerminator(value[cursor + 1])) return -1;
+      cursor += 2;
+      continue;
+    }
+    cursor++;
+  }
+  return -1;
+}
+
+function authorizationMetadataKeyBefore(source, offset) {
+  let cursor = offset;
+  while (cursor > 0 && (source[cursor - 1] === ' ' || source[cursor - 1] === '\t')) cursor--;
+  if (cursor === 0 || (source[cursor - 1] !== '=' && source[cursor - 1] !== ':')) return null;
+  cursor--;
+  while (cursor > 0 && (source[cursor - 1] === ' ' || source[cursor - 1] === '\t')) cursor--;
+
+  const keyEnd = cursor;
+  while (cursor > 0 && isAsciiLetter(source[cursor - 1])) cursor--;
+  if (cursor === keyEnd || (cursor > 0 && /[A-Za-z0-9_]/.test(source[cursor - 1]))) return null;
+  const key = source.slice(cursor, keyEnd);
+  return authorizationMetadataKeyPattern.test(key) ? key : null;
+}
+
+function scanStructuredAssignmentTail(value, start = 0, verifiedStarts = null) {
+  let cursor = start;
+  if (verifiedStarts) verifiedStarts.add(start);
+  while (cursor < value.length) {
+    const whitespaceStart = cursor;
+    cursor = skipHorizontalWhitespace(value, cursor);
+    if (cursor === value.length) return true;
+    if (cursor === whitespaceStart || !isAsciiLetter(value[cursor])) return false;
+
+    const nameStart = cursor++;
+    while (cursor < value.length && isStructuredAssignmentNameCharacter(value[cursor])) cursor++;
+    if (cursor - nameStart > 256) return false;
+    cursor = skipHorizontalWhitespace(value, cursor);
+    if (value[cursor] !== '=' && value[cursor] !== ':') return false;
+    cursor = skipHorizontalWhitespace(value, cursor + 1);
+
+    const valueEnd = scanStructuredValue(value, cursor);
+    if (valueEnd < 0) return false;
+    if (verifiedStarts) verifiedStarts.add(valueEnd);
+    cursor = valueEnd;
+  }
+  return true;
+}
+
+function isStructuredAssignmentTail(value) {
+  return scanStructuredAssignmentTail(value);
+}
+
+function collectStructuredAssignmentTailStarts(value, start) {
+  const verifiedStarts = new Set();
+  return scanStructuredAssignmentTail(value, start, verifiedStarts) ? verifiedStarts : null;
+}
+
+function isStructuredCliTail(value) {
+  let cursor = 0;
+  while (cursor < value.length) {
+    const whitespaceStart = cursor;
+    cursor = skipHorizontalWhitespace(value, cursor);
+    if (cursor === value.length) return true;
+    if (cursor === whitespaceStart || !value.startsWith('--', cursor)) return false;
+    cursor += 2;
+    if (!isAsciiLetter(value[cursor])) return false;
+
+    const nameStart = cursor++;
+    while (cursor < value.length && isStructuredCliNameCharacter(value[cursor])) cursor++;
+    if (cursor - nameStart > 256) return false;
+    if (value[cursor] === '=') {
+      const valueStart = ++cursor;
+      while (cursor < value.length && !isWhitespace(value[cursor])) cursor++;
+      if (cursor === valueStart) return false;
+      continue;
+    }
+
+    const valueWhitespaceStart = cursor;
+    cursor = skipHorizontalWhitespace(value, cursor);
+    if (cursor === valueWhitespaceStart) return false;
+    const valueEnd = scanStructuredValue(value, cursor);
+    if (valueEnd < 0) return false;
+    cursor = valueEnd;
+  }
+  return true;
 }
 
 function hasAuthenticationSemantics(key) {
@@ -530,13 +667,10 @@ function containsAuthorizationCredential(payload) {
 
 function redactStandaloneAuthorizationSchemes(value) {
   return value.replace(standaloneAuthorizationSchemePattern, (match, scheme, offset, source) => {
-    const prefix = source.slice(0, offset);
-    const metadata = prefix.match(
-      /(?:^|[^A-Za-z0-9_])((?:auth|authentication|authorization)(?:method|provider|scheme|type))[ \t]*[=:][ \t]*$/i,
-    );
+    const metadataKey = authorizationMetadataKeyBefore(source, offset);
     if (
-      metadata &&
-      isSafeSecurityMetadataValue(metadata[1], scheme) &&
+      metadataKey &&
+      isSafeSecurityMetadataValue(metadataKey, scheme) &&
       isStructuredAssignmentTail(match.slice(scheme.length))
     )
       return match;
@@ -570,6 +704,9 @@ function redactScalarAssignments(value) {
         const outputKey = safeSensitiveObjectKeyPattern.test(key) ? key : '[REDACTED KEY]';
         return `${line.slice(0, cliEqualsMatch.index)}${prefix}--${outputKey}${separator}[REDACTED]`;
       }
+      // The whitespace-form matcher restarts at the beginning of the line, so it cannot share
+      // a suffix proof established by the equals-form matcher at a later offset.
+      confirmedStructuredCliTail = false;
       cliFlagPattern.lastIndex = 0;
       let cliMatch;
       while ((cliMatch = cliFlagPattern.exec(line)) !== null) {
@@ -600,11 +737,13 @@ function redactScalarAssignments(value) {
         multiwordCursor += match.index + match[0].length;
       }
       let cursor = 0;
-      let confirmedStructuredAssignmentTail = false;
-      const hasStructuredAssignmentTail = (tail) => {
-        if (confirmedStructuredAssignmentTail) return true;
-        confirmedStructuredAssignmentTail = isStructuredAssignmentTail(tail);
-        return confirmedStructuredAssignmentTail;
+      const verifiedStructuredAssignmentTailStarts = new Set();
+      const hasStructuredAssignmentTailAt = (start) => {
+        if (verifiedStructuredAssignmentTailStarts.has(start)) return true;
+        const verifiedStarts = collectStructuredAssignmentTailStarts(line, start);
+        if (!verifiedStarts) return false;
+        for (const verifiedStart of verifiedStarts) verifiedStructuredAssignmentTailStarts.add(verifiedStart);
+        return true;
       };
       while (cursor < line.length) {
         const match = scalarAssignmentPrefixPattern.exec(line.slice(cursor));
@@ -618,7 +757,7 @@ function redactScalarAssignments(value) {
           diagnosticCodeKeyPattern.test(key) &&
           diagnosticValue &&
           safeDiagnosticCodes.has(diagnosticValue[2]) &&
-          (isStructuredAssignmentTail(line.slice(valueStart + diagnosticValue[0].length)) ||
+          (hasStructuredAssignmentTailAt(valueStart + diagnosticValue[0].length) ||
             /^[}\]]+[ \t]*$/.test(line.slice(valueStart + diagnosticValue[0].length)))
         ) {
           cursor = valueStart + diagnosticValue[0].length;
@@ -627,13 +766,13 @@ function redactScalarAssignments(value) {
         const scalarValue = line
           .slice(valueStart)
           .match(/^(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|[^\s,;}]+)/)?.[0];
-        const scalarTail = line.slice(valueStart + (scalarValue?.length ?? 0));
+        const scalarEnd = valueStart + (scalarValue?.length ?? 0);
         const schemeCredential =
           credentialSchemeKeyPattern.test(key) &&
-          (isCredentialSchemeValue(key, scalarValue) || !hasStructuredAssignmentTail(scalarTail));
+          (isCredentialSchemeValue(key, scalarValue) || !hasStructuredAssignmentTailAt(scalarEnd));
         const metadataCredential =
           isSecretKey(key) &&
-          (!isSafeSecurityMetadataValue(key, scalarValue) || !hasStructuredAssignmentTail(scalarTail));
+          (!isSafeSecurityMetadataValue(key, scalarValue) || !hasStructuredAssignmentTailAt(scalarEnd));
         if (metadataCredential || schemeCredential) {
           const prefix = match[1] ?? '';
           const outputKey = safeSensitiveObjectKeyPattern.test(key) ? key : '[REDACTED KEY]';

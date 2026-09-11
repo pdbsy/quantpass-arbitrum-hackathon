@@ -868,6 +868,33 @@ function isAmbiguousYamlScalar(rawValue) {
   );
 }
 
+function isAsciiAlphaNumeric(character) {
+  const code = character?.charCodeAt(0) ?? -1;
+  return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+function isYamlAnnotationCharacter(character, marker) {
+  if (isAsciiAlphaNumeric(character) || character === '_' || character === '.' || character === '-')
+    return true;
+  return marker === '!' && (character === '!' || character === '/' || character === ':');
+}
+
+function isYamlContainerAnnotation(rawValue) {
+  let cursor = 0;
+  let annotations = 0;
+  while (cursor < rawValue.length) {
+    const marker = rawValue[cursor];
+    if (marker !== '&' && marker !== '!') return false;
+    cursor++;
+    const valueStart = cursor;
+    while (cursor < rawValue.length && isYamlAnnotationCharacter(rawValue[cursor], marker)) cursor++;
+    if (cursor === valueStart) return false;
+    annotations++;
+    while (rawValue[cursor] === ' ' || rawValue[cursor] === '\t') cursor++;
+  }
+  return annotations > 0;
+}
+
 function analyzeIndentedRecord(text) {
   const found = new Set();
   if (text.length > maximumTextBytes) return ['structured-record-budget'];
@@ -922,8 +949,7 @@ function analyzeIndentedRecord(text) {
       found.add('structured-record-budget');
       continue;
     }
-    const containerAnnotation =
-      rawValue === '' || /^(?:(?:&[A-Za-z0-9_.-]+|![!A-Za-z0-9_./:-]+)[ \t]*)+$/.test(rawValue);
+    const containerAnnotation = rawValue === '' || isYamlContainerAnnotation(rawValue);
     if (containerAnnotation) {
       if (contexts.length >= maximumStructuredDepth) {
         found.add('structured-record-budget');
