@@ -1,0 +1,55 @@
+name: Dashboard sync evidence
+
+on:
+  push:
+    branches:
+      - darwin/dashboard-sync-validation
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Collect on the exact clean dashboard source and construct reviewable artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit=73a19be2d1758fa3c8c1bbaeba89327860be9da1
+          git checkout -B macbeth/dashboard "$source_commit"
+          test "$(git rev-parse HEAD)" = "$source_commit"
+          test -z "$(git status --porcelain)"
+          npm ci --ignore-scripts
+          npm run management:checks
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .checks/management/latest.json
+          git commit -m 'chore(management): record Linux checks for local work sync'
+          npm run management:build
+          git add docs/management/dashboard/data/dashboard.json docs/management/dashboard/data/build-log.json
+          git commit -m 'chore(management): publish synchronized local work snapshot'
+          unset GITHUB_EVENT_NAME GITHUB_REF GITHUB_SHA GITHUB_BASE_REF GITHUB_HEAD_REF GITHUB_ACTIONS
+          npm run check
+          npm run audit:dependencies
+          test -z "$(git status --porcelain)"
+          mkdir -p .artifacts/sync-delivery
+          git bundle create .artifacts/sync-delivery/dashboard-sync.bundle refs/heads/macbeth/dashboard "^$source_commit"
+          git log -3 --format='%H %s' > .artifacts/sync-delivery/commits.txt
+          cp .checks/management/latest.json .artifacts/sync-delivery/latest.json
+          cp docs/management/dashboard/data/build-log.json .artifacts/sync-delivery/build-log.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dashboard-sync-evidence
+          path: .artifacts/sync-delivery/
+          if-no-files-found: error
+          retention-days: 7
