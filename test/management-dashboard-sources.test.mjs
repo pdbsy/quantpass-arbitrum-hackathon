@@ -266,7 +266,7 @@ function commit(root, message) {
 
 async function configureMaliciousFsMonitor(root) {
   const monitor = join(root, 'fsmonitor');
-  await writeFile(monitor, '#!/bin/sh\nprintf \'token\\0\'');
+  await writeFile(monitor, "#!/bin/sh\nprintf 'token\\0'");
   await chmod(monitor, 0o755);
   git(root, ['config', 'core.fsmonitor', monitor]);
   git(root, ['config', 'core.fsmonitorHookVersion', '2']);
