@@ -19,6 +19,16 @@ Include the affected commit, preconditions, minimal reproduction, expected impac
 - Stop after proving impact; do not persist access, degrade services, or access third-party data.
 - Coordinate disclosure through the private advisory until a fix and release note are ready.
 
+## Public artifact minimization
+
+This public repository must not contain a combinable developer-workstation or remote-access
+profile. Do not commit concrete local account or device identifiers, private-network coordinates,
+home/project paths, key inventories or fingerprints, listener reachability, storage posture, or
+exact host-package versions. Keep detailed host audits in a private access-controlled system and
+commit only a non-identifying project outcome. `npm run privacy:check` enforces a bounded
+current-tree baseline; reviewers must still apply judgment because no pattern scanner can recall
+old clones or prove that prose is harmless.
+
 ## Current limitation
 
-The repository is presently owned by a single personal GitHub account. CODEOWNERS and in-repository Actions improve review routing and detection, but they do not provide independent identity assurance or an immutable external governance check. `SUPPLY-001` and `GOV-001` remain incomplete until that external trust boundary is established and verified.
+The repository is presently owned by a single personal GitHub account. An active no-bypass ruleset, CODEOWNERS and in-repository Actions improve change control, review routing and detection, but a zero-approval single-owner setup does not provide independent identity assurance or an immutable external governance check. `SUPPLY-001` and `GOV-001` remain incomplete until that external trust boundary is established and verified.

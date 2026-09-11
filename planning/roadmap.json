@@ -3,7 +3,7 @@
   "updatedAt": "2026-09-08",
   "project": {
     "name": "QuantPass × Robinhood Chain Testnet",
-    "planVersion": "2.5",
+    "planVersion": "2.7",
     "network": "Robinhood Chain Testnet",
     "chainId": 46630,
     "scope": "仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金以及无人值守或自主交易。",
@@ -514,13 +514,16 @@
         "分支保护、CODEOWNERS/required review、仓库外 required workflow 与签名 attestation",
         "Dependabot 与 CodeQL 配置",
         "SBOM/license 报告",
-        "锁文件与 Action 更新策略"
+        "锁文件与 Action 更新策略",
+        "安全差异扫描记录与 workflow parser/permission 加固 backlog"
       ],
       "acceptance": [
         "master 禁止未通过 required checks 和所需身份复核的直接更新，且治理 required workflow/status check 的定义、执行代码和必需性均不能由同一受检 diff 自行关闭或改写",
         "依赖漏洞告警、安全更新和 CodeQL 启用且有处置 SLA",
         "发布生成 SBOM 并拒绝不兼容许可证",
-        "Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review"
+        "Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review",
+        "workflow 解析对引号等价键失败关闭，逐 workflow/job 权限由显式 allowlist 校验，任何新增写权限必须单独批准",
+        "externalGovernanceGate 只有在外部 provider、enforcement readback、revision/digest 与失败 tamper test 均可验证时才能从 blocked 变为 verified"
       ],
       "evidence": [
         ".github/CODEOWNERS",
@@ -529,6 +532,8 @@
         ".github/workflows/dependency-review.yml",
         "SECURITY.md",
         "docs/security/SUPPLY-CHAIN.md",
+        "docs/security/SUPPLY-DIFF-SCAN-2026-09-08.md",
+        "docs/security/github-security-settings.json",
         "docs/security/npm-sbom.spdx.json",
         "planning/supply-chain-policy.json",
         "test/supply-chain.test.mjs",

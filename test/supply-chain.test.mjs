@@ -14,6 +14,7 @@ const policy = JSON.parse(
 );
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const lockfile = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
+const engineeringWorkflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
 
 test('supply-chain policy and npm lock are closed and produce deterministic SPDX', () => {
   assert.equal(validateSupplyChainPolicy(policy), policy);
@@ -73,4 +74,9 @@ test('workflow validation rejects mutable Actions and privileged PR targets', ()
     () => validateWorkflowText('target.yml', valid.replace('pull_request:', 'pull_request_target:'), policy),
     /uses pull_request_target/,
   );
+});
+
+test('engineering workflow avoids duplicate merge-queue push runs', () => {
+  assert.match(engineeringWorkflow, /push:\n\s+branches-ignore:\n\s+- ['"]gh-readonly-queue\/\*\*['"]/);
+  assert.match(engineeringWorkflow, /\n {2}merge_group:/);
 });

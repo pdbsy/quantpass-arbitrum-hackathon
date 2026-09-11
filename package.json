@@ -8,12 +8,13 @@
     "npm": ">=11.6.2 <12"
   },
   "scripts": {
-    "test": "node --test test/security-model.test.ts test/engineering.test.ts test/robinhood-chain.test.ts test/governance.test.mjs test/supply-chain.test.mjs test/threat-model.test.mjs test/planning.test.mjs test/domain.test.ts test/server.test.ts test/http-e2e.test.ts test/web-messages.test.ts",
+    "test": "node --test test/security-model.test.ts test/engineering.test.ts test/robinhood-chain.test.ts test/governance.test.mjs test/supply-chain.test.mjs test/threat-model.test.mjs test/planning.test.mjs test/domain.test.ts test/server.test.ts test/http-e2e.test.ts test/web-messages.test.ts test/management-dashboard-schema.test.mjs test/management-dashboard-sources.test.mjs test/management-dashboard-checks.test.mjs test/management-dashboard-build.test.mjs test/management-dashboard-ui.test.mjs test/management-dashboard-server.test.mjs test/public-metadata.test.mjs",
     "typecheck": "tsc --noEmit && tsc --project apps/web/tsconfig.json",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write \"**/*.{js,mjs,ts,tsx,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{js,mjs,ts,tsx,json,yml,yaml}\"",
     "secrets:check": "node tools/check-secrets.mjs",
+    "privacy:check": "node tools/check-public-metadata.mjs",
     "config:check": "node tools/check-config.ts",
     "robinhood:check": "node --env-file=.env.example tools/check-robinhood-chain.ts",
     "governance:build": "node tools/check-governance-v2.mjs --write",
@@ -24,11 +25,16 @@
     "threats:check": "node tools/check-threat-model.mjs",
     "planning:build": "node tools/build-planning.mjs",
     "planning:check": "node tools/build-planning.mjs --check",
+    "management:checks": "node tools/run-management-checks.mjs --profile=full",
+    "management:checks:quick": "node tools/run-management-checks.mjs --profile=quick",
+    "management:build": "node tools/build-management-dashboard.mjs",
+    "management:check": "node tools/build-management-dashboard.mjs --check",
+    "management:serve": "node tools/serve-management-dashboard.mjs",
     "build": "npm run planning:check && npm run build:web",
     "build:web": "vite build apps/web --config apps/web/vite.config.ts",
     "demo": "npm run build:web && node --env-file=.env.example apps/server/src/main.ts",
     "demo:backup": "node --env-file=.env.example tools/backup-demo.ts",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run secrets:check && npm run robinhood:check && npm run governance:check && npm run supply:check && npm run threats:check && npm run planning:check && npm run build:web",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run secrets:check && npm run privacy:check && npm run robinhood:check && npm run governance:check && npm run supply:check && npm run threats:check && npm run planning:check && npm run management:check && npm run build:web",
     "audit:dependencies": "npm audit --audit-level=high"
   },
   "devDependencies": {

@@ -4,7 +4,10 @@ outputs/
 .env.*
 !.env.example
 .artifacts/
-.checks/
+.checks/*
+!.checks/management/
+.checks/management/*
+!.checks/management/latest.json
 .data/
 node_modules/
 dist/

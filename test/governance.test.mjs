@@ -67,9 +67,10 @@ function makeValidReview() {
   };
 }
 
-function git(repository, args) {
+function git(repository, args, environment = {}) {
   return execFileSync('git', ['-C', repository, ...args], {
     encoding: 'utf8',
+    env: { ...process.env, ...environment },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
@@ -461,7 +462,11 @@ test('Git provenance rejects forged review baselines and constrains the first ac
   git(repository, ['config', 'user.email', 'governance-test@example.invalid']);
   git(repository, ['config', 'commit.gpgsign', 'false']);
   git(repository, ['add', '--all']);
-  git(repository, ['commit', '--quiet', '-m', 'reviewed baseline']);
+  const reviewedCommitEnvironment = {
+    GIT_AUTHOR_DATE: '2026-09-08T08:00:00.000Z',
+    GIT_COMMITTER_DATE: '2026-09-08T08:00:00.000Z',
+  };
+  git(repository, ['commit', '--quiet', '-m', 'reviewed baseline'], reviewedCommitEnvironment);
   const reviewedCommit = git(repository, ['rev-parse', 'HEAD']).trim();
   const reviewedAt = git(repository, ['show', '-s', '--format=%cs', reviewedCommit]).trim();
   const unrelatedCommit = git(repository, [

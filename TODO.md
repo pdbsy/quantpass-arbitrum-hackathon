@@ -11,7 +11,7 @@
 - 已完成：6
 - 已就绪：6
 - 未关闭 Critical/High：33
-- 计划版本：2.5（2026-09-08）
+- 计划版本：2.7（2026-09-08）
 
 ## 强制安全边界
 
@@ -98,14 +98,16 @@
 - [ ] **SUPPLY-001 · 强化仓库与供应链策略** — 进行中 / P1 / High / M
   - 目标：先建立不可由受检 diff 改写的仓库外治理校验信任根，再补齐 master 保护、reviewer 身份级 attestation、Dependabot、安全更新、SBOM、license 和构建来源控制。
   - 依赖：`CI-001`
-  - 交付：分支保护、CODEOWNERS/required review、仓库外 required workflow 与签名 attestation；Dependabot 与 CodeQL 配置；SBOM/license 报告；锁文件与 Action 更新策略
+  - 交付：分支保护、CODEOWNERS/required review、仓库外 required workflow 与签名 attestation；Dependabot 与 CodeQL 配置；SBOM/license 报告；锁文件与 Action 更新策略；安全差异扫描记录与 workflow parser/permission 加固 backlog
   - 验收：
     - master 禁止未通过 required checks 和所需身份复核的直接更新，且治理 required workflow/status check 的定义、执行代码和必需性均不能由同一受检 diff 自行关闭或改写
     - 依赖漏洞告警、安全更新和 CodeQL 启用且有处置 SLA
     - 发布生成 SBOM 并拒绝不兼容许可证
     - Actions 固定到审查过的完整 commit SHA，PR 执行 dependency review
+    - workflow 解析对引号等价键失败关闭，逐 workflow/job 权限由显式 allowlist 校验，任何新增写权限必须单独批准
+    - externalGovernanceGate 只有在外部 provider、enforcement readback、revision/digest 与失败 tamper test 均可验证时才能从 blocked 变为 verified
   - 停用/回退：供应链门禁故障时冻结依赖更新与发布，不临时关闭所有检查。
-  - 证据：`.github/CODEOWNERS`、`.github/dependabot.yml`、`.github/workflows/codeql.yml`、`.github/workflows/dependency-review.yml`、`SECURITY.md`、`docs/security/SUPPLY-CHAIN.md`、`docs/security/npm-sbom.spdx.json`、`planning/supply-chain-policy.json`、`test/supply-chain.test.mjs`、`tools/check-supply-chain.mjs`
+  - 证据：`.github/CODEOWNERS`、`.github/dependabot.yml`、`.github/workflows/codeql.yml`、`.github/workflows/dependency-review.yml`、`SECURITY.md`、`docs/security/SUPPLY-CHAIN.md`、`docs/security/SUPPLY-DIFF-SCAN-2026-09-08.md`、`docs/security/github-security-settings.json`、`docs/security/npm-sbom.spdx.json`、`planning/supply-chain-policy.json`、`test/supply-chain.test.mjs`、`tools/check-supply-chain.mjs`
 
 - [ ] **TOOL-001 · 固定 Solidity 与安全工具链** — 就绪 / P0 / High / S
   - 目标：选定并固定 Foundry、solc、OpenZeppelin、Slither 与格式化版本，不使用浮动 latest。
