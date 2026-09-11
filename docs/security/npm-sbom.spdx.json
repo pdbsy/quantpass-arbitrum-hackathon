@@ -3,7 +3,7 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "quantpass-robinhood-chain-hackathon-0.1.0-npm-lock",
-  "documentNamespace": "https://github.com/pdbsy/quantpass-arbitrum-hackathon/sbom/5e43fc5574d2344f16dd32906bf7d1f77e22aca340ee1834600964079fe48e04",
+  "documentNamespace": "https://github.com/pdbsy/quantpass-arbitrum-hackathon/sbom/a2702f7294f7ae44f9f91de92957313b2095a1a66c289cab95e0aa4477dcfd48",
   "creationInfo": {
     "created": "2026-09-08T00:00:00Z",
     "creators": [
@@ -2927,15 +2927,15 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-b1fad3f5ad73108683c5",
+      "SPDXID": "SPDXRef-Package-e3d3aba778ad1fd67a49",
       "name": "globals",
-      "versionInfo": "17.4.0",
-      "downloadLocation": "https://registry.npmjs.org/globals/-/globals-17.4.0.tgz",
+      "versionInfo": "17.12.0",
+      "downloadLocation": "https://registry.npmjs.org/globals/-/globals-17.12.0.tgz",
       "filesAnalyzed": false,
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "863ACDCEDC3F55A8D0C0E2EC30D4F571B2621F69AE3B73913821E76DE85CF1E6392720F682ACF801C3073EA81A391E7D0E38148D80182DE1FAF7D83F7968B68F"
+          "checksumValue": "71ECC477F0D3CB286DF5CBD2494472CA05CF7F2D381AD58EFF97BA64FBC7EDF0AD8CACFD3D83A6B9AC29870D42B5DD5FE82FB9272A577C60FB6A134C5EF7AF04"
         }
       ],
       "licenseConcluded": "NOASSERTION",
@@ -2946,7 +2946,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/globals@17.4.0"
+          "referenceLocator": "pkg:npm/globals@17.12.0"
         }
       ]
     },
@@ -5256,7 +5256,7 @@
     {
       "spdxElementId": "SPDXRef-RootPackage",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package-b1fad3f5ad73108683c5"
+      "relatedSpdxElement": "SPDXRef-Package-e3d3aba778ad1fd67a49"
     },
     {
       "spdxElementId": "SPDXRef-RootPackage",
