@@ -405,7 +405,8 @@ async function git(root, args) {
     PATH: process.env.PATH,
   };
   if (process.env.TMPDIR) env.TMPDIR = process.env.TMPDIR;
-  const { stdout } = await execFileAsync('git', args, {
+  const command = ['-c', 'core.fsmonitor=false', ...args];
+  const { stdout } = await execFileAsync('git', command, {
     cwd: root,
     encoding: 'utf8',
     env,

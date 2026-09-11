@@ -331,6 +331,17 @@ test('public metadata detector fails closed within bounded time for excessive st
   assert.ok(durationMs < 1_000, `static member-chain scan took ${durationMs.toFixed(1)}ms`);
 });
 
+test('public metadata detector resists long static member near-miss chains', () => {
+  const source = `profile${'.member'.repeat(2_000)};`;
+  const startedAt = performance.now();
+
+  const kinds = findOperationalMetadataKinds(source, 'src/profile.ts');
+  const durationMs = performance.now() - startedAt;
+
+  assert.deepEqual(kinds, ['structured-record-budget']);
+  assert.ok(durationMs < 1_000, `static member near-miss scan took ${durationMs.toFixed(1)}ms`);
+});
+
 test('public metadata detector preserves later identity findings after a bounded parse is exhausted', () => {
   const overBudgetExpression = `${'('.repeat(9)}"placeholder"${')'.repeat(9)}`;
   const account = ['build', 'operator'].join('-');

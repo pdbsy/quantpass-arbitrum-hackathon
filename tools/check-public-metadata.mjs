@@ -344,10 +344,6 @@ const codeStaticNestedIdentityValueStartPattern = new RegExp(
   `["']?\\b(?:host|device|computer|user)\\b["']?[ \\t]*(?:\\||:|=(?!=))[ \\t]*\\{[^{}]{0,512}?["']?\\bname\\b["']?${boundedCodeWhitespacePattern}(?::|=(?!=))${boundedCodeWhitespacePattern}(?=["'\\x60(])`,
   'gim',
 );
-const codeStaticMemberIdentityValueStartPattern = new RegExp(
-  `(?:^|[^A-Za-z0-9_$])(${staticIdentifierPattern}[ \\t]*!?(?:(?:${boundedCodeWhitespacePattern}(?:\\?\\.)?[ \\t]*\\[[ \\t]*["'\\x60]${staticStringContentPattern}["'\\x60][ \\t]*\\])|(?:${boundedCodeWhitespacePattern}!?[ \\t]*(?:\\?\\.|\\.)[ \\t]*${staticIdentifierPattern}))+)[ \\t]*=(?!=)${boundedCodeWhitespacePattern}(?=["'\\x60(])`,
-  'gim',
-);
 const codeComputedStaticKeyStartPattern = /\[[ \t\r\n]{0,64}(?=["'`])/g;
 const codeStaticMemberChainStartPattern = new RegExp(
   `(?:^|[^A-Za-z0-9_$])(${staticIdentifierPattern})(?=[ \\t\\r\\n]{0,64}!?[ \\t\\r\\n]{0,64}(?:\\.|\\?\\.|\\[))`,
@@ -457,20 +453,6 @@ function analyzeStaticCodeIdentityConcatenations(value) {
   for (const match of value.matchAll(codeStaticNestedIdentityValueStartPattern)) {
     scans++;
     if (scans > maximumStaticConcatenationScans) return { detected, budgetExceeded: true };
-    const expression = parseStaticStringConcatenation(value, match.index + match[0].length);
-    if (expression?.budgetExceeded) budgetExceeded = true;
-    else if (expression && containsQuotedConcreteIdentity(expression.value)) detected = true;
-  }
-
-  codeStaticMemberIdentityValueStartPattern.lastIndex = 0;
-  for (const match of value.matchAll(codeStaticMemberIdentityValueStartPattern)) {
-    scans++;
-    if (scans > maximumStaticConcatenationScans) return { detected, budgetExceeded: true };
-    const segments = staticMemberKeys(match[1]);
-    const last = segments.at(-1);
-    const identityProperty =
-      hostIdentityKeys.has(last) || (last === 'name' && hostIdentityContainers.has(segments.at(-2) ?? ''));
-    if (!identityProperty) continue;
     const expression = parseStaticStringConcatenation(value, match.index + match[0].length);
     if (expression?.budgetExceeded) budgetExceeded = true;
     else if (expression && containsQuotedConcreteIdentity(expression.value)) detected = true;

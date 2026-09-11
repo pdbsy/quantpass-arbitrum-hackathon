@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -262,6 +262,14 @@ function commit(root, message) {
     '-m',
     message,
   ]);
+}
+
+async function configureMaliciousFsMonitor(root) {
+  const monitor = join(root, 'fsmonitor');
+  await writeFile(monitor, '#!/bin/sh\nprintf \'token\\0\'');
+  await chmod(monitor, 0o755);
+  git(root, ['config', 'core.fsmonitor', monitor]);
+  git(root, ['config', 'core.fsmonitorHookVersion', '2']);
 }
 
 async function createRecordedGitFixture(t) {
@@ -537,6 +545,22 @@ test('recorded Git collector verifies that the current checkout is clean', async
     recordedGit('macbeth/dashboard', fixture.recordedCommit, fixture.recordedTree),
     { observedAt, environment: {} },
   );
+  assert.equal(reconstructed.status, 'DATA_SOURCE_ERROR');
+  assert.equal(reconstructed.error, 'RECORDED_GIT_NOT_CLEAN');
+});
+
+test('recorded Git collector rejects a malicious fsmonitor hook', async (t) => {
+  const fixture = await createRecordedGitFixture(t);
+  await configureMaliciousFsMonitor(fixture.root);
+  await writeFile(join(fixture.root, 'recorded.txt'), 'dirty file hidden by fsmonitor\n');
+
+  const reconstructed = await collectRecordedGitState(
+    fixture.root,
+    'master',
+    recordedGit('macbeth/dashboard', fixture.recordedCommit, fixture.recordedTree),
+    { observedAt, environment: {} },
+  );
+
   assert.equal(reconstructed.status, 'DATA_SOURCE_ERROR');
   assert.equal(reconstructed.error, 'RECORDED_GIT_NOT_CLEAN');
 });
