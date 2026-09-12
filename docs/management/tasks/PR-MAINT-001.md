@@ -14,6 +14,10 @@ Status: DONE
 
 Disposition: Completed only within the scope stated below; no roadmap or release promotion.
 
+## Macbeth follow-up — 2026-09-12
+
+Darwin’s maintenance work and attribution remain intact. Macbeth subsequently merged #1 at 53eb90f54e2c20fa4352360772160df142e7d74e, #5 at 84cd179e23c4179ed989bf5e118a986cc119475c and #2 at 50e075607cb335ac66e2ee6d47c2f477b37b527e, verifying each exact master before the next merge. #3/#4 remain closed for their compatibility reasons. The summary below describes the earlier maintenance checkpoint.
+
 ## Summary
 
 PR #2 received a regenerated SPDX SBOM; incompatible #3/#4 were closed; #1/#2/#5 remain open and unmerged with successful checks. Dependencies and security-review-required labels were completed.

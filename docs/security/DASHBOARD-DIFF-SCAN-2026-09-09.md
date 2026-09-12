@@ -117,3 +117,7 @@ The canonical check counts, recorded branch/commit/tree, timestamps, and evidenc
 ## Merge boundary
 
 PR [#7](https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/7) remains draft and must not be merged by this task. After immutable local verification, independent review, clean-lineage publication, and live GitHub checks all pass, it may be reported as technically merge-ready for a separate user merge decision.
+
+## 2026-09-12 startup and integration checkpoint
+
+Macbeth static self-review scan 37443e09-820b-46cd-b168-1ad77594e5d2 is sealed for exact startup range 202e62562b38a62025d35b90056529799b7abdee..00d565682d1c6df315377859fce7e2b088a3d6e7, with 74/74 paths covered and no reportable findings. Historical scan identities and remediation records above remain preserved. This startup result does not certify the subsequent combination with master 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e; final combined-head review and Linux/Windows checks remain required.

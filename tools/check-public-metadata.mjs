@@ -1188,9 +1188,26 @@ function repositoryFiles(root) {
   return files;
 }
 
+export function sameFileIdentity(first, second) {
+  return (
+    typeof first.dev === 'bigint' &&
+    typeof first.ino === 'bigint' &&
+    first.dev >= 0n &&
+    first.ino > 0n &&
+    first.dev === second.dev &&
+    first.ino === second.ino
+  );
+}
+
 export async function scanPublicMetadata(root) {
-  if (!Number.isInteger(constants.O_NOFOLLOW))
-    throw new Error('Public metadata scan requires O_NOFOLLOW support');
+  // Windows has no O_NOFOLLOW. Reject links and verify a stable file identity
+  // against the original path and opened handle before reading any bytes.
+  const noFollow = Number.isInteger(constants.O_NOFOLLOW)
+    ? constants.O_NOFOLLOW
+    : process.platform === 'win32'
+      ? 0
+      : null;
+  if (noFollow === null) throw new Error('Public metadata scan requires supported file identity protection');
   const realRoot = await realpath(root);
   const failures = [];
   const relatedRecords = new Map();
@@ -1226,7 +1243,7 @@ export async function scanPublicMetadata(root) {
     }
     let handle;
     try {
-      handle = await open(candidate, constants.O_RDONLY | constants.O_NOFOLLOW);
+      handle = await open(candidate, constants.O_RDONLY | noFollow);
     } catch {
       failures.push(`${file}: unreadable-path`);
       continue;
@@ -1237,8 +1254,8 @@ export async function scanPublicMetadata(root) {
       const openedResolved = await realpath(candidate);
       if (
         openedPathMetadata.isSymbolicLink() ||
-        metadata.dev !== openedPathMetadata.dev ||
-        metadata.ino !== openedPathMetadata.ino ||
+        !sameFileIdentity(pathMetadata, metadata) ||
+        !sameFileIdentity(metadata, openedPathMetadata) ||
         openedResolved !== candidate ||
         !contained(realRoot, openedResolved)
       ) {

@@ -1,5 +1,18 @@
 # Decision log
 
+## DEC-007 — 本轮 Macbeth 单人全 PR 整改与阶段合并
+
+- Date: 2026-09-12. Authorization: 用户本轮明确覆盖旧分工和逐次 merge 请求要求。
+- Decision: Macbeth 亲自实施、技术自审、串行维护共享文件、核实最新 head 后普通 fast-forward 更新同仓库非保护源分支；每次正常 PR merge 后验收准确 master，再处理下一项。
+- Scope: 启动时所有状态 PR #1–#7；Darwin 暂不参与，不启动替代 worker，不冒充独立审批。
+- Preserve: 历史成果和作者、技术与测试门禁、关闭的放弃升级；真实并发写入暂停冲突部分，不覆盖新提交。
+- Boundaries: 无强推、历史重写、分支删除、保护修改、风险豁免、部署、链上或真实资金操作。回滚需用户另批。
+- Supersession: 以下旧协作、等待 Darwin、Worker B 不可合并及 force-with-lease 计划仅属历史。本轮正常 FF 及阶段合并以本决策和用户指令为准。独立外部治理/正式发布验收并未获豁免。
+- Compatibility: 在真实 Windows CI 上验收文件身份检查；保留 POSIX O_NOFOLLOW，平台无法证实稳定句柄身份时仍失败关闭。
+
+## Historical decisions before this round
+
+
 ## DEC-006 — Rebuild evidence on the existing GitHub Linux runner
 
 - Date: 2026-09-12. Level: 2, AUTO_EXECUTED / REVERSIBLE.

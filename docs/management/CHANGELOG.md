@@ -1,5 +1,16 @@
 # Management changelog
 
+## 2026-09-12 — Macbeth 全 PR 收敛阶段回读
+
+- 逐次实际合并 #1、#5、#2、#6；准确提交和各次 master 检查见 CURRENT-STATUS.md 与安全收敛记录。#3/#4 保留关闭。
+- 保留 Darwin 的 globals/SBOM 和供应链成果，串行同步锁文件、217 项 SPDX 和两个 CI 平台；#5 并发 Dependabot 更新已基于新 head 安全衔接。
+- #6 修复 NET 解析错误脱敏及 permit 最早到期约束；准确 master Linux、Windows、CodeQL 已通过。
+- #7 普通合入已验收 master，保留双方测试与日志；加入 Windows 稳定文件身份检查，本地 231 项测试通过，最终证据和 GitHub 验收仍待完成。
+- 本轮技术复核为 Macbeth 自审；未启动 Darwin 或替代 worker，也未提升 canonical roadmap 验收。
+
+## Historical synchronization records
+
+
 ## 2026-09-12 — Local work synchronized into Macbeth dashboard
 
 - Recovered the full local Darwin management checkpoint: 41-task reality audit, decisions, queue, branch/plan, Worker A and DARWIN-A1–A8.

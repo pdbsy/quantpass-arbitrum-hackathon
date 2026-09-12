@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, mkdir, open, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { findOperationalMetadataKinds, scanPublicMetadata } from '../tools/check-public-metadata.mjs';
+import {
+  findOperationalMetadataKinds,
+  sameFileIdentity,
+  scanPublicMetadata,
+} from '../tools/check-public-metadata.mjs';
 
 function initializeRepository(root) {
   execFileSync('git', ['init', '--quiet', '-b', 'master'], { cwd: root });
@@ -1011,4 +1015,26 @@ test('workspace scan rejects a tracked dangling symlink without exposing its tar
       return true;
     },
   );
+});
+
+test('public scanner accepts a regular file only with stable matching handle identity', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'quantpass-public-file-identity-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  initializeRepository(root);
+  const first = join(root, 'first.txt');
+  const second = join(root, 'second.txt');
+  await writeFile(first, 'Public project record.\n');
+  await writeFile(second, 'Another public project record.\n');
+  const before = await lstat(first, { bigint: true });
+  const handle = await open(first, 'r');
+  try {
+    const opened = await handle.stat({ bigint: true });
+    assert.equal(sameFileIdentity(before, opened), true);
+    assert.equal(sameFileIdentity(await lstat(second, { bigint: true }), opened), false);
+    assert.equal(sameFileIdentity({ ...before, ino: 0n }, opened), false);
+    assert.equal(sameFileIdentity({ ...before, ino: Number(before.ino) }, opened), false);
+  } finally {
+    await handle.close();
+  }
+  await scanPublicMetadata(root);
 });

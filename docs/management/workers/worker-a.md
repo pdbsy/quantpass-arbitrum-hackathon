@@ -2,12 +2,16 @@
 
 ## Current status
 
-- Current task: Local evidence synchronization and Wave 1 follow-up
+- Current task: No active assignment this round; historical Wave 1 checkpoint retained
 - Status: PARTIAL
 - Branch: macbeth/dashboard
 - Last known commit: 05c50ee508b0334f4c16c1f178cf2fa87ae201db (synchronization input; new record commit is discoverable in Git)
-- Blocker: Wave 1 remediation, independent checkpoint/scan closure and integration remain incomplete
+- Blocker: Historical acceptance gaps remain; Macbeth handles this round without waiting for Darwin
 - Last activity: 2026-09-12T01:20:00+08:00
+
+## Management note — 2026-09-12
+
+Macbeth records the user’s instruction: Darwin is not participating in this round. This note reports no Darwin execution, approval or client shutdown. Historical activity and authorship below remain unchanged.
 
 ## Activity log
 

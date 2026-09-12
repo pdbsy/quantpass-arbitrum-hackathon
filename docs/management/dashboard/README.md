@@ -72,3 +72,7 @@ npm run management:serve
 - `DATA_SOURCE_ERROR` 表示来源存在但无法安全读取或验证。
 
 生成后应审阅 `data/build-log.json` 的诊断列表；缺失的 Manager、Worker A、决策、工作队列或变更日志来源会继续明确显示，不得用 Git 历史或推测内容代替。
+
+## Windows 文件读取边界
+
+POSIX 平台保留 `O_NOFOLLOW`。Windows 不提供该标志，扫描器会在读取任何内容前，把原路径的非零 BigInt 文件身份与打开句柄、当前路径逐一比较，并验证 canonical 路径与符号链接状态；无法取得稳定身份时失败关闭。读取后的文件身份、大小和时间检查继续保留。该控制不声称隔离具有相同系统写权限的并发进程。

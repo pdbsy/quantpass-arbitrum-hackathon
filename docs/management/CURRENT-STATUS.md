@@ -15,30 +15,32 @@
 - 诊断覆盖：已加载且被选中的运行时代码分支覆盖 79.18%；不是全仓覆盖，也不满足关键路径完整验收。
 - 投资人材料：12 页中文可编辑 pitch deck v2 已交付；结构与排版校验通过，文件摘要见 LOCAL-DELIVERY-001。文件仍为本地产物，未伪造公网下载地址。
 
-## GitHub 状态（本次同步前精确版本核验）
+## 本轮全 PR 收敛（Macbeth 单人执行）
 
-| PR | 结果 | 说明 |
+启动时已分页枚举全部状态，共 7 个 PR，准确启动 head/base 见 [收敛记录](../security/PR-CONVERGENCE-2026-09-12.md)。以下为实际 GitHub 合并回读，按顺序逐次验收，技术审查均为 Macbeth 自审。
+
+| PR | 当前结果 | 准确 master 合并提交与验证 |
 | --- | --- | --- |
-| #1 | OPEN / CLEAN，5 项检查 success | setup-node 升级，尚未合并 |
-| #2 | OPEN / CLEAN，5 项检查 success | 本地提交 716090c7d73b944e9db22dac88c2fa34bb113951 已重建 globals 升级的 SPDX SBOM 并推送 |
-| #3 | CLOSED / 未合并 | Node 26 类型与项目 Node 24 契约不兼容 |
-| #4 | CLOSED / 未合并 | TypeScript 7 超出当前 typescript-eslint 支持范围 |
-| #5 | OPEN / CLEAN，5 项检查 success | checkout 升级，尚未合并 |
-| #6 | OPEN / 未合并 | codex/supply-security-evidence，bbb3e4b7b40cfd3aa23253866876875f8d98a1fc |
-| #7 | OPEN / DRAFT / CLEAN，5 项检查 success | macbeth/dashboard，05c50ee508b0334f4c16c1f178cf2fa87ae201db；本次更新会产生新 head，须重新核验 |
+| #1 | 已实际合并并验证 | 53eb90f54e2c20fa4352360772160df142e7d74e；Engineering / CodeQL 成功 |
+| #5 | 已实际合并并验证 | 84cd179e23c4179ed989bf5e118a986cc119475c；Engineering / CodeQL 成功 |
+| #2 | 已实际合并并验证 | 50e075607cb335ac66e2ee6d47c2f477b37b527e；Engineering / CodeQL 成功，SBOM 同步 |
+| #6 | 已实际合并并验证 | 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e；Linux / Windows / CodeQL 成功 |
+| #3 | 保留关闭、未合并 | Node 26 类型不符合 Node 24 运行时契约 |
+| #4 | 保留关闭、未合并 | TypeScript 7 超出当前 lint 工具链 peer 范围 |
+| #7 | 组合整改中；尚未合并 | 已普通合入上述 master；231 项本地测试及隐私/供应链检查通过，最终证据和 GitHub 门禁待核验 |
 
-证据：PR 状态/精确 head 与 check-runs 的 GitHub 只读查询，详见 tasks/PR-MAINT-001.md。#1–5 已补 dependencies、security-review-required 标签。
+## Worker 与审查状态
 
-## Worker 状态
-
-- Worker A / Darwin：本地审计台账已可同步；运行时代码加固、独立审计检查点复核及 Wave 1 整体完成仍待交付。
-- Worker B / Macbeth：保留原始 B1–B8 记录与最新 dashboard 代码。本次核验确认 PR #7 已有新的发布头和全绿 CI，因此旧日志的“待推送/待 CI”不再描述上述已核验头。日志仍要求独立 post-fix verdict，不能仅凭 CI 宣称所有 finding 已关闭。
-- 扫描状态已只读回查：Standard scan `3d6670bc-ca8d-466c-8ec7-b1decaa097d3` 的服务记录仍为 `running`，最后进度更新时间为 2026-09-09T15:35:07Z，`reportAvailable=false`。没有最终封存报告；记录为 running 不证明后台持续执行，findingCount=0 不代表零漏洞。
+- Macbeth 是本轮唯一实施、Manager 和正常阶段合并执行者；共享文件串行维护，普通 fast-forward 更新实际源分支。#5 发现 Dependabot 自动更新后暂停旧推送，基于新 head 保留并重新应用自身修改。
+- Darwin 本轮暂不参与；未派单、启动或等待其交付，也未声称其客户端已停止。已有提交、作者和历史初评均保留。
+- 平台规则要求严格检查、解决 review threads 和线性历史；配置审批数为 0。Macbeth 自审不冒充独立 approval。没有修改保护规则或使用 bypass。
+- #7 启动版本的独立不可变范围记录：scan 37443e09-820b-46cd-b168-1ad77594e5d2 已封存，74/74 路径静态自审无报告项；这不是最终组合版本的结论，也不是独立审查。
+- 历史 Standard scan 3d6670bc-ca8d-466c-8ec7-b1decaa097d3 上次服务回读仍为 running、无封存报告；不据此声称仍在后台执行或零漏洞。本轮没有接管或重署该历史扫描。
 
 ## 仍待完成
 
-- 历史候选版本的 NET 错误脱敏、permit 到期约束、枚举/风险接受元数据校验、历史记录上限与退出、公开构建文件边界及覆盖率缺口，需要在准确目标版本上分别复核和交付。详见 PROJECT-REALITY-AUDIT.md。
-- PR #6 与 dashboard 的独立集成复核、历史审计扫描最终报告，以及外部治理验收仍有待办。本次同步不合并 PR。
+- NET 错误脱敏和 permit 到期约束已在 #6 修复并回归；枚举/风险接受元数据、历史记录上限与退出、公开构建范围和覆盖率仍保留历史评估边界，不能据此宣布全项目验收。详见 PROJECT-REALITY-AUDIT.md。
+- #7 最终组合版本的安全复核、证据重建、Linux/Windows CI、实际合并与准确 master 验证仍待完成。历史审计扫描最终报告、GOV-001 / SUPPLY-001 外部独立治理验收没有被维护合并替代。
 - AlphaForge 全站显示名改造仍待单独交付；历史 QuantPass 文件名及稳定标识保留。
 - Solidity/Pass/Vault 合约、钱包与测试网交易、RWA 适配器、TEE/保密运行、实际计费和接续机制尚未完成；Foundry/fuzz/invariant/Slither 没有可用已批准工具链证据。
 - 容量缓冲、回购定价等未决策项和法律/生产验收仍开放。

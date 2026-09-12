@@ -14,6 +14,10 @@ Status: IN_PROGRESS
 
 Disposition: Historical IN_PROGRESS; assessment completion does not satisfy full task acceptance.
 
+## Macbeth follow-up — 2026-09-12
+
+Two shared runtime fixes landed in PR #6, master 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e: fixed non-echoing NET URL diagnostics and permit expiry bounded by decision, authorization and TTL, rejecting deadlines at expiry. Full Linux/Windows engineering and CodeQL succeeded on that master. This does not close the remaining historical enum/risk metadata, capacity/exit, build-scope or coverage observations, and does not change Darwin’s historical attribution.
+
 ## Import context
 
 > Historical local checkpoint imported on 2026-09-12. Its results apply only to the stated 2026-09-09 PR #6 candidate. Worker B findings, publication, CI and scan activity described below are historical; CURRENT-STATUS.md records the newer remote readback. No current scan status or finding closure is inferred. Superseded Worker B object IDs are omitted.

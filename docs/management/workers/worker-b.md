@@ -2,12 +2,16 @@
 
 ## Current status
 
-- Current task: `B8 — FULL VALIDATION, SECURITY DIFF REVIEW, AND HANDOFF`
-- Status: `VERIFIED_DONE`
+- Current task: `ALL PR CONVERGENCE — PR #7 FINAL INTEGRATION`
+- Status: `IN_PROGRESS`
 - Branch: `macbeth/dashboard`
 - Last known commit: `SELF`
-- Blocker: immutable post-fix scan/evidence, clean-lineage CI simulations and force-with-lease publication, and GitHub PR check readback are pending; project-level Robinhood Chain release gates remain separate from PR #7 merge readiness
-- Last activity: `2026-09-11T19:15:00+08:00`
+- Blocker: final combined evidence, Linux/Windows GitHub gates, normal PR #7 merge and exact master verification remain pending
+- Last activity: `2026-09-12T14:35:00+08:00`
+
+## Current round activity — 2026-09-12
+
+Macbeth merged and verified #1/#5/#2/#6 sequentially; exact commits are in CURRENT-STATUS.md. PR #7 now integrates verified master 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e through a normal merge retaining previous authors. Shared supply/test/record conflicts were reconciled, Windows file identity handling strengthened, and all 231 combined tests passed. Immutable evidence and real GitHub Windows checks remain pending. No independent review or Darwin approval is claimed. Historical B8 handoff completion below is distinct from this round's still-pending #7 merge stage.
 
 ## Activity log
 

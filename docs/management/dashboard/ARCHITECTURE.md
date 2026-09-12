@@ -264,8 +264,8 @@ The recorded-evidence workflow intentionally supports only same-repository pull 
 - Working branch: `macbeth/dashboard`.
 - Git author: `Macbeth <pdbsy@users.noreply.github.com>` using repository-local config.
 - Final PR lineage is rebuilt directly from the reviewed `origin/master` base; no superseded Worker B prerequisite branch remains in its ancestry.
-- Do not merge from Worker B. Push checkpoints to the dedicated branch.
-- Before final merge, require the immutable evidence chain, exact remote-head readback, protected GitHub checks, independent review, and explicit Manager/user authorization.
+- Historical Worker B handoff restriction: do not merge. DEC-007 supersedes that role restriction for the user-authorized current round.
+- Before final merge, require the immutable evidence chain, exact remote-head readback, applicable approvals and protected GitHub checks. DEC-007 records the user’s staged merge authorization; Macbeth self-review is explicitly not independent external acceptance.
 
 ## Rollback and recovery
 
@@ -283,3 +283,7 @@ The recorded-evidence workflow intentionally supports only same-repository pull 
 - The local runtime observed during architecture acceptance did not satisfy the repository requirement; clean-install reproducibility is not currently proven on that host.
 - Foundry, fuzz, invariant, and Slither evidence does not exist and must remain `NOT_RUN`.
 - SSH was discontinued; the historical host section must expose its partial/cancelled state and unresolved cleanup, not imply active remote-development readiness.
+
+## Windows public-file identity
+
+POSIX reads retain O_NOFOLLOW. On Windows, where that flag is unavailable, the original path metadata, opened handle and current non-symlink path must have identical nonzero BigInt file identities before any content read. Unsupported identity fails closed. Post-read identity, size, timestamps and canonical-root checks remain mandatory. Real Windows CI validates the combined gate; this does not claim an independent OS isolation boundary or validation of every optional local command runner.
