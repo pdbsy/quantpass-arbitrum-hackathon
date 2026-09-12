@@ -232,8 +232,9 @@ export function App() {
     <>
       <div className="safety-strip">LOCAL SIMULATION · 不连接钱包、不提交链上交易、不使用真实资金</div>
       <header className="topbar">
-        <a className="brand" href="/" aria-label="QuantPass 首页">
-          <span className="brand-mark">Q</span>QuantPass<span className="brand-sub">资金工作台</span>
+        <a className="brand" href="/" aria-label="AlphaForge 首页">
+          <span className="brand-mark">A</span>AlphaForge
+          <span className="brand-sub">Hackathon · 资金工作台</span>
         </a>
         <div className="identity">
           <label htmlFor="identity">测试身份</label>
@@ -540,7 +541,7 @@ export function App() {
           )}
         </section>
         <footer>
-          QuantPass · 本地 SQLite 持久化 · 测试身份不构成真实认证 · 刷新页面不会重置账本
+          AlphaForge · 本地 SQLite 持久化 · 测试身份不构成真实认证 · 刷新页面不会重置账本
           <a href="/task-board.html">查看工程安全看板</a>
         </footer>
       </main>

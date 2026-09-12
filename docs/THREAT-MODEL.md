@@ -1,4 +1,4 @@
-# QuantPass 威胁模型与风险登记
+# AlphaForge 威胁模型与风险登记
 
 > 自动生成文件：唯一事实源为 `planning/risk-register.json`。完成本模型不表示风险已修复。
 

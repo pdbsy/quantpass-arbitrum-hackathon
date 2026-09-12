@@ -1,4 +1,4 @@
-# QuantPass Control Center Architecture
+# AlphaForge Control Center Architecture
 
 - Decision ID: `DASH-ARCH-001`
 - Owner: `Worker B / Macbeth`

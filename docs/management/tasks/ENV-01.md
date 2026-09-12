@@ -28,3 +28,7 @@ The qualified temporary Node 24.21.0 archive matched the official SHA-256; npm 1
 - The permanent macOS fnm environment and permanent checkout are not established by temporary qualification.
 - Adding verify-macos to protected required checks and merging this new toolchain PR require the user's applicable authorization.
 - ENV-06, external governance, independent security acceptance and chain access remain outside this implementation.
+
+## User acceptance of controlled operations
+
+The user approved fnm installation, a permanent independent AlphaForge checkout, adding verify-macos to required checks, and gated merge followed by master validation. AlphaForge is the official product name; this is the Hackathon edition. Current user-facing names and package metadata are aligned in this PR. Historical evidence and stable transport/storage identifiers remain unchanged. The final updated head and actual post-merge master must still be verified before completion.

@@ -1,4 +1,4 @@
-# QuantPass Control Center 操作指南
+# AlphaForge Control Center 操作指南
 
 Control Center 是一个只读、证据驱动的中文静态看板。它从仓库内允许的数据源生成快照，不提供写入 API，不提交交易，也不会把缺失或过期证据显示成成功。
 

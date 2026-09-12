@@ -142,7 +142,7 @@ export async function main(args = process.argv.slice(2)) {
     server.once('error', rejectListen);
     server.listen(server.dashboardPort, server.dashboardHost, resolveListen);
   });
-  console.log(`QuantPass Control Center: http://${server.dashboardHost}:${server.dashboardPort}`);
+  console.log(`AlphaForge Control Center: http://${server.dashboardHost}:${server.dashboardPort}`);
   return server;
 }
 

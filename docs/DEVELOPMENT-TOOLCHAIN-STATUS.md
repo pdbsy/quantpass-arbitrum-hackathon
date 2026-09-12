@@ -53,3 +53,7 @@ npm 11.19.1 独立评估，其发布记录包含安装工具内部的 Undici、i
 用户随后明确：“不会有 intel mac，只会 arm mac 和 windows”。本次实现据此只支持 Apple Silicon macOS 和 Windows 开发；Linux 保留既有 CI 与独立依赖审计职责。移除 verify-macos-intel job 及供应链 profile，macOS x64 不再属于准入支持范围。原始规范的 Intel 目标表保留为历史提案，由本段当前用户决定覆盖；不再等待或要求 Intel 验收。
 
 当前目标 CI：verify / ubuntu-24.04 / x64；verify-windows / windows-2025 / x64；verify-macos / macos-15 / arm64。三个 job 都必须实际验证当前准确头。原来的 Intel 失败如实保留为历史运行，不改为 PASS，也不作为新范围的阻塞。
+
+## 当前用户批准与名称
+
+用户已批准 fnm 安装、正式独立 checkout、添加 verify-macos 必需门禁及按门禁合并后验证，并明确正式产品名为 AlphaForge，本仓库为 Hackathon 版本。此前“等待授权”记录保留为历史；这些操作现已授权，实施结果仍以实际回读为准。当前显示名、包名、工作目录使用 AlphaForge；原始规范与历史证据、现有 GitHub 地址及兼容性协议/存储标识保留原值。源 5c624516 的本地 245/245、Linux/Windows/ARM Mac CI、CodeQL 和依赖审查均通过；本次名称更新后的准确头必须重新验证。

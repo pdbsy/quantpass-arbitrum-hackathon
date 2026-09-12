@@ -1,4 +1,4 @@
-# AlphaForge / QuantPass — 项目管理状态
+# AlphaForge Hackathon — 项目管理状态
 
 更新：2026-09-12（UTC+08:00）。本页同步本地交付记录与 GitHub 只读核验，dashboard 使用 macbeth/dashboard 最新版本。
 
@@ -43,7 +43,7 @@
 
 - NET 错误脱敏和 permit 到期约束已在 #6 修复并回归；枚举/风险接受元数据、历史记录上限与退出、公开构建范围和覆盖率仍保留历史评估边界，不能据此宣布全项目验收。详见 PROJECT-REALITY-AUDIT.md。
 - 启动清单全部 7 个 PR 已完成本轮处置。历史审计扫描最终报告、GOV-001 / SUPPLY-001 外部独立治理验收没有被维护合并替代。
-- AlphaForge 全站显示名改造仍待单独交付；历史 QuantPass 文件名及稳定标识保留。
+- 用户已确认 AlphaForge 为正式名称，本轮同步当前界面、入口与生成器；历史证据和兼容性标识保留。
 - Solidity/Pass/Vault 合约、钱包与测试网交易、RWA 适配器、TEE/保密运行、实际计费和接续机制尚未完成；Foundry/fuzz/invariant/Slither 没有可用已批准工具链证据。
 - 容量缓冲、回购定价等未决策项和法律/生产验收仍开放。
 
@@ -56,3 +56,7 @@ The first combined head f182180e1eda69c67228db5346db5258085e685e passed Linux an
 ## Final startup-PR verification — 2026-09-12
 
 PR #7 merged at 2026-09-12T07:02:16Z, master 0f8cf4079f0f932e2acfd4e5ef76042e697364d1. All seven source checks and all three post-merge Linux/Windows/CodeQL checks passed. The exact squash tree matches source 792c71ab8f0bad17cea5ee5f4baaa99a947df273. A local stale origin source ref initially caused RECORDED_GIT_GRAPH_MISMATCH; refreshing that ref from GitHub readback resolved the environment discrepancy, and the unchanged master passed the full 232-test gate. The failure was retained, not relabeled. All startup PRs have now been processed; this follow-up publishes that verified checkpoint without claiming its own future merge in advance.
+
+## 用户批准的环境落地
+
+用户已批准正式 fnm 环境、AlphaForge 独立工作目录、verify-macos 必需门禁和按门禁合并/主分支验收。本次源码更新尚须新头完整验证，未提前标记已合并或阶段完成。
