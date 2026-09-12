@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T09:38:19.264Z",
+  "generatedAt": "2026-09-12T17:23:26.512Z",
   "generatorVersion": "1.0.0",
   "generated": {
     "doNotEdit": true,
@@ -10,112 +10,112 @@
   "status": "READY",
   "diagnostics": [],
   "sources": [
-    { "status": "READY", "source": "planning/roadmap.json", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "planning/risk-register.json", "observedAt": "2026-09-12T09:38:19.264Z" },
+    { "status": "READY", "source": "planning/roadmap.json", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "planning/risk-register.json", "observedAt": "2026-09-12T17:23:26.512Z" },
     {
       "status": "READY",
       "source": "planning/security-boundary.json",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/workers/worker-a.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/workers/worker-b.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/CURRENT-STATUS.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/WORK-QUEUE.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
-    { "status": "READY", "source": "docs/management/DECISIONS.md", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/CHANGELOG.md", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/tasks/B1.md", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/tasks/B2.md", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/tasks/B3.md", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/tasks/B4.md", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/tasks/B5.md", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/tasks/B6.md", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/tasks/B7.md", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/tasks/B8.md", "observedAt": "2026-09-12T09:38:19.264Z" },
+    { "status": "READY", "source": "docs/management/DECISIONS.md", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/CHANGELOG.md", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/tasks/B1.md", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/tasks/B2.md", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/tasks/B3.md", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/tasks/B4.md", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/tasks/B5.md", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/tasks/B6.md", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/tasks/B7.md", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/tasks/B8.md", "observedAt": "2026-09-12T17:23:26.512Z" },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A1.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A2.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A3.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A4.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A5.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A6.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A7.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A8.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/ENV-01.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/LOCAL-DELIVERY-001.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/LOCAL-HISTORY-001.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/PR-MAINT-001.md",
-      "observedAt": "2026-09-12T09:38:19.264Z"
+      "observedAt": "2026-09-12T17:23:26.512Z"
     },
-    { "status": "READY", "source": "docs/adr", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/security", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs/management/host", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": "docs", "observedAt": "2026-09-12T09:38:19.264Z" },
-    { "status": "READY", "source": ".git", "observedAt": "2026-09-12T09:38:19.264Z" },
+    { "status": "READY", "source": "docs/adr", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/security", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs/management/host", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": "docs", "observedAt": "2026-09-12T17:23:26.512Z" },
+    { "status": "READY", "source": ".git", "observedAt": "2026-09-12T17:23:26.512Z" },
     {
       "status": "READY",
       "source": ".checks/management/latest.json",
-      "observedAt": "2026-09-12T09:37:33.036Z"
+      "observedAt": "2026-09-12T17:22:53.077Z"
     }
   ]
 }
