@@ -3,115 +3,115 @@
   "complete": true,
   "profile": "full",
   "branch": "macbeth/env-01-toolchain",
-  "commit": "978d8e1f03a589b4d4ba19e03316ad59776d2712",
-  "tree": "70c34c71c9b0c125bb6cf6881a770fd84f8d7fac",
-  "startedAt": "2026-09-12T08:31:33.720Z",
-  "finishedAt": "2026-09-12T08:31:55.115Z",
+  "commit": "2cb4e038a1cb46edc752ce94e88a13d4d18ce768",
+  "tree": "08ebf68aeab2f462b2b99a5ce21a347e12ee6cc9",
+  "startedAt": "2026-09-12T08:34:18.251Z",
+  "finishedAt": "2026-09-12T08:34:40.203Z",
   "checks": [
     {
       "id": "typecheck",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:33.720Z",
-      "finishedAt": "2026-09-12T08:31:36.851Z",
-      "durationMs": 3131,
+      "startedAt": "2026-09-12T08:34:18.251Z",
+      "finishedAt": "2026-09-12T08:34:21.306Z",
+      "durationMs": 3055,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/typecheck.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/typecheck.log"
     },
     {
       "id": "lint",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:36.914Z",
-      "finishedAt": "2026-09-12T08:31:38.102Z",
-      "durationMs": 1188,
+      "startedAt": "2026-09-12T08:34:21.372Z",
+      "finishedAt": "2026-09-12T08:34:22.553Z",
+      "durationMs": 1181,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/lint.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/lint.log"
     },
     {
       "id": "format",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:38.165Z",
-      "finishedAt": "2026-09-12T08:31:39.093Z",
-      "durationMs": 928,
+      "startedAt": "2026-09-12T08:34:22.617Z",
+      "finishedAt": "2026-09-12T08:34:23.541Z",
+      "durationMs": 924,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/format.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/format.log"
     },
     {
       "id": "unit",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:39.158Z",
-      "finishedAt": "2026-09-12T08:31:50.726Z",
-      "durationMs": 11568,
+      "startedAt": "2026-09-12T08:34:23.605Z",
+      "finishedAt": "2026-09-12T08:34:35.708Z",
+      "durationMs": 12103,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/unit.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/unit.log"
     },
     {
       "id": "integration",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:50.789Z",
-      "finishedAt": "2026-09-12T08:31:51.115Z",
-      "durationMs": 326,
+      "startedAt": "2026-09-12T08:34:35.772Z",
+      "finishedAt": "2026-09-12T08:34:36.100Z",
+      "durationMs": 328,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/integration.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/integration.log"
     },
     {
       "id": "e2e",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:51.181Z",
-      "finishedAt": "2026-09-12T08:31:51.668Z",
-      "durationMs": 487,
+      "startedAt": "2026-09-12T08:34:36.165Z",
+      "finishedAt": "2026-09-12T08:34:36.643Z",
+      "durationMs": 478,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/e2e.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/e2e.log"
     },
     {
       "id": "secret-scan",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:51.736Z",
-      "finishedAt": "2026-09-12T08:31:51.902Z",
-      "durationMs": 166,
+      "startedAt": "2026-09-12T08:34:36.710Z",
+      "finishedAt": "2026-09-12T08:34:36.873Z",
+      "durationMs": 163,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/secret-scan.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/secret-scan.log"
     },
     {
       "id": "public-metadata",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:51.969Z",
-      "finishedAt": "2026-09-12T08:31:52.427Z",
-      "durationMs": 458,
+      "startedAt": "2026-09-12T08:34:36.940Z",
+      "finishedAt": "2026-09-12T08:34:37.402Z",
+      "durationMs": 462,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/public-metadata.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/public-metadata.log"
     },
     {
       "id": "dependency-audit",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:52.486Z",
-      "finishedAt": "2026-09-12T08:31:54.018Z",
-      "durationMs": 1532,
+      "startedAt": "2026-09-12T08:34:37.463Z",
+      "finishedAt": "2026-09-12T08:34:39.080Z",
+      "durationMs": 1617,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/dependency-audit.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/dependency-audit.log"
     },
     {
       "id": "build",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:54.096Z",
-      "finishedAt": "2026-09-12T08:31:54.611Z",
-      "durationMs": 515,
+      "startedAt": "2026-09-12T08:34:39.161Z",
+      "finishedAt": "2026-09-12T08:34:39.677Z",
+      "durationMs": 516,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/build.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/build.log"
     },
     {
       "id": "planning-consistency",
       "status": "PASS",
-      "startedAt": "2026-09-12T08:31:54.671Z",
-      "finishedAt": "2026-09-12T08:31:54.803Z",
-      "durationMs": 132,
+      "startedAt": "2026-09-12T08:34:39.742Z",
+      "finishedAt": "2026-09-12T08:34:39.877Z",
+      "durationMs": 135,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-09-12T08-31-33-719Z-978d8e1f03a5/planning-consistency.log"
+      "evidence": ".checks/management/2026-09-12T08-34-18-250Z-2cb4e038a1cb/planning-consistency.log"
     },
     {
       "id": "foundry",
       "status": "NOT_RUN",
-      "startedAt": "2026-09-12T08:31:54.863Z",
-      "finishedAt": "2026-09-12T08:31:54.863Z",
+      "startedAt": "2026-09-12T08:34:39.941Z",
+      "finishedAt": "2026-09-12T08:34:39.941Z",
       "durationMs": 0,
       "exitCode": null,
       "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE"
@@ -119,8 +119,8 @@
     {
       "id": "fuzz",
       "status": "NOT_RUN",
-      "startedAt": "2026-09-12T08:31:54.925Z",
-      "finishedAt": "2026-09-12T08:31:54.925Z",
+      "startedAt": "2026-09-12T08:34:40.005Z",
+      "finishedAt": "2026-09-12T08:34:40.005Z",
       "durationMs": 0,
       "exitCode": null,
       "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE"
@@ -128,8 +128,8 @@
     {
       "id": "invariant",
       "status": "NOT_RUN",
-      "startedAt": "2026-09-12T08:31:54.987Z",
-      "finishedAt": "2026-09-12T08:31:54.987Z",
+      "startedAt": "2026-09-12T08:34:40.071Z",
+      "finishedAt": "2026-09-12T08:34:40.071Z",
       "durationMs": 0,
       "exitCode": null,
       "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE"
@@ -137,8 +137,8 @@
     {
       "id": "slither",
       "status": "NOT_RUN",
-      "startedAt": "2026-09-12T08:31:55.051Z",
-      "finishedAt": "2026-09-12T08:31:55.051Z",
+      "startedAt": "2026-09-12T08:34:40.137Z",
+      "finishedAt": "2026-09-12T08:34:40.137Z",
       "durationMs": 0,
       "exitCode": null,
       "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE"
