@@ -4,7 +4,7 @@
 
 ## 当前工作
 
-新增用户任务：ENV-01–05 开发工具链对齐，由 Macbeth 独立实施。规范、精确 Node/npm、环境自检和Linux、Windows、arm64 macOS CI 已准备；本地 240 项测试通过，最终源提交与真实 CI 仍待核验。机器 fnm 设置、保护规则和本次新 PR merge 未执行。详见 [实施状态](../DEVELOPMENT-TOOLCHAIN-STATUS.md) 和 [任务记录](tasks/ENV-01.md)。上一轮完成记录保持其历史范围。
+新增用户任务：ENV-01–05 开发工具链对齐及 AlphaForge Hackathon 名称同步，由 Macbeth 独立实施。用户已批准正式环境、Mac 必需门禁和合并验收；fnm 环境准入通过，verify-macos 已加入必需检查并完整回读。5c624516 的 245 项本地测试和三平台 CI 通过；名称更新源 a7180aec 的正式环境管理采集为 11 PASS / 0 FAIL / 4 NOT_RUN。最新源 CI 和实际 merge 后验证仍须完成。详见 [实施状态](../DEVELOPMENT-TOOLCHAIN-STATUS.md) 和 [任务记录](tasks/ENV-01.md)。上一轮完成记录保持其历史范围。
 
 本地管理记录已整理为 dashboard 的标准数据源：Manager 当前状态、工作队列、决策、变更日志、Worker A 日志及 DARWIN-A1–A8 记录。历史审计保留其日期和基线；本次快照检查结果由版本化证据清单提供。
 

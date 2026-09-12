@@ -25,8 +25,8 @@ The qualified temporary Node 24.21.0 archive matched the official SHA-256; npm 1
 ## Not fully resolved
 
 - Three supported GitHub native CI jobs and exact final source evidence must be read back.
-- The permanent macOS fnm environment and permanent checkout are not established by temporary qualification.
-- Adding verify-macos to protected required checks and merging this new toolchain PR require the user's applicable authorization.
+- Formal fnm 1.39.0 / Node 24.21.0 / npm 11.19.1 arm64 admission now passes in the approved independent permanent checkout.
+- The approved verify-macos required status is installed and read back; merge is authorized but awaits all current-head gates and actual master validation.
 - ENV-06, external governance, independent security acceptance and chain access remain outside this implementation.
 
 ## User acceptance of controlled operations
