@@ -128,6 +128,10 @@ export function overrideKinds(env) {
   }
   return [...kinds].sort();
 }
+export function unsafeGitConfig(keys) {
+  return keys.some((k) => /^(filter\.|include\.|includeif\.)/i.test(k));
+}
+
 export function nativePackagesValid(lock, platform, arch) {
   if (!lock || !lock.packages || typeof lock.packages !== 'object') return false;
   const matches = (rules, value) =>

@@ -194,3 +194,11 @@ test('installed optional native packages must match the actual platform and CPU'
     false,
   );
 });
+
+test('Git filter and included configuration is rejected before content-sensitive probes', async () => {
+  const { unsafeGitConfig } = await import('../tools/environment/policy.mjs');
+  assert.equal(unsafeGitConfig(['core.repositoryformatversion', 'remote.origin.url']), false);
+  assert.equal(unsafeGitConfig(['filter.example.clean']), true);
+  assert.equal(unsafeGitConfig(['include.path']), true);
+  assert.equal(unsafeGitConfig(['includeif.gitdir:example.path']), true);
+});

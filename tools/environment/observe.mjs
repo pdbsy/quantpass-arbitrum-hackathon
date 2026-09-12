@@ -13,7 +13,14 @@ import {
 import { delimiter, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { platform, arch } from 'node:os';
-import { CONFIG, overrideKinds, validateInputs, evaluate, nativePackagesValid } from './policy.mjs';
+import {
+  CONFIG,
+  overrideKinds,
+  validateInputs,
+  evaluate,
+  nativePackagesValid,
+  unsafeGitConfig,
+} from './policy.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const sha = /^[a-f0-9]{40}$/;
@@ -271,7 +278,7 @@ export function inspectEnvironment({ root = ROOT, mode = 'dev', environment = pr
   const git = (args) =>
     run(
       'git',
-      ['-c', 'core.fsmonitor=false', '-c', 'core.untrackedCache=false', ...args],
+      ['--no-replace-objects', '-c', 'core.fsmonitor=false', '-c', 'core.untrackedCache=false', ...args],
       'git-' + args[0].replace(/^--/, ''),
     );
   try {
