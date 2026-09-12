@@ -6,13 +6,14 @@ import {
   fstatSync,
   constants,
   readFileSync,
+  readdirSync,
   lstatSync,
   realpathSync,
   existsSync,
 } from 'node:fs';
 import { delimiter, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { platform, arch } from 'node:os';
+import { platform, arch, devNull } from 'node:os';
 import {
   CONFIG,
   overrideKinds,
@@ -48,6 +49,7 @@ export function boundedRead(path, max = 1024 * 1024) {
 }
 
 export function readInputs(root) {
+  root = realpathSync(root);
   for (const path of [
     '.node-version',
     'package.json',
@@ -192,6 +194,25 @@ function filesValid(root, git) {
     return false;
   }
 }
+export function dataRootIsolated(root) {
+  try {
+    root = realpathSync(root);
+    const data = join(root, '.data');
+    if (!existsSync(data)) return true;
+    let entries = 0;
+    const inspect = (path, depth) => {
+      if (++entries > 1024 || depth > 8) return false;
+      const st = lstatSync(path);
+      if (st.isSymbolicLink() || realpathSync(path) !== path) return false;
+      if (st.isFile()) return st.nlink === 1;
+      return st.isDirectory() && readdirSync(path).every((name) => inspect(join(path, name), depth + 1));
+    };
+    return lstatSync(data).isDirectory() && inspect(data, 0);
+  } catch {
+    return false;
+  }
+}
+
 function isolated(root) {
   try {
     return ['node_modules', '.data'].every(
@@ -225,7 +246,10 @@ export function inspectEnvironment({ root = ROOT, mode = 'dev', environment = pr
   const run = (command, args, id, allow = []) => {
     const result = spawnSync(command, args, {
       cwd: root,
-      env: environment,
+      env:
+        command === 'git'
+          ? { ...environment, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1' }
+          : environment,
       encoding: 'utf8',
       timeout: 15000,
       maxBuffer: 2 * 1024 * 1024,
@@ -255,7 +279,7 @@ export function inspectEnvironment({ root = ROOT, mode = 'dev', environment = pr
     hiddenIndex: true,
     authorConfigured: false,
     filesValid: false,
-    isolated: isolated(root),
+    isolated: isolated(root) && dataRootIsolated(root),
     ports: 'BLOCKED',
     localMock: localMock(root, environment),
     fnm: null,
@@ -285,7 +309,7 @@ export function inspectEnvironment({ root = ROOT, mode = 'dev', environment = pr
     o.git = git(['--version'])
       .replace(/^git version /, '')
       .split(' ')[0];
-    const names = git(['config', '--name-only', '--list']).split('\n');
+    const names = git(['config', '--local', '--name-only', '--list']).split('\n');
     if (unsafeGitConfig(names)) {
       o.overrides.push('git-config');
       return evaluate(inputs, o, mode);

@@ -202,3 +202,26 @@ test('Git filter and included configuration is rejected before content-sensitive
   assert.equal(unsafeGitConfig(['include.path']), true);
   assert.equal(unsafeGitConfig(['includeif.gitdir:example.path']), true);
 });
+
+test('SQLite data admission rejects shared hard links and nested symlink directories', async () => {
+  const { dataRootIsolated } = await import('../tools/environment/observe.mjs');
+  const { writeFileSync, linkSync } = await import('node:fs');
+  const dir = mkdtempSync(join(tmpdir(), 'environment data '));
+  try {
+    mkdirSync(join(dir, '.data'));
+    writeFileSync(join(dir, '.data/demo.sqlite'), 'fixture');
+    assert.equal(dataRootIsolated(dir), true);
+    linkSync(join(dir, '.data/demo.sqlite'), join(dir, 'other-ledger'));
+    assert.equal(dataRootIsolated(dir), false);
+    rmSync(join(dir, 'other-ledger'));
+    mkdirSync(join(dir, 'shared'));
+    symlinkSync(
+      join(dir, 'shared'),
+      join(dir, '.data/shared'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    assert.equal(dataRootIsolated(dir), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
