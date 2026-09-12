@@ -3,11 +3,15 @@
 ## Current status
 
 - Current task: `ENV-01–05 DEVELOPMENT TOOLCHAIN ALIGNMENT`
-- Status: `IN_PROGRESS`
-- Branch: `macbeth/env-01-toolchain`
+- Status: `DONE`
+- Branch: `macbeth/env-acceptance`
 - Last known commit: `SELF`
-- Blocker: Native CI, source-bound evidence, host fnm setup and user review remain pending; prior PR convergence stays verified
-- Last activity: `2026-09-12T16:25:00+08:00`
+- Blocker: None for the completed ENV-01–05 checkpoint; external governance and chain capabilities remain separate
+- Last activity: `2026-09-12T17:35:00+08:00`
+
+## 2026-09-12T17:35:00+08:00 — AlphaForge environment accepted
+
+Macbeth implemented and self-reviewed the toolchain and current naming update, installed approved fnm, created the independent formal checkout, added the approved required Mac check and actually merged PR #9. Master `ba25320a84de60e1561146be11b87a5ccfcaea56` passed native local admission, full 245-test checks, Linux/Windows/ARM Mac CI and CodeQL. This marks the ENV-01–05 implementation checkpoint DONE. Historical authors and failed attempts remain preserved; no independent security approval, deployment, RPC or funds operation is claimed.
 
 ## 2026-09-12T16:25:00+08:00 — Environment specification implementation
 
