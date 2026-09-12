@@ -200,3 +200,17 @@ test('rejects a signed decision after its payload is modified', async () => {
   };
   await expectCode(issueExecutionPermit(request(authorization, tampered)), 'INVALID_RUNTIME_SIGNATURE');
 });
+
+test('permit validity never exceeds its signed authorization window', async () => {
+  const validUntil = new Date(NOW.getTime() + 1_000).toISOString();
+  const authorization = signPayload({ ...grant().payload, validUntil }, 'user-key-1', userKeys.privateKeyPem);
+  const permit = await issueExecutionPermit(request(authorization, decision(authorization)));
+  assert.equal(permit.payload.expiresAt, validUntil);
+
+  const expired = signPayload(
+    { ...authorization.payload, validUntil: NOW.toISOString() },
+    'user-key-1',
+    userKeys.privateKeyPem,
+  );
+  await expectCode(issueExecutionPermit(request(expired, decision(expired))), 'GRANT_INACTIVE');
+});

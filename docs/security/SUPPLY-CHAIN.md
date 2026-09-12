@@ -8,16 +8,35 @@ The offline source of truth is [`planning/supply-chain-policy.json`](../../plann
 
 - npm runtime and development dependencies use exact root versions and lockfile v3.
 - Every resolved package comes from `https://registry.npmjs.org`, has canonical SHA-512 integrity and uses a reviewed license identifier.
-- Every `uses:` reference in every workflow is a full 40-character commit SHA from an approved GitHub-owned Action namespace.
+- Every executable step Action reference is parsed structurally and must use a full 40-character commit SHA from an approved Action namespace. Local/container Actions and reusable workflows are not approved.
 - `pull_request_target` is rejected because this repository does not need privileged execution of untrusted pull-request content.
 - GitHub Actions has read-only default workflow permission; individual CodeQL upload permission is scoped to its analysis job.
+- Workflow/job profiles impose explicit permission ceilings: CI (Linux and Windows) and dependency review allow only `contents: read`; only CodeQL's `analyze` job may also read packages and write security events. New workflows, jobs, events and permission scopes require a reviewed profile change.
+- The restricted YAML 1.2 parser accepts equivalent quoted/escaped keys and flow forms, and rejects parse warnings/errors, duplicate/non-string keys, aliases, anchors, merge keys, explicit tags, directives and multiple documents. Shell script contents are data, not Action declarations.
 - Dependabot covers npm and GitHub Actions weekly. Pull requests run dependency review and reject High/Critical advisories or licenses outside the reviewed allowlist.
 - CodeQL analyzes JavaScript and TypeScript on `master`, pull requests and a weekly schedule.
 - The committed SPDX document is generated deterministically from `package-lock.json` and fails CI when stale.
+- GitHub repository settings allow only GitHub-owned Actions and require full commit SHA pins. Secret scanning with push protection, dependency alerts, Dependabot security updates and private vulnerability reporting are enabled.
+- The active `master-protection` ruleset (ID `22507334`) has no bypass actor, requires pull requests, strict `verify`/CodeQL/dependency-review checks, linear history and resolved conversations, and blocks deletion and force pushes. Because `pdbsy` is currently the only collaborator, the approval count remains zero and CODEOWNER approval is not presented as independent review.
+
+The captured API readback is [`github-security-settings.json`](github-security-settings.json). It is dated evidence, not a live monitor; acceptance requires a fresh readback and tamper test.
+
+## Security diff checkpoint
+
+The immutable range `d5de8c064069cf675c2bddf8f626b7add15aa8a0..940c11341d34ba1055ac75dde11ea1ce10889f09` completed a Codex Security diff scan. No reportable vulnerability survived validation and attack-path analysis because the current workflows are least-privileged and a lower-privileged actor cannot activate a workflow or policy change on protected `master`.
+
+That historical scan reproduced workflow parser, permission-policy and governance-evidence weaknesses. The remediation is tracked separately in [`SUPPLY-FIX-2026-09-08.md`](SUPPLY-FIX-2026-09-08.md); the original scope, limitations and scan digests remain in [`SUPPLY-DIFF-SCAN-2026-09-08.md`](SUPPLY-DIFF-SCAN-2026-09-08.md). Merge still requires successful checks and review of the updated head. This does not change `SUPPLY-001` or `GOV-001` from their current incomplete/blocked states.
 
 ## External trust boundary still required
 
-The current repository belongs to the personal account `pdbsy`. Repository-level status checks can require a job name and its GitHub App source, but a coordinated hostile commit could still replace the workflow and validator while preserving that name. Therefore ordinary branch protection plus the in-repository CI job is defense in depth, not proof of governance immutability.
+The current repository belongs to the personal account `pdbsy`. Repository-level status checks can require a job name and its GitHub App source, but a coordinated hostile commit could still replace the workflow and validator while preserving that name. Therefore the active ruleset plus the in-repository CI job is defense in depth, not proof of governance immutability.
+
+There is no trusted external-verifier implementation yet. The offline policy validator
+therefore rejects every `verified` state, even with plausible-looking evidence fields.
+Only `blocked`, a nonempty reason and an empty evidence array are accepted. Implementing
+the external verifier and independently validating provider identity, enforcement,
+revision/digest and a failing tamper test is a separate prerequisite, not a JSON-only
+status change. The settings snapshot is never treated as that verifier.
 
 `GOV-001` may resume only after one of these controls is independently verified:
 

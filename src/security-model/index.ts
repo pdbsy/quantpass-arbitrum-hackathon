@@ -252,7 +252,11 @@ export async function issueExecutionPermit(
   if (!consumed) fail('REPLAYED_DECISION', 'The strategy decision nonce has already been consumed');
 
   const policy = input.grant.payload.policy;
-  const expiresAtMs = Math.min(decisionExpiryMs, nowMs + policy.executionPermitTtlMs);
+  const expiresAtMs = Math.min(
+    decisionExpiryMs,
+    parseTimestamp('grant.validUntil', input.grant.payload.validUntil),
+    nowMs + policy.executionPermitTtlMs,
+  );
   const issuedAt = now.toISOString();
   const decisionCommitment = hashPayload(decision);
   const accountSnapshotHash = hashPayload(input.account);
@@ -288,7 +292,7 @@ function validateGrant(grant: AuthorizationGrant, nowMs: number): void {
   const validFromMs = parseTimestamp('grant.validFrom', grant.validFrom);
   const validUntilMs = parseTimestamp('grant.validUntil', grant.validUntil);
   if (validUntilMs <= validFromMs) fail('INVALID_GRANT_WINDOW', 'The grant validity window is invalid');
-  if (nowMs < validFromMs || nowMs > validUntilMs)
+  if (nowMs < validFromMs || nowMs >= validUntilMs)
     fail('GRANT_INACTIVE', 'The authorization grant is not active');
 
   const permissions = grant.permissions;
@@ -357,7 +361,7 @@ function validateDecisionBinding(decision: StrategyDecision, grant: Authorizatio
   if (issuedAtMs > nowMs + grant.policy.maxClockSkewMs) {
     fail('DECISION_FROM_FUTURE', 'The strategy decision timestamp is ahead of the accepted clock skew');
   }
-  if (nowMs - issuedAtMs > grant.policy.maxDecisionAgeMs || expiresAtMs < nowMs) {
+  if (nowMs - issuedAtMs > grant.policy.maxDecisionAgeMs || expiresAtMs <= nowMs) {
     fail('STALE_DECISION', 'The strategy decision is stale or expired');
   }
   if (expiresAtMs <= issuedAtMs || expiresAtMs - issuedAtMs > grant.policy.maxDecisionAgeMs) {
