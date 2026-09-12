@@ -276,8 +276,12 @@ async function createRecordedGitFixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'quantpass-dashboard-recorded-layout-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   git(root, ['init', '--quiet', '-b', 'master']);
+  await writeFile(
+    join(root, '.gitattributes'),
+    await readFile(new URL('../.gitattributes', import.meta.url), 'utf8'),
+  );
   await writeFile(join(root, 'README.md'), 'base\n');
-  git(root, ['add', 'README.md']);
+  git(root, ['add', '.gitattributes', 'README.md']);
   commit(root, 'base');
   const baseCommit = git(root, ['rev-parse', 'HEAD']);
 
@@ -916,4 +920,13 @@ test('recorded Git collector rejects forged pull-request branch and commit ident
 test('Git collector rejects hostile base refs before invoking Git revision parsing', async () => {
   await assert.rejects(() => collectGitState(process.cwd(), '--help'), /invalid base ref/i);
   await assert.rejects(() => collectGitState(process.cwd(), 'master..attacker'), /invalid base ref/i);
+});
+
+test('recorded Git fixture preserves repository text bytes with autocrlf enabled', async (t) => {
+  const { root } = await createRecordedGitFixture(t);
+  git(root, ['config', 'core.autocrlf', 'true']);
+  await rm(join(root, 'recorded.txt'));
+  git(root, ['checkout', '--', 'recorded.txt']);
+  assert.equal(await readFile(join(root, 'recorded.txt'), 'utf8'), 'recorded\n');
+  assert.equal(git(root, ['-c', 'core.autocrlf=false', 'status', '--porcelain']), '');
 });

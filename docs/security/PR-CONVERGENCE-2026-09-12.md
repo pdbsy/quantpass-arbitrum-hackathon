@@ -50,3 +50,7 @@ No roadmap task or accepted risk was promoted. Foundry, fuzz, invariant and Slit
 ## PR #7 combination checkpoint
 
 Startup immutable scan 37443e09-820b-46cd-b168-1ad77594e5d2 is sealed with no reportable findings across 74/74 paths at startup head 00d565682d1c6df315377859fce7e2b088a3d6e7. It is a Macbeth static self-review, not an independent approval or a verdict for later integration. Combined master and Dashboard tests now pass 231/231 locally; Windows handle identity regression and privacy/supply gates pass locally. Final immutable evidence, exact combined-head review, GitHub checks and PR #7 merge remain pending.
+
+## Windows integration follow-up — 2026-09-12
+
+The first combined head f182180e1eda69c67228db5346db5258085e685e passed Linux and CodeQL but failed 15 Windows fixture checks. Test repositories omitted the real repository’s LF attributes, so Windows checkout changed manifest bytes and the deliberately isolated Git collector correctly detected a dirty tree. Fixtures now copy the existing repository attributes; a regression enables autocrlf and checks exact LF bytes and clean status. No runtime guard, assertion or Windows gate was removed. The failed runs remain recorded; final head checks are required again before merge.

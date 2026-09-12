@@ -37,3 +37,7 @@
 - Started repository Standard scan 3d6670bc-ca8d-466c-8ec7-b1decaa097d3.
 - No roadmap status, runtime, dependency, authority, gate or deployment changes.
 - Unresolved: audit/checks/review and PR #6 integration pending.
+
+## Windows integration follow-up — 2026-09-12
+
+The first combined head f182180e1eda69c67228db5346db5258085e685e passed Linux and CodeQL but failed 15 Windows fixture checks. Test repositories omitted the real repository’s LF attributes, so Windows checkout changed manifest bytes and the deliberately isolated Git collector correctly detected a dirty tree. Fixtures now copy the existing repository attributes; a regression enables autocrlf and checks exact LF bytes and clean status. No runtime guard, assertion or Windows gate was removed. The failed runs remain recorded; final head checks are required again before merge.

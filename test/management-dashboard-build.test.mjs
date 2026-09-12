@@ -739,6 +739,10 @@ test('check mode uses a versioned report in local, push, PR, queue, and integrat
       releaseGates: [],
     })}\n`,
   );
+  await writeFile(
+    join(sourceRoot, '.gitattributes'),
+    await readFile(new URL('../.gitattributes', import.meta.url), 'utf8'),
+  );
   execFileSync('git', ['init', '--quiet', '-b', 'master'], { cwd: sourceRoot });
   execFileSync('git', ['add', '--all'], { cwd: sourceRoot });
   execFileSync(
