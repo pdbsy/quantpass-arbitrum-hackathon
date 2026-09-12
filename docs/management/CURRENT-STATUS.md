@@ -27,7 +27,7 @@
 | #6 | 已实际合并并验证 | 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e；Linux / Windows / CodeQL 成功 |
 | #3 | 保留关闭、未合并 | Node 26 类型不符合 Node 24 运行时契约 |
 | #4 | 保留关闭、未合并 | TypeScript 7 超出当前 lint 工具链 peer 范围 |
-| #7 | 组合整改中；尚未合并 | 已普通合入上述 master；231 项本地测试及隐私/供应链检查通过，最终证据和 GitHub 门禁待核验 |
+| #7 | 已实际合并并验证 | 0f8cf4079f0f932e2acfd4e5ef76042e697364d1；Linux / Windows / CodeQL 成功；准确 master 本地 232 项测试及完整门禁通过 |
 
 ## Worker 与审查状态
 
@@ -37,10 +37,10 @@
 - #7 启动版本的独立不可变范围记录：scan 37443e09-820b-46cd-b168-1ad77594e5d2 已封存，74/74 路径静态自审无报告项；这不是最终组合版本的结论，也不是独立审查。
 - 历史 Standard scan 3d6670bc-ca8d-466c-8ec7-b1decaa097d3 上次服务回读仍为 running、无封存报告；不据此声称仍在后台执行或零漏洞。本轮没有接管或重署该历史扫描。
 
-## 仍待完成
+## 全项目仍待完成（不冒充本轮 PR 合并验收）
 
 - NET 错误脱敏和 permit 到期约束已在 #6 修复并回归；枚举/风险接受元数据、历史记录上限与退出、公开构建范围和覆盖率仍保留历史评估边界，不能据此宣布全项目验收。详见 PROJECT-REALITY-AUDIT.md。
-- #7 最终组合版本的安全复核、证据重建、Linux/Windows CI、实际合并与准确 master 验证仍待完成。历史审计扫描最终报告、GOV-001 / SUPPLY-001 外部独立治理验收没有被维护合并替代。
+- 启动清单全部 7 个 PR 已完成本轮处置。历史审计扫描最终报告、GOV-001 / SUPPLY-001 外部独立治理验收没有被维护合并替代。
 - AlphaForge 全站显示名改造仍待单独交付；历史 QuantPass 文件名及稳定标识保留。
 - Solidity/Pass/Vault 合约、钱包与测试网交易、RWA 适配器、TEE/保密运行、实际计费和接续机制尚未完成；Foundry/fuzz/invariant/Slither 没有可用已批准工具链证据。
 - 容量缓冲、回购定价等未决策项和法律/生产验收仍开放。
@@ -50,3 +50,7 @@
 ## Windows integration follow-up — 2026-09-12
 
 The first combined head f182180e1eda69c67228db5346db5258085e685e passed Linux and CodeQL but failed 15 Windows fixture checks. Test repositories omitted the real repository’s LF attributes, so Windows checkout changed manifest bytes and the deliberately isolated Git collector correctly detected a dirty tree. Fixtures now copy the existing repository attributes; a regression enables autocrlf and checks exact LF bytes and clean status. No runtime guard, assertion or Windows gate was removed. The failed runs remain recorded; final head checks are required again before merge.
+
+## Final startup-PR verification — 2026-09-12
+
+PR #7 merged at 2026-09-12T07:02:16Z, master 0f8cf4079f0f932e2acfd4e5ef76042e697364d1. All seven source checks and all three post-merge Linux/Windows/CodeQL checks passed. The exact squash tree matches source 792c71ab8f0bad17cea5ee5f4baaa99a947df273. A local stale origin source ref initially caused RECORDED_GIT_GRAPH_MISMATCH; refreshing that ref from GitHub readback resolved the environment discrepancy, and the unchanged master passed the full 232-test gate. The failure was retained, not relabeled. All startup PRs have now been processed; this follow-up publishes that verified checkpoint without claiming its own future merge in advance.

@@ -14,7 +14,7 @@ All REST pages were enumerated with state=all. The startup inventory contains se
 | #4 | closed, unmerged | 2efd52f876e782890b69ab7bc57d1872a4e84e8f | retain closed; TypeScript 7 is outside the lint toolchain peer range |
 | #5 | open | 59ca7329fffface16445b01c6d28891e92d5c799 | merged and verified |
 | #6 | open | bbb3e4b7b40cfd3aa23253866876875f8d98a1fc | merged and verified |
-| #7 | draft | 00d565682d1c6df315377859fce7e2b088a3d6e7 | security review and combination validation in progress |
+| #7 | draft | 00d565682d1c6df315377859fce7e2b088a3d6e7 | merged and verified |
 
 ## Completed merge stages
 
@@ -24,6 +24,7 @@ All REST pages were enumerated with state=all. The startup inventory contains se
 | #5 | 84cd179e23c4179ed989bf5e118a986cc119475c | Engineering checks and CodeQL SUCCESS |
 | #2 | 50e075607cb335ac66e2ee6d47c2f477b37b527e | Engineering checks and CodeQL SUCCESS |
 | #6 | 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e | Linux verify, Windows verify and CodeQL SUCCESS |
+| #7 | 0f8cf4079f0f932e2acfd4e5ef76042e697364d1 | Linux verify, Windows verify and CodeQL SUCCESS; exact master local 232-test full gate PASS |
 
 Each stage was merged through the normal PR flow only after exact-head checks and thread review, then read back and validated before the next merge. Source and squash trees were compared. PR-only dependency review is not misrepresented as a master-push check. The normal source update for #2 used Git Data API with force=false after Git transport timed out; uploaded objects matched the prevalidated local SHA exactly.
 
@@ -39,7 +40,7 @@ Two historical A4 gaps were fixed at their shared boundaries: URL parser failure
 
 At `0190ce0de0c3c9283769baea543a1d1a9d5855f2`, the required Node 24.12.0 / npm 11.6.2 toolchain completed the full engineering gate with 94 tests, zero failures, synchronized 217-entry dependency lock/SPDX and zero reported dependency vulnerabilities. An earlier restricted-environment HTTP timeout is retained as failed evidence; the authorized loopback rerun passed. This document does not substitute those results for final-head Linux/Windows GitHub checks or post-merge master validation.
 
-## Remaining boundaries
+## Pre-merge checkpoint (historical)
 
 PR #6 merged through the normal PR flow from exact source e936ab63be419c0c5e4001cb1d3267fcc08fe6ad at 2026-09-12T06:31:03Z after all seven head checks passed and unresolved threads were absent. Its signed squash tree equals the reviewed source; all three post-merge master checks succeeded. PR #7 needs combined Windows compatibility, remaining document/generated coverage, refreshed immutable manifest and snapshot, final GitHub gates, actual merge and post-merge verification. Its startup scan is a separate immutable diff review, not a current combined-head verdict.
 
@@ -54,3 +55,13 @@ Startup immutable scan 37443e09-820b-46cd-b168-1ad77594e5d2 is sealed with no re
 ## Windows integration follow-up — 2026-09-12
 
 The first combined head f182180e1eda69c67228db5346db5258085e685e passed Linux and CodeQL but failed 15 Windows fixture checks. Test repositories omitted the real repository’s LF attributes, so Windows checkout changed manifest bytes and the deliberately isolated Git collector correctly detected a dirty tree. Fixtures now copy the existing repository attributes; a regression enables autocrlf and checks exact LF bytes and clean status. No runtime guard, assertion or Windows gate was removed. The failed runs remain recorded; final head checks are required again before merge.
+
+## Final startup inventory disposition
+
+PR #7 actually merged at 2026-09-12T07:02:16Z from source 792c71ab8f0bad17cea5ee5f4baaa99a947df273 after all seven checks passed and all review threads were resolved. Its master commit and validation are recorded in the table above. The exact signed squash tree matches that source. All three native master checks passed; full local master validation also passed 232 tests after refreshing a stale local source-tracking ref from fresh GitHub readback. The first local graph mismatch remains failed evidence and did not trigger a rollback or further merge.
+
+Combined immutable scan 635ce52b-8bf1-429c-9d75-38fa1993456a covers all 66 paths at 80fc3d9b..f182180e, with no reportable findings and explicit Windows fixture failures at that candidate. Supplemental Macbeth self-review covers all ten later changed paths through 792c71ab: two LF fixture corrections, five accurate follow-up records, one report and two generated files. No runtime guard or test assertion was removed. The final C/R/S chain is d7808eac3a93d01ee0c69fd6aa51ae2b31725822 -> d3ec37be4ab6309a7ee5474162ca5ea2c9925c48 -> 792c71ab8f0bad17cea5ee5f4baaa99a947df273, with 11 PASS, 0 FAIL and 4 NOT_RUN. These are self-reviews, not independent approvals.
+
+All states were paginated again: the startup seven PRs remain the complete pre-closeout inventory. #3/#4 remain closed/unmerged for documented compatibility reasons; #1/#2/#5/#6/#7 are actually merged and verified. This record-only follow-up publishes completed startup-stage evidence and has its own normal PR gates; it does not pre-claim its own future merge.
+
+Project-level external governance, the historical running scan without a sealed result, capacity/exit design, enum/risk metadata hardening observations, build publication scope, broader coverage, native visual acceptance and future chain functionality remain explicitly incomplete. None was waived, approved or reassigned by this PR maintenance round. No secret history purge, force update, branch deletion, protection change, deployment, real signing/funds operation or rollback occurred.

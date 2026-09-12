@@ -14,7 +14,9 @@
 | LOCAL-DELIVERY-001 | DONE（材料交付范围） | 12 页中文 PPT v2 与校验产物已存在；后续统一品牌 |
 | LOCAL-HISTORY-001 | 历史本地成果已归档 | M00–M04 映射和边界可见，不改变新版 41 项任务验收 |
 | DARWIN-BRAND-001 | 用户已确认名称，实施待办 | 对外名称 AlphaForge；保留协议/持久状态标识 |
-| Macbeth B8 / PR #7 | 组合整改 IN_PROGRESS | 最终自审、C/R/S 证据、Linux/Windows 门禁后正常 merge，再验证准确 master |
+| Macbeth B8 / PR #7 | 已合并并验证 | master 0f8cf4079f0f932e2acfd4e5ef76042e697364d1；232 项本地测试及远端 Linux/Windows/CodeQL 通过 |
 | PR #6 / 整体集成 | 已合并并验证 | master 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e 的 Linux/Windows/CodeQL 成功 |
 
 本轮全部 PR 收敛统一由 Macbeth 执行，Darwin 历史任务不构成本轮派单或等待条件。旧表中的独立验收缺口仍如实保留；没有新分配 Solidity、交易、生产或全站品牌模块。阶段完成要求实际 merge 后准确 master 验证通过。
+
+启动清单 #1–#7 处置完成；本次记录发布只同步已发生的验收，不代表独立治理、项目全部功能或未来范围已获验收。
