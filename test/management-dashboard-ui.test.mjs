@@ -38,7 +38,7 @@ const navigation = [
 test('HTML is a CSP-constrained Chinese shell with all required navigation', async () => {
   const html = await readFile(new URL('index.html', dashboardRoot), 'utf8');
   assert.match(html, /<html lang="zh-CN">/);
-  assert.match(html, /QUANTPASS CONTROL CENTER/);
+  assert.match(html, /ALPHAFORGE CONTROL CENTER/);
   assert.match(html, /http-equiv="Content-Security-Policy"/);
   for (const directive of [
     "default-src 'self'",
@@ -130,7 +130,7 @@ test('raw-evidence model exposes bounded source and diagnostic details, not just
 
 test('overview keeps unavailable and blocked state visible', () => {
   const model = buildOverview({
-    project: { name: 'QuantPass', status: 'READY' },
+    project: { name: 'AlphaForge', status: 'READY' },
     integration: { status: 'IN_PROGRESS' },
     tasks: [{ status: 'DONE' }, { status: 'BLOCKED' }, { status: 'NOT_STARTED' }],
     security: { status: 'BLOCKED', counts: { critical: 2, high: 1, medium: 0, low: 0 } },

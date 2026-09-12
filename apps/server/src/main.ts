@@ -11,7 +11,7 @@ const { app } = await buildApp({
   webRoot: fileURLToPath(new URL('apps/web/dist/', root)),
 });
 await app.listen({ host: '127.0.0.1', port: 4180 });
-console.log('QuantPass LOCAL SIMULATION: http://127.0.0.1:4180');
+console.log('AlphaForge LOCAL SIMULATION: http://127.0.0.1:4180');
 for (const signal of ['SIGINT', 'SIGTERM'] as const)
   process.once(signal, () => {
     void app.close();

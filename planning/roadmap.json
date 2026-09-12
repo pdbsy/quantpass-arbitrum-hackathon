@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "updatedAt": "2026-09-08",
   "project": {
-    "name": "QuantPass × Robinhood Chain Testnet",
+    "name": "AlphaForge × Robinhood Chain Testnet",
     "planVersion": "2.7",
     "network": "Robinhood Chain Testnet",
     "chainId": 46630,

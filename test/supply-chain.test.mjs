@@ -257,3 +257,28 @@ test('engineering workflow avoids duplicate merge-queue push runs', () => {
   assert.match(engineeringWorkflow, /push:\n\s+branches-ignore:\n\s+- ['"]gh-readonly-queue\/\*\*['"]/);
   assert.match(engineeringWorkflow, /\n {2}merge_group:/);
 });
+
+test('root engine metadata and supported native read-only jobs are enforced', () => {
+  const drift = structuredClone(lockfile);
+  drift.packages[''].engines = { node: '0.0.0', npm: '0.0.0' };
+  assert.throws(() => validatePackageLock(drift, packageJson, policy), /engines/);
+  for (const name of ['verify-macos']) {
+    assert.doesNotThrow(() => validateWorkflowText(ciPath, valid.replace('  verify:', `  ${name}:`), policy));
+    assert.throws(
+      () =>
+        validateWorkflowText(
+          ciPath,
+          valid.replace('  verify:', `  ${name}:\n    permissions: {contents: write}`),
+          policy,
+        ),
+      /permission/,
+    );
+  }
+});
+
+test('removed Intel macOS job is outside the reviewed workflow profile', () => {
+  assert.throws(
+    () => validateWorkflowText(ciPath, valid.replace('  verify:', '  verify-macos-intel:'), policy),
+    /unknown job|unapproved job/,
+  );
+});

@@ -1,6 +1,6 @@
-# QuantPass on Robinhood Chain Testnet
+# AlphaForge Hackathon on Robinhood Chain Testnet
 
-QuantPass is a safety-first prototype for separating strategy access rights from user funds. It targets Robinhood Chain Testnet, an Arbitrum Chain built with Arbitrum Nitro. The current demo makes allowance, idle cash, active strategy cash, pending withdrawals, positions and fees independently visible in an auditable ledger.
+AlphaForge is a safety-first prototype for separating strategy access rights from user funds. It targets Robinhood Chain Testnet, an Arbitrum Chain built with Arbitrum Nitro. The current demo makes allowance, idle cash, active strategy cash, pending withdrawals, positions and fees independently visible in an auditable ledger.
 
 ## Hackathon status
 
@@ -14,7 +14,7 @@ No contract is deployed yet and the application does not sign or submit transact
 
 ## Quick start
 
-Requirements: Node.js 24.12.x and npm 11.6.x.
+Requirements: exact Node from `.node-version` and exact npm from `package.json#packageManager`. Follow [the development toolchain specification](docs/DEVELOPMENT-TOOLCHAIN.md) and [current implementation status](docs/DEVELOPMENT-TOOLCHAIN-STATUS.md). macOS developers use fnm after authorized host setup. The offline `node tools/check-environment.mjs` admission check precedes dependency installation; CI uses `npm run verify:ci`.
 
 ```bash
 npm ci --ignore-scripts
@@ -72,3 +72,7 @@ This in-repository check is defense in depth, not its own trust root: one hostil
 - `.env.example` contains public network metadata only.
 - The default app remains local-only until a reviewed testnet adapter is explicitly wired in.
 - This prototype is not an investment product and does not handle real funds.
+
+## Product identity
+
+The current product is **AlphaForge**, Hackathon edition. The GitHub repository address and existing protocol/storage identifiers remain stable for compatibility. Historical source documents preserve the names and claims that applied when they were written.

@@ -224,7 +224,7 @@ export function renderTodo(plan) {
     )
     .join('\n\n');
 
-  return `# QuantPass 工程安全 TODO\n\n> 自动生成文件：唯一事实源为 \`planning/roadmap.json\`。请勿直接修改本文件。\n>\n> 范围：${plan.project.scope}\n\n## 当前状态\n\n- 唯一 WIP：**${current.id} · ${current.title}**\n- 总任务：${summary.total}\n- 已完成：${summary.byStatus.done}\n- 已就绪：${summary.byStatus.ready}\n- 未关闭 Critical/High：${summary.unresolvedSevere}\n- 计划版本：${plan.project.planVersion}（${plan.updatedAt}）\n\n## 强制安全边界\n\n${renderList(plan.project.hardBoundaries)}\n\n${sections.join('\n\n')}\n\n## 发布门禁\n\n${gates}\n\n## Definition of Ready\n\n${renderList(plan.definitionOfReady)}\n\n## Definition of Done\n\n${renderList(plan.definitionOfDone)}\n`;
+  return `# AlphaForge 工程安全 TODO\n\n> 自动生成文件：唯一事实源为 \`planning/roadmap.json\`。请勿直接修改本文件。\n>\n> 范围：${plan.project.scope}\n\n## 当前状态\n\n- 唯一 WIP：**${current.id} · ${current.title}**\n- 总任务：${summary.total}\n- 已完成：${summary.byStatus.done}\n- 已就绪：${summary.byStatus.ready}\n- 未关闭 Critical/High：${summary.unresolvedSevere}\n- 计划版本：${plan.project.planVersion}（${plan.updatedAt}）\n\n## 强制安全边界\n\n${renderList(plan.project.hardBoundaries)}\n\n${sections.join('\n\n')}\n\n## 发布门禁\n\n${gates}\n\n## Definition of Ready\n\n${renderList(plan.definitionOfReady)}\n\n## Definition of Done\n\n${renderList(plan.definitionOfDone)}\n`;
 }
 
 export function renderMarkdownBoard(plan) {
@@ -249,7 +249,7 @@ export function renderMarkdownBoard(plan) {
         `| ${gate.id} | ${gate.name} | ${gateMeta[gate.status]} | ${gate.checks.filter((check) => check.status === 'passed').length}/${gate.checks.length} |`,
     )
     .join('\n');
-  return `# QuantPass 工程安全任务看板\n\n> 自动生成文件：唯一事实源为 \`planning/roadmap.json\`。HTML 版见 [task-board.html](task-board.html)。\n\n更新时间：${plan.updatedAt} · 计划版本：${plan.project.planVersion}\n\n- 当前任务：**${current.id} · ${current.title}**\n- 已完成：${summary.byStatus.done}/${summary.total}\n- 就绪：${summary.byStatus.ready}\n- 未关闭 Critical/High：${summary.unresolvedSevere}\n- 硬边界：${plan.project.scope}\n\n${phases}\n\n## 发布门禁\n\n| Gate | 名称 | 状态 | 已通过 |\n| --- | --- | --- | --- |\n${gates}\n\n## 统一完成定义\n\n${renderList(plan.definitionOfDone)}\n`;
+  return `# AlphaForge 工程安全任务看板\n\n> 自动生成文件：唯一事实源为 \`planning/roadmap.json\`。HTML 版见 [task-board.html](task-board.html)。\n\n更新时间：${plan.updatedAt} · 计划版本：${plan.project.planVersion}\n\n- 当前任务：**${current.id} · ${current.title}**\n- 已完成：${summary.byStatus.done}/${summary.total}\n- 就绪：${summary.byStatus.ready}\n- 未关闭 Critical/High：${summary.unresolvedSevere}\n- 硬边界：${plan.project.scope}\n\n${phases}\n\n## 发布门禁\n\n| Gate | 名称 | 状态 | 已通过 |\n| --- | --- | --- | --- |\n${gates}\n\n## 统一完成定义\n\n${renderList(plan.definitionOfDone)}\n`;
 }
 
 function renderTags(task) {
@@ -325,8 +325,8 @@ export function renderHtmlBoard(plan) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; font-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <meta name="description" content="QuantPass Robinhood Chain Testnet 工程安全任务看板">
-  <title>QuantPass · 工程安全看板</title>
+  <meta name="description" content="AlphaForge Robinhood Chain Testnet 工程安全任务看板">
+  <title>AlphaForge · 工程安全看板</title>
   <link rel="stylesheet" href="./task-board.css">
   <script src="./task-board.js" defer></script>
 </head>
@@ -334,12 +334,12 @@ export function renderHtmlBoard(plan) {
   <a class="skip-link" href="#main">跳到主要内容</a>
   <div class="shell">
     <aside class="sidebar" aria-label="看板导航">
-      <div class="brand"><span aria-hidden="true">QP</span><div>QuantPass<small>工程安全看板</small></div></div>
+      <div class="brand"><span aria-hidden="true">AF</span><div>AlphaForge<small>工程安全看板</small></div></div>
       <nav>${phaseNavigation}<a href="#gates"><span>G</span>发布门禁</a><a href="#standards"><span>D</span>完成定义</a></nav>
       <div class="side-note"><strong>Robinhood Chain Testnet</strong><span>Chain ID 46630</span><span>仅测试网 · 主网硬关闭</span></div>
     </aside>
     <main id="main">
-      <header class="topbar"><div><span class="crumb">QuantPass / Security Engineering</span><span class="updated">计划 v${escapeHtml(plan.project.planVersion)} · ${escapeHtml(plan.updatedAt)}</span></div><a href="./TASK-BOARD.md">查看 Markdown 看板</a></header>
+      <header class="topbar"><div><span class="crumb">AlphaForge / Security Engineering</span><span class="updated">计划 v${escapeHtml(plan.project.planVersion)} · ${escapeHtml(plan.updatedAt)}</span></div><a href="./TASK-BOARD.md">查看 Markdown 看板</a></header>
       <section class="hero" aria-labelledby="hero-title">
         <div><p class="eyebrow">ROBINHOOD CHAIN TESTNET · ENGINEERING PLAN</p><h1 id="hero-title">用证据推进，而不是用进度制造安全感。</h1><p>${escapeHtml(plan.project.scope)}</p></div>
         <div class="network-seal"><span>目标网络</span><strong>46630</strong><small>0xb626</small></div>

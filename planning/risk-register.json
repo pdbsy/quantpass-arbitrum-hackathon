@@ -3,7 +3,7 @@
   "modelVersion": "1.1",
   "updatedAt": "2026-09-07",
   "scope": {
-    "system": "QuantPass Robinhood Chain Testnet hackathon MVP",
+    "system": "AlphaForge Robinhood Chain Testnet hackathon MVP",
     "chainId": 46630,
     "environments": ["local-simulation", "robinhood-chain-testnet"],
     "excluded": ["mainnet", "real-value-assets", "production-autonomous-trading"],

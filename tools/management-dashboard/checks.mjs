@@ -24,6 +24,9 @@ const unitTests = [
   'test/management-dashboard-ui.test.mjs',
   'test/management-dashboard-server.test.mjs',
   'test/public-metadata.test.mjs',
+  'test/environment.test.mjs',
+  'test/environment-git.test.mjs',
+  'test/environment-ci.test.mjs',
 ];
 
 function executable(id, file, args, timeoutMs, profiles = ['quick', 'full']) {
