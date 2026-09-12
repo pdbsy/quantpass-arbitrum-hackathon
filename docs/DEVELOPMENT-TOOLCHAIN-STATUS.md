@@ -10,12 +10,12 @@
 
 | 事项 | 状态 |
 | --- | --- |
-| ENV-01 至 ENV-05 | IN_PROGRESS；正式环境与源码验证通过，当前新头 CI 和合并后验收待完成 |
-| Node 24.21.0 / npm 11.19.1 | 5c624516 三平台资格审查通过；用户已批准实施；名称更新后的准确头须重新验证 |
+| ENV-01 至 ENV-05 | DONE；PR #9 实际合并后，准确 master 的正式环境与全部适用 CI 验收通过 |
+| Node 24.21.0 / npm 11.19.1 | 已批准基线；名称更新后的 PR 源与实际 master 均通过三平台验证 |
 | 正式 macOS fnm 环境 | PASS：用户批准后通过 Homebrew 安装 fnm 1.39.0；精确 Node/npm 原生 arm64 准入退出 0；未修改 shell 启动文件 |
 | 永久 checkout 位置 | 已按授权创建独立 AlphaForge checkout；依赖与运行数据不共享 |
 | verify-macos required status | 已按授权加入 ruleset 22507334，integration 15368；完整回读确认其他条件不变 |
-| 新工具链 PR merge | 用户已明确批准；等待最新准确头的门禁，通过后正常合并并验证实际 master |
+| 新工具链 PR merge | PR #9 已实际合并为 ba25320a84de60e1561146be11b87a5ccfcaea56；合并后本地 245/245 与三平台/CodeQL 成功 |
 | ENV-06 / 合约及容器 | NOT_RUN；未来独立任务 |
 | SUPPLY-001 / GOV-001 外部独立治理 | 维持原有阻塞，不因环境自检而关闭 |
 
@@ -59,3 +59,7 @@ npm 11.19.1 独立评估，其发布记录包含安装工具内部的 Undici、i
 用户已批准 fnm 安装、正式独立 checkout、添加 verify-macos 必需门禁及按门禁合并后验证，并明确正式产品名为 AlphaForge，本仓库为 Hackathon 版本。此前“等待授权”记录保留为历史；这些操作现已授权，实施结果仍以实际回读为准。当前显示名、包名、工作目录使用 AlphaForge；原始规范与历史证据、现有 GitHub 地址及兼容性协议/存储标识保留原值。源 5c624516 的本地 245/245、Linux/Windows/ARM Mac CI、CodeQL 和依赖审查均通过；本次名称更新后的准确头必须重新验证。
 
 正式环境验收源 a7180aec：fnm 1.39.0；Node 二进制逐字匹配已核验官方归档；npm 11.19.1 安装到 fnm 用户目录；干净 npm ci 与环境准入成功。管理全量采集 11 PASS / 0 FAIL / 4 NOT_RUN。首次 npm 引导未结束时的 engine 拒绝与新 clone 缺少本地作者配置的 BLOCKED 均保留为失败历史，完成初始化后重新验证通过。新命名源的完整 CI 和实际合并结果在 PR #9 更新，未用旧基线绿灯签收新头。
+
+## 已完成的合并后验收
+
+实际 master `ba25320a84de60e1561146be11b87a5ccfcaea56` 与 PR 源 26c451c 的 tree 一致。正式 AlphaForge checkout 的 fnm 准入退出 0，完整 npm run check 为 245/245 PASS，tracked 工作区干净。GitHub Engineering run 34686091825 的 Linux x64、Windows x64、macOS arm64 及 CodeQL run 34686091840 均实际成功；各平台执行前后报告绑定此准确 master 与相同 lock 摘要。ENV-01–05 在本次授权范围内完成；原始规范的 PROPOSED、Intel 表和历史分工继续作为附件原始记录，由本页当前用户决定与实际结果覆盖。新终端按原规范通过 fnm 激活 .node-version；未修改 shell 启动文件。

@@ -8,13 +8,13 @@ Worker: `Worker B / Macbeth`
 
 Start: `2026-09-12T15:30:00+08:00`
 
-Finish: `NOT_FINISHED`
+Finish: `2026-09-12T17:35:00+08:00`
 
-Status: `IN_PROGRESS`
+Status: `DONE`
 
 ## Summary
 
-The user assigned synchronization and project alignment against DEVELOPMENT-TOOLCHAIN.md to Macbeth. The supplied historical UNASSIGNED status is retained in the original document, with current authority and evidence in docs/DEVELOPMENT-TOOLCHAIN-STATUS.md. ENV-01 through ENV-05 are implemented in the actual source branch macbeth/env-01-toolchain; qualification and review remain required before completion.
+The user assigned synchronization and project alignment against DEVELOPMENT-TOOLCHAIN.md to Macbeth. The supplied historical UNASSIGNED status is retained in the original document, with current authority and evidence in docs/DEVELOPMENT-TOOLCHAIN-STATUS.md. ENV-01 through ENV-05 are implemented in the actual source branch macbeth/env-01-toolchain; the completed merge and qualification checkpoint is recorded below.
 
 ## Changes and verification
 
@@ -22,7 +22,7 @@ Exact Node and npm inputs, root lock engines, generated SPDX namespace, effectiv
 
 The qualified temporary Node 24.21.0 archive matched the official SHA-256; npm 11.19.1 matched registry SHA-512. The first truncated Node downloads were rejected and never executed. Clean npm ci --ignore-scripts installed the locked native package subset. Full local regression passed 240 tests; final source-bound management and GitHub evidence are collected after source freeze. These statements are technical self-review, not independent approval.
 
-## Not fully resolved
+## Historical pre-merge checklist
 
 - Three supported GitHub native CI jobs and exact final source evidence must be read back.
 - Formal fnm 1.39.0 / Node 24.21.0 / npm 11.19.1 arm64 admission now passes in the approved independent permanent checkout.
@@ -32,3 +32,7 @@ The qualified temporary Node 24.21.0 archive matched the official SHA-256; npm 1
 ## User acceptance of controlled operations
 
 The user approved fnm installation, a permanent independent AlphaForge checkout, adding verify-macos to required checks, and gated merge followed by master validation. AlphaForge is the official product name; this is the Hackathon edition. Current user-facing names and package metadata are aligned in this PR. Historical evidence and stable transport/storage identifiers remain unchanged. The final updated head and actual post-merge master must still be verified before completion.
+
+## Completed AlphaForge Hackathon checkpoint
+
+PR [#9](https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/9) actually merged at 2026-09-12T09:31:44Z into master `ba25320a84de60e1561146be11b87a5ccfcaea56`. Its tree exactly matches reviewed source `26c451cbd0d345d2747dfb2769a92eb7a7449306`. On this actual master, formal native fnm admission exited 0 and npm run check passed 245/245 tests with a clean tracked checkout. [Engineering 34686091825](https://github.com/pdbsy/quantpass-arbitrum-hackathon/actions/runs/34686091825) passed Linux x64, Windows x64 and ARM macOS; [CodeQL 34686091840](https://github.com/pdbsy/quantpass-arbitrum-hackathon/actions/runs/34686091840) passed. Required Mac status and formal host setup were approved, executed and read back. ENV-01–05 are DONE in this toolchain/Hackathon scope. ENV-06 and external governance remain outside completion. This follow-up records an already-verified checkpoint and does not pre-certify its own future merge.

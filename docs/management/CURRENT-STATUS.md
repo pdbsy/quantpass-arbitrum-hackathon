@@ -4,7 +4,7 @@
 
 ## 当前工作
 
-新增用户任务：ENV-01–05 开发工具链对齐及 AlphaForge Hackathon 名称同步，由 Macbeth 独立实施。用户已批准正式环境、Mac 必需门禁和合并验收；fnm 环境准入通过，verify-macos 已加入必需检查并完整回读。5c624516 的 245 项本地测试和三平台 CI 通过；名称更新源 a7180aec 的正式环境管理采集为 11 PASS / 0 FAIL / 4 NOT_RUN。最新源 CI 和实际 merge 后验证仍须完成。详见 [实施状态](../DEVELOPMENT-TOOLCHAIN-STATUS.md) 和 [任务记录](tasks/ENV-01.md)。上一轮完成记录保持其历史范围。
+ENV-01–05 开发工具链对齐与 AlphaForge Hackathon 当前名称同步已完成。用户批准的 fnm 正式环境和 verify-macos 必需门禁已落地；PR #9 实际合并为 master `ba25320a84de60e1561146be11b87a5ccfcaea56`，此准确 master 的正式环境准入、245/245 本地完整检查、Linux/Windows/ARM Mac CI 和 CodeQL 全部通过。详见 [实施状态](../DEVELOPMENT-TOOLCHAIN-STATUS.md) 与 [任务记录](tasks/ENV-01.md)。本次只标记已经实际合并并验证的阶段，后续证据发布自身仍走正常门禁。
 
 本地管理记录已整理为 dashboard 的标准数据源：Manager 当前状态、工作队列、决策、变更日志、Worker A 日志及 DARWIN-A1–A8 记录。历史审计保留其日期和基线；本次快照检查结果由版本化证据清单提供。
 
@@ -60,3 +60,7 @@ PR #7 merged at 2026-09-12T07:02:16Z, master 0f8cf4079f0f932e2acfd4e5ef76042e697
 ## 用户批准的环境落地
 
 用户已批准正式 fnm 环境、AlphaForge 独立工作目录、verify-macos 必需门禁和按门禁合并/主分支验收。本次源码更新尚须新头完整验证，未提前标记已合并或阶段完成。
+
+## AlphaForge 环境阶段完成
+
+PR #9 已实际合并并完成准确 master 验收；当前所有开发名称使用 AlphaForge，Hackathon 版本范围保持 local/mock。合约、外部独立治理、部署与真实资金门禁均未因本阶段完成而改变。
