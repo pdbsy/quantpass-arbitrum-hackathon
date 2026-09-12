@@ -15,7 +15,13 @@ export interface RobinhoodChainConfig {
 
 function requireUrl(value: string | undefined, field: string): string {
   if (!value) throw new Error(`${field} is required`);
-  const url = new URL(value);
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    // Parser errors may carry the raw endpoint in an `input` property.
+    throw new Error(`${field} must be a valid HTTPS URL`);
+  }
   if (url.protocol !== 'https:') throw new Error(`${field} must use HTTPS`);
   if (url.username || url.password) throw new Error(`${field} must not contain credentials`);
   return url.toString().replace(/\/$/, '');
