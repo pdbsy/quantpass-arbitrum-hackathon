@@ -285,6 +285,16 @@ export function inspectEnvironment({ root = ROOT, mode = 'dev', environment = pr
     o.git = git(['--version'])
       .replace(/^git version /, '')
       .split(' ')[0];
+    const names = git(['config', '--name-only', '--list']).split('\n');
+    if (unsafeGitConfig(names)) {
+      o.overrides.push('git-config');
+      return evaluate(inputs, o, mode);
+    }
+    const grafts = git(['rev-parse', '--git-path', 'info/grafts']);
+    if (existsSync(resolve(root, grafts))) {
+      o.overrides.push('git-history');
+      return evaluate(inputs, o, mode);
+    }
     o.rootValid = realpathSync(git(['rev-parse', '--show-toplevel'])) === root;
     const origin = git(['remote', 'get-url', 'origin']);
     const expected = inputs.supply.repository;
