@@ -1,5 +1,13 @@
 # Management changelog
 
+## 2026-09-12 — Startup PR convergence verified
+
+- Macbeth merged #7 at 0f8cf4079f0f932e2acfd4e5ef76042e697364d1 after all seven exact-head checks passed; post-merge Linux, Windows and CodeQL passed.
+- The signed squash tree equals reviewed source 792c71ab8f0bad17cea5ee5f4baaa99a947df273. The exact master full local gate passed 232 tests after a stale local remote ref was refreshed; the initial environment failure remains recorded.
+- All startup PRs are processed: #1/#2/#5/#6/#7 merged and verified; #3/#4 retain closed/unmerged status. This follow-up updates the Dashboard and queue with those actual results.
+- No roadmap promotion, risk acceptance, external governance completion or historical authorship change.
+
+
 ## 2026-09-12 — Macbeth 全 PR 收敛阶段回读
 
 - 逐次实际合并 #1、#5、#2、#6；准确提交和各次 master 检查见 CURRENT-STATUS.md 与安全收敛记录。#3/#4 保留关闭。

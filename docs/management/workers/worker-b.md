@@ -2,12 +2,16 @@
 
 ## Current status
 
-- Current task: `ALL PR CONVERGENCE — PR #7 FINAL INTEGRATION`
-- Status: `IN_PROGRESS`
-- Branch: `macbeth/dashboard`
+- Current task: `STARTUP PR #1–#7 CONVERGENCE VERIFIED`
+- Status: `VERIFIED_DONE`
+- Branch: `macbeth/convergence-closeout`
 - Last known commit: `SELF`
-- Blocker: final combined evidence, Linux/Windows GitHub gates, normal PR #7 merge and exact master verification remain pending
-- Last activity: `2026-09-12T14:35:00+08:00`
+- Blocker: NONE within startup PR convergence; external governance and broader project acceptance remain separate
+- Last activity: `2026-09-12T15:06:00+08:00`
+
+## Completed startup PR stages — 2026-09-12
+
+Macbeth alone actually merged #1/#5/#2/#6/#7 and verified each precise master before the next merge. PR #7 master 0f8cf4079f0f932e2acfd4e5ef76042e697364d1 passed Linux, Windows, CodeQL and the local 232-test full gate after refreshing the stale local source ref. #3/#4 remain closed for compatibility. All existing authors and historical records are retained. The final record publication has its own gated PR lifecycle; VERIFIED_DONE here refers specifically to the already verified startup PR stages. No independent approval, external governance, deployment or roadmap completion is claimed.
 
 ## Current round activity — 2026-09-12
 
