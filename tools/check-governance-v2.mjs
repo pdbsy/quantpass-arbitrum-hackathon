@@ -1384,7 +1384,10 @@ function executeGit(args, env, allowFailure = false, operation = args.at(-1)) {
 
 function createGitContext(repositoryRoot) {
   try {
-    const expected = realpathSync(repositoryRoot);
+    // Windows native resolution normalizes case and short-name aliases using the
+    // filesystem. Keep exact equality: case folding could conflate distinct roots.
+    const canonicalPath = process.platform === 'win32' ? realpathSync.native : realpathSync;
+    const expected = canonicalPath(repositoryRoot);
     const env = sanitizedGitEnvironment();
     const discovery = executeGit(
       [
@@ -1405,13 +1408,13 @@ function createGitContext(repositoryRoot) {
       .split('\n');
     requireCondition(discovery.length === 4, 'Git provenance repository discovery is incomplete');
     const [topLevel, gitDirectory, isBare, isShallow] = discovery;
-    const actual = realpathSync(topLevel);
+    const actual = canonicalPath(topLevel);
     requireCondition(actual === expected, 'Git provenance repository root differs from the requested root');
     requireCondition(isBare === 'false', 'Git provenance repository must not be bare');
     requireCondition(isShallow === 'false', 'Git provenance repository must contain complete history');
     return Object.freeze({
       env: Object.freeze(env),
-      gitDirectory: realpathSync(gitDirectory),
+      gitDirectory: canonicalPath(gitDirectory),
       workTree: expected,
     });
   } catch (error) {

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isAlias, isMap, isScalar, isSeq, parseAllDocuments } from 'yaml';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const policyPath = resolve(root, 'planning/supply-chain-policy.json');
@@ -82,22 +83,15 @@ export function validateSupplyChainPolicy(policy) {
     'the external governance gate must remain mandatory',
   );
   requireCondition(
-    ['blocked', 'verified'].includes(policy.externalGovernanceGate?.status),
-    'external governance gate status must be blocked or verified',
+    policy.externalGovernanceGate?.status === 'blocked',
+    'external governance gate must remain blocked until an independently trusted verifier is implemented',
   );
-  if (policy.externalGovernanceGate.status === 'blocked') {
-    requireString(policy.externalGovernanceGate.blockedReason, 'externalGovernanceGate.blockedReason');
-    requireCondition(
-      policy.externalGovernanceGate.evidence?.length === 0,
-      'a blocked external gate cannot claim evidence',
-    );
-  } else {
-    requireCondition(
-      Array.isArray(policy.externalGovernanceGate.evidence) &&
-        policy.externalGovernanceGate.evidence.length >= 2,
-      'a verified external gate requires provider and enforcement evidence',
-    );
-  }
+  requireString(policy.externalGovernanceGate.blockedReason, 'externalGovernanceGate.blockedReason');
+  requireCondition(
+    Array.isArray(policy.externalGovernanceGate.evidence) &&
+      policy.externalGovernanceGate.evidence.length === 0,
+    'a blocked external gate requires an empty evidence array',
+  );
   requireCondition(policy.sbom?.format === 'SPDX-2.3', 'SBOM format must be SPDX-2.3');
   requireCondition(
     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(policy.sbom?.createdAt),
@@ -244,7 +238,7 @@ export function renderNpmSbom(lockfile, packageJson, policy) {
         {
           referenceCategory: 'PACKAGE-MANAGER',
           referenceType: 'purl',
-          referenceLocator: `pkg:npm/${encodeURIComponent(name)}@${encodeURIComponent(entry.version)}`,
+          referenceLocator: `pkg:npm/${name.split('/').map(encodeURIComponent).join('/')}@${encodeURIComponent(entry.version)}`,
         },
       ],
     })),
@@ -306,27 +300,224 @@ export function renderNpmSbom(lockfile, packageJson, policy) {
   )}\n`;
 }
 
-export function validateWorkflowText(path, text, policy) {
-  requireCondition(!/^\s*pull_request_target\s*:/m.test(text), `${path} uses pull_request_target`);
-  requireCondition(/^permissions:\s*$/m.test(text), `${path} must declare top-level permissions`);
-  const usesLines = text.match(/^\s*-?\s*uses:\s*[^\n#]+/gm) ?? [];
-  for (const line of usesLines) {
-    const match = /uses:\s*['"]?([^@'"\s]+)@([0-9a-f]{40})['"]?\s*$/.exec(line);
-    requireCondition(match, `${path} contains an unpinned or malformed Action reference: ${line.trim()}`);
-    const [, action, commit] = match;
-    requireCondition(/^[0-9a-f]{40}$/.test(commit), `${path} Action reference must use a full SHA`);
-    const owner = action.split('/')[0];
+// This is a restricted workflow policy, not a general GitHub Actions schema.
+// New workflows/jobs and privilege exceptions require an explicit reviewed change.
+const readContents = Object.freeze({ contents: 'read' });
+const workflowProfiles = new Map([
+  [
+    '.github/workflows/ci.yml',
+    {
+      events: ['push', 'pull_request', 'merge_group', 'workflow_dispatch'],
+      jobs: new Map([
+        ['verify', readContents],
+        ['verify-windows', readContents],
+      ]),
+    },
+  ],
+  [
+    '.github/workflows/dependency-review.yml',
+    {
+      events: ['pull_request'],
+      jobs: new Map([['dependency-review', readContents]]),
+    },
+  ],
+  [
+    '.github/workflows/codeql.yml',
+    {
+      events: ['push', 'pull_request', 'schedule', 'workflow_dispatch'],
+      jobs: new Map([['analyze', { contents: 'read', packages: 'read', 'security-events': 'write' }]]),
+    },
+  ],
+]);
+
+function requireMap(value, location) {
+  requireCondition(value instanceof Map, `${location} must be a mapping`);
+  return value;
+}
+
+function requireKeys(value, allowed, location) {
+  for (const key of value.keys()) {
+    requireCondition(allowed.includes(key), `${location} contains unsupported key ${key}`);
+  }
+}
+
+function parseWorkflow(path, text) {
+  requireCondition(
+    typeof text === 'string' && Buffer.byteLength(text, 'utf8') <= 256 * 1024,
+    `${path} is not bounded YAML text`,
+  );
+  let documents;
+  try {
+    documents = parseAllDocuments(text, {
+      version: '1.2',
+      schema: 'core',
+      strict: true,
+      uniqueKeys: true,
+      merge: false,
+      resolveKnownTags: false,
+      logLevel: 'silent',
+    });
+  } catch {
+    throw new Error(`Invalid supply-chain state: ${path} cannot be parsed as YAML`);
+  }
+  requireCondition(documents.length === 1, `${path} must contain one YAML document`);
+  const doc = documents[0];
+  requireCondition(
+    doc.errors.length === 0 && doc.warnings.length === 0,
+    `${path} has YAML errors or warnings`,
+  );
+  requireCondition(
+    !doc.directives.yaml.explicit &&
+      Object.entries(doc.directives.tags).every(
+        ([key, value]) => key === '!!' && value === 'tag:yaml.org,2002:',
+      ),
+    `${path} must not use YAML directives`,
+  );
+  const pending = [[doc.contents, 0]];
+  let nodes = 0;
+  while (pending.length > 0) {
+    const [node, depth] = pending.pop();
+    requireCondition(++nodes <= 10000 && depth <= 50, `${path} exceeds YAML structural limits`);
+    if (node === null) continue;
     requireCondition(
-      policy.actionPolicy.allowedOwners.includes(owner),
-      `${path} uses unapproved Action owner ${owner}`,
+      !isAlias(node) && !node.anchor && !node.tag,
+      `${path} must not use aliases, anchors or explicit tags`,
     );
+    if (isMap(node)) {
+      for (const pair of node.items) {
+        requireCondition(
+          isScalar(pair.key) &&
+            typeof pair.key.value === 'string' &&
+            pair.key.value.length > 0 &&
+            pair.key.value !== '<<',
+          `${path} requires non-empty string keys and forbids merge keys`,
+        );
+        pending.push([pair.key, depth + 1], [pair.value, depth + 1]);
+      }
+    } else if (isSeq(node)) {
+      for (const item of node.items) pending.push([item, depth + 1]);
+    } else {
+      requireCondition(isScalar(node), `${path} contains an unsupported YAML node`);
+    }
+  }
+  return requireMap(doc.toJS({ mapAsMap: true, maxAliasCount: 0 }), path);
+}
+
+function validatePermissions(value, ceiling, location) {
+  requireMap(value, location);
+  for (const [scope, access] of value) {
+    requireCondition(Object.hasOwn(ceiling, scope), `${location} uses unapproved permission scope ${scope}`);
     requireCondition(
-      policy.actionPolicy.allowedActions.includes(action),
-      `${path} uses unapproved Action ${action}`,
+      access === 'none' || access === ceiling[scope] || (ceiling[scope] === 'write' && access === 'read'),
+      `${location} exceeds the approved ${scope} permission`,
     );
   }
-  const declaredUses = (text.match(/\buses:/g) ?? []).length;
-  requireCondition(declaredUses === usesLines.length, `${path} contains an unrecognized uses declaration`);
+}
+
+function validateAction(reference, path, policy) {
+  const match = typeof reference === 'string' && /^([^@\s]+)@([0-9a-f]{40})$/.exec(reference);
+  requireCondition(match, `${path} contains an unpinned or malformed Action reference`);
+  const [, action] = match;
+  const owner = action.split('/')[0];
+  requireCondition(
+    policy.actionPolicy.allowedOwners.includes(owner),
+    `${path} uses unapproved Action owner ${owner}`,
+  );
+  requireCondition(
+    policy.actionPolicy.allowedActions.includes(action),
+    `${path} uses unapproved Action ${action}`,
+  );
+}
+
+export function validateWorkflowText(path, text, policy) {
+  const profile = workflowProfiles.get(path);
+  requireCondition(profile, `${path} has no approved workflow profile`);
+  const workflow = parseWorkflow(path, text);
+  requireKeys(
+    workflow,
+    ['name', 'run-name', 'on', 'permissions', 'env', 'defaults', 'concurrency', 'jobs'],
+    path,
+  );
+  const on = workflow.get('on');
+  const events = typeof on === 'string' ? [on] : on instanceof Map ? [...on.keys()] : on;
+  requireCondition(
+    Array.isArray(events) && events.length > 0,
+    `${path} must declare explicit workflow events`,
+  );
+  for (const event of events) {
+    requireCondition(event !== 'pull_request_target', `${path} uses pull_request_target`);
+    requireCondition(
+      typeof event === 'string' && profile.events.includes(event),
+      `${path} uses an unapproved workflow event`,
+    );
+  }
+  const permissions = workflow.get('permissions');
+  validatePermissions(permissions, readContents, `${path} workflow permissions`);
+  const jobs = requireMap(workflow.get('jobs'), `${path} jobs`);
+  requireCondition(jobs.size > 0, `${path} requires at least one job`);
+  for (const [jobId, value] of jobs) {
+    const ceiling = profile.jobs.get(jobId);
+    requireCondition(ceiling, `${path} contains unapproved job ${jobId}`);
+    const job = requireMap(value, `${path} job ${jobId}`);
+    requireKeys(
+      job,
+      [
+        'name',
+        'needs',
+        'if',
+        'runs-on',
+        'permissions',
+        'environment',
+        'concurrency',
+        'outputs',
+        'env',
+        'defaults',
+        'steps',
+        'timeout-minutes',
+        'continue-on-error',
+        'strategy',
+        'container',
+        'services',
+      ],
+      `${path} job ${jobId}`,
+    );
+    validatePermissions(
+      job.has('permissions') ? job.get('permissions') : permissions,
+      ceiling,
+      `${path} job ${jobId} permissions`,
+    );
+    const steps = job.get('steps');
+    requireCondition(
+      Array.isArray(steps) && steps.length > 0,
+      `${path} job ${jobId} requires explicit steps; reusable workflows are not approved`,
+    );
+    for (const step of steps) {
+      requireMap(step, `${path} job ${jobId} step`);
+      requireKeys(
+        step,
+        [
+          'name',
+          'id',
+          'if',
+          'run',
+          'uses',
+          'with',
+          'env',
+          'shell',
+          'working-directory',
+          'continue-on-error',
+          'timeout-minutes',
+        ],
+        `${path} job ${jobId} step`,
+      );
+      requireCondition(
+        step.has('uses') !== step.has('run'),
+        `${path} step must declare exactly one of uses or run`,
+      );
+      if (step.has('uses')) validateAction(step.get('uses'), path, policy);
+      else requireCondition(typeof step.get('run') === 'string', `${path} run must be text`);
+    }
+  }
 }
 
 function validateDependabot(text, policy) {

@@ -214,3 +214,7 @@
 - Unresolved: any present-day host cleanup is a separate owner-controlled, privately evidenced action
 - Decision: publish only project impact; omit workstation identity, topology, paths, key metadata, fingerprints, package inventory, and exact host configuration
 - Commit: `SELF` — resolve from Git history after the remediation commit
+
+## 2026-09-12 — PR #6 public-record minimization
+
+The merged PR #6 retained the original B1 attribution and outcome while removing operational host details from the public tree. Earlier source history remains intact; current host posture is not attested. This integration preserves all Dashboard and historical Worker B records.

@@ -22,8 +22,8 @@ access-controlled record with an explicit retention period.
   transaction authority was found in the reviewed repository material.
 - Current workstation and remote-access state is intentionally `NOT_ATTESTED_PUBLICLY`.
 - Repository automation must reject a newly committed combinable host/remote-access profile.
-- The PR source branch is rebuilt from its reviewed base so the old detail is absent from the
-  advertised PR lineage, and current public records omit descendant object identifiers.
+- This normal follow-up minimizes the current tree. Earlier public commits remain in source
+  history; this round does not rewrite or erase them.
 - GitHub caches, dangling objects, forks, and third-party clones may still retain earlier
   non-secret operational metadata; no history rewrite can recall those copies. Provider-side
   purge remains a separate owner decision because no usable credential was identified.

@@ -1,8 +1,8 @@
 # SUPPLY-001 security diff checkpoint
 
-Status: **completed with partial independent-review coverage**
+Status: **historical scan completed; independent corroboration unavailable**
 
-This checkpoint records a historical security review of an earlier supply-chain implementation revision. Its immutable target predates the current `master` and does not cover PR #7 or the current base. It is evidence of work performed, not an approval to accept `SUPPLY-001`, release, deploy contracts, or enable Robinhood Chain Testnet writes.
+This checkpoint records the security review of the supply-chain implementation before merge. It is evidence of work performed, not an approval to merge, deploy contracts or enable Robinhood Chain Testnet writes.
 
 ## Immutable target
 
@@ -35,7 +35,12 @@ These defects were reproduced against `tools/check-supply-chain.mjs`. They were 
 
 An additional SBOM interoperability question remains: scoped npm PURLs currently percent-encode the namespace/name separator. No in-repository security consumer depends on those PURLs, so the scan treated this as a non-reportable format-hardening item.
 
-## Required follow-up before SUPPLY-001 acceptance or release
+## Required follow-up before merge
+
+These requirements describe the reviewed historical head above, not a claim that its
+defects remain in every later revision. Their remediation and remaining verification
+requirements are tracked in [SUPPLY-FIX-2026-09-08.md](SUPPLY-FIX-2026-09-08.md).
+The original scan identity, results and artifact digests below remain unchanged.
 
 - Replace security-sensitive workflow regex matching with a structural, fail-closed YAML inspection path or an equivalently complete restricted parser.
 - Define per-workflow and per-job permission allowlists and reject every unapproved write scope.
