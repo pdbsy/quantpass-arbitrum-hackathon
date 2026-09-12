@@ -5747,36 +5747,10 @@
   ],
   "additional_discovery": {
     "candidate_checkouts": 18,
-    "searched_scopes": [
-      "project documents",
-      "downloads",
-      "registered Codex worktrees"
-    ],
+    "searched_scopes": ["project documents", "downloads", "registered Codex worktrees"],
     "maximum_directory_depth": 5,
-    "source_prs": [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10
-    ],
-    "target_prs_before_migration": [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10
-    ],
+    "source_prs": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    "target_prs_before_migration": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     "source_stash_count": 0,
     "stale_worktree_registration": {
       "head": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
