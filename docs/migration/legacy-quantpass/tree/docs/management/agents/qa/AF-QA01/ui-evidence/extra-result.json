@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "browser": "152.0.7977.83",
+  "checks": [
+    "Controlled normal request delay shows PENDING and disables new commands; exact six-decimal value persists",
+    "Controlled refresh delay visibly shows LOADING then READY",
+    "Actual server process stop/new PID with same SQLite invalidates session, clears private view, and restores exact ledger and audit receipt after explicit login",
+    "Actual browser back/forward retains marketplace and selected API strategy route",
+    "Actual unreadable/malformed cooldown startup is DISCONNECTED; storage recovery restores exact pending request without a command POST",
+    "CSP and no-referrer headers retained; session cookie not JavaScript-readable; no credential-like localStorage keys or page errors in this normal flow"
+  ]
+}

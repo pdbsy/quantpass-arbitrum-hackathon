@@ -1,0 +1,28 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "../.checks/af-chain01/out"
+cache_path = "../.checks/af-chain01/cache"
+libs = ["node_modules"]
+remappings = ["@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/"]
+auto_detect_remappings = false
+solc = "../.checks/af-chain01/toolchain/bin/solc"
+auto_detect_solc = false
+offline = true
+evm_version = "paris"
+optimizer = false
+via_ir = false
+bytecode_hash = "none"
+cbor_metadata = false
+ffi = false
+fs_permissions = []
+
+[profile.default.fuzz]
+runs = 256
+seed = "0x04"
+
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = true

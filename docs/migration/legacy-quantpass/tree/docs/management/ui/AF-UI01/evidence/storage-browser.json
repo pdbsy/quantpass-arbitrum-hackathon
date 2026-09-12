@@ -1,0 +1,7 @@
+{
+  "status": "PASSED",
+  "checks": [
+    "unreadable: visible DISCONNECTED, blocked commands, refresh restores exact PENDING, zero command POSTs/pageerrors",
+    "malformed: visible DISCONNECTED, blocked commands, refresh restores exact PENDING, zero command POSTs/pageerrors"
+  ]
+}

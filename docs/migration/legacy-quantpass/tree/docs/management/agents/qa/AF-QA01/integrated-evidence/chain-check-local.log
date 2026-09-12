@@ -1,0 +1,35 @@
+forge Version: 1.5.1-v1.5.1
+Commit SHA: b0a9dd9ceda36f63e2326ce530c10e6916f4b8a2
+Build Timestamp: 2025-12-19T14:10:53.027269000Z (1766153453)
+Build Profile: maxperf
+solc, the solidity compiler commandline interface
+Version: 0.8.31+commit.fd3a2265.Darwin.appleclang
+Slither 0.11.3
+Compiling 12 files with Solc 0.8.31
+Solc 0.8.31 finished in 61.62ms
+Compiler run successful!
+Compiling 12 files with Solc 0.8.31
+Solc 0.8.31 finished in 61.58ms
+Compiler run successful!
+
+Ran 17 tests for test/VaultIntentPreview.t.sol:VaultIntentPreviewTest
+[PASS] testFuzz_BindsAmount((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 38711, ~: 38782)
+[PASS] testFuzz_BindsAssetId((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 39209, ~: 39243)
+[PASS] testFuzz_BindsAuthorizationEpoch((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 38755, ~: 38826)
+[PASS] testFuzz_BindsCommandId((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 39215, ~: 39243)
+[PASS] testFuzz_BindsCommandType((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 39236, ~: 39265)
+[PASS] testFuzz_BindsDeadline((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 38733, ~: 38804)
+[PASS] testFuzz_BindsDecimals((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 38795, ~: 38866)
+[PASS] testFuzz_BindsExpectedRevision((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 38755, ~: 38826)
+[PASS] testFuzz_BindsNonce((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 38732, ~: 38803)
+[PASS] testFuzz_BindsOwnerId((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 39253, ~: 39287)
+[PASS] testFuzz_BindsPolicyHash((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 38768, ~: 38839)
+[PASS] testFuzz_BindsStrategyId((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 39213, ~: 39242)
+[PASS] testFuzz_BindsVaultId((string,string,string,string,string,string,uint8,uint256,uint256,uint256,uint256,uint256,bytes32)) (runs: 256, μ: 39235, ~: 39266)
+[PASS] test_BindsCurrentChainAfterChainChange() (gas: 35329)
+[PASS] test_BindsVerifyingContract() (gas: 838554)
+[PASS] test_MatchesIndependentEip712Vector() (gas: 33768)
+[PASS] test_RejectsOrdinaryEtherTransfer() (gas: 15595)
+Suite result: ok. 17 passed; 0 failed; 0 skipped; finished in 67.21ms (539.98ms CPU time)
+
+Ran 1 test suite in 68.06ms (67.21ms CPU time): 17 tests passed, 0 failed, 0 skipped (17 total tests)

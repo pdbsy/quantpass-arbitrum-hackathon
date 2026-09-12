@@ -1,0 +1,9 @@
+{
+  "status": "PASSED",
+  "browser": "152.0.7977.83",
+  "checks": [
+    "Canonical marketplace search, no-match empty state, status and TEST_ONLY filters preserve catalogue association",
+    "During active command a Bob switch is refused BUSY with Alice session retained; after response loss Bob cannot see/retry Alice pending, switching back recovers exact original without duplicate funds",
+    "Full reload on home, marketplace, API detail/workspace, account and original fixture route retains route, identity, vault and exact funds"
+  ]
+}

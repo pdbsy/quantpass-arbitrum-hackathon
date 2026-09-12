@@ -1,0 +1,15 @@
+{
+  "status": "PASSED",
+  "checks": [
+    "Homepage -> Marketplace -> API detail -> test Pass: 1000 access, zero funds",
+    "All thirteen command types exercised; stop stayed stopping until settlement; 1600 simulated units withdrawn exactly",
+    "Reload persistence and Alice/Bob account isolation",
+    "Lost POST response + page reload + exact original retry does not duplicate deposit",
+    "Concurrent revision conflict preserves the reviewed payload, makes no extra deposit, and requires explicit refresh/dismissal",
+    "Offline read is visibly stale/disconnected and disables monetary writes until successful refresh",
+    "Over-precision amount shows ERROR before confirmation and cannot reach the ledger",
+    "Insufficient-idle domain rejection is visibly rejected with no success claim or balance change",
+    "Canonical v1 catalogue/account/all-vault views expose both separately associated strategies; satellite deposit cannot alter core funds",
+    "Original six strategy pages and all account sections preserved; mobile pages no horizontal overflow; fixture market unchanged; no page/CSP errors"
+  ]
+}

@@ -1,0 +1,6 @@
+PASS F01 canonical empty/claimed multi-strategy account and Pass units
+PASS F02 exact pending shape, stopping has no STOP item, terminal operations removed
+PASS F03 ordinary canonical and legacy missing-resource errors use frozen codes
+PASS Q01 canonical audit default 50/continuation/order vs legacy default 100 on 51 events
+PASS Q01 canonical collections, limit bounds, opaque cursor roundtrip and legacy arrays
+RESULT 5 independent QA groups passed; Integrated SHA c22cfdf59ee120d7d8c5a75edc79ce97418435c7

@@ -1,0 +1,3 @@
+# Migrated Wave 1 product API
+
+Canonical source is pdbsy/quantpass-arbitrum-hackathon. Product routes/catalog/owner mappings are imported from AF-BE01; target legacy and canonical errors both retain the exact `{error}` response body. The target statistics read port and domain/storage rules remain authoritative. [Historical API design](../migration/legacy-quantpass/tree/docs/api/AF-BE01-product-api.md) and [fixtures](fixtures/AF-BE01.json) record the source; archived richer error examples are historical, not the target response contract. Tests in test/product-api.test.ts and the unchanged target server/HTTP tests define current behavior. This is a local/mock ledger, with no chain writes.

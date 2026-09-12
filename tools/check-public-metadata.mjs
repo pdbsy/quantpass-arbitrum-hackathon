@@ -168,7 +168,7 @@ function codeStringContainsHostIdentity(value) {
 }
 
 const sshFingerprintPattern = new RegExp(
-  `(?:\\bSHA256:[A-Za-z0-9+/]{32,}={0,2}(?=$|[\\s,;}"'])|\\bMD5:(?:[a-f0-9]{2}:){15}[a-f0-9]{2}(?=$|[\\s,;}"']))`,
+  `(?:\\bSHA256:[A-Za-z0-9+/]{43}=?(?=$|[\\s,;}"'])|\\bMD5:(?:[a-f0-9]{2}:){15}[a-f0-9]{2}(?=$|[\\s,;}"']))`,
   'i',
 );
 const sshPublicKeyAlgorithmPattern = [

@@ -1,0 +1,27 @@
+
+> quantpass@0.1.0 build
+> npm run build:board && npm run build:web && node tools/build-manifest.mjs
+
+
+> quantpass@0.1.0 build:board
+> node tools/build-module-board.mjs
+
+Generated docs/module-board.html: 17 modules, 69 tasks
+
+> quantpass@0.1.0 build:web
+> npm run import:ui && vite build apps/web --config apps/web/vite.config.ts
+
+
+> quantpass@0.1.0 import:ui
+> node tools/import-user-ui.mjs
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 8 modules transformed.
+rendering chunks...
+computing gzip size...
+apps/web/dist/index.html                 6.20 kB │ gzip:  2.68 kB
+apps/web/dist/assets/index-CpX8YuZJ.js  34.62 kB │ gzip: 10.84 kB
+
+✓ built in 30ms
+Recorded .artifacts/build-manifest.json; this is not a production release artifact.

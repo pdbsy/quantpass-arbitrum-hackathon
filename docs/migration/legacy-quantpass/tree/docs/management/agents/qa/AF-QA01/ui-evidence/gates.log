@@ -1,0 +1,11 @@
+
+> quantpass@0.1.0 verify:gates
+> node tools/verify-gates.mjs
+
+Verified rejection: TypeScript type error
+Verified rejection: failing test
+Verified rejection: production using mock
+Verified rejection: production NODE_ENV
+Verified rejection: missing explicit mode
+Verified synthetic token detection (no real credential used).
+Fault fixtures retained under .checks/ for inspection; excluded from normal source checks.

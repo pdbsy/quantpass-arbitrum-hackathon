@@ -10,3 +10,6 @@ dist
 build
 outputs
 work
+
+# Historical evidence keeps original formatting after explicit privacy redaction.
+docs/migration/legacy-quantpass/tree/

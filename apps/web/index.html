@@ -1,13 +1,50 @@
 <!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#163e32" />
-    <title>AlphaForge · 本地资金工作台</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f5f0e5"><meta name="description" content="AlphaForge independent strategy workshop. Six-page English prototype with rankings, Pass trading and independent strategy performance charts. Doodle CSS, local sample data, no wallets or real trades.">
+<title>AlphaForge — Independent Strategy Workshop</title>
+<link rel="stylesheet" href="/user-ui.css">
+<!-- MIT License
+
+Copyright (c) 2021 Chris McCormick <https://mccormick.cx>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
+</head>
+<body class="doodle">
+<a class="skip" href="#main">Skip to main content</a>
+<svg aria-hidden="true" data-user-style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="i-arrow" viewbox="0 0 24 24"><path d="M5 19 19 5M5 5h14v14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"></path></symbol>
+<symbol id="i-star" viewbox="0 0 24 24"><path d="m12 3 2.6 5.8 6.3.7-4.7 4.3 1.3 6.2-5.5-3.1-5.5 3.1 1.3-6.2L3.1 9.5l6.3-.7z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.4"></path></symbol>
+<symbol id="i-search" viewbox="0 0 24 24"><circle cx="10.3" cy="10.3" fill="none" r="6.4" stroke="currentColor" stroke-width="1.6"></circle><path d="m15.4 15.5 5 5" stroke="currentColor" stroke-linecap="round" stroke-width="1.6"></path></symbol>
+<symbol id="i-forge" viewbox="0 0 48 58"><path d="m23 3 7 15-7 9-8-9zM5 32h38l-8 9H15zm12 9h15l3 10H13z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2.2"></path><path d="M3 16 8 20m32 0 5-4M23 1v-1M9 52h30" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path></symbol>
+<symbol id="i-spark" viewbox="0 0 100 100"><path d="m50 3 6 30 21-22-13 28 31-5-27 16 29 10-31 2 18 26-28-17-6 27-6-29-23 23 12-30-30 5 27-17L3 41l31-2-20-24 29 16z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"></path><circle cx="49" cy="50" fill="none" r="10" stroke="currentColor" stroke-width="1.5"></circle></symbol>
+<symbol id="i-lock" viewbox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.5"></path><path d="M12 14v3" stroke="currentColor" stroke-width="1.5"></path></symbol>
+</defs></svg>
+<header class="wrap" id="site-header"><div class="topline"><span>INDEPENDENT STRATEGY WORKSHOP <span class="long-label">/ IDEAS INTO ACCESS</span></span><span class="topline-status"><i class="status-dot" aria-hidden="true"></i>Local prototype · No real funds</span></div>
+<nav class="nav" aria-label="Main navigation"><a class="brand" href="#/home" aria-label="AlphaForge home"><svg class="brand-symbol" aria-hidden="true"><use href="#i-forge"></use></svg>AlphaForge</a><div class="nav-center" id="nav-links"><a class="nav-link" href="#/home" data-nav="home">Home</a><a class="nav-link" href="#/market" data-nav="market">Strategy Market</a><a class="nav-link" href="#/rankings" data-nav="rankings">Rankings</a><a class="nav-link" href="#/forum" data-nav="forum">Forum</a><a class="nav-link" href="#/trade/trend" data-nav="trade">Trade</a></div><div class="nav-right"><a class="outline-btn" href="#/account/trades" data-nav="account"><span class="account-full">My Account</span><span class="account-short">Account</span><span class="arrow" aria-hidden="true">↗</span></a><button class="menu-toggle" aria-label="Expand navigation" aria-expanded="false" aria-controls="nav-links"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7q8 1 18 0M3 16q9-1 18 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div></nav><div id="storage-warning" role="status"></div></header>
+<main id="main" tabindex="-1"></main>
+<noscript><div class="wrap"><p>This interactive prototype requires JavaScript. It runs locally without network or trading requests.</p></div></noscript>
+<footer class="footer"><div class="wrap"><div class="footer-upper"><p class="footer-message">Give good ideas<br>a chance to be used.</p><div class="footer-links"><a href="#/market">Explore strategies</a><a href="#/rankings">Workshop Rankings</a><a href="#/forum">Open Notebook</a><button data-action="design">Design & scope</button><a href="#/account/settings">Local settings</a></div></div><div class="footer-brand"><span>AlphaForge</span><svg class="footer-mark" aria-hidden="true"><use href="#i-spark"></use></svg></div><div class="footer-bottom"><span>English prototype · All content and funds are demo fixtures · No wallet connection</span><span class="mono">BUILT AROUND IDEAS. NOT HYPE. / V.03 EN</span></div></div></footer>
+<dialog id="app-dialog" aria-labelledby="dialog-title"><button id="close-dialog" class="icon-close" aria-label="Close dialog">×</button><div id="dialog-body"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<script src="/user-ui.js"></script>
+<script type="module" src="/src/product-ui.ts"></script>
+</body></html>

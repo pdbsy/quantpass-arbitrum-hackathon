@@ -1,0 +1,55 @@
+{
+  "task": "AF-CHAIN01",
+  "agent": "Macbeth04",
+  "baseSha": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+  "interfaceContractSha": "73230c43e464cd1b579fa16a6425756291ef9e8e",
+  "scope": "TEST_ONLY",
+  "testnetWrites": "CLOSED",
+  "platform": "Darwin arm64",
+  "compiler": "0.8.31+commit.fd3a2265.Darwin.appleclang",
+  "forge": "1.5.1-v1.5.1",
+  "slither": {
+    "analysisCompleted": true,
+    "projectFindings": 1,
+    "projectInformational": 1,
+    "pedanticExitCode": 255,
+    "independentReview": "PENDING Macbeth05"
+  },
+  "tddRed": {
+    "exitCode": 1,
+    "passed": 1,
+    "failed": 16,
+    "cause": "Zero digest stub failed field/domain/reference assertions"
+  },
+  "forgeBuild": "PASSED",
+  "forgeFmt": "PASSED",
+  "forgeTest": {
+    "passed": 17,
+    "failed": 0,
+    "fuzzTests": 13,
+    "runsPerFuzzTest": 256,
+    "seed": "0x04"
+  },
+  "rootCheck": "PASSED",
+  "rootTests": {
+    "passed": 57,
+    "failed": 0
+  },
+  "notRun": [
+    "Other platforms",
+    "Independent build provenance verification",
+    "Transitive dependency vulnerability/license audit",
+    "Network/RPC, signing, transaction broadcast and deployment",
+    "Full custody Vault implementation and authorization verification"
+  ],
+  "sha256": {
+    "contracts/foundry.toml": "afe88b8c4def38d57532ed352d8d92c283ae39a7192b42af8fb9df8116035a31",
+    "contracts/src/VaultIntentPreview.sol": "3e94065e58fd5ef244c0dced559717ee3d2439984b6f90a27028630f95d68b91",
+    "contracts/test/VaultIntentPreview.t.sol": "634ae3e05019f2a06952231f08ccc8445e80aefe95c0365711b28301a2075c85",
+    "contracts/test/intent-vector.json": "ebcb08539faaa98d9b5c6c0e46c79130d4f76f6daf4f28bc3ae5fc7b7373eed2",
+    "contracts/script/bootstrap.py": "938cea8dcf922a779a5b23c1632133b082ab49816d527c22ed7727bc07c65b8f",
+    "contracts/script/check-local.sh": "360464a57d2dfd3cd2126647efd0c72bade819dcf43f1ae3e0fa2be3a5105b91",
+    "contracts/toolchain.lock.json": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338",
+    "contracts/requirements-slither.lock": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f"
+  }
+}

@@ -27,6 +27,16 @@ const unitTests = [
   'test/environment.test.mjs',
   'test/environment-git.test.mjs',
   'test/environment-ci.test.mjs',
+  'test/product-api.test.ts',
+  'test/ui-product-client.test.ts',
+  'test/ui-product-adapter.test.ts',
+  'test/ui-import.test.mjs',
+  'test/hackathon-ui-build.test.mjs',
+  'test/agent-management.test.mjs',
+  'test/agent-tooling.test.mjs',
+  'test/agent-security-regressions.test.mjs',
+  'test/agent-identity-bypass.test.mjs',
+  'test/migration-provenance.test.mjs',
 ];
 
 function executable(id, file, args, timeoutMs, profiles = ['quick', 'full']) {

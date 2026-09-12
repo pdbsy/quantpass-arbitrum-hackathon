@@ -3,21 +3,28 @@ import cookie from '@fastify/cookie';
 import staticFiles from '@fastify/static';
 import { randomBytes } from 'node:crypto';
 import { readConfig } from '../../../packages/config/src/index.ts';
-import { DomainError, type VaultState, type Command } from '../../../packages/domain/src/vault.ts';
-import { localSimulation, SIMULATION_STATISTICS } from './simulation.ts';
+import { DomainError, type Command } from '../../../packages/domain/src/vault.ts';
+import { localSimulation } from './simulation.ts';
 import { LocalStore } from './store.ts';
+import { unsigned } from '../../../packages/domain/src/money.ts';
+import { STRATEGIES, strategyDetail } from './strategy-catalog.ts';
+import { apiError } from './api-errors.ts';
+import { view, accountView } from './product-views.ts';
 
-export const STRATEGIES = [
-  {
-    id: 'core-flow-demo',
-    name: '核心资金流程样例',
-    description: '验证 SaaS 额度与独立余额，不运行真实量化交易。',
-    scope: 'TEST_ONLY',
-    testPasses: '1000',
-  },
-];
-const idSchema = { type: 'string', pattern: '^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$', maxLength: 80 };
-const amountSchema = { type: 'string', pattern: '^(0|[1-9][0-9]{0,77})$', maxLength: 78 };
+import { registerProductRoutes } from './product-routes.ts';
+import { idSchema, amountSchema, limitSchema } from './api-schema.ts';
+
+export { STRATEGIES } from './strategy-catalog.ts';
+const errorBody = (_request: FastifyRequest, code: string) => {
+  const { body } = apiError(code);
+  return { error: body.error };
+};
+type PageQuery = { limit?: string; after?: string };
+const pageSchema = (extra: Record<string, unknown> = {}) => ({
+  type: 'object',
+  additionalProperties: false,
+  properties: { limit: limitSchema, after: idSchema, ...extra },
+});
 const base = { id: idSchema, expectedRevision: { type: 'integer', minimum: 0, maximum: 10000 } };
 const shape = (types: string[], fields: Record<string, unknown> = {}) => ({
   type: 'object',
@@ -36,28 +43,7 @@ const commandSchema = {
     shape(['settlePosition'], { proceeds: amountSchema }),
   ],
 };
-export function view(state: VaultState) {
-  return {
-    scope: state.scope,
-    id: state.id,
-    ownerId: state.ownerId,
-    strategyId: state.strategyId,
-    passes: state.passes,
-    status: state.status,
-    revision: state.revision,
-    idle: state.idle,
-    activeCash: state.activeCash,
-    positionCost: state.positionCost,
-    positionValue: state.positionValue,
-    feeLiability: state.feeLiability,
-    withdrawalsPaid: state.withdrawalsPaid,
-    orders: state.orders,
-    pendingWithdrawals: state.pendingWithdrawals,
-    balances: Object.fromEntries(
-      Object.entries(SIMULATION_STATISTICS.snapshot(state)).map(([key, value]) => [key, value.toString()]),
-    ),
-  };
-}
+export { view } from './product-views.ts';
 export async function buildApp(options: {
   dbPath: string;
   env: Readonly<Record<string, string | undefined>>;
@@ -97,39 +83,34 @@ export async function buildApp(options: {
       'Content-Security-Policy',
       "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
     );
-    if (request.headers.host !== origin.host) return reply.code(403).send({ error: 'HOST_REJECTED' });
+    if (request.headers.host !== origin.host)
+      return reply.code(403).send(errorBody(request, 'HOST_REJECTED'));
     if (request.headers.origin && request.headers.origin !== origin.origin)
-      return reply.code(403).send({ error: 'ORIGIN_REJECTED' });
+      return reply.code(403).send(errorBody(request, 'ORIGIN_REJECTED'));
     if (request.headers['sec-fetch-site'] === 'cross-site')
-      return reply.code(403).send({ error: 'CROSS_SITE_REJECTED' });
+      return reply.code(403).send(errorBody(request, 'CROSS_SITE_REJECTED'));
     if (!['GET', 'HEAD'].includes(request.method) && request.headers['x-quantpass-demo'] !== '1')
-      return reply.code(403).send({ error: 'DEMO_HEADER_REQUIRED' });
+      return reply.code(403).send(errorBody(request, 'DEMO_HEADER_REQUIRED'));
     const now = Date.now();
     let counter = rate.get(request.ip);
     if (!counter || counter.expires < now) {
       counter = { count: 0, expires: now + 60000 };
       rate.set(request.ip, counter);
     }
-    if (++counter.count > 500) return reply.code(429).send({ error: 'RATE_LIMITED' });
+    if (++counter.count > 500)
+      return reply.code(429).header('Retry-After', '60').send(errorBody(request, 'RATE_LIMITED'));
   });
-  app.setErrorHandler((error, _request, reply) => {
-    if (error instanceof DomainError)
-      return reply
-        .code(
-          error.code === 'SESSION_REQUIRED'
-            ? 401
-            : error.code === 'VAULT_NOT_FOUND'
-              ? 404
-              : error.code === 'FORBIDDEN'
-                ? 403
-                : 409,
-        )
-        .send({ error: error.code });
+  app.setErrorHandler((error, request, reply) => {
+    if (error instanceof DomainError) {
+      const response = apiError(error.code);
+      return reply.code(response.status).send(errorBody(request, error.code));
+    }
     const httpError = error as Partial<FastifyError>;
     if (httpError.validation || (httpError.statusCode && httpError.statusCode < 500))
-      return reply.code(httpError.statusCode || 400).send({ error: 'INVALID_REQUEST' });
-    return reply.code(500).send({ error: 'LOCAL_OPERATION_FAILED' });
+      return reply.code(httpError.statusCode || 400).send(errorBody(request, 'INVALID_REQUEST'));
+    return reply.code(500).send(errorBody(request, 'LOCAL_OPERATION_FAILED'));
   });
+  app.setNotFoundHandler((request, reply) => reply.code(404).send(errorBody(request, 'INVALID_REQUEST')));
   app.get('/api/health', async () => ({ scope: 'TEST_ONLY', ready: true, realFundsEnabled: false }));
   app.post<{ Body: { user: 'alice' | 'bob' } }>(
     '/api/demo/session',
@@ -161,52 +142,150 @@ export async function buildApp(options: {
     },
   );
   app.get('/api/session', async (request) => ({ scope: 'TEST_ONLY', user: session(request) }));
-  app.get('/api/strategies', async (request) => {
-    session(request);
-    return STRATEGIES;
-  });
-  app.get('/api/vaults', async (request) => store.list(session(request)).map(view));
-  app.post<{ Body: { strategyId: string } }>(
-    '/api/vaults',
+  app.get<{ Querystring: PageQuery }>(
+    '/api/strategies',
+    { schema: { querystring: pageSchema() } },
+    async (request, reply) => {
+      session(request);
+      const limit = Number(request.query.limit ?? '50');
+      const items = STRATEGIES.filter((strategy) => strategy.id > (request.query.after ?? '')).slice(
+        0,
+        limit + 1,
+      );
+      if (items.length > limit) reply.header('X-Next-Cursor', items[limit - 1]!.id);
+      reply.header('X-Page-Limit', limit);
+      return items.slice(0, limit);
+    },
+  );
+  app.get<{ Params: { strategyId: string } }>(
+    '/api/strategies/:strategyId',
     {
-      schema: {
-        body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['strategyId'],
-          properties: { strategyId: idSchema },
-        },
-      },
+      schema: { params: { type: 'object', required: ['strategyId'], properties: { strategyId: idSchema } } },
+    },
+    async (request) => {
+      session(request);
+      const strategy = strategyDetail(request.params.strategyId);
+      if (!strategy) throw new DomainError('UNKNOWN_STRATEGY');
+      return strategy;
+    },
+  );
+  app.get<{ Params: { strategyId: string } }>(
+    '/api/strategies/:strategyId/vault',
+    {
+      schema: { params: { type: 'object', required: ['strategyId'], properties: { strategyId: idSchema } } },
     },
     async (request) => {
       const owner = session(request);
-      if (!STRATEGIES.some((s) => s.id === request.body.strategyId))
-        throw new DomainError('UNKNOWN_STRATEGY');
-      return view(store.obtainTestPasses(owner, request.body.strategyId));
+      if (!strategyDetail(request.params.strategyId)) throw new DomainError('UNKNOWN_STRATEGY');
+      return view(store.forStrategy(owner, request.params.strategyId));
     },
   );
+  app.get<{ Querystring: PageQuery & { strategyId?: string } }>(
+    '/api/vaults',
+    { schema: { querystring: pageSchema({ strategyId: idSchema }) } },
+    async (request, reply) => {
+      const owner = session(request);
+      const { limit = '50', ...query } = request.query;
+      // The original UI treats states[0] as core-flow-demo. Keep its default binding.
+      // New clients use /api/account or explicitly filter by strategyId.
+      const page = store.listPage(owner, { strategyId: 'core-flow-demo', ...query, limit: Number(limit) });
+      reply.header('X-Page-Limit', limit);
+      if (page.nextCursor) reply.header('X-Next-Cursor', page.nextCursor);
+      return page.items.map(view);
+    },
+  );
+  app.get<{ Querystring: PageQuery }>(
+    '/api/account',
+    { schema: { querystring: pageSchema() } },
+    async (request) => {
+      const owner = session(request);
+      const { limit = '50', ...query } = request.query;
+      // One read transaction makes global totals and the page agree even with another connection writing.
+      store.db.exec('BEGIN');
+      try {
+        const page = store.listPage(owner, { ...query, limit: Number(limit) });
+        const result = accountView(owner, store.owned(owner), page, Number(limit));
+        store.db.exec('COMMIT');
+        return result;
+      } catch (error) {
+        if (store.db.isTransaction) store.db.exec('ROLLBACK');
+        throw error;
+      }
+    },
+  );
+  for (const url of ['/api/vaults', '/api/v1/vaults'])
+    app.post<{ Body: { strategyId: string } }>(
+      url,
+      {
+        schema: {
+          body: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['strategyId'],
+            properties: { strategyId: idSchema },
+          },
+        },
+      },
+      async (request) => {
+        const owner = session(request);
+        if (!STRATEGIES.some((s) => s.id === request.body.strategyId))
+          throw new DomainError('UNKNOWN_STRATEGY');
+        return view(store.obtainTestPasses(owner, request.body.strategyId));
+      },
+    );
   app.get<{ Params: { id: string } }>(
     '/api/vaults/:id',
     { schema: { params: { type: 'object', required: ['id'], properties: { id: idSchema } } } },
     async (request) => view(store.get(request.params.id, session(request))),
   );
-  app.get<{ Params: { id: string } }>('/api/vaults/:id/audit', async (request) =>
-    simulation.indexer.events(session(request), request.params.id),
-  );
-  app.post<{ Params: { id: string }; Body: Command }>(
-    '/api/vaults/:id/commands',
+  app.get<{ Params: { id: string }; Querystring: { limit?: string; beforeRevision?: string } }>(
+    '/api/vaults/:id/audit',
     {
       schema: {
         params: { type: 'object', required: ['id'], properties: { id: idSchema } },
-        body: commandSchema,
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            limit: limitSchema,
+            beforeRevision: { type: 'string', pattern: '^([1-9][0-9]{0,3}|10000)$', maxLength: 5 },
+          },
+        },
       },
     },
-    async (request) => {
-      const owner = session(request);
-      const result = simulation.execution.submit(owner, request.params.id, request.body);
-      return { vault: view(result.state), replayed: result.replayed };
+    async (request, reply) => {
+      const limit = Number(request.query.limit ?? '100');
+      const page = store.auditPage(session(request), request.params.id, {
+        limit,
+        ...(request.query.beforeRevision ? { beforeRevision: Number(request.query.beforeRevision) } : {}),
+      });
+      reply.header('X-Page-Limit', limit);
+      if (page.nextCursor) reply.header('X-Next-Cursor', page.nextCursor);
+      return page.items;
     },
   );
+  for (const url of ['/api/vaults/:id/commands', '/api/v1/vaults/:id/commands'])
+    app.post<{ Params: { id: string }; Body: Command }>(
+      url,
+      {
+        schema: {
+          params: { type: 'object', required: ['id'], properties: { id: idSchema } },
+          body: commandSchema,
+        },
+      },
+      async (request) => {
+        const owner = session(request);
+        try {
+          for (const field of ['amount', 'value', 'proceeds'] as const)
+            if (field in request.body) unsigned((request.body as unknown as Record<string, string>)[field]!);
+        } catch {
+          throw new DomainError('INVALID_REQUEST');
+        }
+        const result = simulation.execution.submit(owner, request.params.id, request.body);
+        return { vault: view(result.state), replayed: result.replayed };
+      },
+    );
+  registerProductRoutes(app, store, session);
   if (options.webRoot)
     await app.register(staticFiles, {
       root: options.webRoot,
