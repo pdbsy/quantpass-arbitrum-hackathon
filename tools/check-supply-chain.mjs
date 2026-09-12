@@ -153,6 +153,10 @@ export function validatePackageLock(lockfile, packageJson, policy) {
     canonicalJson(rootPackage.devDependencies ?? {}) === canonicalJson(packageJson.devDependencies ?? {}),
     'development dependencies differ between package.json and lockfile',
   );
+  requireCondition(
+    canonicalJson(rootPackage.engines) === canonicalJson(packageJson.engines),
+    'lockfile root engines differ from package.json',
+  );
   for (const [name, version] of exactRootVersions(rootPackage)) {
     requireCondition(
       /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(version),
@@ -311,6 +315,8 @@ const workflowProfiles = new Map([
       jobs: new Map([
         ['verify', readContents],
         ['verify-windows', readContents],
+        ['verify-macos', readContents],
+        ['verify-macos-intel', readContents],
       ]),
     },
   ],

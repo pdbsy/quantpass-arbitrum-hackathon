@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=24.12.0 <25",
-    "npm": ">=11.6.2 <12"
+    "node": "24.21.0",
+    "npm": "11.19.1"
   },
   "scripts": {
-    "test": "node --test test/security-model.test.ts test/engineering.test.ts test/robinhood-chain.test.ts test/governance.test.mjs test/supply-chain.test.mjs test/threat-model.test.mjs test/planning.test.mjs test/domain.test.ts test/server.test.ts test/http-e2e.test.ts test/web-messages.test.ts test/management-dashboard-schema.test.mjs test/management-dashboard-sources.test.mjs test/management-dashboard-checks.test.mjs test/management-dashboard-build.test.mjs test/management-dashboard-ui.test.mjs test/management-dashboard-server.test.mjs test/public-metadata.test.mjs",
+    "test": "node --test test/security-model.test.ts test/engineering.test.ts test/robinhood-chain.test.ts test/governance.test.mjs test/supply-chain.test.mjs test/threat-model.test.mjs test/planning.test.mjs test/domain.test.ts test/server.test.ts test/http-e2e.test.ts test/web-messages.test.ts test/management-dashboard-schema.test.mjs test/management-dashboard-sources.test.mjs test/management-dashboard-checks.test.mjs test/management-dashboard-build.test.mjs test/management-dashboard-ui.test.mjs test/management-dashboard-server.test.mjs test/public-metadata.test.mjs test/environment.test.mjs test/environment-git.test.mjs test/environment-ci.test.mjs",
     "typecheck": "tsc --noEmit && tsc --project apps/web/tsconfig.json",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write \"**/*.{js,mjs,ts,tsx,json,yml,yaml}\"",
@@ -35,7 +35,10 @@
     "demo": "npm run build:web && node --env-file=.env.example apps/server/src/main.ts",
     "demo:backup": "node --env-file=.env.example tools/backup-demo.ts",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run secrets:check && npm run privacy:check && npm run robinhood:check && npm run governance:check && npm run supply:check && npm run threats:check && npm run planning:check && npm run management:check && npm run build:web",
-    "audit:dependencies": "npm audit --audit-level=high"
+    "audit:dependencies": "npm audit --audit-level=high",
+    "env:check": "node tools/check-environment.mjs",
+    "env:check:ci": "node tools/check-environment.mjs --ci",
+    "verify:ci": "node tools/verify-ci.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -56,5 +59,6 @@
     "fastify": "5.12.3",
     "react": "19.2.8",
     "react-dom": "19.2.8"
-  }
+  },
+  "packageManager": "npm@11.19.1"
 }

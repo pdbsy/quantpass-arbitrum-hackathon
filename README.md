@@ -14,7 +14,7 @@ No contract is deployed yet and the application does not sign or submit transact
 
 ## Quick start
 
-Requirements: Node.js 24.12.x and npm 11.6.x.
+Requirements: exact Node from `.node-version` and exact npm from `package.json#packageManager`. Follow [the development toolchain specification](docs/DEVELOPMENT-TOOLCHAIN.md) and [current implementation status](docs/DEVELOPMENT-TOOLCHAIN-STATUS.md). macOS developers use fnm after authorized host setup. The offline `node tools/check-environment.mjs` admission check precedes dependency installation; CI uses `npm run verify:ci`.
 
 ```bash
 npm ci --ignore-scripts

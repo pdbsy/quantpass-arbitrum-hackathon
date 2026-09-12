@@ -2,12 +2,22 @@
 
 ## Current status
 
-- Current task: `STARTUP PR #1–#7 CONVERGENCE VERIFIED`
-- Status: `VERIFIED_DONE`
-- Branch: `macbeth/convergence-closeout`
+- Current task: `ENV-01–05 DEVELOPMENT TOOLCHAIN ALIGNMENT`
+- Status: `IN_PROGRESS`
+- Branch: `macbeth/env-01-toolchain`
 - Last known commit: `SELF`
-- Blocker: NONE within startup PR convergence; external governance and broader project acceptance remain separate
-- Last activity: `2026-09-12T15:06:00+08:00`
+- Blocker: Native CI, source-bound evidence, host fnm setup and user review remain pending; prior PR convergence stays verified
+- Last activity: `2026-09-12T16:25:00+08:00`
+
+## 2026-09-12T16:25:00+08:00 — Environment specification implementation
+
+- Task: `ENV-01`
+- Action: synchronized the supplied specification and implemented exact toolchain inputs, offline admission, isolated Git fixtures and four native CI jobs
+- Result: qualified Node/npm artifacts and a clean npm installation; full local 240-test regression passed
+- Tests: actual commands and remaining native CI evidence are recorded in DEVELOPMENT-TOOLCHAIN-STATUS.md and the toolchain PR
+- Unresolved: final source evidence, native hosted checks, fnm machine setup, protected required-check change and new PR merge approval
+- Decision: retain historical authors and keep environment alignment separate from external governance and chain capabilities
+- Commit: `SELF`
 
 ## Completed startup PR stages — 2026-09-12
 

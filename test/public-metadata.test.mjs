@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { fixtureExec as execFileSync } from './helpers/git-fixture.mjs';
 import { lstat, mkdtemp, mkdir, open, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
