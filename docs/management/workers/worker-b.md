@@ -12,7 +12,7 @@
 ## 2026-09-12T16:25:00+08:00 — Environment specification implementation
 
 - Task: `ENV-01`
-- Action: synchronized the supplied specification and implemented exact toolchain inputs, offline admission, isolated Git fixtures and four native CI jobs
+- Action: synchronized the supplied specification and implemented exact toolchain inputs, offline admission, isolated Git fixtures and three supported CI jobs
 - Result: qualified Node/npm artifacts and a clean npm installation; full local 240-test regression passed
 - Tests: actual commands and remaining native CI evidence are recorded in DEVELOPMENT-TOOLCHAIN-STATUS.md and the toolchain PR
 - Unresolved: final source evidence, native hosted checks, fnm machine setup, protected required-check change and new PR merge approval

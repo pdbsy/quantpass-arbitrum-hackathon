@@ -82,23 +82,3 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Verify environment, full source gates and unchanged checkout
         run: npm run verify:ci
-
-  verify-macos-intel:
-    runs-on: macos-15-intel
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
-      - name: Bootstrap exact npm in the ephemeral hosted toolchain
-        run: node tools/bootstrap-ci-npm.mjs
-      - name: Admit exact clean environment before dependency installation
-        run: node tools/check-environment.mjs --ci
-      - name: Install locked dependencies without lifecycle scripts
-        run: npm ci --ignore-scripts
-      - name: Verify environment, full source gates and unchanged checkout
-        run: npm run verify:ci

@@ -53,3 +53,5 @@ Files: development spec status addendum, qualification/security report, manageme
 Sections 1–9 map to scope, pins, policy, Git/input and host observations; 10–12 map to inspector/report/wrapper/native CI; 13–14 preserve local/mock and inactive future profiles; 15–17 map to identity-bound report and negative tests; 18–20 map to status/assignment/evidence and official citations. Repository implementation does not claim machine setup, independent governance or future chain profiles complete.
 
 Implementation names: `evaluate`, `inspectEnvironment`, `validateReport`, `writeReport`; native-package metadata is checked alongside runtime architecture. Full pre-freeze engineering execution reached the expected dirty-management-evidence rejection after all preceding checks passed. Frozen-source collection and native CI remain pending.
+
+User steering: Apple Silicon Mac and Windows only for development. Remove Intel macOS job/profile/admission; retain Linux CI/audit. Earlier four-platform plan entries are historical and superseded by this scope. Windows Git null-device compatibility remains required.

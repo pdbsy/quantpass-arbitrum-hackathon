@@ -38,9 +38,18 @@ npm 11.19.1 独立评估，其发布记录包含安装工具内部的 Undici、i
 - [npm 11.19.1 发布](https://github.com/npm/cli/releases/tag/v11.19.1)
 - [GitHub 原生 runner 标签与架构](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 
-版本化 runner 标签仍对应可变托管镜像；记录实际 ImageVersion，不承诺跨 OS 安装目录或构建字节相同。Apple Silicon 与 Intel 是两个真实 CI job。
+版本化 runner 标签仍对应可变托管镜像；记录实际 ImageVersion，不承诺跨 OS 安装目录或构建字节相同。当前平台范围以本页最新用户决定为准。
 
 自审还核对了 npm 实际 PATH、安装后的原生包平台声明、Git include/filter 和替换历史。检查命令只运行固定参数；报告不携带原始 Git/npm 输出。默认诊断不写文件；显式报告使用固定目录、独占临时文件、原子替换及父目录身份复核。此控制假设独立 checkout，不宣称能隔离同一操作系统账号下的恶意并发写入者。
 
 
 首次 GitHub 验收：PR #9 / head ea3fbfb 的 Engineering run 34683842948 失败，Linux/macOS 在 Git 配置准入停止，Windows 在精确 npm 引导停止；dependency review 成功。没有修改失败状态或执行 merge。修复将只读 Git 探针隔离于宿主 global/system 配置，并在探针前拒绝仓库本地 include/filter；这不修改机器 Git 设置，也不放行仓库可执行 filter。Windows npm 引导明确安装到 setup-node 提供的当前临时 Node 前缀，并继续核对实际执行路径和版本。新增数据目录回归拒绝 SQLite 硬链接和嵌套符号链接。更新后必须重采集 C/R/S 并重新运行真实 CI。
+
+
+第二轮 PR 验收：head 03ea6aa / Engineering run 34684270426 的 Linux 与 arm64 macOS 完整通过；Windows 的 npm 引导通过，随后 Git 返回 128。Windows 针对性修复改用 Git 自身支持的 `/dev/null` 语义，保留空全局配置和禁用 hooks；依据：[Git Windows 空设备实现](https://github.com/git/git/blob/master/compat/mingw.c)。
+
+## 用户更新的平台范围
+
+用户随后明确：“不会有 intel mac，只会 arm mac 和 windows”。本次实现据此只支持 Apple Silicon macOS 和 Windows 开发；Linux 保留既有 CI 与独立依赖审计职责。移除 verify-macos-intel job 及供应链 profile，macOS x64 不再属于准入支持范围。原始规范的 Intel 目标表保留为历史提案，由本段当前用户决定覆盖；不再等待或要求 Intel 验收。
+
+当前目标 CI：verify / ubuntu-24.04 / x64；verify-windows / windows-2025 / x64；verify-macos / macos-15 / arm64。三个 job 都必须实际验证当前准确头。原来的 Intel 失败如实保留为历史运行，不改为 PASS，也不作为新范围的阻塞。

@@ -18,13 +18,13 @@ The user assigned synchronization and project alignment against DEVELOPMENT-TOOL
 
 ## Changes and verification
 
-Exact Node and npm inputs, root lock engines, generated SPDX namespace, effective npm configuration admission, native architecture and Git identity checks, bounded redacted environment report, clean CI wrapper and four native hosted jobs. Existing dependency graph and engineering/security gates are retained. Disposable Git fixtures receive LF attributes before staging and isolate host configuration without overriding explicit test authors.
+Exact Node and npm inputs, root lock engines, generated SPDX namespace, effective npm configuration admission, native architecture and Git identity checks, bounded redacted environment report, clean CI wrapper and three supported hosted jobs. Existing dependency graph and engineering/security gates are retained. Disposable Git fixtures receive LF attributes before staging and isolate host configuration without overriding explicit test authors.
 
 The qualified temporary Node 24.21.0 archive matched the official SHA-256; npm 11.19.1 matched registry SHA-512. The first truncated Node downloads were rejected and never executed. Clean npm ci --ignore-scripts installed the locked native package subset. Full local regression passed 240 tests; final source-bound management and GitHub evidence are collected after source freeze. These statements are technical self-review, not independent approval.
 
 ## Not fully resolved
 
-- Four actual GitHub native CI jobs and exact final source evidence must be read back.
+- Three supported GitHub native CI jobs and exact final source evidence must be read back.
 - The permanent macOS fnm environment and permanent checkout are not established by temporary qualification.
 - Adding verify-macos to protected required checks and merging this new toolchain PR require the user's applicable authorization.
 - ENV-06, external governance, independent security acceptance and chain access remain outside this implementation.

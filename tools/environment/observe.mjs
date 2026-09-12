@@ -13,7 +13,7 @@ import {
 } from 'node:fs';
 import { delimiter, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { platform, arch, devNull } from 'node:os';
+import { platform, arch } from 'node:os';
 import {
   CONFIG,
   overrideKinds,
@@ -21,6 +21,7 @@ import {
   evaluate,
   nativePackagesValid,
   unsafeGitConfig,
+  GIT_NULL_DEVICE,
 } from './policy.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -248,7 +249,7 @@ export function inspectEnvironment({ root = ROOT, mode = 'dev', environment = pr
       cwd: root,
       env:
         command === 'git'
-          ? { ...environment, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1' }
+          ? { ...environment, GIT_CONFIG_GLOBAL: GIT_NULL_DEVICE, GIT_CONFIG_NOSYSTEM: '1' }
           : environment,
       encoding: 'utf8',
       timeout: 15000,
@@ -364,9 +365,7 @@ export function inspectEnvironment({ root = ROOT, mode = 'dev', environment = pr
   try {
     if (o.platform === 'darwin') {
       const machine = run('/usr/bin/uname', ['-m'], 'host-uname');
-      const apple =
-        machine === 'arm64' ? '1' : run('/usr/sbin/sysctl', ['-n', 'hw.optional.arm64'], 'host-native', [1]);
-      o.nativeArch = apple === '1' ? 'arm64' : apple === '0' && machine === 'x86_64' ? 'x64' : null;
+      o.nativeArch = machine === 'arm64' ? 'arm64' : null;
       if (mode === 'dev') {
         run('fnm', ['--version'], 'host-fnm');
         const current = run('fnm', ['current'], 'host-fnm-current');

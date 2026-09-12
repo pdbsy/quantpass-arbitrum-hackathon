@@ -316,7 +316,6 @@ const workflowProfiles = new Map([
         ['verify', readContents],
         ['verify-windows', readContents],
         ['verify-macos', readContents],
-        ['verify-macos-intel', readContents],
       ]),
     },
   ],

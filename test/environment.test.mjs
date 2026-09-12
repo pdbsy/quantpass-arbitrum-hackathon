@@ -225,3 +225,11 @@ test('SQLite data admission rejects shared hard links and nested symlink directo
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('Intel macOS is outside the user-approved platform scope', () => {
+  const o = observation();
+  o.platform = 'darwin';
+  o.arch = o.nativeArch = 'x64';
+  o.job = 'verify-macos';
+  assert.equal(evaluate(inputs(), o, 'ci').exitCode, 1);
+});

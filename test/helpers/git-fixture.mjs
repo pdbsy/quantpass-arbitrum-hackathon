@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { devNull } from 'node:os';
+import { GIT_NULL_DEVICE as devNull } from '../../tools/environment/policy.mjs';
 // Applies only to disposable test repositories; never changes host Git configuration.
 export function fixtureExec(command, args, options = {}) {
   if (command !== 'git') return execFileSync(command, args, options);

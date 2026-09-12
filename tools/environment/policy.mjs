@@ -77,13 +77,12 @@ export function validateInputs(i) {
       isDeepStrictEqual(p.versionSources, { node: '.node-version', npm: 'package.json#packageManager' }) &&
       p.supplyPolicy === 'planning/supply-chain-policy.json',
   );
-  requireInput(isDeepStrictEqual(p.platforms, { darwin: ['arm64', 'x64'], linux: ['x64'], win32: ['x64'] }));
+  requireInput(isDeepStrictEqual(p.platforms, { darwin: ['arm64'], linux: ['x64'], win32: ['x64'] }));
   requireInput(
     isDeepStrictEqual(p.runnerJobs, {
       verify: { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
       'verify-windows': { platform: 'win32', arch: 'x64', label: 'windows-2025' },
       'verify-macos': { platform: 'darwin', arch: 'arm64', label: 'macos-15' },
-      'verify-macos-intel': { platform: 'darwin', arch: 'x64', label: 'macos-15-intel' },
     }),
   );
   requireInput(
@@ -128,6 +127,8 @@ export function overrideKinds(env) {
   }
   return [...kinds].sort();
 }
+// Git's Windows compatibility layer explicitly maps /dev/null to nul.
+export const GIT_NULL_DEVICE = '/dev/null';
 export function unsafeGitConfig(keys) {
   return keys.some((k) => /^(filter\.|include\.|includeif\.)/i.test(k));
 }

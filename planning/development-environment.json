@@ -1,16 +1,38 @@
 {
   "schemaVersion": 1,
-  "versionSources": { "node": ".node-version", "npm": "package.json#packageManager" },
+  "versionSources": {
+    "node": ".node-version",
+    "npm": "package.json#packageManager"
+  },
   "supplyPolicy": "planning/supply-chain-policy.json",
-  "platforms": { "darwin": ["arm64", "x64"], "linux": ["x64"], "win32": ["x64"] },
+  "platforms": {
+    "darwin": ["arm64"],
+    "linux": ["x64"],
+    "win32": ["x64"]
+  },
   "runnerJobs": {
-    "verify": { "platform": "linux", "arch": "x64", "label": "ubuntu-24.04" },
-    "verify-windows": { "platform": "win32", "arch": "x64", "label": "windows-2025" },
-    "verify-macos": { "platform": "darwin", "arch": "arm64", "label": "macos-15" },
-    "verify-macos-intel": { "platform": "darwin", "arch": "x64", "label": "macos-15-intel" }
+    "verify": {
+      "platform": "linux",
+      "arch": "x64",
+      "label": "ubuntu-24.04"
+    },
+    "verify-windows": {
+      "platform": "win32",
+      "arch": "x64",
+      "label": "windows-2025"
+    },
+    "verify-macos": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "label": "macos-15"
+    }
   },
   "macDeveloperManager": "fnm",
   "networkProfile": "local-mock",
   "contractProfile": "inactive",
-  "report": { "path": ".checks/environment/report.json", "maxBytes": 65536, "maxAgeSeconds": 900 }
+  "report": {
+    "path": ".checks/environment/report.json",
+    "maxBytes": 65536,
+    "maxAgeSeconds": 900
+  }
 }
