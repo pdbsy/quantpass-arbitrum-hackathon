@@ -24,6 +24,16 @@ npm run demo
 
 Open `http://127.0.0.1:4180`. The Chinese security board is available at `http://127.0.0.1:4180/task-board.html`. Runtime data is written to `.data/` and is ignored by Git.
 
+The evidence-backed Chinese Control Center is generated separately and served only on loopback:
+
+```bash
+npm run management:build
+npm run management:check
+npm run management:serve
+```
+
+Open `http://127.0.0.1:4181`. See the [Control Center operations guide](docs/management/dashboard/README.md) before refreshing evidence or serving the snapshot.
+
 To validate only the target network configuration:
 
 ```bash

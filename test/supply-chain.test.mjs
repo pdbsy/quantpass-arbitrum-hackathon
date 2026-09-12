@@ -15,6 +15,8 @@ const policy = JSON.parse(
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const lockfile = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
 
+const engineeringWorkflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+
 test('supply-chain policy and npm lock are closed and produce deterministic SPDX', () => {
   assert.equal(validateSupplyChainPolicy(policy), policy);
   const locked = validatePackageLock(lockfile, packageJson, policy);
@@ -249,4 +251,9 @@ test('npm PURLs preserve scoped namespace separators', () => {
   assert.equal(scoped.externalRefs[0].referenceLocator, 'pkg:npm/%40types/node@24.13.3');
   const unscoped = sbom.packages.find((item) => item.name === 'fastify');
   assert.equal(unscoped.externalRefs[0].referenceLocator, 'pkg:npm/fastify@5.12.3');
+});
+
+test('engineering workflow avoids duplicate merge-queue push runs', () => {
+  assert.match(engineeringWorkflow, /push:\n\s+branches-ignore:\n\s+- ['"]gh-readonly-queue\/\*\*['"]/);
+  assert.match(engineeringWorkflow, /\n {2}merge_group:/);
 });

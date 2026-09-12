@@ -67,15 +67,15 @@ function makeValidReview() {
   };
 }
 
-function git(repository, args) {
+function git(repository, args, environment = {}) {
   return execFileSync('git', ['-C', repository, ...args], {
     encoding: 'utf8',
-    // Fixture history must precede the explicit verification instant, regardless
-    // of the wall clock and host timezone when the suite runs.
+    // Stable fixture history plus explicit per-test evidence timestamps.
     env: {
       ...process.env,
       GIT_AUTHOR_DATE: '2026-09-08T10:00:00+00:00',
       GIT_COMMITTER_DATE: '2026-09-08T10:00:00+00:00',
+      ...environment,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -470,7 +470,11 @@ test('Git provenance rejects forged review baselines and constrains the first ac
   git(repository, ['config', 'user.email', 'governance-test@example.invalid']);
   git(repository, ['config', 'commit.gpgsign', 'false']);
   git(repository, ['add', '--all']);
-  git(repository, ['commit', '--quiet', '-m', 'reviewed baseline']);
+  const reviewedCommitEnvironment = {
+    GIT_AUTHOR_DATE: '2026-09-08T08:00:00.000Z',
+    GIT_COMMITTER_DATE: '2026-09-08T08:00:00.000Z',
+  };
+  git(repository, ['commit', '--quiet', '-m', 'reviewed baseline'], reviewedCommitEnvironment);
   const reviewedCommit = git(repository, ['rev-parse', 'HEAD']).trim();
   const reviewedAt = git(repository, ['show', '-s', '--format=%cs', reviewedCommit]).trim();
   const unrelatedCommit = git(repository, [

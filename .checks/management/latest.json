@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "complete": true,
+  "profile": "full",
+  "branch": "macbeth/dashboard",
+  "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
+  "tree": "56c1bfd1f9a264ed667aab52fe9efad762aec668",
+  "startedAt": "2026-09-12T06:55:50.320Z",
+  "finishedAt": "2026-09-12T06:56:10.465Z",
+  "checks": [
+    {
+      "id": "typecheck",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:55:50.320Z",
+      "finishedAt": "2026-09-12T06:55:53.386Z",
+      "durationMs": 3066,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/typecheck.log"
+    },
+    {
+      "id": "lint",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:55:53.450Z",
+      "finishedAt": "2026-09-12T06:55:54.568Z",
+      "durationMs": 1118,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/lint.log"
+    },
+    {
+      "id": "format",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:55:54.634Z",
+      "finishedAt": "2026-09-12T06:55:55.477Z",
+      "durationMs": 843,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/format.log"
+    },
+    {
+      "id": "unit",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:55:55.541Z",
+      "finishedAt": "2026-09-12T06:56:06.563Z",
+      "durationMs": 11022,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/unit.log"
+    },
+    {
+      "id": "integration",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:56:06.631Z",
+      "finishedAt": "2026-09-12T06:56:06.956Z",
+      "durationMs": 325,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/integration.log"
+    },
+    {
+      "id": "e2e",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:56:07.022Z",
+      "finishedAt": "2026-09-12T06:56:07.489Z",
+      "durationMs": 467,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/e2e.log"
+    },
+    {
+      "id": "secret-scan",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:56:07.555Z",
+      "finishedAt": "2026-09-12T06:56:07.707Z",
+      "durationMs": 152,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/secret-scan.log"
+    },
+    {
+      "id": "public-metadata",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:56:07.771Z",
+      "finishedAt": "2026-09-12T06:56:08.214Z",
+      "durationMs": 443,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/public-metadata.log"
+    },
+    {
+      "id": "dependency-audit",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:56:08.278Z",
+      "finishedAt": "2026-09-12T06:56:09.383Z",
+      "durationMs": 1105,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/dependency-audit.log"
+    },
+    {
+      "id": "build",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:56:09.466Z",
+      "finishedAt": "2026-09-12T06:56:09.953Z",
+      "durationMs": 487,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/build.log"
+    },
+    {
+      "id": "planning-consistency",
+      "status": "PASS",
+      "startedAt": "2026-09-12T06:56:10.017Z",
+      "finishedAt": "2026-09-12T06:56:10.146Z",
+      "durationMs": 129,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/planning-consistency.log"
+    },
+    {
+      "id": "foundry",
+      "status": "NOT_RUN",
+      "startedAt": "2026-09-12T06:56:10.210Z",
+      "finishedAt": "2026-09-12T06:56:10.210Z",
+      "durationMs": 0,
+      "exitCode": null,
+      "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE"
+    },
+    {
+      "id": "fuzz",
+      "status": "NOT_RUN",
+      "startedAt": "2026-09-12T06:56:10.274Z",
+      "finishedAt": "2026-09-12T06:56:10.274Z",
+      "durationMs": 0,
+      "exitCode": null,
+      "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE"
+    },
+    {
+      "id": "invariant",
+      "status": "NOT_RUN",
+      "startedAt": "2026-09-12T06:56:10.339Z",
+      "finishedAt": "2026-09-12T06:56:10.339Z",
+      "durationMs": 0,
+      "exitCode": null,
+      "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE"
+    },
+    {
+      "id": "slither",
+      "status": "NOT_RUN",
+      "startedAt": "2026-09-12T06:56:10.403Z",
+      "finishedAt": "2026-09-12T06:56:10.403Z",
+      "durationMs": 0,
+      "exitCode": null,
+      "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE"
+    }
+  ]
+}
