@@ -27,7 +27,7 @@ Node 24.12.0 仅保留为历史复现版本，不恢复发布资格。Node 官�
 
 npm 11.19.1 独立评估，其发布记录包含安装工具内部的 Undici、ip-address、brace-expansion 和 tar 更新。这些是包管理器本身的依赖，不等同于项目 217 个锁定包的升级。项目直接依赖保持不变；lock 根 engines 和生成式 SPDX 需随新构建输入同步。
 
-下载只从 Node 官方发行地址及现有供应链策略指定的 npm registry 获取精确资产；校验 SHA-256 / SHA-512 后才执行。首次 Node 下载截断且摘要不符，被拒绝，未执行。随后有界分段下载的完整 52,909,993 字节归档通过官方 SHA-256：`bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057`。npm 包通过 registry SHA-512 校验；实际执行版本为 Node 24.21.0 / npm 11.19.1。`npm ci --ignore-scripts` 成功，安装 193 个本平台包，217 个锁定包的图保持不变。冻结源 2404b09 的管理采集为 11 PASS、0 FAIL、4 NOT_RUN，包含 241/241 单元回归通过；环境准入的正式 fnm 条件仍为 BLOCKED，不能把临时工具链工程测试等同机器准入。
+下载只从 Node 官方发行地址及现有供应链策略指定的 npm registry 获取精确资产；校验 SHA-256 / SHA-512 后才执行。首次 Node 下载截断且摘要不符，被拒绝，未执行。随后有界分段下载的完整 52,909,993 字节归档通过官方 SHA-256：`bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057`。npm 包通过 registry SHA-512 校验；实际执行版本为 Node 24.21.0 / npm 11.19.1。`npm ci --ignore-scripts` 成功，安装 193 个本平台包，217 个锁定包的图保持不变。冻结源 978d8e1 的管理采集为 11 PASS、0 FAIL、4 NOT_RUN，其固定 unit 子集为 224/224；新增环境回归随后接入同一 unit 注册表，需重新采集准确源证据；环境准入的正式 fnm 条件仍为 BLOCKED，不能把临时工具链工程测试等同机器准入。
 
 官方来源（核验日期 2026-09-12）：
 
@@ -39,3 +39,5 @@ npm 11.19.1 独立评估，其发布记录包含安装工具内部的 Undici、i
 - [GitHub 原生 runner 标签与架构](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 
 版本化 runner 标签仍对应可变托管镜像；记录实际 ImageVersion，不承诺跨 OS 安装目录或构建字节相同。Apple Silicon 与 Intel 是两个真实 CI job。
+
+自审还核对了 npm 实际 PATH、安装后的原生包平台声明、Git include/filter 和替换历史。检查命令只运行固定参数；报告不携带原始 Git/npm 输出。默认诊断不写文件；显式报告使用固定目录、独占临时文件、原子替换及父目录身份复核。此控制假设独立 checkout，不宣称能隔离同一操作系统账号下的恶意并发写入者。

@@ -85,6 +85,9 @@ test('check registry has unique fixed commands and explicit unavailable toolchai
     'test/management-dashboard-ui.test.mjs',
     'test/management-dashboard-server.test.mjs',
     'test/public-metadata.test.mjs',
+    'test/environment.test.mjs',
+    'test/environment-git.test.mjs',
+    'test/environment-ci.test.mjs',
   ])
     assert.ok(unitArguments.includes(path), `unit evidence must execute ${path}`);
 });
