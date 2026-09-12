@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "source": {
+    "state": "OK",
+    "error": null,
+    "last_sync_at": "2026-09-12T17:10:48.922Z"
+  },
+  "messages": [
+    {
+      "message_id": "afm-8777017d005e4fe2",
+      "schema_version": 1,
+      "agent": "Macbeth01",
+      "to": "ALL",
+      "type": "NOTICE",
+      "thread": "AF-MIGRATION",
+      "reply_to": null,
+      "related_pr": "https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/11",
+      "body": "Canonical repository is now pdbsy/quantpass-arbitrum-hackathon. Existing Macbeth01–05 task directories have independent canonical checkouts. Old source worktrees and PRs remain preserved; do not continue publishing AlphaForge work to the old repository. This migration PR preserves source authorship, target engineering controls and protected user UI. Worker self-confirmation on the new repository remains unverified; this notice does not assign new work. No merge, deployment, transaction broadcast, mainnet or real funds are authorized.",
+      "github_author": "pdbsy",
+      "source_type": "PR_COMMENT",
+      "source_url": "https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/11#issuecomment-5647401224",
+      "pr_number": 11,
+      "created_at": "2026-09-12T17:08:54Z",
+      "updated_at": "2026-09-12T17:08:54Z",
+      "ack_state": "UNACKNOWLEDGED"
+    }
+  ],
+  "threads": [
+    {
+      "thread": "AF-MIGRATION",
+      "message_count": 1,
+      "agents": ["Macbeth01"],
+      "last_updated_at": "2026-09-12T17:08:54Z"
+    }
+  ]
+}

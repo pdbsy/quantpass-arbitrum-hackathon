@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "scope": "LOCAL_TOOLING_ONLY",
+  "node": "v24.21.0",
+  "commit": "c22cfdf59ee120d7d8c5a75edc79ce97418435c7",
+  "dirty": false,
+  "sha256": {
+    "package-lock.json": "478a21705706a2ba36d1e9d7d78ea0df89b0cfdb57a59bfe2965198e87da8292",
+    "docs/module-board.html": "3b155cef3262fc54fc1a205bfdb90026072f9ab3119d9f9dd6af1252d766cb37",
+    "tsconfig.json": "282283abf37cf7602980309cb8fa4568886727b94c43a0cb643a35c6aa3529cf"
+  }
+}

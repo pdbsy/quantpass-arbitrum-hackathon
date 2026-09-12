@@ -1038,3 +1038,15 @@ test('public scanner accepts a regular file only with stable matching handle ide
   }
   await scanPublicMetadata(root);
 });
+
+test('package integrity SHA-256 hex is distinct from an SSH SHA-256 fingerprint', () => {
+  const prefix = ['sha', '256'].join('');
+  const integrity = `${prefix}:${'ab'.repeat(32)}`;
+  assert.deepEqual(
+    findOperationalMetadataKinds(`example==1.2.3 --hash=${integrity}\n`, 'requirements.lock'),
+    [],
+  );
+  for (const hash of ['A'.repeat(43), 'B'.repeat(43) + '=']) {
+    assert.deepEqual(findOperationalMetadataKinds(`${prefix}:${hash}`), ['ssh-fingerprint']);
+  }
+});

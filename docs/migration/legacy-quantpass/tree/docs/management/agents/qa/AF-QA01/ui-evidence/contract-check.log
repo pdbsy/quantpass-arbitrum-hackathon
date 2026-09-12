@@ -1,0 +1,4 @@
+F04: FAILED canonical minimum rejected: INVALID_PRODUCT_RESPONSE status 502
+F04 control: PASSED with non-required top-level asset
+F05 relation null : FAILED INVALID_PRODUCT_RESPONSE DISCONNECTED
+F05 relation object : PASSED EMPTY

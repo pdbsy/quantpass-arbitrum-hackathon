@@ -1,0 +1,102 @@
+{
+  "generator": "eth-account 0.14.0 encode_typed_data; no signing",
+  "typedData": {
+    "types": {
+      "EIP712Domain": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        },
+        {
+          "name": "chainId",
+          "type": "uint256"
+        },
+        {
+          "name": "verifyingContract",
+          "type": "address"
+        }
+      ],
+      "Intent": [
+        {
+          "name": "ownerId",
+          "type": "string"
+        },
+        {
+          "name": "strategyId",
+          "type": "string"
+        },
+        {
+          "name": "vaultId",
+          "type": "string"
+        },
+        {
+          "name": "commandId",
+          "type": "string"
+        },
+        {
+          "name": "commandType",
+          "type": "string"
+        },
+        {
+          "name": "assetId",
+          "type": "string"
+        },
+        {
+          "name": "decimals",
+          "type": "uint8"
+        },
+        {
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "name": "expectedRevision",
+          "type": "uint256"
+        },
+        {
+          "name": "nonce",
+          "type": "uint256"
+        },
+        {
+          "name": "deadline",
+          "type": "uint256"
+        },
+        {
+          "name": "authorizationEpoch",
+          "type": "uint256"
+        },
+        {
+          "name": "policyHash",
+          "type": "bytes32"
+        }
+      ]
+    },
+    "primaryType": "Intent",
+    "domain": {
+      "name": "AlphaForgeVaultFoundationPreview",
+      "version": "0.1",
+      "chainId": 31337,
+      "verifyingContract": "0x0000000000000000000000000000000000001001"
+    },
+    "message": {
+      "ownerId": "owner-a",
+      "strategyId": "strategy-a",
+      "vaultId": "vault-a",
+      "commandId": "cmd-a",
+      "commandType": "requestWithdrawal",
+      "assetId": "TEST_ONLY_USDT_UNIT",
+      "decimals": 6,
+      "amount": 100000000,
+      "expectedRevision": 3,
+      "nonce": 7,
+      "deadline": 2000000000,
+      "authorizationEpoch": 2,
+      "policyHash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  },
+  "digest": "0x807302018c381c7cadedd9affb05b2e32b74cdd1577037bfa136710ba72d858a"
+}

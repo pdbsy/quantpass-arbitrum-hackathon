@@ -76,3 +76,7 @@ This in-repository check is defense in depth, not its own trust root: one hostil
 ## Product identity
 
 The current product is **AlphaForge**, Hackathon edition. The GitHub repository address and existing protocol/storage identifiers remain stable for compatibility. Historical source documents preserve the names and claims that applied when they were written.
+
+## AlphaForge migration
+
+[Consolidation report](docs/migration/REPORT.md) and [Draft PR #11](https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/11) track the import of the existing user UI, product API, Worker Forum and local contract preview. All new work belongs to this repository. Historical evidence does not grant current acceptance. One protected, uncommitted Dashboard refresh awaits input; no merge or chain transaction is authorized.

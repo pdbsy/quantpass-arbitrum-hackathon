@@ -1,0 +1,301 @@
+{
+  "project": {
+    "success": true,
+    "scannerExitCode": 255,
+    "findingCount": 1,
+    "byImpact": {
+      "Informational": 1
+    },
+    "findings": [
+      {
+        "check": "pragma",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "3 different versions of Solidity are used:\n\t- Version constraint >=0.4.16 is used by:\n\t\t->=0.4.16 (node_modules/@openzeppelin/contracts/interfaces/IERC5267.sol#4)\n\t- Version constraint ^0.8.20 is used by:\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/Panic.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/ShortStrings.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#5)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/Strings.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/math/Math.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/math/SafeCast.sol#5)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/math/SignedMath.sol#4)\n\t- Version constraint 0.8.31 is used by:\n\t\t-0.8.31 (src/VaultIntentPreview.sol#2)\n"
+      }
+    ]
+  },
+  "includingDependencies": {
+    "success": true,
+    "scannerExitCode": 255,
+    "findingCount": 45,
+    "byImpact": {
+      "High": 1,
+      "Medium": 9,
+      "Informational": 35
+    },
+    "findings": [
+      {
+        "check": "incorrect-exp",
+        "impact": "High",
+        "confidence": "Medium",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) has bitwise-xor operator ^ instead of the exponentiation operator **: \n\t - inverse = (3 * denominator) ^ 2 (node_modules/@openzeppelin/contracts/utils/math/Math.sol#257)\n"
+      },
+      {
+        "check": "divide-before-multiply",
+        "impact": "Medium",
+        "confidence": "Medium",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) performs a multiplication on the result of a division:\n\t- denominator = denominator / twos (node_modules/@openzeppelin/contracts/utils/math/Math.sol#242)\n\t- inverse *= 2 - denominator * inverse (node_modules/@openzeppelin/contracts/utils/math/Math.sol#265)\n"
+      },
+      {
+        "check": "divide-before-multiply",
+        "impact": "Medium",
+        "confidence": "Medium",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) performs a multiplication on the result of a division:\n\t- denominator = denominator / twos (node_modules/@openzeppelin/contracts/utils/math/Math.sol#242)\n\t- inverse *= 2 - denominator * inverse (node_modules/@openzeppelin/contracts/utils/math/Math.sol#261)\n"
+      },
+      {
+        "check": "divide-before-multiply",
+        "impact": "Medium",
+        "confidence": "Medium",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) performs a multiplication on the result of a division:\n\t- denominator = denominator / twos (node_modules/@openzeppelin/contracts/utils/math/Math.sol#242)\n\t- inverse *= 2 - denominator * inverse (node_modules/@openzeppelin/contracts/utils/math/Math.sol#264)\n"
+      },
+      {
+        "check": "divide-before-multiply",
+        "impact": "Medium",
+        "confidence": "Medium",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) performs a multiplication on the result of a division:\n\t- denominator = denominator / twos (node_modules/@openzeppelin/contracts/utils/math/Math.sol#242)\n\t- inverse *= 2 - denominator * inverse (node_modules/@openzeppelin/contracts/utils/math/Math.sol#266)\n"
+      },
+      {
+        "check": "divide-before-multiply",
+        "impact": "Medium",
+        "confidence": "Medium",
+        "description": "Math.invMod(uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#315-361) performs a multiplication on the result of a division:\n\t- quotient = gcd / remainder (node_modules/@openzeppelin/contracts/utils/math/Math.sol#337)\n\t- (gcd,remainder) = (remainder,gcd - remainder * quotient) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#339-346)\n"
+      },
+      {
+        "check": "divide-before-multiply",
+        "impact": "Medium",
+        "confidence": "Medium",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) performs a multiplication on the result of a division:\n\t- denominator = denominator / twos (node_modules/@openzeppelin/contracts/utils/math/Math.sol#242)\n\t- inverse *= 2 - denominator * inverse (node_modules/@openzeppelin/contracts/utils/math/Math.sol#262)\n"
+      },
+      {
+        "check": "divide-before-multiply",
+        "impact": "Medium",
+        "confidence": "Medium",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) performs a multiplication on the result of a division:\n\t- denominator = denominator / twos (node_modules/@openzeppelin/contracts/utils/math/Math.sol#242)\n\t- inverse = (3 * denominator) ^ 2 (node_modules/@openzeppelin/contracts/utils/math/Math.sol#257)\n"
+      },
+      {
+        "check": "divide-before-multiply",
+        "impact": "Medium",
+        "confidence": "Medium",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) performs a multiplication on the result of a division:\n\t- denominator = denominator / twos (node_modules/@openzeppelin/contracts/utils/math/Math.sol#242)\n\t- inverse *= 2 - denominator * inverse (node_modules/@openzeppelin/contracts/utils/math/Math.sol#263)\n"
+      },
+      {
+        "check": "divide-before-multiply",
+        "impact": "Medium",
+        "confidence": "Medium",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) performs a multiplication on the result of a division:\n\t- low = low / twos (node_modules/@openzeppelin/contracts/utils/math/Math.sol#245)\n\t- result = low * inverse (node_modules/@openzeppelin/contracts/utils/math/Math.sol#272)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "SafeCast.toUint(bool) (node_modules/@openzeppelin/contracts/utils/math/SafeCast.sol#1157-1161) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/SafeCast.sol#1158-1160)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "StorageSlot.getAddressSlot(bytes32) (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#66-70) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#67-69)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "ShortStrings.toString(ShortString) (node_modules/@openzeppelin/contracts/utils/ShortStrings.sol#63-72) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/ShortStrings.sol#67-70)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "StorageSlot.getUint256Slot(bytes32) (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#93-97) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#94-96)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Strings.escapeJSON(string) (node_modules/@openzeppelin/contracts/utils/Strings.sol#446-476) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/Strings.sol#470-473)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Math.tryModExp(bytes,bytes,bytes) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#449-471) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#461-470)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "StorageSlot.getBooleanSlot(bytes32) (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#75-79) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#76-78)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "StorageSlot.getBytes32Slot(bytes32) (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#84-88) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#85-87)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Math.mulDiv(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#204-275) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#227-234)\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#240-249)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Panic.panic(uint256) (node_modules/@openzeppelin/contracts/utils/Panic.sol#50-56) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/Panic.sol#51-55)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "StorageSlot.getInt256Slot(bytes32) (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#102-106) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#103-105)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Strings.toChecksumHexString(address) (node_modules/@openzeppelin/contracts/utils/Strings.sol#111-129) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/Strings.sol#116-118)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Strings.toString(uint256) (node_modules/@openzeppelin/contracts/utils/Strings.sol#45-63) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/Strings.sol#50-52)\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/Strings.sol#55-57)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "StorageSlot.getBytesSlot(bytes) (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#138-142) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#139-141)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Math.mul512(uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#37-46) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#41-45)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "StorageSlot.getStringSlot(bytes32) (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#111-115) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#112-114)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "MessageHashUtils.toEthSignedMessageHash(bytes32) (node_modules/@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol#30-36) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol#31-35)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Strings._unsafeReadBytesOffset(bytes,uint256) (node_modules/@openzeppelin/contracts/utils/Strings.sol#484-489) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/Strings.sol#486-488)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Math.log2(uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#612-651) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#648-650)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "StorageSlot.getStringSlot(string) (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#120-124) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#121-123)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Math.tryMul(uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#73-84) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#76-80)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Math.tryMod(uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#102-110) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#105-108)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Math.tryModExp(uint256,uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#409-433) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#411-432)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Math.tryDiv(uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#89-97) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#92-95)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "StorageSlot.getBytesSlot(bytes32) (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#129-133) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#130-132)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "MessageHashUtils.toTypedDataHash(bytes32,bytes32) (node_modules/@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol#90-98) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol#91-97)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "MessageHashUtils.toDataWithIntendedValidatorHash(address,bytes32) (node_modules/@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol#69-79) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol#73-78)\n"
+      },
+      {
+        "check": "assembly",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Math.add512(uint256,uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#25-30) uses assembly\n\t- INLINE ASM (node_modules/@openzeppelin/contracts/utils/math/Math.sol#26-29)\n"
+      },
+      {
+        "check": "pragma",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "3 different versions of Solidity are used:\n\t- Version constraint >=0.4.16 is used by:\n\t\t->=0.4.16 (node_modules/@openzeppelin/contracts/interfaces/IERC5267.sol#4)\n\t- Version constraint ^0.8.20 is used by:\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/Panic.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/ShortStrings.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#5)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/Strings.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/math/Math.sol#4)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/math/SafeCast.sol#5)\n\t\t-^0.8.20 (node_modules/@openzeppelin/contracts/utils/math/SignedMath.sol#4)\n\t- Version constraint 0.8.31 is used by:\n\t\t-0.8.31 (src/VaultIntentPreview.sol#2)\n"
+      },
+      {
+        "check": "solc-version",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess.\nIt is used by:\n\t- ^0.8.20 (node_modules/@openzeppelin/contracts/utils/Panic.sol#4)\n\t- ^0.8.20 (node_modules/@openzeppelin/contracts/utils/ShortStrings.sol#4)\n\t- ^0.8.20 (node_modules/@openzeppelin/contracts/utils/StorageSlot.sol#5)\n\t- ^0.8.20 (node_modules/@openzeppelin/contracts/utils/Strings.sol#4)\n\t- ^0.8.20 (node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol#4)\n\t- ^0.8.20 (node_modules/@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol#4)\n\t- ^0.8.20 (node_modules/@openzeppelin/contracts/utils/math/Math.sol#4)\n\t- ^0.8.20 (node_modules/@openzeppelin/contracts/utils/math/SafeCast.sol#5)\n\t- ^0.8.20 (node_modules/@openzeppelin/contracts/utils/math/SignedMath.sol#4)\n"
+      },
+      {
+        "check": "solc-version",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Version constraint >=0.4.16 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- DirtyBytesArrayToStorage\n\t- ABIDecodeTwoDimensionalArrayMemory\n\t- KeccakCaching\n\t- EmptyByteArrayCopy\n\t- DynamicArrayCleanup\n\t- ImplicitConstructorCallvalueCheck\n\t- TupleAssignmentMultiStackSlotComponents\n\t- MemoryArrayCreationOverflow\n\t- privateCanBeOverridden\n\t- SignedArrayStorageCopy\n\t- ABIEncoderV2StorageArrayWithMultiSlotElement\n\t- DynamicConstructorArgumentsClippedABIV2\n\t- UninitializedFunctionPointerInConstructor_0.4.x\n\t- IncorrectEventSignatureInLibraries_0.4.x\n\t- ExpExponentCleanup\n\t- NestedArrayFunctionCallDecoder\n\t- ZeroFunctionSelector.\nIt is used by:\n\t- >=0.4.16 (node_modules/@openzeppelin/contracts/interfaces/IERC5267.sol#4)\n"
+      },
+      {
+        "check": "naming-convention",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Function EIP712._EIP712Version() (node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol#157-159) is not in mixedCase\n"
+      },
+      {
+        "check": "naming-convention",
+        "impact": "Informational",
+        "confidence": "High",
+        "description": "Function EIP712._EIP712Name() (node_modules/@openzeppelin/contracts/utils/cryptography/EIP712.sol#146-148) is not in mixedCase\n"
+      },
+      {
+        "check": "too-many-digits",
+        "impact": "Informational",
+        "confidence": "Medium",
+        "description": "ShortStrings.slitherConstructorConstantVariables() (node_modules/@openzeppelin/contracts/utils/ShortStrings.sol#40-122) uses literals with too many digits:\n\t- FALLBACK_SENTINEL = 0x00000000000000000000000000000000000000000000000000000000000000FF (node_modules/@openzeppelin/contracts/utils/ShortStrings.sol#42)\n"
+      },
+      {
+        "check": "too-many-digits",
+        "impact": "Informational",
+        "confidence": "Medium",
+        "description": "Math.log2(uint256) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#612-651) uses literals with too many digits:\n\t- r = r | byte(uint256,uint256)(x >> r,0x0000010102020202030303030303030300000000000000000000000000000000) (node_modules/@openzeppelin/contracts/utils/math/Math.sol#649)\n"
+      }
+    ]
+  },
+  "interpretation": "Scanner success means analysis completed, not zero findings or an independent security approval. Project pragma remains informational and the pedantic entry point intentionally exits 255."
+}

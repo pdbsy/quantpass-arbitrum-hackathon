@@ -1,0 +1,4 @@
+F04: PASSED canonical minimum accepted
+F04 control: PASSED with non-required top-level asset
+F05 relation null : PASSED EMPTY
+F05 relation object : PASSED EMPTY

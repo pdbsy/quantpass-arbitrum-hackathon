@@ -1,0 +1,1020 @@
+{
+  "schemaVersion": 1,
+  "scope": "TEST_ONLY",
+  "source": "LOCAL_API_JOURNEYS",
+  "scenarios": {
+    "NORMAL": {
+      "strategySummary": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        }
+      },
+      "strategyDetail": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "capabilities": {
+          "execution": "LOCAL_SIMULATION",
+          "claim": "TEST_PASSES_ONLY",
+          "arbitraryStrategies": false,
+          "realFunds": false
+        },
+        "accountStrategy": {
+          "ownerId": "alice",
+          "strategyId": "core-flow-demo",
+          "vaultId": "vault_alice_core_flow_demo",
+          "status": "stopped"
+        }
+      },
+      "accountSummary": {
+        "schemaVersion": 1,
+        "ownerId": "alice",
+        "strategies": [
+          {
+            "ownerId": "alice",
+            "strategyId": "core-flow-demo",
+            "vaultId": "vault_alice_core_flow_demo",
+            "status": "stopped"
+          },
+          {
+            "ownerId": "alice",
+            "strategyId": "satellite-flow-demo",
+            "vaultId": null,
+            "status": "not_started"
+          }
+        ],
+        "passBalances": [
+          {
+            "strategyId": "core-flow-demo",
+            "total": "1000",
+            "allowance": "1000000000"
+          },
+          {
+            "strategyId": "satellite-flow-demo",
+            "total": "0",
+            "allowance": "0"
+          }
+        ],
+        "scope": "TEST_ONLY",
+        "identity": {
+          "id": "alice",
+          "mode": "DEMO"
+        },
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "passes": "1000",
+        "vaultCount": 1,
+        "status": "stopped",
+        "idle": "1500000000",
+        "balances": {
+          "reserved": "0",
+          "pending": "0",
+          "unrealized": "0",
+          "activeGross": "0",
+          "activeNet": "0",
+          "equity": "1500000000",
+          "allowance": "1000000000"
+        },
+        "vaults": [
+          {
+            "schemaVersion": 1,
+            "scope": "TEST_ONLY",
+            "vaultId": "vault_alice_core_flow_demo",
+            "asset": {
+              "assetId": "TEST_ONLY_USDT_UNIT",
+              "decimals": 6
+            },
+            "passBalance": {
+              "strategyId": "core-flow-demo",
+              "total": "1000",
+              "allowance": "1000000000"
+            },
+            "id": "vault_alice_core_flow_demo",
+            "ownerId": "alice",
+            "strategyId": "core-flow-demo",
+            "passes": "1000",
+            "status": "stopped",
+            "revision": 1,
+            "idle": "1500000000",
+            "activeCash": "0",
+            "positionCost": "0",
+            "positionValue": "0",
+            "feeLiability": "0",
+            "withdrawalsPaid": "0",
+            "orders": {},
+            "pendingWithdrawals": {},
+            "pendingOperations": [],
+            "balances": {
+              "asset": {
+                "assetId": "TEST_ONLY_USDT_UNIT",
+                "decimals": 6
+              },
+              "idle": "1500000000",
+              "activeCash": "0",
+              "positionCost": "0",
+              "positionValue": "0",
+              "feeLiability": "0",
+              "deposits": "1500000000",
+              "withdrawalsPaid": "0",
+              "realizedPnl": "0",
+              "feesAccrued": "0",
+              "feesPaid": "0",
+              "reserved": "0",
+              "pending": "0",
+              "unrealized": "0",
+              "activeGross": "0",
+              "activeNet": "0",
+              "equity": "1500000000",
+              "allowance": "1000000000"
+            }
+          }
+        ],
+        "pagination": {
+          "limit": 50,
+          "nextCursor": null
+        }
+      },
+      "vault": {
+        "schemaVersion": 1,
+        "scope": "TEST_ONLY",
+        "vaultId": "vault_alice_core_flow_demo",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "passBalance": {
+          "strategyId": "core-flow-demo",
+          "total": "1000",
+          "allowance": "1000000000"
+        },
+        "id": "vault_alice_core_flow_demo",
+        "ownerId": "alice",
+        "strategyId": "core-flow-demo",
+        "passes": "1000",
+        "status": "stopped",
+        "revision": 1,
+        "idle": "1500000000",
+        "activeCash": "0",
+        "positionCost": "0",
+        "positionValue": "0",
+        "feeLiability": "0",
+        "withdrawalsPaid": "0",
+        "orders": {},
+        "pendingWithdrawals": {},
+        "pendingOperations": [],
+        "balances": {
+          "asset": {
+            "assetId": "TEST_ONLY_USDT_UNIT",
+            "decimals": 6
+          },
+          "idle": "1500000000",
+          "activeCash": "0",
+          "positionCost": "0",
+          "positionValue": "0",
+          "feeLiability": "0",
+          "deposits": "1500000000",
+          "withdrawalsPaid": "0",
+          "realizedPnl": "0",
+          "feesAccrued": "0",
+          "feesPaid": "0",
+          "reserved": "0",
+          "pending": "0",
+          "unrealized": "0",
+          "activeGross": "0",
+          "activeNet": "0",
+          "equity": "1500000000",
+          "allowance": "1000000000"
+        }
+      },
+      "pendingOperation": null,
+      "error": null
+    },
+    "EMPTY": {
+      "strategySummary": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        }
+      },
+      "strategyDetail": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "capabilities": {
+          "execution": "LOCAL_SIMULATION",
+          "claim": "TEST_PASSES_ONLY",
+          "arbitraryStrategies": false,
+          "realFunds": false
+        },
+        "accountStrategy": {
+          "ownerId": "alice",
+          "strategyId": "core-flow-demo",
+          "vaultId": null,
+          "status": "not_started"
+        }
+      },
+      "accountSummary": {
+        "schemaVersion": 1,
+        "ownerId": "alice",
+        "strategies": [
+          {
+            "ownerId": "alice",
+            "strategyId": "core-flow-demo",
+            "vaultId": null,
+            "status": "not_started"
+          },
+          {
+            "ownerId": "alice",
+            "strategyId": "satellite-flow-demo",
+            "vaultId": null,
+            "status": "not_started"
+          }
+        ],
+        "passBalances": [
+          {
+            "strategyId": "core-flow-demo",
+            "total": "0",
+            "allowance": "0"
+          },
+          {
+            "strategyId": "satellite-flow-demo",
+            "total": "0",
+            "allowance": "0"
+          }
+        ],
+        "scope": "TEST_ONLY",
+        "identity": {
+          "id": "alice",
+          "mode": "DEMO"
+        },
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "passes": "0",
+        "vaultCount": 0,
+        "status": null,
+        "idle": "0",
+        "balances": {
+          "reserved": "0",
+          "pending": "0",
+          "unrealized": "0",
+          "activeGross": "0",
+          "activeNet": "0",
+          "equity": "0",
+          "allowance": "0"
+        },
+        "vaults": [],
+        "pagination": {
+          "limit": 50,
+          "nextCursor": null
+        }
+      },
+      "vault": null,
+      "pendingOperation": null,
+      "error": null
+    },
+    "PENDING": {
+      "strategySummary": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        }
+      },
+      "strategyDetail": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "capabilities": {
+          "execution": "LOCAL_SIMULATION",
+          "claim": "TEST_PASSES_ONLY",
+          "arbitraryStrategies": false,
+          "realFunds": false
+        },
+        "accountStrategy": {
+          "ownerId": "alice",
+          "strategyId": "core-flow-demo",
+          "vaultId": "vault_alice_core_flow_demo",
+          "status": "stopping"
+        }
+      },
+      "accountSummary": {
+        "schemaVersion": 1,
+        "ownerId": "alice",
+        "strategies": [
+          {
+            "ownerId": "alice",
+            "strategyId": "core-flow-demo",
+            "vaultId": "vault_alice_core_flow_demo",
+            "status": "stopping"
+          },
+          {
+            "ownerId": "alice",
+            "strategyId": "satellite-flow-demo",
+            "vaultId": null,
+            "status": "not_started"
+          }
+        ],
+        "passBalances": [
+          {
+            "strategyId": "core-flow-demo",
+            "total": "1000",
+            "allowance": "1000000000"
+          },
+          {
+            "strategyId": "satellite-flow-demo",
+            "total": "0",
+            "allowance": "0"
+          }
+        ],
+        "scope": "TEST_ONLY",
+        "identity": {
+          "id": "alice",
+          "mode": "DEMO"
+        },
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "passes": "1000",
+        "vaultCount": 1,
+        "status": "stopping",
+        "idle": "0",
+        "balances": {
+          "reserved": "200000000",
+          "pending": "500000000",
+          "unrealized": "0",
+          "activeGross": "1000000000",
+          "activeNet": "1000000000",
+          "equity": "1500000000",
+          "allowance": "1000000000"
+        },
+        "vaults": [
+          {
+            "schemaVersion": 1,
+            "scope": "TEST_ONLY",
+            "vaultId": "vault_alice_core_flow_demo",
+            "asset": {
+              "assetId": "TEST_ONLY_USDT_UNIT",
+              "decimals": 6
+            },
+            "passBalance": {
+              "strategyId": "core-flow-demo",
+              "total": "1000",
+              "allowance": "1000000000"
+            },
+            "id": "vault_alice_core_flow_demo",
+            "ownerId": "alice",
+            "strategyId": "core-flow-demo",
+            "passes": "1000",
+            "status": "stopping",
+            "revision": 6,
+            "idle": "0",
+            "activeCash": "800000000",
+            "positionCost": "0",
+            "positionValue": "0",
+            "feeLiability": "0",
+            "withdrawalsPaid": "0",
+            "orders": {
+              "buy": "200000000"
+            },
+            "pendingWithdrawals": {
+              "withdraw": "500000000"
+            },
+            "pendingOperations": [
+              {
+                "operationId": "withdraw",
+                "kind": "withdrawal",
+                "status": "pending",
+                "amount": "500000000"
+              },
+              {
+                "operationId": "buy",
+                "kind": "order",
+                "status": "pending",
+                "amount": "200000000"
+              }
+            ],
+            "balances": {
+              "asset": {
+                "assetId": "TEST_ONLY_USDT_UNIT",
+                "decimals": 6
+              },
+              "idle": "0",
+              "activeCash": "800000000",
+              "positionCost": "0",
+              "positionValue": "0",
+              "feeLiability": "0",
+              "deposits": "1500000000",
+              "withdrawalsPaid": "0",
+              "realizedPnl": "0",
+              "feesAccrued": "0",
+              "feesPaid": "0",
+              "reserved": "200000000",
+              "pending": "500000000",
+              "unrealized": "0",
+              "activeGross": "1000000000",
+              "activeNet": "1000000000",
+              "equity": "1500000000",
+              "allowance": "1000000000"
+            }
+          }
+        ],
+        "pagination": {
+          "limit": 50,
+          "nextCursor": null
+        }
+      },
+      "vault": {
+        "schemaVersion": 1,
+        "scope": "TEST_ONLY",
+        "vaultId": "vault_alice_core_flow_demo",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "passBalance": {
+          "strategyId": "core-flow-demo",
+          "total": "1000",
+          "allowance": "1000000000"
+        },
+        "id": "vault_alice_core_flow_demo",
+        "ownerId": "alice",
+        "strategyId": "core-flow-demo",
+        "passes": "1000",
+        "status": "stopping",
+        "revision": 6,
+        "idle": "0",
+        "activeCash": "800000000",
+        "positionCost": "0",
+        "positionValue": "0",
+        "feeLiability": "0",
+        "withdrawalsPaid": "0",
+        "orders": {
+          "buy": "200000000"
+        },
+        "pendingWithdrawals": {
+          "withdraw": "500000000"
+        },
+        "pendingOperations": [
+          {
+            "operationId": "withdraw",
+            "kind": "withdrawal",
+            "status": "pending",
+            "amount": "500000000"
+          },
+          {
+            "operationId": "buy",
+            "kind": "order",
+            "status": "pending",
+            "amount": "200000000"
+          }
+        ],
+        "balances": {
+          "asset": {
+            "assetId": "TEST_ONLY_USDT_UNIT",
+            "decimals": 6
+          },
+          "idle": "0",
+          "activeCash": "800000000",
+          "positionCost": "0",
+          "positionValue": "0",
+          "feeLiability": "0",
+          "deposits": "1500000000",
+          "withdrawalsPaid": "0",
+          "realizedPnl": "0",
+          "feesAccrued": "0",
+          "feesPaid": "0",
+          "reserved": "200000000",
+          "pending": "500000000",
+          "unrealized": "0",
+          "activeGross": "1000000000",
+          "activeNet": "1000000000",
+          "equity": "1500000000",
+          "allowance": "1000000000"
+        }
+      },
+      "pendingOperation": {
+        "operationId": "withdraw",
+        "kind": "withdrawal",
+        "status": "pending",
+        "amount": "500000000"
+      },
+      "error": null
+    },
+    "ERROR": {
+      "strategySummary": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        }
+      },
+      "strategyDetail": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "capabilities": {
+          "execution": "LOCAL_SIMULATION",
+          "claim": "TEST_PASSES_ONLY",
+          "arbitraryStrategies": false,
+          "realFunds": false
+        },
+        "accountStrategy": {
+          "ownerId": "alice",
+          "strategyId": "core-flow-demo",
+          "vaultId": null,
+          "status": "not_started"
+        }
+      },
+      "accountSummary": null,
+      "vault": null,
+      "pendingOperation": null,
+      "error": {
+        "error": "INVALID_REQUEST"
+      }
+    },
+    "RUNNING": {
+      "strategySummary": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        }
+      },
+      "strategyDetail": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "capabilities": {
+          "execution": "LOCAL_SIMULATION",
+          "claim": "TEST_PASSES_ONLY",
+          "arbitraryStrategies": false,
+          "realFunds": false
+        },
+        "accountStrategy": {
+          "ownerId": "alice",
+          "strategyId": "core-flow-demo",
+          "vaultId": "vault_alice_core_flow_demo",
+          "status": "running"
+        }
+      },
+      "accountSummary": {
+        "schemaVersion": 1,
+        "ownerId": "alice",
+        "strategies": [
+          {
+            "ownerId": "alice",
+            "strategyId": "core-flow-demo",
+            "vaultId": "vault_alice_core_flow_demo",
+            "status": "running"
+          },
+          {
+            "ownerId": "alice",
+            "strategyId": "satellite-flow-demo",
+            "vaultId": null,
+            "status": "not_started"
+          }
+        ],
+        "passBalances": [
+          {
+            "strategyId": "core-flow-demo",
+            "total": "1000",
+            "allowance": "1000000000"
+          },
+          {
+            "strategyId": "satellite-flow-demo",
+            "total": "0",
+            "allowance": "0"
+          }
+        ],
+        "scope": "TEST_ONLY",
+        "identity": {
+          "id": "alice",
+          "mode": "DEMO"
+        },
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "passes": "1000",
+        "vaultCount": 1,
+        "status": "running",
+        "idle": "500000000",
+        "balances": {
+          "reserved": "0",
+          "pending": "0",
+          "unrealized": "0",
+          "activeGross": "1000000000",
+          "activeNet": "1000000000",
+          "equity": "1500000000",
+          "allowance": "1000000000"
+        },
+        "vaults": [
+          {
+            "schemaVersion": 1,
+            "scope": "TEST_ONLY",
+            "vaultId": "vault_alice_core_flow_demo",
+            "asset": {
+              "assetId": "TEST_ONLY_USDT_UNIT",
+              "decimals": 6
+            },
+            "passBalance": {
+              "strategyId": "core-flow-demo",
+              "total": "1000",
+              "allowance": "1000000000"
+            },
+            "id": "vault_alice_core_flow_demo",
+            "ownerId": "alice",
+            "strategyId": "core-flow-demo",
+            "passes": "1000",
+            "status": "running",
+            "revision": 3,
+            "idle": "500000000",
+            "activeCash": "1000000000",
+            "positionCost": "0",
+            "positionValue": "0",
+            "feeLiability": "0",
+            "withdrawalsPaid": "0",
+            "orders": {},
+            "pendingWithdrawals": {},
+            "pendingOperations": [],
+            "balances": {
+              "asset": {
+                "assetId": "TEST_ONLY_USDT_UNIT",
+                "decimals": 6
+              },
+              "idle": "500000000",
+              "activeCash": "1000000000",
+              "positionCost": "0",
+              "positionValue": "0",
+              "feeLiability": "0",
+              "deposits": "1500000000",
+              "withdrawalsPaid": "0",
+              "realizedPnl": "0",
+              "feesAccrued": "0",
+              "feesPaid": "0",
+              "reserved": "0",
+              "pending": "0",
+              "unrealized": "0",
+              "activeGross": "1000000000",
+              "activeNet": "1000000000",
+              "equity": "1500000000",
+              "allowance": "1000000000"
+            }
+          }
+        ],
+        "pagination": {
+          "limit": 50,
+          "nextCursor": null
+        }
+      },
+      "vault": {
+        "schemaVersion": 1,
+        "scope": "TEST_ONLY",
+        "vaultId": "vault_alice_core_flow_demo",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "passBalance": {
+          "strategyId": "core-flow-demo",
+          "total": "1000",
+          "allowance": "1000000000"
+        },
+        "id": "vault_alice_core_flow_demo",
+        "ownerId": "alice",
+        "strategyId": "core-flow-demo",
+        "passes": "1000",
+        "status": "running",
+        "revision": 3,
+        "idle": "500000000",
+        "activeCash": "1000000000",
+        "positionCost": "0",
+        "positionValue": "0",
+        "feeLiability": "0",
+        "withdrawalsPaid": "0",
+        "orders": {},
+        "pendingWithdrawals": {},
+        "pendingOperations": [],
+        "balances": {
+          "asset": {
+            "assetId": "TEST_ONLY_USDT_UNIT",
+            "decimals": 6
+          },
+          "idle": "500000000",
+          "activeCash": "1000000000",
+          "positionCost": "0",
+          "positionValue": "0",
+          "feeLiability": "0",
+          "deposits": "1500000000",
+          "withdrawalsPaid": "0",
+          "realizedPnl": "0",
+          "feesAccrued": "0",
+          "feesPaid": "0",
+          "reserved": "0",
+          "pending": "0",
+          "unrealized": "0",
+          "activeGross": "1000000000",
+          "activeNet": "1000000000",
+          "equity": "1500000000",
+          "allowance": "1000000000"
+        }
+      },
+      "pendingOperation": null,
+      "error": null
+    },
+    "STOPPED": {
+      "strategySummary": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        }
+      },
+      "strategyDetail": {
+        "schemaVersion": 1,
+        "strategyId": "core-flow-demo",
+        "id": "core-flow-demo",
+        "name": "核心资金流程样例",
+        "description": "验证 SaaS 额度与独立余额，不运行真实量化交易。",
+        "scope": "TEST_ONLY",
+        "testPasses": "1000",
+        "catalogVersion": "1",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "capabilities": {
+          "execution": "LOCAL_SIMULATION",
+          "claim": "TEST_PASSES_ONLY",
+          "arbitraryStrategies": false,
+          "realFunds": false
+        },
+        "accountStrategy": {
+          "ownerId": "alice",
+          "strategyId": "core-flow-demo",
+          "vaultId": "vault_alice_core_flow_demo",
+          "status": "stopped"
+        }
+      },
+      "accountSummary": {
+        "schemaVersion": 1,
+        "ownerId": "alice",
+        "strategies": [
+          {
+            "ownerId": "alice",
+            "strategyId": "core-flow-demo",
+            "vaultId": "vault_alice_core_flow_demo",
+            "status": "stopped"
+          },
+          {
+            "ownerId": "alice",
+            "strategyId": "satellite-flow-demo",
+            "vaultId": null,
+            "status": "not_started"
+          }
+        ],
+        "passBalances": [
+          {
+            "strategyId": "core-flow-demo",
+            "total": "1000",
+            "allowance": "1000000000"
+          },
+          {
+            "strategyId": "satellite-flow-demo",
+            "total": "0",
+            "allowance": "0"
+          }
+        ],
+        "scope": "TEST_ONLY",
+        "identity": {
+          "id": "alice",
+          "mode": "DEMO"
+        },
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "passes": "1000",
+        "vaultCount": 1,
+        "status": "stopped",
+        "idle": "500000000",
+        "balances": {
+          "reserved": "0",
+          "pending": "0",
+          "unrealized": "0",
+          "activeGross": "1000000000",
+          "activeNet": "1000000000",
+          "equity": "1500000000",
+          "allowance": "1000000000"
+        },
+        "vaults": [
+          {
+            "schemaVersion": 1,
+            "scope": "TEST_ONLY",
+            "vaultId": "vault_alice_core_flow_demo",
+            "asset": {
+              "assetId": "TEST_ONLY_USDT_UNIT",
+              "decimals": 6
+            },
+            "passBalance": {
+              "strategyId": "core-flow-demo",
+              "total": "1000",
+              "allowance": "1000000000"
+            },
+            "id": "vault_alice_core_flow_demo",
+            "ownerId": "alice",
+            "strategyId": "core-flow-demo",
+            "passes": "1000",
+            "status": "stopped",
+            "revision": 4,
+            "idle": "500000000",
+            "activeCash": "1000000000",
+            "positionCost": "0",
+            "positionValue": "0",
+            "feeLiability": "0",
+            "withdrawalsPaid": "0",
+            "orders": {},
+            "pendingWithdrawals": {},
+            "pendingOperations": [],
+            "balances": {
+              "asset": {
+                "assetId": "TEST_ONLY_USDT_UNIT",
+                "decimals": 6
+              },
+              "idle": "500000000",
+              "activeCash": "1000000000",
+              "positionCost": "0",
+              "positionValue": "0",
+              "feeLiability": "0",
+              "deposits": "1500000000",
+              "withdrawalsPaid": "0",
+              "realizedPnl": "0",
+              "feesAccrued": "0",
+              "feesPaid": "0",
+              "reserved": "0",
+              "pending": "0",
+              "unrealized": "0",
+              "activeGross": "1000000000",
+              "activeNet": "1000000000",
+              "equity": "1500000000",
+              "allowance": "1000000000"
+            }
+          }
+        ],
+        "pagination": {
+          "limit": 50,
+          "nextCursor": null
+        }
+      },
+      "vault": {
+        "schemaVersion": 1,
+        "scope": "TEST_ONLY",
+        "vaultId": "vault_alice_core_flow_demo",
+        "asset": {
+          "assetId": "TEST_ONLY_USDT_UNIT",
+          "decimals": 6
+        },
+        "passBalance": {
+          "strategyId": "core-flow-demo",
+          "total": "1000",
+          "allowance": "1000000000"
+        },
+        "id": "vault_alice_core_flow_demo",
+        "ownerId": "alice",
+        "strategyId": "core-flow-demo",
+        "passes": "1000",
+        "status": "stopped",
+        "revision": 4,
+        "idle": "500000000",
+        "activeCash": "1000000000",
+        "positionCost": "0",
+        "positionValue": "0",
+        "feeLiability": "0",
+        "withdrawalsPaid": "0",
+        "orders": {},
+        "pendingWithdrawals": {},
+        "pendingOperations": [],
+        "balances": {
+          "asset": {
+            "assetId": "TEST_ONLY_USDT_UNIT",
+            "decimals": 6
+          },
+          "idle": "500000000",
+          "activeCash": "1000000000",
+          "positionCost": "0",
+          "positionValue": "0",
+          "feeLiability": "0",
+          "deposits": "1500000000",
+          "withdrawalsPaid": "0",
+          "realizedPnl": "0",
+          "feesAccrued": "0",
+          "feesPaid": "0",
+          "reserved": "0",
+          "pending": "0",
+          "unrealized": "0",
+          "activeGross": "1000000000",
+          "activeNet": "1000000000",
+          "equity": "1500000000",
+          "allowance": "1000000000"
+        }
+      },
+      "pendingOperation": null,
+      "error": null
+    }
+  }
+}

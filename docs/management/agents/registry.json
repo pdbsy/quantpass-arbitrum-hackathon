@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "protocol_version": "1.0.0",
+  "project": "AlphaForge",
+  "default_branch": "master",
+  "setup_task": "AF-AGENT-SETUP",
+  "agents": [
+    {
+      "agent_id": "Macbeth01",
+      "branch_prefix": "macbeth01/",
+      "workspace_status": "WORKSPACE_PREPARED",
+      "session_status": "SELF_CONFIRMED",
+      "self_confirmation": "VERIFIED",
+      "communication_status": "UNVERIFIED",
+      "current_task": "AF-MIGRATION",
+      "runtime_status": "ACTIVE"
+    },
+    {
+      "agent_id": "Macbeth02",
+      "branch_prefix": "macbeth02/",
+      "workspace_status": "WORKSPACE_PREPARED",
+      "session_status": "SESSION_CREATED",
+      "self_confirmation": "UNVERIFIED",
+      "communication_status": "UNVERIFIED",
+      "current_task": "NONE",
+      "runtime_status": "IDLE"
+    },
+    {
+      "agent_id": "Macbeth03",
+      "branch_prefix": "macbeth03/",
+      "workspace_status": "WORKSPACE_PREPARED",
+      "session_status": "SESSION_CREATED",
+      "self_confirmation": "UNVERIFIED",
+      "communication_status": "UNVERIFIED",
+      "current_task": "NONE",
+      "runtime_status": "IDLE"
+    },
+    {
+      "agent_id": "Macbeth04",
+      "branch_prefix": "macbeth04/",
+      "workspace_status": "WORKSPACE_PREPARED",
+      "session_status": "SESSION_CREATED",
+      "self_confirmation": "UNVERIFIED",
+      "communication_status": "UNVERIFIED",
+      "current_task": "NONE",
+      "runtime_status": "IDLE"
+    },
+    {
+      "agent_id": "Macbeth05",
+      "branch_prefix": "macbeth05/",
+      "workspace_status": "WORKSPACE_PREPARED",
+      "session_status": "SESSION_CREATED",
+      "self_confirmation": "UNVERIFIED",
+      "communication_status": "UNVERIFIED",
+      "current_task": "NONE",
+      "runtime_status": "IDLE"
+    }
+  ],
+  "canonical_repository": "pdbsy/quantpass-arbitrum-hackathon"
+}

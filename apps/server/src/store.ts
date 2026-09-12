@@ -56,7 +56,13 @@ export class LocalStore {
   }
   private decode(row: Row): VaultState {
     if (digest(row.state_json) !== row.digest) throw new Error('CORRUPT_LEDGER');
-    const state = restoreVault(row.state_json);
+    let state: VaultState;
+    try {
+      state = restoreVault(row.state_json);
+    } catch {
+      // Invalid persisted state is an internal failure, never a client command conflict.
+      throw new Error('CORRUPT_LEDGER');
+    }
     if (
       state.id !== row.id ||
       state.ownerId !== row.owner_id ||
@@ -77,6 +83,32 @@ export class LocalStore {
     return (
       this.db.prepare('SELECT * FROM vaults WHERE owner_id = ? ORDER BY id').all(owner) as unknown as Row[]
     ).map((row) => this.decode(row));
+  }
+  *owned(owner: string): IterableIterator<VaultState> {
+    for (const row of this.db.prepare('SELECT * FROM vaults WHERE owner_id = ? ORDER BY id').iterate(owner))
+      yield this.decode(row as unknown as Row);
+  }
+  forStrategy(owner: string, strategyId: string): VaultState {
+    const row = this.db
+      .prepare('SELECT * FROM vaults WHERE owner_id = ? AND strategy_id = ?')
+      .get(owner, strategyId) as unknown as Row | undefined;
+    if (!row) throw new DomainError('VAULT_NOT_FOUND');
+    return this.decode(row);
+  }
+  listPage(owner: string, options: { limit: number; after?: string; strategyId?: string }) {
+    const rows = this.db
+      .prepare(
+        'SELECT * FROM vaults WHERE owner_id = ? AND id > ? AND (? IS NULL OR strategy_id = ?) ORDER BY id LIMIT ?',
+      )
+      .all(
+        owner,
+        options.after ?? '',
+        options.strategyId ?? null,
+        options.strategyId ?? null,
+        options.limit + 1,
+      ) as unknown as Row[];
+    const items = rows.slice(0, options.limit).map((row) => this.decode(row));
+    return { items, nextCursor: rows.length > options.limit ? items.at(-1)!.id : null };
   }
   obtainTestPasses(owner: string, strategy: string): VaultState {
     this.db.exec('BEGIN IMMEDIATE');
@@ -151,6 +183,16 @@ export class LocalStore {
         'SELECT revision, command_id, command_type, actor_id, recorded_at FROM audit_events WHERE vault_id = ? ORDER BY revision DESC LIMIT 100',
       )
       .all(id);
+  }
+  auditPage(owner: string, id: string, options: { limit: number; beforeRevision?: number }) {
+    this.get(id, owner);
+    const rows = this.db
+      .prepare(
+        'SELECT revision, command_id, command_type, actor_id, recorded_at FROM audit_events WHERE vault_id = ? AND revision < ? ORDER BY revision DESC LIMIT ?',
+      )
+      .all(id, options.beforeRevision ?? 10001, options.limit + 1);
+    const items = rows.slice(0, options.limit);
+    return { items, nextCursor: rows.length > options.limit ? String(items.at(-1)!.revision) : null };
   }
   async backupTo(target: string) {
     const path = resolve(target);

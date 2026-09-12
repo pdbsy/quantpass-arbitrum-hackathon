@@ -1,0 +1,144 @@
+
+> quantpass@0.1.0 check
+> npm run typecheck && npm run lint && npm run format:check && npm test && npm run secrets:check && npm run build
+
+
+> quantpass@0.1.0 typecheck
+> tsc --noEmit && tsc --project apps/web/tsconfig.json
+
+
+> quantpass@0.1.0 lint
+> eslint . --max-warnings=0
+
+
+> quantpass@0.1.0 format:check
+> prettier --check "**/*.{js,mjs,ts,tsx,json,yml,yaml}"
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> quantpass@0.1.0 test
+> node --test test/security-model.test.ts test/module-board.test.mjs test/m00-specs.test.mjs test/engineering.test.ts test/domain.test.ts test/server.test.ts test/http-e2e.test.ts test/web-messages.test.ts test/confidential-evidence.test.ts test/product-api.test.ts test/ui-product-client.test.ts test/ui-product-adapter.test.ts test/ui-import.test.mjs
+
+✔ M04 current dossier reports absent decisions, hardware and every unrun check (9.539708ms)
+✔ M04 experiment guide covers every required check and unresolved decision (6.537459ms)
+✔ M04 even complete claimed hardware metadata only requests human review, never authorizes keys (2.811625ms)
+✔ M04 all passing fixture records cannot become hardware evidence (0.249667ms)
+✔ M04 each required check blocks independently when missing, failed or unsupported (8.199042ms)
+✔ M04 every unresolved decision remains a blocker (0.37125ms)
+✔ M04 future observations are not accepted as evidence and malformed dates reject (0.294084ms)
+✔ M04 schemas reject invented approval flags, coercion, duplicate checks and sensitive content (0.238084ms)
+✔ M04 parsing does not keep mutable caller references (0.105458ms)
+✔ M04 CLI exits blocked for current evidence without modifying its file (64.302292ms)
+✔ M04 CLI bounds input and does not leak malformed contents or file paths (150.789083ms)
+✔ M02 amounts roundtrip exactly and reject overflow, floats, exponents and malformed precision (0.77175ms)
+✔ S01-S03: Pass is allowance, deposit creates idle cash, withdrawal requires confirmation (11.680542ms)
+✔ S04: losses do not silently refill from idle cash or change Pass allowance (0.993875ms)
+✔ S05-S06: unrealized gains stay in positions, isolated only after explicit fixture settlement (1.19ms)
+✔ S07: order reservation is part of active assets, cannot consume idle cash or be filled twice (0.675333ms)
+✔ fee liabilities are cash-backed, cannot be withdrawn, and payment never deducts twice (0.830459ms)
+✔ N01-N03: allowance, idle withdrawals and actor boundaries reject without mutation (0.534917ms)
+✔ N04: replay is persisted across JSON restore; changed payload and stale revision reject (0.523417ms)
+✔ withdrawal cancellation restores only the pending amount; replay and stale confirmations do not pay it (0.426083ms)
+✔ stop is an exit request, not invented liquidation: pending orders can cancel, positions must settle (0.479834ms)
+✔ malformed snapshots, impossible fee policy and oversize amounts cannot commit a transition (1.637917ms)
+✔ deterministic state-machine sequences preserve balances and replay safety over 1500 operations (1656.5765ms)
+✔ configuration accepts only an explicitly selected local mock environment (0.663917ms)
+✔ missing configuration and production/testnet paths fail closed (0.138792ms)
+✔ M03 real HTTP process crash/restart retains committed funds and rejects replay mutation (464.053875ms)
+✔ whitepaper no longer grants unapproved upgrade, supply or HWM defaults (9.614792ms)
+✔ M00 decimal examples are exact and reject ambiguous amount inputs (0.305667ms)
+✔ S01-S07 keep allowance separate from assets and conserve snapshot totals (0.112583ms)
+✔ S05-S07 do not double-count unrealized profit or order reserves (0.068083ms)
+✔ S08-S09 share one fee and keep issuer rent separate from user funds (0.07ms)
+✔ all 17 module folders have linked entry points (57.104959ms)
+✔ M00 specs cover all decisions and distinguish examples from runtime acceptance (2.008625ms)
+✔ board mirrors 17 modules and 69 unique tasks from the source plan (0.702375ms)
+✔ board plan hash is identical for Windows and Linux line endings (0.626334ms)
+✔ fresh progress does not mistake existing prototype tests for completed modules (0.163541ms)
+✔ completion is reversible and does not silently check tasks or erase notes (5.667917ms)
+✔ single-developer mode keeps only one active module (0.23475ms)
+✔ exported progress survives JSON roundtrip (0.687792ms)
+✔ invalid imports and unknown or poisoned fields are rejected (0.906375ms)
+✔ notes remain inert data and malformed plans are rejected (0.517583ms)
+✔ AF-BE01 versioned catalog supplies matching detail and only registered simulations (111.897ms)
+✔ AF-BE01 account totals are exact and independent of vault pagination and other owners (32.954875ms)
+✔ AF-BE01 strategy-scoped vault lookup and duplicate claims preserve separate ledgers (19.16225ms)
+✔ AF-BE01 product balances and pending operations follow real ledger transitions (19.096708ms)
+✔ AF-BE01 list and audit pagination are bounded and reject malformed pagination (16.148041ms)
+✔ AF-BE01 structured errors and exact input bounds preserve economic state (17.315125ms)
+✔ AF-BE01 damaged account data returns a generic failure without partial totals (13.792666ms)
+✔ AF-BE01 account and strategy views survive restart and legacy SQLite backup (36.709208ms)
+✔ AF-BE01 six UI fixtures match real API journeys and preserve pending/stop meaning (74.618708ms)
+✔ AF-BE01 legacy vault list stays core-bound with satellite-only and mixed accounts (12.491042ms)
+✔ AF-BE01 frozen canonical resources bind absence, passes, balances and pending operations (14.2065ms)
+✔ AF-BE01 canonical opaque cursors continue deterministic pages and reject invalid binding (22.447584ms)
+✔ AF-BE01 canonical errors are exactly the frozen envelope at every boundary (10.815958ms)
+✔ AF-BE01 invalid persisted state is internal even when its digest matches (12.137125ms)
+✔ AF-BE01 canonical readback and terminal audit preserve completed and cancelled operations (13.526875ms)
+✔ issues a short-lived, trade-only permit containing only the required order delta (12.26825ms)
+✔ rejects a decision bound to a different user risk policy (4.785458ms)
+✔ atomically rejects replay of a previously consumed strategy nonce (0.957417ms)
+✔ rejects a target that exceeds the user-signed per-position limit (0.5655ms)
+✔ daily-loss kill switch permits closing risk but blocks increasing it (0.957625ms)
+✔ rejects a signed decision after its payload is modified (0.447709ms)
+✔ M03 static delivery stays inside webroot and finds newly rebuilt assets (119.163042ms)
+✔ M03 complete API journey separates passes, idle, allocation, pending and paid funds (34.640792ms)
+✔ M03 repeated and competing requests cannot deposit twice or overwrite a revision (21.264875ms)
+✔ M03 rejects unauthenticated, cross-user, cross-origin and malformed requests (17.818583ms)
+✔ M03 service restart preserves ledger and receipts but invalidates demo sessions (28.157708ms)
+✔ M03 audit insert failure rolls back snapshot update and returns a non-sensitive error (12.790375ms)
+✔ M03 SQLite online backup reopens independently, preserves receipts and does not overwrite (21.736041ms)
+✔ M03 corrupted stored snapshots fail closed without exposing SQL or file details (14.7505ms)
+✔ actual importer preserves exact source, CSS, script except scoped style hydration markers and shell (49.96325ms)
+✔ mechanical style normalization preserves escaped JSON and unrelated attribute names (0.39025ms)
+✔ canonical vault maps authentic fields and pending records without aliases (1.28225ms)
+✔ legacy missing financial fields remain unavailable (0.184292ms)
+✔ gateway consumes opaque pages and account/detail without legacy aliases (1.092333ms)
+✔ only initial 404 permits legacy fallback; malformed pages and server/auth errors do not (0.395917ms)
+✔ cursor cycles fail closed (0.142917ms)
+✔ Retry-After blocks manual command retry until injected clock allows unchanged envelope (0.195875ms)
+✔ 404 after the initial canonical page never downgrades to legacy (0.137125ms)
+✔ Retry-After survives a new adapter without changing durable command data (0.146459ms)
+✔ canonical balances reject negative cash and noncanonical signed money (0.100125ms)
+✔ owned audit accepts actual simulator actor only for executor commands (0.883583ms)
+✔ cooldown unreadable startup publishes DISCONNECTED, preserves pending and recovers on refresh (0.544417ms)
+✔ cooldown malformed startup publishes DISCONNECTED, preserves pending and recovers on refresh (0.299917ms)
+✔ contract-minimum vault accepts balances.asset without a top-level alias (0.097917ms)
+✔ contract-minimum detail accepts a null relation and still rejects a foreign relation (0.222959ms)
+✔ lost committed response survives reload and exact retry deposits once (123.3015ms)
+✔ review revision conflict is retained until refresh and explicit dismissal (25.707125ms)
+✔ Bob never displays or replays Alice pending funds and switching back recovers (21.342709ms)
+✔ storage failure prevents command submission and pending removal failure remains recoverable (17.708084ms)
+✔ concurrent command attempts cannot create an additional deposit (16.436541ms)
+✔ successful write with failed readback stays pending until exact retry verifies it (16.638208ms)
+✔ 401 clears every private view while preserving the durable pending request (14.192958ms)
+✔ delayed Alice read cannot overwrite a completed Bob identity switch (13.989375ms)
+✔ reviews cannot survive refresh or vault selection and foreign vault IDs are rejected (15.881208ms)
+✔ malformed legacy pending data is retained and blocks new writes (13.190041ms)
+✔ all master command fields run a real local funding and simulation journey (28.093459ms)
+✔ 5xx preserves exact pending payload for transport recovery (13.688917ms)
+✔ command response from another vault never becomes a visible success (11.698417ms)
+✔ malformed amounts and fields cannot reach the ledger or durable request (10.86875ms)
+✔ matching audit reconciles a lost committed command without sending another POST (11.485458ms)
+✔ retry cannot write while required vault or audit reconciliation is unavailable (11.776625ms)
+✔ rate limiting retains a retryable exact envelope without rejection dismissal (10.466875ms)
+✔ pending request stays bound to its vault while selecting another owned vault (20.066834ms)
+✔ authenticated identity change during retry clears the previous private view (13.484584ms)
+✔ executor receipts reconcile lost reserve responses after reload without another POST (14.592334ms)
+✔ owner commands reject a simulator audit actor and retain the pending request (13.142875ms)
+✔ stop acknowledgement never claims completion while positions or orders remain (0.417416ms)
+✔ replayed command reports readback instead of a new operation (0.063167ms)
+ℹ tests 109
+ℹ suites 0
+ℹ pass 109
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1763.8825
+
+> quantpass@0.1.0 secrets:check
+> node tools/check-secrets.mjs
+
+EISDIR: illegal operation on a directory, read

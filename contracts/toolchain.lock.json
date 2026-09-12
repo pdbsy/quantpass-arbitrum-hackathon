@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "task": "AF-CHAIN01",
+  "platform": "darwin-arm64",
+  "python": "3.12",
+  "pythonTested": "3.12.9",
+  "foundry": {
+    "version": "1.5.1",
+    "commit": "b0a9dd9ceda36f63e2326ce530c10e6916f4b8a2",
+    "license": "MIT OR Apache-2.0",
+    "officialSource": "https://github.com/foundry-rs/foundry/releases/tag/v1.5.1",
+    "url": "https://registry.npmjs.org/@foundry-rs/forge-darwin-arm64/-/forge-darwin-arm64-1.5.1.tgz",
+    "filename": "forge-darwin-arm64-1.5.1.tgz",
+    "integrity": "sha512-CTQacTUYdMbTqIUdsLTvYzGQZBLIhW6jq+jdolsIqzASRDF0IKks/BfCBaSZP9LZEBmh1Vqo8mfV27Gx7ImVqw==",
+    "sha256": "0f28181af3b19b83146ce70c4de26a3754c95660138af040a9ca0fad0b7bbe33"
+  },
+  "solc": {
+    "version": "0.8.31",
+    "longVersion": "0.8.31+commit.fd3a2265",
+    "license": "GPL-3.0",
+    "officialSource": "https://github.com/argotorg/solidity/releases/tag/v0.8.31",
+    "url": "https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/macosx-amd64/solc-macosx-amd64-v0.8.31+commit.fd3a2265",
+    "filename": "solc-macos.cdn",
+    "sha256": "f5a243d6b2dd8fba307e36c5fefa2d8eb3ae74ba81036d1c17c971b5d346ade9"
+  },
+  "openzeppelin": {
+    "version": "5.4.0",
+    "commit": "c64a1edb67b6e3f4a15cca8909c9482ad33a02b0",
+    "license": "MIT",
+    "officialSource": "https://github.com/OpenZeppelin/openzeppelin-contracts/releases/tag/v5.4.0",
+    "url": "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-5.4.0.tgz",
+    "filename": "contracts-5.4.0.tgz",
+    "integrity": "sha512-eCYgWnLg6WO+X52I16TZt8uEjbtdkgLC0SUX/xnAksjjrQI4Xfn4iBRoI5j55dmlOhDv1Y7BoR3cU7e3WWhC6A==",
+    "sha256": "4e4d51f18935b32f0c877bf666ac37f5e5a98e75f03e7a77eb7569f84701f680"
+  },
+  "slither": {
+    "version": "0.11.3",
+    "license": "AGPL-3.0",
+    "officialSource": "https://github.com/crytic/slither/releases/tag/0.11.3",
+    "index": "https://pypi.org/project/slither-analyzer/0.11.3/",
+    "requirements": "requirements-slither.lock",
+    "requirementsSha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f",
+    "platform": "CPython 3.12 / macOS arm64; 47 exact binary wheels",
+    "cryticCompile": "0.3.11"
+  },
+  "compilerSettings": {
+    "evmVersion": "paris",
+    "optimizer": false,
+    "viaIR": false,
+    "offline": true,
+    "ffi": false,
+    "fsPermissions": []
+  },
+  "verificationLimits": [
+    "Registry/release digest verification is integrity verification, not independent provenance verification.",
+    "Other platforms and production chain compatibility are NOT RUN.",
+    "No deployed Vault, signatures, key custody, RPC or broadcasts."
+  ]
+}

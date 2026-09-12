@@ -1,0 +1,1696 @@
+{
+  "schema_version": 1,
+  "historical_evidence_only": true,
+  "artifacts": [
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/BACKLOG-ARCHIVE-2026-09-05.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/BACKLOG-ARCHIVE-2026-09-05.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "a009485e33b621528fbad2fc2218b635d595ce47c0e093dcdd9ef8d4d241a255",
+      "migrated_sha256": "a009485e33b621528fbad2fc2218b635d595ce47c0e093dcdd9ef8d4d241a255"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/DEVELOPMENT-PLAN.zh-CN.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/DEVELOPMENT-PLAN.zh-CN.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "3329953da1cac16ca871c3e71990839dd73dd2daf0e6f19aa90e1e7728462de2",
+      "migrated_sha256": "3329953da1cac16ca871c3e71990839dd73dd2daf0e6f19aa90e1e7728462de2"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/ENGINEERING.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/ENGINEERING.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "20538943f3eeb373b28a9d2f4e013334de1a6c441dafac8484333a254634bfde",
+      "migrated_sha256": "20538943f3eeb373b28a9d2f4e013334de1a6c441dafac8484333a254634bfde"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/PRODUCT-DECISIONS.zh-CN.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/PRODUCT-DECISIONS.zh-CN.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "72c42200fbddbb50a83ae9059df60b9837a5d22bf3ab33c6babb3e7506178305",
+      "migrated_sha256": "72c42200fbddbb50a83ae9059df60b9837a5d22bf3ab33c6babb3e7506178305"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/REVIEW-2026-09-05.zh-CN.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/REVIEW-2026-09-05.zh-CN.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "3e39802ad5274fe9a4d998576a5ea1752b0c3207c539e8280a49991dc4412449",
+      "migrated_sha256": "3e39802ad5274fe9a4d998576a5ea1752b0c3207c539e8280a49991dc4412449"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/WHITEPAPER.zh-CN.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/WHITEPAPER.zh-CN.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "24ca4fd575460322c386638261880e20066779b92242b4c0cfde815d55fa5f21",
+      "migrated_sha256": "24ca4fd575460322c386638261880e20066779b92242b4c0cfde815d55fa5f21"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/adr/0001-project-foundation.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/adr/0001-project-foundation.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "ecfbd50f49687dbae6b31780cc7c0e3731a1162a1a2accfd81aaced6b12c9910",
+      "migrated_sha256": "ecfbd50f49687dbae6b31780cc7c0e3731a1162a1a2accfd81aaced6b12c9910"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/adr/0002-local-simulation.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/adr/0002-local-simulation.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "ed7fd6581e30c2aff54420bf0630a9771bf2efca1284d2032a35d52956409554",
+      "migrated_sha256": "ed7fd6581e30c2aff54420bf0630a9771bf2efca1284d2032a35d52956409554"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/evidence/M00.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/evidence/M00.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "38c2dda8288266fc3fe563857c22de2179dfd9c56efc775f7ceddfd0428c0167",
+      "migrated_sha256": "38c2dda8288266fc3fe563857c22de2179dfd9c56efc775f7ceddfd0428c0167"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/evidence/M01.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/evidence/M01.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "5a5c9aaf1fc1b72156dc1782ce2946049feeea06d2603acf452277d5344e87e3",
+      "migrated_sha256": "5a5c9aaf1fc1b72156dc1782ce2946049feeea06d2603acf452277d5344e87e3"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/evidence/M02.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/evidence/M02.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "7f0ec0630b26dbb73026e0ce02b152a3aac14f49eb22366f1a9168499f730033",
+      "migrated_sha256": "7f0ec0630b26dbb73026e0ce02b152a3aac14f49eb22366f1a9168499f730033"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/evidence/M03.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/evidence/M03.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "d4e388b7d3c376384a4315ee5561b419239188f287d90237845dfc36d9d2940e",
+      "migrated_sha256": "d4e388b7d3c376384a4315ee5561b419239188f287d90237845dfc36d9d2940e"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/evidence/M04.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/evidence/M04.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "aa90ea2a66327495b861b1ec6d32d485fb99e130055749e6a89179f687077239",
+      "migrated_sha256": "aa90ea2a66327495b861b1ec6d32d485fb99e130055749e6a89179f687077239"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/evidence/TEMPLATE.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/evidence/TEMPLATE.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "281a157f100a6cadd90b1808a5b2637c0b91465fb94ca127a98f6e7a7022fc5c",
+      "migrated_sha256": "281a157f100a6cadd90b1808a5b2637c0b91465fb94ca127a98f6e7a7022fc5c"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/product-model.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/product-model.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "f676a2901f88a4bff27ddfccadc98576539fe10541968126b1926b64cb43f7e7",
+      "migrated_sha256": "f676a2901f88a4bff27ddfccadc98576539fe10541968126b1926b64cb43f7e7"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/security-model-v0.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/security-model-v0.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "01c354defaba0526f57482bbf6594b65fd094e8e7f1f12abc2758ddcb27f0dc9",
+      "migrated_sha256": "01c354defaba0526f57482bbf6594b65fd094e8e7f1f12abc2758ddcb27f0dc9"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/specs/baseline-review.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/specs/baseline-review.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "bfe1b73ee5f0245a29990dee257bf8c5e57a4c9f37031e6ae60c71fdb2808c3a",
+      "migrated_sha256": "bfe1b73ee5f0245a29990dee257bf8c5e57a4c9f37031e6ae60c71fdb2808c3a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/specs/core-scenarios.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/specs/core-scenarios.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "631a919adda2f9a4b29330769f5fef5e7fc970d05b56b5153a8bf9ead0e031e1",
+      "migrated_sha256": "631a919adda2f9a4b29330769f5fef5e7fc970d05b56b5153a8bf9ead0e031e1"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/specs/domain-ledger.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/specs/domain-ledger.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "dde606bbe4dbced52c1069b2e4ebf36d5de9e4ec12e521e60ec34e807c2ce217",
+      "migrated_sha256": "dde606bbe4dbced52c1069b2e4ebf36d5de9e4ec12e521e60ec34e807c2ce217"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/specs/glossary.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/specs/glossary.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "3d9f04c9f900fc0b5aea3fc64ef92a189e0be27a85a900453d0ad559153a6cea",
+      "migrated_sha256": "3d9f04c9f900fc0b5aea3fc64ef92a189e0be27a85a900453d0ad559153a6cea"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/specs/release-gates.md",
+      "source_commit": "0a813de422a02a2b3f0ade7eee693f0d2491ec33",
+      "source_agent": "Historical baseline",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/specs/release-gates.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "1a95da8985fcebd2ee98abae6e6061527fbdf4a80f0d382efe60d831322ba734",
+      "migrated_sha256": "1a95da8985fcebd2ee98abae6e6061527fbdf4a80f0d382efe60d831322ba734"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/README.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/README.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "f8f8e98ab8ac191a68f82a3ebf761e7bcac23b920cf865d8af32f1ba3bd92f37",
+      "migrated_sha256": "f8f8e98ab8ac191a68f82a3ebf761e7bcac23b920cf865d8af32f1ba3bd92f37"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/COMMON-PROTOCOL.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/COMMON-PROTOCOL.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "9ac5209eb9777fdcec2697ae4180cda66526ac2f4d51f9e4e6255f7c3effd2b9",
+      "migrated_sha256": "9ac5209eb9777fdcec2697ae4180cda66526ac2f4d51f9e4e6255f7c3effd2b9"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/COMMUNICATION.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/COMMUNICATION.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "6d6805887eaea930324756abf88671964d51a00422e670a1e33cddcfb2dd3ef3",
+      "migrated_sha256": "6d6805887eaea930324756abf88671964d51a00422e670a1e33cddcfb2dd3ef3"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/SETUP-REPORT.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/SETUP-REPORT.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "88ecedc35e0eadec0920006bcd82bea836261093938aa92fe1377e85481fb539",
+      "migrated_sha256": "0fd3c412c60fc5c426b652d14030456c733964d291d8e5463445111a2ddde074"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth01.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/bootstrap/Macbeth01.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "b002103a4872d0211d6d7ca898ead3430ecb1c81fb4a6556bcfe26dc6d1f46b8",
+      "migrated_sha256": "b002103a4872d0211d6d7ca898ead3430ecb1c81fb4a6556bcfe26dc6d1f46b8"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth02.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/bootstrap/Macbeth02.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "28773702ff4544e828035e76c166ff35b61eeddbfbf3690a77e6fb1dd67508c9",
+      "migrated_sha256": "28773702ff4544e828035e76c166ff35b61eeddbfbf3690a77e6fb1dd67508c9"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth03.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/bootstrap/Macbeth03.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "22747392888ddd5bbc8145ebadc8006aa0c8041f226625b4fe5be6524f656f4d",
+      "migrated_sha256": "22747392888ddd5bbc8145ebadc8006aa0c8041f226625b4fe5be6524f656f4d"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth04.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/bootstrap/Macbeth04.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "46ff73062c73b043a204f07bdee932f5450272c4fbc29b20bbd7141670d4ddd5",
+      "migrated_sha256": "46ff73062c73b043a204f07bdee932f5450272c4fbc29b20bbd7141670d4ddd5"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth05.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/bootstrap/Macbeth05.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "5d5bc59b892ed0009ca8e161135c233ff7f4aafe912511c1c2a4a391b579cd10",
+      "migrated_sha256": "5d5bc59b892ed0009ca8e161135c233ff7f4aafe912511c1c2a4a391b579cd10"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/forum-snapshot.json",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/forum-snapshot.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "646a27885de6268c3378c8f8063ce8131e1f3ba15f0eb213006c13351fffce18",
+      "migrated_sha256": "aeda325b3fc0b842c5b44b56ed3797a54e6dc0d0e82fcfa9942ce12e26b4a00c"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/registry.json",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/registry.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "ecb05bfdcccf1abb036c4e4fdd16155e959ae706395020db4a1dac49e43f50b6",
+      "migrated_sha256": "ecb05bfdcccf1abb036c4e4fdd16155e959ae706395020db4a1dac49e43f50b6"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/check-ins/Macbeth02.md",
+      "source_commit": "90cc98700344447a1faa93b1accf9a7a5a2fec38",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/check-ins/Macbeth02.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "46d2c857f76a9bfdda3f3093334fcba3a013753567dc9f2bf2c948f6b0846cb1",
+      "migrated_sha256": "d5caac184cbba58afb596bc32393920f27482573fe12e338070194e4129ed9fc"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/check-ins/Macbeth05.md",
+      "source_commit": "043781b10a4208ebff1617b5698458c2fa4328ab",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/check-ins/Macbeth05.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "b0945d0226207d609da89d17b66c7a152272bf563455422f521b5531c3775b39",
+      "migrated_sha256": "2dfb298ad9b398ca90ed632a3e5c4e668b835ba71e3e3b4dc06ea0c79b35450f"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/workers/Macbeth04.md",
+      "source_commit": "7d9812d8a784f1df04b94e4ed18efdceaef1b30a",
+      "source_agent": "Macbeth04",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/workers/Macbeth04.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "b942052a56c6663a7fd47a202f070b3ff9eb09be7c622630e51d3503ade8df53",
+      "migrated_sha256": "a1057fb216c1fedb8e84b5b3bda4d328d3de813644b4e9c5915d715d9db72296"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/workers/Macbeth03.md",
+      "source_commit": "bdf5870a5da0e02346a66c223ce8b1abae3cb2a9",
+      "source_agent": "Macbeth03",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/workers/Macbeth03.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "3f3226db99a0afe13dd4ac53aa2a91363f1e0d03a229429198f1f3729b76288b",
+      "migrated_sha256": "7bf06dc2c80b15976492584a25d07a1d5d5f93a9b9b8ce0f2004c44382fd3e15"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ACCEPTANCE-MATRIX.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ACCEPTANCE-MATRIX.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "3f570c7f71cb05e8a2bc98abbbb7abe096d6adf58d95dcd35d98b9a9b5ef1b5f",
+      "migrated_sha256": "3f570c7f71cb05e8a2bc98abbbb7abe096d6adf58d95dcd35d98b9a9b5ef1b5f"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/CHAIN-REVIEW.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/CHAIN-REVIEW.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "cd2a1289182bb83c3cba13e7b2e200314c2002fb7b25b9be8f696e20f8388cdd",
+      "migrated_sha256": "cd2a1289182bb83c3cba13e7b2e200314c2002fb7b25b9be8f696e20f8388cdd"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/CHAIN-TRIAGE.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/CHAIN-TRIAGE.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "3a61c63ed71bb4d7f80453164cb8a66323904c11e0a55a1e95ddb5352095da7a",
+      "migrated_sha256": "3a61c63ed71bb4d7f80453164cb8a66323904c11e0a55a1e95ddb5352095da7a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/CONTRACT-REVIEW.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/CONTRACT-REVIEW.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "5624c3f3d2f2c28763340d0f093d720a2f95a22a0c48ab5dd32c0bf703ca8a3d",
+      "migrated_sha256": "5624c3f3d2f2c28763340d0f093d720a2f95a22a0c48ab5dd32c0bf703ca8a3d"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/EVIDENCE.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/EVIDENCE.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "89a601bb01d32e825830550d09033bbc4a2bbd51ef4e7339e48438287e6f1edc",
+      "migrated_sha256": "0d0b621d3bfb8084801790a28b055b98675d37738db4180d9309e52b304cb693"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/FINDINGS.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/FINDINGS.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "fe7f0e0bd9bdee3e6c435fb78edbea8def313b13f65afc65a568292d25c17cbc",
+      "migrated_sha256": "fe7f0e0bd9bdee3e6c435fb78edbea8def313b13f65afc65a568292d25c17cbc"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/INTAKE.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/INTAKE.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "a2f6059c3d01aa4c19f115f9de440c571aef45909390b0894744e211d74e57e5",
+      "migrated_sha256": "193ab738ef7eaa631d368c01408a11e7720a496237e669bc525c365d72382aa8"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/INTEGRATED-QA-SCRIPTS.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/INTEGRATED-QA-SCRIPTS.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "46f9be9fdc063fe44c36134413ffe7ff67db2e785e7ede2f9e2395149423ee7a",
+      "migrated_sha256": "46f9be9fdc063fe44c36134413ffe7ff67db2e785e7ede2f9e2395149423ee7a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/INTEGRATED-REVIEW.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/INTEGRATED-REVIEW.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "1ccbd92dddd32a15fb7fa5df002bfe8e7931c46b1a2a18909d77c2351d4acfdf",
+      "migrated_sha256": "1ccbd92dddd32a15fb7fa5df002bfe8e7931c46b1a2a18909d77c2351d4acfdf"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/QA-PLAN.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/QA-PLAN.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "d7b38a783439a374a966eb09bfb4ea31687996f01e05f0b17582f6985d2320e1",
+      "migrated_sha256": "d7b38a783439a374a966eb09bfb4ea31687996f01e05f0b17582f6985d2320e1"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/REVALIDATION.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/REVALIDATION.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "3c28976a4c65d182f6ffb148952947e6c7b7e4c1ba70aab21a3dcf4009e27d4f",
+      "migrated_sha256": "2f396909604223fdeb951bdd3626fa0de5c7a81cc1b7e863634baff98f9546b4"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/UI-QA-SCRIPTS.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/UI-QA-SCRIPTS.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "76045601da8e5ff05699ebdbc7b8b71cbdd5ef090ccdb51c964b21ec153bf107",
+      "migrated_sha256": "76045601da8e5ff05699ebdbc7b8b71cbdd5ef090ccdb51c964b21ec153bf107"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/UI-REVIEW.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/UI-REVIEW.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "0b7345b1b4cd023c0471c422fce61736b5e2c650e117caad238d9a5bf63d668c",
+      "migrated_sha256": "b6006f2983e74fb3f7e9c87cb79ea28aab7eee7c5c5ce98abb7ccf0f409e36ad"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/UI-SECURITY-REVIEW.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/UI-SECURITY-REVIEW.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "01f51bd4c4652f26472e05df6644232a4a6f55393811b895cf265faa07ce2d23",
+      "migrated_sha256": "01f51bd4c4652f26472e05df6644232a4a6f55393811b895cf265faa07ce2d23"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/VERIFICATION-REPORT.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/VERIFICATION-REPORT.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "e65ed63ee57d6f3e3a73d9dfa5e9506779eadcccf6b9d560bd36d77407c56ad0",
+      "migrated_sha256": "e65ed63ee57d6f3e3a73d9dfa5e9506779eadcccf6b9d560bd36d77407c56ad0"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/backend-qa.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/backend-qa.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "6f5b10b828b123362749829cb9640f298709983f1c0717f4f7b58806e6dda6d2",
+      "migrated_sha256": "6f5b10b828b123362749829cb9640f298709983f1c0717f4f7b58806e6dda6d2"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/browser-extra-exits.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/browser-extra-exits.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "8abcddb535ba798b34c2e65d82806511559d5f21f519e042dec9f69e42175a88",
+      "migrated_sha256": "8abcddb535ba798b34c2e65d82806511559d5f21f519e042dec9f69e42175a88"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/build-manifest.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/build-manifest.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "f98d788ecb7f656c5a543b5a4a285c054931c7d3ec6f8f69df6bb5c40a406ca3",
+      "migrated_sha256": "f98d788ecb7f656c5a543b5a4a285c054931c7d3ec6f8f69df6bb5c40a406ca3"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/canonical-result.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/canonical-result.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "c122093e7d1a5a7dd9786142248f63fb510d31e325e8a0ff70b055c89cdb8b2a",
+      "migrated_sha256": "c122093e7d1a5a7dd9786142248f63fb510d31e325e8a0ff70b055c89cdb8b2a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/chain-abi.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/chain-abi.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "839c7cb1b5242333aff36211f46372a00db0bf036a7c2f00e7855b4183f75e46",
+      "migrated_sha256": "839c7cb1b5242333aff36211f46372a00db0bf036a7c2f00e7855b4183f75e46"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/chain-check-local.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/chain-check-local.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "36cdcd061d991d63eb35f4296cfc597ecdffd0e2a29e718cbdaf2bc922c72b98",
+      "migrated_sha256": "36cdcd061d991d63eb35f4296cfc597ecdffd0e2a29e718cbdaf2bc922c72b98"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/chain-exits.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/chain-exits.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "b0ee284d94dea70d5c1d92631adbc4c2e993ea07616a886bb6e0fe5010d7d1e7",
+      "migrated_sha256": "b0ee284d94dea70d5c1d92631adbc4c2e993ea07616a886bb6e0fe5010d7d1e7"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/check-final.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/check-final.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "88cac1a04bb616e360a44f9bf1e6c9a22a5ec15979f3adf623e3d5fb2da506f5",
+      "migrated_sha256": "88cac1a04bb616e360a44f9bf1e6c9a22a5ec15979f3adf623e3d5fb2da506f5"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/check-initial.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/check-initial.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "b2c6c843265127fe86e6fcd45f458fd6f444b481c3d54557ff8b239d019e59f6",
+      "migrated_sha256": "b2c6c843265127fe86e6fcd45f458fd6f444b481c3d54557ff8b239d019e59f6"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/contract-check.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/contract-check.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "60959c7a345504be7756055e36a0eb6a522428d99ec519f580c206531ae4c857",
+      "migrated_sha256": "60959c7a345504be7756055e36a0eb6a522428d99ec519f580c206531ae4c857"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/extra-result.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/extra-result.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "d50f02291206f543461cc64b6c4321e85b630f9bfdf7b8932e62f085b4a9a20e",
+      "migrated_sha256": "d50f02291206f543461cc64b6c4321e85b630f9bfdf7b8932e62f085b4a9a20e"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/form-boundaries.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/form-boundaries.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "f6b15b4c96b34d887fb89cbf39fc22854ccae518ec3d530fef94cf8b2275b7f6",
+      "migrated_sha256": "f6b15b4c96b34d887fb89cbf39fc22854ccae518ec3d530fef94cf8b2275b7f6"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/gates.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/gates.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "cda0579b845d3927cb60e59e6a969dd07838360bd48a323337621527dcd667fd",
+      "migrated_sha256": "cda0579b845d3927cb60e59e6a969dd07838360bd48a323337621527dcd667fd"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/legacy-result.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/legacy-result.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "b328750e0bdcf02de9c4b50a40c4905df79f187b144eff01355d5e863d459bdd",
+      "migrated_sha256": "b328750e0bdcf02de9c4b50a40c4905df79f187b144eff01355d5e863d459bdd"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/mobile-workspace.png",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/mobile-workspace.png.md",
+      "method": "immutable source image reference with SHA-256; canonical binary policy preserved",
+      "original_sha256": "7ca80eb8ce7fb7d10c0466c0998e1849a2a0373459bb80c60bad59157ffbd2eb",
+      "migrated_sha256": "521d7d45a58778f7442140571b930d450144aaf578a07c0d33c3556273b79a5a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/navigation-result.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/navigation-result.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "a8ee0367a5fa99e7dfd79135426e542f03ffa8a2e47e9e0b31fd928321cb5bad",
+      "migrated_sha256": "a8ee0367a5fa99e7dfd79135426e542f03ffa8a2e47e9e0b31fd928321cb5bad"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/npm-ci.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/npm-ci.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "1a5ceb4ff3d5171aa500fd17ebeec26258607236ba5f72c4736cbc98606c4532",
+      "migrated_sha256": "1a5ceb4ff3d5171aa500fd17ebeec26258607236ba5f72c4736cbc98606c4532"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/pending.png",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/pending.png.md",
+      "method": "immutable source image reference with SHA-256; canonical binary policy preserved",
+      "original_sha256": "d5508414ff527f9d2ecb53ccc0fbae650983b100ee4822e669226be673d78d1a",
+      "migrated_sha256": "a449849cae05de57de2effcc869d4e29c44fb6c0d703a4e3efbebb89342ef65f"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/secret-check.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/secret-check.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "bc15578dbade79c163c74213ae7a4867af8fcc826a98beac11004629d194192a",
+      "migrated_sha256": "bc15578dbade79c163c74213ae7a4867af8fcc826a98beac11004629d194192a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/integrated-evidence/static-summary.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/integrated-evidence/static-summary.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "c957b90eced1088ad704f353a29a6d3780a91cdfcb9d5109569126add3e80ff2",
+      "migrated_sha256": "57e61db39de792ec811e52e3c357a421e53e808579522fc571bf76c0a32468ad"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/backend-form-boundaries.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/backend-form-boundaries.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "f6b15b4c96b34d887fb89cbf39fc22854ccae518ec3d530fef94cf8b2275b7f6",
+      "migrated_sha256": "f6b15b4c96b34d887fb89cbf39fc22854ccae518ec3d530fef94cf8b2275b7f6"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/build.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/build.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "51964f92680a5f04c26671bd0c26efd607acf796ad3ca43162d5d412a9c52b56",
+      "migrated_sha256": "51964f92680a5f04c26671bd0c26efd607acf796ad3ca43162d5d412a9c52b56"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/canonical-result.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/canonical-result.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "c122093e7d1a5a7dd9786142248f63fb510d31e325e8a0ff70b055c89cdb8b2a",
+      "migrated_sha256": "c122093e7d1a5a7dd9786142248f63fb510d31e325e8a0ff70b055c89cdb8b2a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/contract-check.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/contract-check.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "36b33d8400e5b9d04255e132677fe8604248a6eb97a674fe161187fd6d844805",
+      "migrated_sha256": "36b33d8400e5b9d04255e132677fe8604248a6eb97a674fe161187fd6d844805"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/explicit-secret-check.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/explicit-secret-check.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "113cd2215ebf0b71bf3aa23420b4c473e59c3bef6eb7fbb06c917fe6ec12a41a",
+      "migrated_sha256": "113cd2215ebf0b71bf3aa23420b4c473e59c3bef6eb7fbb06c917fe6ec12a41a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/extra-result.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/extra-result.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "d50f02291206f543461cc64b6c4321e85b630f9bfdf7b8932e62f085b4a9a20e",
+      "migrated_sha256": "d50f02291206f543461cc64b6c4321e85b630f9bfdf7b8932e62f085b4a9a20e"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/fixture-desktop.png",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/fixture-desktop.png.md",
+      "method": "immutable source image reference with SHA-256; canonical binary policy preserved",
+      "original_sha256": "0117d8c41d6dbee406452ad2cd11c6f4110451612817a2cac926b789fcef8fc3",
+      "migrated_sha256": "b71bac32a1fb5614741638e4aa0d33e41ac8eebd37bb8c24e6d349bb211622f1"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/format.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/format.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "e9f8f86c62eba231d75baa570290ee509152fb28e1d2828283de484f5a9f3819",
+      "migrated_sha256": "e9f8f86c62eba231d75baa570290ee509152fb28e1d2828283de484f5a9f3819"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/gates.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/gates.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "cda0579b845d3927cb60e59e6a969dd07838360bd48a323337621527dcd667fd",
+      "migrated_sha256": "cda0579b845d3927cb60e59e6a969dd07838360bd48a323337621527dcd667fd"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/legacy-result.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/legacy-result.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "b328750e0bdcf02de9c4b50a40c4905df79f187b144eff01355d5e863d459bdd",
+      "migrated_sha256": "b328750e0bdcf02de9c4b50a40c4905df79f187b144eff01355d5e863d459bdd"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/lint.log.gz",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/lint.log",
+      "method": "decompressed historical log; workstation paths replaced",
+      "original_sha256": "618d12d0bb583a98731446b6b9f362012a12e93177eeff781fee04e303e45884",
+      "migrated_sha256": "7b35999b9ac650903670b83ef40f40130ffc5891997613048d09d849518e2035"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/mobile-home.png",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/mobile-home.png.md",
+      "method": "immutable source image reference with SHA-256; canonical binary policy preserved",
+      "original_sha256": "97a4d60f73412330b8da1d002ac28154afa600191bde41b77b9be2e2338de432",
+      "migrated_sha256": "b0f7d6a4d7882c166a86490addd583437c5d01ba61006249f467ff2057b4e043"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/mobile-workspace.png",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/mobile-workspace.png.md",
+      "method": "immutable source image reference with SHA-256; canonical binary policy preserved",
+      "original_sha256": "18de6171bebe8bdbf0a45e273c3801fcbc2677997e2bac12a8f18782fe11989f",
+      "migrated_sha256": "c405777bfecb90cca9e5b213780ce34653dd76c5cab29d5354698ad75c743672"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/navigation-result.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/navigation-result.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "a8ee0367a5fa99e7dfd79135426e542f03ffa8a2e47e9e0b31fd928321cb5bad",
+      "migrated_sha256": "a8ee0367a5fa99e7dfd79135426e542f03ffa8a2e47e9e0b31fd928321cb5bad"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/pending.png",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/pending.png.md",
+      "method": "immutable source image reference with SHA-256; canonical binary policy preserved",
+      "original_sha256": "dc17753243b640364d9488e9cfca3a9e00042e8bc82c5c9b74cf63c3af26e40d",
+      "migrated_sha256": "0baf7dc2d5d8c1f724c6d6faa9ad1af7a2f51b76cc107c37b3bbd6748da22a9d"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/secrets.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/secrets.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "952c161c6a8fb31ae1d70266960f389917d6b1c839151d19c7aa5184ab92eb65",
+      "migrated_sha256": "952c161c6a8fb31ae1d70266960f389917d6b1c839151d19c7aa5184ab92eb65"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/typecheck.log.gz",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/typecheck.log",
+      "method": "decompressed historical log; workstation paths replaced",
+      "original_sha256": "5fd03446da7de2561b3a101b2bbcef2ffb71d82eb72d1c37c8bb0271efd18279",
+      "migrated_sha256": "34cd2c90a0c22dde2c06d479fb8407f57a81121ec57ab43963721d96b09bda6c"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/qa/AF-QA01/ui-evidence/ui-tests.log",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth05",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/qa/AF-QA01/ui-evidence/ui-tests.log",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "0e9e6583da8e5f81b4dac54a7f4126037f53ba415759c52752f573334d616832",
+      "migrated_sha256": "0e9e6583da8e5f81b4dac54a7f4126037f53ba415759c52752f573334d616832"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/api/AF-BE01-product-api.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/api/AF-BE01-product-api.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "4f203afff9a7903b8dae7fb00580685d64e0d5da1b13253ea079112b48aa90fe",
+      "migrated_sha256": "4f203afff9a7903b8dae7fb00580685d64e0d5da1b13253ea079112b48aa90fe"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/api/fixtures/AF-BE01.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/api/fixtures/AF-BE01.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "ea36874daff4ee9a0afe758be90d2dfe45ac4fec0bcd98630ec5dc71b27b782a",
+      "migrated_sha256": "ea36874daff4ee9a0afe758be90d2dfe45ac4fec0bcd98630ec5dc71b27b782a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/tasks/AF-BE01-spec.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth01 (integration of Macbeth02-05)",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/agents/tasks/AF-BE01-spec.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "d214ca07bb25b3b89f8375a5077ef1da282d1c713f5e64db413295a8f95d8f74",
+      "migrated_sha256": "d214ca07bb25b3b89f8375a5077ef1da282d1c713f5e64db413295a8f95d8f74"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/superpowers/plans/2026-09-12-af-be01-product-api.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth01 (integration of Macbeth02-05)",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/superpowers/plans/2026-09-12-af-be01-product-api.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "4c21ca41b8c6e6400d31111a798b5d5b3ff209ea3200fb3eb31a3d9e4a755abb",
+      "migrated_sha256": "4c21ca41b8c6e6400d31111a798b5d5b3ff209ea3200fb3eb31a3d9e4a755abb"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/ADAPTATION-MAP.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/ADAPTATION-MAP.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "ead349bc16d89af50fddc02d1e6c7669d87b8aa7937653b86fb4046f4fcecae9",
+      "migrated_sha256": "ead349bc16d89af50fddc02d1e6c7669d87b8aa7937653b86fb4046f4fcecae9"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/INTEGRATION-FIX.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/INTEGRATION-FIX.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "557bcae42780b5cf7f23c882389cdc18f209dfdea6d7f8bcb7ed7893719997a6",
+      "migrated_sha256": "557bcae42780b5cf7f23c882389cdc18f209dfdea6d7f8bcb7ed7893719997a6"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/README.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/README.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "11da2a00808e1adba7b90249d6767fc490f180643f79649c08a9883186ba3c2d",
+      "migrated_sha256": "11da2a00808e1adba7b90249d6767fc490f180643f79649c08a9883186ba3c2d"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/SPEC.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/SPEC.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "6109c2a7c93f9b06db703bc355d9c742077e0432d86f8798e41e703091caa693",
+      "migrated_sha256": "6109c2a7c93f9b06db703bc355d9c742077e0432d86f8798e41e703091caa693"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/VERIFICATION.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/VERIFICATION.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "f7eae2a2d97d061e621f836eb2ca38960d40bc85600da7137cf04c9296bb8dca",
+      "migrated_sha256": "f7eae2a2d97d061e621f836eb2ca38960d40bc85600da7137cf04c9296bb8dca"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/evidence/canonical-browser.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/evidence/canonical-browser.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "c122093e7d1a5a7dd9786142248f63fb510d31e325e8a0ff70b055c89cdb8b2a",
+      "migrated_sha256": "c122093e7d1a5a7dd9786142248f63fb510d31e325e8a0ff70b055c89cdb8b2a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/evidence/fixture-desktop.png",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/evidence/fixture-desktop.png.md",
+      "method": "immutable source image reference with SHA-256; canonical binary policy preserved",
+      "original_sha256": "b60e6dae75d0c264507f56ed1b608651ae724fab444ef023c53e389d35fade6f",
+      "migrated_sha256": "c609a6f60aeb9b48a29c2923a01563e1f0c675615798e236dbf291ef83e03e2b"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/evidence/integration-fix-browser.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/evidence/integration-fix-browser.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "c122093e7d1a5a7dd9786142248f63fb510d31e325e8a0ff70b055c89cdb8b2a",
+      "migrated_sha256": "c122093e7d1a5a7dd9786142248f63fb510d31e325e8a0ff70b055c89cdb8b2a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/evidence/legacy-browser.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/evidence/legacy-browser.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "317dcc47536eca947c379697937c9e76acb204944ac5dd87296138148c62eeb9",
+      "migrated_sha256": "317dcc47536eca947c379697937c9e76acb204944ac5dd87296138148c62eeb9"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/evidence/storage-browser.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/evidence/storage-browser.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "082eceb6396dddfc0ff1fa35f2e6397995c7514c044ad72a2ce57c5e33e9708c",
+      "migrated_sha256": "082eceb6396dddfc0ff1fa35f2e6397995c7514c044ad72a2ce57c5e33e9708c"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/ui/AF-UI01/evidence/workspace-mobile.png",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/ui/AF-UI01/evidence/workspace-mobile.png.md",
+      "method": "immutable source image reference with SHA-256; canonical binary policy preserved",
+      "original_sha256": "6878cefec17ef3759b40a71dd263f1a968be1403b5ebc3421ff8a533fa995df1",
+      "migrated_sha256": "a1ade6ce0f8585f0588f82a8484360a5c05d026c63d6c7437d07627d2224a6d6"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/superpowers/plans/2026-09-12-af-ui01-adaptation.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth01 (integration of Macbeth02-05)",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/superpowers/plans/2026-09-12-af-ui01-adaptation.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "3b8c028551082fdd14abcb27196ab9c4c2b3f3bc49d03ffa7d77ccac571446f5",
+      "migrated_sha256": "1deb8325c5e5fd43cafbfbf6293e5037dd5a56ee3c0712b3a066d55c5a2841fb"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/.gitignore",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/.gitignore",
+      "method": "unchanged local-only contract source/toolchain lock",
+      "original_sha256": "b8e7e1d4b6cdc2d64fd2d0aeeeb343b2e3659c75acac4e388bb82966278f41a2",
+      "migrated_sha256": "b8e7e1d4b6cdc2d64fd2d0aeeeb343b2e3659c75acac4e388bb82966278f41a2"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/README.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/README.md",
+      "method": "selective import; authority and historical document links adapted",
+      "original_sha256": "ada85b5956659b1c48af5d2aa6450fc87f248ab9bd735fd6bdaad9fecbee3bcf",
+      "migrated_sha256": "547031f36b4c3a22479b5445eb6cbd8597484ae1c3d988464b3fd713ab1dd94c"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/TOOLCHAIN.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/TOOLCHAIN.md",
+      "method": "selective import; authority and historical document links adapted",
+      "original_sha256": "7535a638de64cc65af503864862a8d50f47c2fc23ce8f4fe895a1cde93fc8e3b",
+      "migrated_sha256": "772f74c4eee7d306f52de83abe7aee15eee794bef842573aadfe0a682512b628"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/foundry.toml",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/foundry.toml",
+      "method": "unchanged local-only contract source/toolchain lock",
+      "original_sha256": "afe88b8c4def38d57532ed352d8d92c283ae39a7192b42af8fb9df8116035a31",
+      "migrated_sha256": "afe88b8c4def38d57532ed352d8d92c283ae39a7192b42af8fb9df8116035a31"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/requirements-slither.lock",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/requirements-slither.lock",
+      "method": "unchanged local-only contract source/toolchain lock",
+      "original_sha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f",
+      "migrated_sha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/script/bootstrap.py",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/script/bootstrap.py",
+      "method": "unchanged local-only contract source/toolchain lock",
+      "original_sha256": "938cea8dcf922a779a5b23c1632133b082ab49816d527c22ed7727bc07c65b8f",
+      "migrated_sha256": "938cea8dcf922a779a5b23c1632133b082ab49816d527c22ed7727bc07c65b8f"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/script/check-local.sh",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/script/check-local.sh",
+      "method": "unchanged local-only contract source/toolchain lock",
+      "original_sha256": "360464a57d2dfd3cd2126647efd0c72bade819dcf43f1ae3e0fa2be3a5105b91",
+      "migrated_sha256": "360464a57d2dfd3cd2126647efd0c72bade819dcf43f1ae3e0fa2be3a5105b91"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/src/VaultIntentPreview.sol",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/src/VaultIntentPreview.sol",
+      "method": "unchanged local-only contract source/toolchain lock",
+      "original_sha256": "3e94065e58fd5ef244c0dced559717ee3d2439984b6f90a27028630f95d68b91",
+      "migrated_sha256": "3e94065e58fd5ef244c0dced559717ee3d2439984b6f90a27028630f95d68b91"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/test/VaultIntentPreview.t.sol",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/test/VaultIntentPreview.t.sol",
+      "method": "unchanged local-only contract source/toolchain lock",
+      "original_sha256": "634ae3e05019f2a06952231f08ccc8445e80aefe95c0365711b28301a2075c85",
+      "migrated_sha256": "634ae3e05019f2a06952231f08ccc8445e80aefe95c0365711b28301a2075c85"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/test/intent-vector.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/test/intent-vector.json",
+      "method": "unchanged local-only contract source/toolchain lock",
+      "original_sha256": "ebcb08539faaa98d9b5c6c0e46c79130d4f76f6daf4f28bc3ae5fc7b7373eed2",
+      "migrated_sha256": "ebcb08539faaa98d9b5c6c0e46c79130d4f76f6daf4f28bc3ae5fc7b7373eed2"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "contracts/toolchain.lock.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "contracts/toolchain.lock.json",
+      "method": "unchanged local-only contract source/toolchain lock",
+      "original_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338",
+      "migrated_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/contracts/ADAPTER-BOUNDARY.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/contracts/ADAPTER-BOUNDARY.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "a9da330b04af0e3aa4d9516a271e5f5754d4ebd05c9c1a4cc3813e6bd308a867",
+      "migrated_sha256": "a9da330b04af0e3aa4d9516a271e5f5754d4ebd05c9c1a4cc3813e6bd308a867"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/contracts/AF-CHAIN01-INTAKE.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/contracts/AF-CHAIN01-INTAKE.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "c448ff2592e309e7789351db13590a84680b56db3bc26d876fa68d8f8b316384",
+      "migrated_sha256": "558af8a602ed760f75bffecc5fc1b41cf93a8d51de3d82e43fa4205595dcca2c"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/contracts/AF-CHAIN01-VERIFICATION.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/contracts/AF-CHAIN01-VERIFICATION.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "1a15426573cfe209e129b342354855954860da3ed543efa40f5ed0ccd92068b5",
+      "migrated_sha256": "1a15426573cfe209e129b342354855954860da3ed543efa40f5ed0ccd92068b5"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/contracts/STATIC-ANALYSIS.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/contracts/STATIC-ANALYSIS.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "7a4616c5d20c0a1f8478b50dc647deb600d4cbcc570f7193a5718cc455e46cdd",
+      "migrated_sha256": "7a4616c5d20c0a1f8478b50dc647deb600d4cbcc570f7193a5718cc455e46cdd"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/contracts/VAULT-V1-SPEC.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/contracts/VAULT-V1-SPEC.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "704248037e9e1e40205f6719c5d476edc50e9605ecdd52c124a528811600c8d4",
+      "migrated_sha256": "704248037e9e1e40205f6719c5d476edc50e9605ecdd52c124a528811600c8d4"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/contracts/VERIFICATION-RESULTS.json",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth04",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/contracts/VERIFICATION-RESULTS.json",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "088b9c093101b01f536f0c5d6dd01503569da7ef18a349d6c3e02d1b91e2c556",
+      "migrated_sha256": "088b9c093101b01f536f0c5d6dd01503569da7ef18a349d6c3e02d1b91e2c556"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/superpowers/plans/2026-09-12-af-chain01-contract-foundation.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth01 (integration of Macbeth02-05)",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/superpowers/plans/2026-09-12-af-chain01-contract-foundation.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "88e3281858e39d35887d7c67574e9c19cbaf59c1271a3731f439208ae2e39b88",
+      "migrated_sha256": "88e3281858e39d35887d7c67574e9c19cbaf59c1271a3731f439208ae2e39b88"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/wave1/AF-M01-INTEGRATION.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth01 (integration of Macbeth02-05)",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/wave1/AF-M01-INTEGRATION.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "40edd34a58c0ed2d8687f17c0f0356701979ee70fb7ee9842f6fedc2451277f2",
+      "migrated_sha256": "40edd34a58c0ed2d8687f17c0f0356701979ee70fb7ee9842f6fedc2451277f2"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/wave1/WAVE1-INTERFACE-CONTRACT.md",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth01 (integration of Macbeth02-05)",
+      "target_path": "docs/migration/legacy-quantpass/tree/docs/management/wave1/WAVE1-INTERFACE-CONTRACT.md",
+      "method": "historical text; workstation paths replaced where present",
+      "original_sha256": "e859d734fb2b95dd04d426a4298016973e77116a583097cbe9aaecf6f3b55587",
+      "migrated_sha256": "e859d734fb2b95dd04d426a4298016973e77116a583097cbe9aaecf6f3b55587"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/agent-forum.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "tools/agent-forum.mjs",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "original_sha256": "562111e0bc5badc25b53562f8113e5288860ed17d79b32cd94dd978457674359",
+      "migrated_sha256": "ee0d6ed7cb53be94188699e46dc74a8906808946665042b2930ed7d269f5ba21"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/agent-forum-app.js",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "tools/agent-forum-app.js",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "original_sha256": "798d168b50b340ce4a3e73f4d2a4e68e1c33469edf02d5e52325f649e09b6bc6",
+      "migrated_sha256": "098dcfe0496e301a2236ebb98f61e5bfaaac89ae95bb6e41f0faedcbb8683b0e"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/agent-forum.template.html",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "tools/agent-forum.template.html",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "original_sha256": "a7d80ccafe4f40baa08879cf80c49c62103021668bf245ebdb381f3042a7da67",
+      "migrated_sha256": "c9f44282ff6604dc69367b0ee397ff5f999aeebe668d2a2ccc0e5a3ca8946264"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/agent-identity.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "tools/agent-identity.mjs",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "original_sha256": "f1b67a9cdb2ce0fa25c95d7927dbffda16cd5320d636891a9b60b721491395a6",
+      "migrated_sha256": "f1b67a9cdb2ce0fa25c95d7927dbffda16cd5320d636891a9b60b721491395a6"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/agent-identity-set.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "tools/agent-identity-set.mjs",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "original_sha256": "a7f79ed3ebfc5d0b5d54e9b6eb29182ac72e3460fc3ed2cf9540e34aa4154b73",
+      "migrated_sha256": "a7f79ed3ebfc5d0b5d54e9b6eb29182ac72e3460fc3ed2cf9540e34aa4154b73"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/check-agent-identity.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "tools/check-agent-identity.mjs",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "original_sha256": "d3cebb25a3334804f336e867a92c00e60d71cfb20e11191a5469fdbad24d6e3e",
+      "migrated_sha256": "d3cebb25a3334804f336e867a92c00e60d71cfb20e11191a5469fdbad24d6e3e"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/build-agent-forum.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "tools/build-agent-forum.mjs",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "original_sha256": "ea4c23fc4e23c0b0b87eab7d253f2858ef252fe5964ade92365e3e6e268cfc2d",
+      "migrated_sha256": "0e4aed55e8ab19719cec6508374e7c0d8f7163cbe4457ffcb65762edc79b032c"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/sync-agent-forum.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "tools/sync-agent-forum.mjs",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "original_sha256": "d4743301b018a830585c1fc00c988122844cc455aa21b35b426165cab56e5acd",
+      "migrated_sha256": "f387933d1661345a809fc324ffb6117276b8a6cd4dc225e74ee40264029f7cf5"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/COMMON-PROTOCOL.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/management/agents/COMMON-PROTOCOL.md",
+      "method": "protocol import with current repository/authority preamble",
+      "original_sha256": "9ac5209eb9777fdcec2697ae4180cda66526ac2f4d51f9e4e6255f7c3effd2b9",
+      "migrated_sha256": "9ae997c79bf01e6d6b718718231a9437b5cf1f3024cb94fae5c46da2f2e9a9ae"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/COMMUNICATION.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/management/agents/COMMUNICATION.md",
+      "method": "protocol import with current repository/authority preamble",
+      "original_sha256": "6d6805887eaea930324756abf88671964d51a00422e670a1e33cddcfb2dd3ef3",
+      "migrated_sha256": "ea37f9b523cfc3669851df04fdfffe6cb0238fbc722c5c9e9be3c869defce537"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth01.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/management/agents/bootstrap/Macbeth01.md",
+      "method": "protocol import with current repository/authority preamble",
+      "original_sha256": "b002103a4872d0211d6d7ca898ead3430ecb1c81fb4a6556bcfe26dc6d1f46b8",
+      "migrated_sha256": "e31b14ddec8b29cd95e25b10cc49dfe9f4b8a75554b6edde8a308678eb7db83b"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth02.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/management/agents/bootstrap/Macbeth02.md",
+      "method": "protocol import with current repository/authority preamble",
+      "original_sha256": "28773702ff4544e828035e76c166ff35b61eeddbfbf3690a77e6fb1dd67508c9",
+      "migrated_sha256": "95a75fab26ea9b2e6a74e0f1ee6f3276bd826194bf223679d5c1cba703fcaecd"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth03.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/management/agents/bootstrap/Macbeth03.md",
+      "method": "protocol import with current repository/authority preamble",
+      "original_sha256": "22747392888ddd5bbc8145ebadc8006aa0c8041f226625b4fe5be6524f656f4d",
+      "migrated_sha256": "794d5e3f499ce31b0ba923e44e74d3b3fb747bb01054b596e128e2b39b4bea90"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth04.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/management/agents/bootstrap/Macbeth04.md",
+      "method": "protocol import with current repository/authority preamble",
+      "original_sha256": "46ff73062c73b043a204f07bdee932f5450272c4fbc29b20bbd7141670d4ddd5",
+      "migrated_sha256": "c2f8001ec32162d6ad70aa143732e93b0614df4a1e2331464fccd44ded1149e6"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/bootstrap/Macbeth05.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/management/agents/bootstrap/Macbeth05.md",
+      "method": "protocol import with current repository/authority preamble",
+      "original_sha256": "5d5bc59b892ed0009ca8e161135c233ff7f4aafe912511c1c2a4a391b579cd10",
+      "migrated_sha256": "a8620724d3f96bb8c7639feb2ec31472972dcbaa486db44ec924646ce9ec31ec"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "docs/management/agents/registry.json",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "docs/management/agents/registry.json",
+      "method": "registry migrated; historical confirmations reset for canonical repository",
+      "original_sha256": "ecb05bfdcccf1abb036c4e4fdd16155e959ae706395020db4a1dac49e43f50b6",
+      "migrated_sha256": "3e748b89ca406eca21a2e7d0e2c5e9f5c3b6feceeb502477d8f50e7341be7fb1"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": ".github/pull_request_template.md",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": ".github/pull_request_template.md",
+      "method": "worker PR template added; target CI preserved",
+      "original_sha256": "3cb14ade88ce5742f25995e4ce390bcee866080ef0804af5102613a5ad01d768",
+      "migrated_sha256": "3cb14ade88ce5742f25995e4ce390bcee866080ef0804af5102613a5ad01d768"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/agent-identity-bypass.test.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "test/agent-identity-bypass.test.mjs",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "a74858528632dda64d154eee56bba80d8ae1e7139dcc00708d0e29a0a7d8d4b4",
+      "migrated_sha256": "a74858528632dda64d154eee56bba80d8ae1e7139dcc00708d0e29a0a7d8d4b4"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/agent-management.test.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "test/agent-management.test.mjs",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "f5c916f2f10f3fbc2e31e89bce0cf041bf091cae876b20490eac7f87140ebc42",
+      "migrated_sha256": "7b04626c58d0f78c27a7993069ceeae4e14bcd60fb0bdc7f942377bb6f504b8c"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/agent-security-regressions.test.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "test/agent-security-regressions.test.mjs",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "e22d5f6afae8f7aa6ffa588cc431d04c40536601570187e557781aa5c1247412",
+      "migrated_sha256": "0c6af517dffa0a7d5988701af96e44ffbea6a9668b1c8420b277da1035dbdff6"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/agent-tooling.test.mjs",
+      "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
+      "source_agent": "Macbeth01",
+      "target_path": "test/agent-tooling.test.mjs",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "8ea91af803dc35a566ab7f1e63c16536a473fdecf77729efe07cc4352f57a707",
+      "migrated_sha256": "431d8f4e792bd81f42e708768e59aa73401834ef6ae259d0045eeda76dbd40c0"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/server/src/api-errors.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "apps/server/src/api-errors.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "f443db4ca178fcbcafc6763d20a21b97d9074f81559fcba321290b3d06872ef8",
+      "migrated_sha256": "f443db4ca178fcbcafc6763d20a21b97d9074f81559fcba321290b3d06872ef8"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/server/src/api-schema.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "apps/server/src/api-schema.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "c30d8c78baea0634108256f5d5a299cc41f091590b9e7e989c1bb635f8786b36",
+      "migrated_sha256": "c30d8c78baea0634108256f5d5a299cc41f091590b9e7e989c1bb635f8786b36"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/server/src/app.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "apps/server/src/app.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "1e190fd90786c8eac9dff5fa89acc461c1d8f8359bef5aa92c964d76d91cce55",
+      "migrated_sha256": "1d1b8bb670e48a1c91e14f5ce5909cd4e4d987391e57579fea7b088a028ddb64"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/server/src/product-cursors.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "apps/server/src/product-cursors.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "aa82bba73ed566c75d80edc1d75e07cf18c61ed3dafcfd551e976c8faaf48ebb",
+      "migrated_sha256": "aa82bba73ed566c75d80edc1d75e07cf18c61ed3dafcfd551e976c8faaf48ebb"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/server/src/product-routes.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "apps/server/src/product-routes.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "f85924f35c58a9375dc793df66f5ed9277092c80c4c28d0f733011013552a28d",
+      "migrated_sha256": "f85924f35c58a9375dc793df66f5ed9277092c80c4c28d0f733011013552a28d"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/server/src/product-views.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "apps/server/src/product-views.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "ba120a7cd0b1c26dd21041da2e86e9ed74554bc003636577fc6c2ca22e1c36b5",
+      "migrated_sha256": "b759516467cd3ee2b15b462f9783c64eb237723883bf0d0760db89baac5dbc47"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/server/src/store.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "apps/server/src/store.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "4ae7f1c680af7acd4218a6189344176b3d10ef0cb09f75e5b98b7db8767ffe5f",
+      "migrated_sha256": "4ae7f1c680af7acd4218a6189344176b3d10ef0cb09f75e5b98b7db8767ffe5f"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/server/src/strategy-catalog.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "apps/server/src/strategy-catalog.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "76a79fc5aa84cceb1994c42f0d7c40ba7639f7af5ff1db4161699f5e15e1ef89",
+      "migrated_sha256": "76a79fc5aa84cceb1994c42f0d7c40ba7639f7af5ff1db4161699f5e15e1ef89"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/helpers/product-api.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "test/helpers/product-api.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "da259b6afd937926c5b8563d71efb89fd9545a3fa500332053407a6a4c19fa23",
+      "migrated_sha256": "da259b6afd937926c5b8563d71efb89fd9545a3fa500332053407a6a4c19fa23"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/helpers/product-fixtures.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "test/helpers/product-fixtures.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "21bc2827f115c46172adb75fcdce10aa6fd8154e1eef883bbd366d1c4bd03e9a",
+      "migrated_sha256": "21bc2827f115c46172adb75fcdce10aa6fd8154e1eef883bbd366d1c4bd03e9a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/product-api.test.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth03",
+      "target_path": "test/product-api.test.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "8b3a473750525b7b1f5f62361b1296c8780504aa01c2cae98811cf3e2dc5e619",
+      "migrated_sha256": "78267cfd5ca6f731a9353246aa2181c2cdb6dc072ba292ebed36b14cda2512f9"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/web/index.html",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "apps/web/index.html",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "5a396002da7ae6cbde00ee02a9812276b38d1d248ce3e8ad50faf07a4bb59c4a",
+      "migrated_sha256": "5a396002da7ae6cbde00ee02a9812276b38d1d248ce3e8ad50faf07a4bb59c4a"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/web/prototype/AlphaForge_v3_EN.html",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "apps/web/prototype/AlphaForge_v3_EN.html",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45",
+      "migrated_sha256": "949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/web/src/api.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "apps/web/src/api.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "55ddab62a4ae6c4d8d81b2abd393f147a35af46b0b61071ae7a41e6351898fdc",
+      "migrated_sha256": "55ddab62a4ae6c4d8d81b2abd393f147a35af46b0b61071ae7a41e6351898fdc"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/web/src/product-adapter.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "apps/web/src/product-adapter.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "c95ffad4bab8130593980a3d8810b57df944f2dd53124e7a0a209490c322c737",
+      "migrated_sha256": "c95ffad4bab8130593980a3d8810b57df944f2dd53124e7a0a209490c322c737"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/web/src/product-client.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "apps/web/src/product-client.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "f43567f177f78af12f48779ed3b868c7adee57ffb0cdaa0c2189c7e55147b143",
+      "migrated_sha256": "f43567f177f78af12f48779ed3b868c7adee57ffb0cdaa0c2189c7e55147b143"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/web/src/product-ui.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "apps/web/src/product-ui.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38",
+      "migrated_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "apps/web/vite.config.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "apps/web/vite.config.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "89412b0489e5ccb3d9d86ff20375eaeb9bdca5daad2e5a472057087d9858810f",
+      "migrated_sha256": "558533d9ec3f5499fa63b10f53bfc40c9b49489bb2af0926f003cf9223266973"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/ui-import.test.mjs",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "test/ui-import.test.mjs",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
+      "migrated_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/ui-product-adapter.test.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "test/ui-product-adapter.test.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "58e98d6eb7a1e9f7c9356448b830666e10576aa2b6997c671040e913507e4d77",
+      "migrated_sha256": "58e98d6eb7a1e9f7c9356448b830666e10576aa2b6997c671040e913507e4d77"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "test/ui-product-client.test.ts",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "test/ui-product-client.test.ts",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "b80e4a0f1f80068203b88ee285bae260b2c9e90b9d06e437107e3404f8c9a263",
+      "migrated_sha256": "b80e4a0f1f80068203b88ee285bae260b2c9e90b9d06e437107e3404f8c9a263"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/import-user-ui.mjs",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "tools/import-user-ui.mjs",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "a1239d466da471e8c27e4e6f31baa14c8a513ea71e4f11a86d9a7ab75dee3733",
+      "migrated_sha256": "a1239d466da471e8c27e4e6f31baa14c8a513ea71e4f11a86d9a7ab75dee3733"
+    },
+    {
+      "source_repository": "pdbsy/quantpass",
+      "source_path": "tools/verify-ui-browser.mjs",
+      "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
+      "source_agent": "Macbeth02",
+      "target_path": "tools/verify-ui-browser.mjs",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "original_sha256": "4668e613f77c694aa66e8f43015c2d9f093fe8bf938f0d713e1baa6d627691e9",
+      "migrated_sha256": "4668e613f77c694aa66e8f43015c2d9f093fe8bf938f0d713e1baa6d627691e9"
+    }
+  ]
+}

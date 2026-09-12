@@ -1,0 +1,43 @@
+✔ actual importer preserves exact source, CSS, script except scoped style hydration markers and shell (9.82375ms)
+✔ mechanical style normalization preserves escaped JSON and unrelated attribute names (0.1495ms)
+✔ canonical vault maps authentic fields and pending records without aliases (1.14825ms)
+✔ legacy missing financial fields remain unavailable (0.147459ms)
+✔ gateway consumes opaque pages and account/detail without legacy aliases (1.023625ms)
+✔ only initial 404 permits legacy fallback; malformed pages and server/auth errors do not (0.394375ms)
+✔ cursor cycles fail closed (0.138375ms)
+✔ Retry-After blocks manual command retry until injected clock allows unchanged envelope (0.230875ms)
+✔ 404 after the initial canonical page never downgrades to legacy (0.123459ms)
+✔ Retry-After survives a new adapter without changing durable command data (0.125125ms)
+✔ canonical balances reject negative cash and noncanonical signed money (0.095708ms)
+✔ owned audit accepts actual simulator actor only for executor commands (0.788208ms)
+✔ cooldown unreadable startup publishes DISCONNECTED, preserves pending and recovers on refresh (0.497375ms)
+✔ cooldown malformed startup publishes DISCONNECTED, preserves pending and recovers on refresh (0.262125ms)
+✔ lost committed response survives reload and exact retry deposits once (111.629958ms)
+✔ review revision conflict is retained until refresh and explicit dismissal (16.426792ms)
+✔ Bob never displays or replays Alice pending funds and switching back recovers (13.149209ms)
+✔ storage failure prevents command submission and pending removal failure remains recoverable (11.253875ms)
+✔ concurrent command attempts cannot create an additional deposit (11.410416ms)
+✔ successful write with failed readback stays pending until exact retry verifies it (11.581958ms)
+✔ 401 clears every private view while preserving the durable pending request (9.921584ms)
+✔ delayed Alice read cannot overwrite a completed Bob identity switch (10.443166ms)
+✔ reviews cannot survive refresh or vault selection and foreign vault IDs are rejected (10.072208ms)
+✔ malformed legacy pending data is retained and blocks new writes (9.902958ms)
+✔ all master command fields run a real local funding and simulation journey (20.490625ms)
+✔ 5xx preserves exact pending payload for transport recovery (10.449417ms)
+✔ command response from another vault never becomes a visible success (8.647667ms)
+✔ malformed amounts and fields cannot reach the ledger or durable request (9.420125ms)
+✔ matching audit reconciles a lost committed command without sending another POST (8.751ms)
+✔ retry cannot write while required vault or audit reconciliation is unavailable (9.792375ms)
+✔ rate limiting retains a retryable exact envelope without rejection dismissal (8.456292ms)
+✔ pending request stays bound to its vault while selecting another owned vault (10.237708ms)
+✔ authenticated identity change during retry clears the previous private view (8.92125ms)
+✔ executor receipts reconcile lost reserve responses after reload without another POST (11.529041ms)
+✔ owner commands reject a simulator audit actor and retain the pending request (10.741583ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 464.842667

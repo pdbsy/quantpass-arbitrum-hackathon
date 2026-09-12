@@ -1,0 +1,14 @@
+{
+  "status": "PASSED",
+  "checks": [
+    "Homepage -> Marketplace -> API detail -> test Pass: 1000 access, zero funds",
+    "All thirteen command types exercised; stop stayed stopping until settlement; 1600 simulated units withdrawn exactly",
+    "Reload persistence and Alice/Bob account isolation",
+    "Lost POST response + page reload + exact original retry does not duplicate deposit",
+    "Concurrent revision conflict preserves the reviewed payload, makes no extra deposit, and requires explicit refresh/dismissal",
+    "Offline read is visibly stale/disconnected and disables monetary writes until successful refresh",
+    "Insufficient-idle domain rejection is visibly rejected with no success claim or balance change",
+    "Legacy backend capability explicitly detected; no claim of second-strategy or v1 support",
+    "Original six strategy pages and all account sections preserved; mobile pages no horizontal overflow; fixture market unchanged; no page/CSP errors"
+  ]
+}

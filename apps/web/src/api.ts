@@ -3,9 +3,11 @@ export type Vault = ReturnType<typeof view>;
 export type Audit = { revision: number; command_type: string; actor_id: string; recorded_at: string };
 export class ApiError extends Error {
   readonly status: number;
-  constructor(code: string, status: number) {
+  readonly retryAfter: string | undefined;
+  constructor(code: string, status: number, retryAfter?: string) {
     super(code);
     this.status = status;
+    this.retryAfter = retryAfter;
   }
 }
 export async function api<T>(path: string, body?: unknown): Promise<T> {
@@ -17,6 +19,11 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
     signal: AbortSignal.timeout(10000),
   });
   const data = await response.json();
-  if (!response.ok) throw new ApiError(data.error || 'REQUEST_FAILED', response.status);
+  if (!response.ok)
+    throw new ApiError(
+      data.error || 'REQUEST_FAILED',
+      response.status,
+      response.headers.get('Retry-After') ?? undefined,
+    );
   return data as T;
 }
