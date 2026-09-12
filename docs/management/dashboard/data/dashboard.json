@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-12T06:47:54.110Z",
+  "generatedAt": "2026-09-12T06:57:00.583Z",
   "generatorVersion": "1.0.0",
   "generated": {
     "doNotEdit": true,
@@ -10,7 +10,7 @@
   "project": {
     "status": "READY",
     "source": "planning/roadmap.json",
-    "observedAt": "2026-09-12T06:47:54.110Z",
+    "observedAt": "2026-09-12T06:57:00.583Z",
     "name": "QuantPass × Robinhood Chain Testnet",
     "branch": "macbeth/dashboard",
     "network": "Robinhood Chain Testnet",
@@ -20,8 +20,8 @@
   "integration": {
     "status": "IN_PROGRESS",
     "source": ".git",
-    "observedAt": "2026-09-12T06:47:54.110Z",
-    "aheadBehind": { "ahead": 21, "behind": 0 },
+    "observedAt": "2026-09-12T06:57:00.583Z",
+    "aheadBehind": { "ahead": 24, "behind": 0 },
     "dirtyFiles": 0
   },
   "workers": [
@@ -30,7 +30,7 @@
       "label": "Worker A",
       "status": "PARTIAL",
       "source": "docs/management/workers/worker-a.md",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "current": {
         "currentTask": "No active assignment this round; historical Wave 1 checkpoint retained",
         "status": "PARTIAL",
@@ -73,7 +73,7 @@
       "label": "Worker B / Macbeth",
       "status": "IN_PROGRESS",
       "source": "docs/management/workers/worker-b.md",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "current": {
         "currentTask": "ALL PR CONVERGENCE — PR #7 FINAL INTEGRATION",
         "status": "IN_PROGRESS",
@@ -313,7 +313,7 @@
       "title": "比赛公开仓库精简基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "medium",
@@ -332,7 +332,7 @@
       "title": "Robinhood Chain Testnet 网络门禁基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -355,7 +355,7 @@
       "title": "精确会计与幂等账本基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -379,7 +379,7 @@
       "title": "离线交易许可安全模型基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -398,7 +398,7 @@
       "title": "本地演示 HTTP 安全边界基线",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -417,7 +417,7 @@
       "title": "基础工程门禁",
       "status": "DONE",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -436,7 +436,7 @@
       "title": "冻结测试网范围、角色与架构 ADR",
       "status": "BLOCKED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -462,7 +462,7 @@
       "title": "Robinhood Chain 专项威胁模型与风险登记",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -481,7 +481,7 @@
       "title": "独立且失败关闭的 Testnet 启动门禁",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -500,7 +500,7 @@
       "title": "测试资产与外部协议地址核验",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -521,7 +521,7 @@
       "title": "信任根、签名域与持久重放模型",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -542,7 +542,7 @@
       "title": "消除 Demo Executor 隐式提权并采用无权限 Relay",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -562,7 +562,7 @@
       "title": "固定 Solidity 与安全工具链",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -581,7 +581,7 @@
       "title": "链上会计、资产与舍入规格",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -601,7 +601,7 @@
       "title": "权限、事件、错误与重放规格",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -621,7 +621,7 @@
       "title": "冻结 Vault v1 ABI 与 Adapter 边界",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -641,7 +641,7 @@
       "title": "强化仓库与供应链策略",
       "status": "IN_PROGRESS",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -676,7 +676,7 @@
       "title": "实现最小非托管 Vault 合约",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -696,7 +696,7 @@
       "title": "实现最小权限、不可逆暂停与安全退出",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -717,7 +717,7 @@
       "title": "合约单元、负向与权限测试",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -737,7 +737,7 @@
       "title": "Fuzz、Invariant 与模型差分验证",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -757,7 +757,7 @@
       "title": "静态分析、字节码复现与独立安全复核",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -777,7 +777,7 @@
       "title": "钱包连接与显式网络切换",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -797,7 +797,7 @@
       "title": "实现类型安全的只读与写入 Adapter",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -817,7 +817,7 @@
       "title": "交易生命周期、替换与重组恢复",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -837,7 +837,7 @@
       "title": "幂等事件索引与链重组处理",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -857,7 +857,7 @@
       "title": "持久状态、审计与资源上限",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -877,7 +877,7 @@
       "title": "隔离 Testnet 后端身份与 Demo 会话",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -897,7 +897,7 @@
       "title": "RPC 身份、限流与故障策略",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -917,7 +917,7 @@
       "title": "浏览器与前端供应链安全",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -937,7 +937,7 @@
       "title": "测试网部署密钥与角色操作手册",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -958,7 +958,7 @@
       "title": "完整历史秘密扫描与轮换演练",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "high",
@@ -978,7 +978,7 @@
       "title": "确定性部署 Dry-run 与广播前复核",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -998,7 +998,7 @@
       "title": "Robinhood Testnet 人工部署",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -1018,7 +1018,7 @@
       "title": "部署来源证明与后部署验收",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -1038,7 +1038,7 @@
       "title": "可观测性、告警与隐私化日志",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "high",
@@ -1058,7 +1058,7 @@
       "title": "事故响应、停用与迁移演练",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -1078,7 +1078,7 @@
       "title": "对抗性 Testnet 端到端验收",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -1098,7 +1098,7 @@
       "title": "安全声明、限制与证据索引",
       "status": "READY",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "medium",
@@ -1118,7 +1118,7 @@
       "title": "评委演示与恢复流程",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P1",
       "risk": "medium",
@@ -1138,7 +1138,7 @@
       "title": "最终发布门禁与独立复现",
       "status": "NOT_STARTED",
       "source": "planning/roadmap.json",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "owner": "NOT_AVAILABLE",
       "priority": "P0",
       "risk": "critical",
@@ -1157,7 +1157,7 @@
   "decisions": {
     "status": "READY",
     "source": "docs/management/DECISIONS.md",
-    "observedAt": "2026-09-12T06:47:54.110Z",
+    "observedAt": "2026-09-12T06:57:00.583Z",
     "items": [
       {
         "id": "decision-log",
@@ -1169,15 +1169,15 @@
     "currentStatus": {
       "status": "READY",
       "source": "docs/management/CURRENT-STATUS.md",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "data": {
-        "text": "# AlphaForge / QuantPass — 项目管理状态\n\n更新：2026-09-12（UTC+08:00）。本页同步本地交付记录与 GitHub 只读核验，dashboard 使用 macbeth/dashboard 最新版本。\n\n## 当前工作\n\n本地管理记录已整理为 dashboard 的标准数据源：Manager 当前状态、工作队列、决策、变更日志、Worker A 日志及 DARWIN-A1–A8 记录。历史审计保留其日期和基线；本次快照检查结果由版本化证据清单提供。\n\n## 已有交付\n\n- 本地原型：开发基线、整数资金与 Pass 额度模型、SQLite 持久化/幂等/备份恢复、React/Fastify 本地模拟流程、离线执行许可模型。旧模块 M00/M02/M03 的本地范围完成，不能等同新版路线的完整工业级验收。\n- 旧 M04：只读 Robinhood 依赖快照、保密威胁/密钥表、实验协议、17 项待执行硬件检查及离线证据工具；未完成真实交易路径或 TEE 验证。\n- Darwin：41 个 canonical 任务已逐项初评；6 个 DONE 基线和 GOV 复核；2026-09-09 候选版本 91/91 测试及当时完整配置门禁通过。\n- 审计结论：VERIFIED_DONE 0；需要加固 3；PARTIAL 5；READY 5；IN_PROGRESS 1；BLOCKED 1；NOT_STARTED 26。此为历史审计口径，主表的 6 个 DONE 仍是 canonical roadmap 的本地基线口径。\n- 诊断覆盖：已加载且被选中的运行时代码分支覆盖 79.18%；不是全仓覆盖，也不满足关键路径完整验收。\n- 投资人材料：12 页中文可编辑 pitch deck v2 已交付；结构与排版校验通过，文件摘要见 LOCAL-DELIVERY-001。文件仍为本地产物，未伪造公网下载地址。\n\n## 本轮全 PR 收敛（Macbeth 单人执行）\n\n启动时已分页枚举全部状态，共 7 个 PR，准确启动 head/base 见 [收敛记录](../security/PR-CONVERGENCE-2026-09-12.md)。以下为实际 GitHub 合并回读，按顺序逐次验收，技术审查均为 Macbeth 自审。\n\n| PR | 当前结果 | 准确 master 合并提交与验证 |\n| --- | --- | --- |\n| #1 | 已实际合并并验证 | 53eb90f54e2c20fa4352360772160df142e7d74e；Engineering / CodeQL 成功 |\n| #5 | 已实际合并并验证 | 84cd179e23c4179ed989bf5e118a986cc119475c；Engineering / CodeQL 成功 |\n| #2 | 已实际合并并验证 | 50e075607cb335ac66e2ee6d47c2f477b37b527e；Engineering / CodeQL 成功，SBOM 同步 |\n| #6 | 已实际合并并验证 | 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e；Linux / Windows / CodeQL 成功 |\n| #3 | 保留关闭、未合并 | Node 26 类型不符合 Node 24 运行时契约 |\n| #4 | 保留关闭、未合并 | TypeScript 7 超出当前 lint 工具链 peer 范围 |\n| #7 | 组合整改中；尚未合并 | 已普通合入上述 master；231 项本地测试及隐私/供应链检查通过，最终证据和 GitHub 门禁待核验 |\n\n## Worker 与审查状态\n\n- Macbeth 是本轮唯一实施、Manager 和正常阶段合并执行者；共享文件串行维护，普通 fast-forward 更新实际源分支。#5 发现 Dependabot 自动更新后暂停旧推送，基于新 head 保留并重新应用自身修改。\n- Darwin 本轮暂不参与；未派单、启动或等待其交付，也未声称其客户端已停止。已有提交、作者和历史初评均保留。\n- 平台规则要求严格检查、解决 review threads 和线性历史；配置审批数为 0。Macbeth 自审不冒充独立 approval。没有修改保护规则或使用 bypass。\n- #7 启动版本的独立不可变范围记录：scan 37443e09-820b-46cd-b168-1ad77594e5d2 已封存，74/74 路径静态自审无报告项；这不是最终组合版本的结论，也不是独立审查。\n- 历史 Standard scan 3d6670bc-ca8d-466c-8ec7-b1decaa097d3 上次服务回读仍为 running、无封存报告；不据此声称仍在后台执行或零漏洞。本轮没有接管或重署该历史扫描。\n\n## 仍待完成\n\n- NET 错误脱敏和 permit 到期约束已在 #6 修复并回归；枚举/风险接受元数据、历史记录上限与退出、公开构建范围和覆盖率仍保留历史评估边界，不能据此宣布全项目验收。详见 PROJECT-REALITY-AUDIT.md。\n- #7 最终组合版本的安全复核、证据重建、Linux/Windows CI、实际合并与准确 master 验证仍待完成。历史审计扫描最终报告、GOV-001 / SUPPLY-001 外部独立治理验收没有被维护合并替代。\n- AlphaForge 全站显示名改造仍待单独交付；历史 QuantPass 文件名及稳定标识保留。\n- Solidity/Pass/Vault 合约、钱包与测试网交易、RWA 适配器、TEE/保密运行、实际计费和接续机制尚未完成；Foundry/fuzz/invariant/Slither 没有可用已批准工具链证据。\n- 容量缓冲、回购定价等未决策项和法律/生产验收仍开放。\n\n本次同步不改 canonical roadmap 的状态或验收、不授予真实资金或部署权限。\n"
+        "text": "# AlphaForge / QuantPass — 项目管理状态\n\n更新：2026-09-12（UTC+08:00）。本页同步本地交付记录与 GitHub 只读核验，dashboard 使用 macbeth/dashboard 最新版本。\n\n## 当前工作\n\n本地管理记录已整理为 dashboard 的标准数据源：Manager 当前状态、工作队列、决策、变更日志、Worker A 日志及 DARWIN-A1–A8 记录。历史审计保留其日期和基线；本次快照检查结果由版本化证据清单提供。\n\n## 已有交付\n\n- 本地原型：开发基线、整数资金与 Pass 额度模型、SQLite 持久化/幂等/备份恢复、React/Fastify 本地模拟流程、离线执行许可模型。旧模块 M00/M02/M03 的本地范围完成，不能等同新版路线的完整工业级验收。\n- 旧 M04：只读 Robinhood 依赖快照、保密威胁/密钥表、实验协议、17 项待执行硬件检查及离线证据工具；未完成真实交易路径或 TEE 验证。\n- Darwin：41 个 canonical 任务已逐项初评；6 个 DONE 基线和 GOV 复核；2026-09-09 候选版本 91/91 测试及当时完整配置门禁通过。\n- 审计结论：VERIFIED_DONE 0；需要加固 3；PARTIAL 5；READY 5；IN_PROGRESS 1；BLOCKED 1；NOT_STARTED 26。此为历史审计口径，主表的 6 个 DONE 仍是 canonical roadmap 的本地基线口径。\n- 诊断覆盖：已加载且被选中的运行时代码分支覆盖 79.18%；不是全仓覆盖，也不满足关键路径完整验收。\n- 投资人材料：12 页中文可编辑 pitch deck v2 已交付；结构与排版校验通过，文件摘要见 LOCAL-DELIVERY-001。文件仍为本地产物，未伪造公网下载地址。\n\n## 本轮全 PR 收敛（Macbeth 单人执行）\n\n启动时已分页枚举全部状态，共 7 个 PR，准确启动 head/base 见 [收敛记录](../security/PR-CONVERGENCE-2026-09-12.md)。以下为实际 GitHub 合并回读，按顺序逐次验收，技术审查均为 Macbeth 自审。\n\n| PR | 当前结果 | 准确 master 合并提交与验证 |\n| --- | --- | --- |\n| #1 | 已实际合并并验证 | 53eb90f54e2c20fa4352360772160df142e7d74e；Engineering / CodeQL 成功 |\n| #5 | 已实际合并并验证 | 84cd179e23c4179ed989bf5e118a986cc119475c；Engineering / CodeQL 成功 |\n| #2 | 已实际合并并验证 | 50e075607cb335ac66e2ee6d47c2f477b37b527e；Engineering / CodeQL 成功，SBOM 同步 |\n| #6 | 已实际合并并验证 | 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e；Linux / Windows / CodeQL 成功 |\n| #3 | 保留关闭、未合并 | Node 26 类型不符合 Node 24 运行时契约 |\n| #4 | 保留关闭、未合并 | TypeScript 7 超出当前 lint 工具链 peer 范围 |\n| #7 | 组合整改中；尚未合并 | 已普通合入上述 master；231 项本地测试及隐私/供应链检查通过，最终证据和 GitHub 门禁待核验 |\n\n## Worker 与审查状态\n\n- Macbeth 是本轮唯一实施、Manager 和正常阶段合并执行者；共享文件串行维护，普通 fast-forward 更新实际源分支。#5 发现 Dependabot 自动更新后暂停旧推送，基于新 head 保留并重新应用自身修改。\n- Darwin 本轮暂不参与；未派单、启动或等待其交付，也未声称其客户端已停止。已有提交、作者和历史初评均保留。\n- 平台规则要求严格检查、解决 review threads 和线性历史；配置审批数为 0。Macbeth 自审不冒充独立 approval。没有修改保护规则或使用 bypass。\n- #7 启动版本的独立不可变范围记录：scan 37443e09-820b-46cd-b168-1ad77594e5d2 已封存，74/74 路径静态自审无报告项；这不是最终组合版本的结论，也不是独立审查。\n- 历史 Standard scan 3d6670bc-ca8d-466c-8ec7-b1decaa097d3 上次服务回读仍为 running、无封存报告；不据此声称仍在后台执行或零漏洞。本轮没有接管或重署该历史扫描。\n\n## 仍待完成\n\n- NET 错误脱敏和 permit 到期约束已在 #6 修复并回归；枚举/风险接受元数据、历史记录上限与退出、公开构建范围和覆盖率仍保留历史评估边界，不能据此宣布全项目验收。详见 PROJECT-REALITY-AUDIT.md。\n- #7 最终组合版本的安全复核、证据重建、Linux/Windows CI、实际合并与准确 master 验证仍待完成。历史审计扫描最终报告、GOV-001 / SUPPLY-001 外部独立治理验收没有被维护合并替代。\n- AlphaForge 全站显示名改造仍待单独交付；历史 QuantPass 文件名及稳定标识保留。\n- Solidity/Pass/Vault 合约、钱包与测试网交易、RWA 适配器、TEE/保密运行、实际计费和接续机制尚未完成；Foundry/fuzz/invariant/Slither 没有可用已批准工具链证据。\n- 容量缓冲、回购定价等未决策项和法律/生产验收仍开放。\n\n本次同步不改 canonical roadmap 的状态或验收、不授予真实资金或部署权限。\n\n## Windows integration follow-up — 2026-09-12\n\nThe first combined head f182180e1eda69c67228db5346db5258085e685e passed Linux and CodeQL but failed 15 Windows fixture checks. Test repositories omitted the real repository’s LF attributes, so Windows checkout changed manifest bytes and the deliberately isolated Git collector correctly detected a dirty tree. Fixtures now copy the existing repository attributes; a regression enables autocrlf and checks exact LF bytes and clean status. No runtime guard, assertion or Windows gate was removed. The failed runs remain recorded; final head checks are required again before merge.\n"
       }
     },
     "workQueue": {
       "status": "READY",
       "source": "docs/management/WORK-QUEUE.md",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "data": {
         "text": "# 工作队列\n\n更新：2026-09-12。canonical roadmap 为 planning/roadmap.json；本表记录管理交付及剩余工作。\n\n| 记录 / 事项 | 当前状态 | 下一步 / 完成边界 |\n| --- | --- | --- |\n| DARWIN-A1/A2/A3 | 历史初评已落盘，PARTIAL | 41 项审计已导入；独立复核和证据缺口尚未关闭 |\n| DARWIN-A4 | IN_PROGRESS | 已复现/记录缺陷；按准确版本逐项回归及修复 |\n| DARWIN-A5 | 管理记录已同步 | 本次进度源和生成快照发布后可在 PR #7 查看；不等于审计全验收 |\n| DARWIN-A6 | 历史 Worker B 初评保留 | 以本页关联的最新 PR 状态纠正旧发布/CI结论；独立 post-fix 复核仍待核验 |\n| DARWIN-A7 | 历史检查已完成，PARTIAL | 91/91 及覆盖率记录保留；扫描封存报告未见交付 |\n| DARWIN-A8 | 检查点报告已落盘 | Wave 1 仍需修复、独立复核与集成 |\n| PR-MAINT-001 | DONE（限定维护范围） | #1/#2/#5 已由 Macbeth 实际合并并逐次验证；#3/#4 保留关闭 |\n| LOCAL-DELIVERY-001 | DONE（材料交付范围） | 12 页中文 PPT v2 与校验产物已存在；后续统一品牌 |\n| LOCAL-HISTORY-001 | 历史本地成果已归档 | M00–M04 映射和边界可见，不改变新版 41 项任务验收 |\n| DARWIN-BRAND-001 | 用户已确认名称，实施待办 | 对外名称 AlphaForge；保留协议/持久状态标识 |\n| Macbeth B8 / PR #7 | 组合整改 IN_PROGRESS | 最终自审、C/R/S 证据、Linux/Windows 门禁后正常 merge，再验证准确 master |\n| PR #6 / 整体集成 | 已合并并验证 | master 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e 的 Linux/Windows/CodeQL 成功 |\n\n本轮全部 PR 收敛统一由 Macbeth 执行，Darwin 历史任务不构成本轮派单或等待条件。旧表中的独立验收缺口仍如实保留；没有新分配 Solidity、交易、生产或全站品牌模块。阶段完成要求实际 merge 后准确 master 验证通过。\n"
       }
@@ -1185,16 +1185,16 @@
     "changelog": {
       "status": "READY",
       "source": "docs/management/CHANGELOG.md",
-      "observedAt": "2026-09-12T06:47:54.110Z",
+      "observedAt": "2026-09-12T06:57:00.583Z",
       "data": {
-        "text": "# Management changelog\n\n## 2026-09-12 — Macbeth 全 PR 收敛阶段回读\n\n- 逐次实际合并 #1、#5、#2、#6；准确提交和各次 master 检查见 CURRENT-STATUS.md 与安全收敛记录。#3/#4 保留关闭。\n- 保留 Darwin 的 globals/SBOM 和供应链成果，串行同步锁文件、217 项 SPDX 和两个 CI 平台；#5 并发 Dependabot 更新已基于新 head 安全衔接。\n- #6 修复 NET 解析错误脱敏及 permit 最早到期约束；准确 master Linux、Windows、CodeQL 已通过。\n- #7 普通合入已验收 master，保留双方测试与日志；加入 Windows 稳定文件身份检查，本地 231 项测试通过，最终证据和 GitHub 验收仍待完成。\n- 本轮技术复核为 Macbeth 自审；未启动 Darwin 或替代 worker，也未提升 canonical roadmap 验收。\n\n## Historical synchronization records\n\n\n## 2026-09-12 — Local work synchronized into Macbeth dashboard\n\n- Recovered the full local Darwin management checkpoint: 41-task reality audit, decisions, queue, branch/plan, Worker A and DARWIN-A1–A8.\n- Converted task/worker Markdown to the existing dashboard schema; ASSESSMENT_COMPLETE is displayed conservatively as PARTIAL with its original disposition retained.\n- Added later PR #1–5 maintenance and 12-slide presentation delivery records, plus the legacy local prototype/M04 evidence summary.\n- Refreshed remote facts: #1/#2/#5 are open with successful checks; #3/#4 are closed; #6 remains open; #7 at 05c50ee508b0334f4c16c1f178cf2fa87ae201db is draft with successful checks. No merge performed.\n- Retained canonical roadmap and Macbeth code/history; did not import operational host profiles, raw scan bundles or private local paths.\n- The historical audit remains bound to bbb3e4b7b40cfd3aa23253866876875f8d98a1fc; it is not presented as a new audit of the current dashboard.\n\n## 2026-09-09 — Reality assessment and AlphaForge decision\n\n- Assessed all 41 canonical tasks without editing their status or acceptance: 0 verified, 3 need hardening, 5 partial, 5 ready, 1 blocked, 1 in progress, 26 not started.\n- Re-ran the configured engineering gate: 91/91 tests, typecheck/lint/format/security baselines/planning/build pass. Earlier diagnostic branch coverage remains incomplete evidence for global DoD.\n- Reproduced the malformed-RPC-URL error disclosure using synthetic input only; fix remains pending a dedicated branch.\n- Fresh remote readback: PR #6 OPEN at bbb3e4b; Worker B at [superseded Worker B checkpoint], seven findings unresolved; no merges or branch deletion.\n- User explicitly set the official name to AlphaForge; DEC-004 preserves historical evidence and stable identifiers. Product display edits use a separate branch.\n- Not fully resolved: same Standard scan finalization, remediation, independent review, clean reproducibility, Worker B integration, external governance and public-host data cleanup.\n\n## 2026-09-09 — Wave 1 opened\n\n- Created Darwin management plan, decision log, work queue, control panel and branch scope.\n- Selected immutable PR #6 candidate bbb3e4b; master is still 202e625.\n- Observed Worker B at macbeth/dashboard [superseded Worker B checkpoint] with B8 reported IN_PROGRESS; preserved all Worker B files and active work.\n- Started repository Standard scan 3d6670bc-ca8d-466c-8ec7-b1decaa097d3.\n- No roadmap status, runtime, dependency, authority, gate or deployment changes.\n- Unresolved: audit/checks/review and PR #6 integration pending.\n"
+        "text": "# Management changelog\n\n## 2026-09-12 — Macbeth 全 PR 收敛阶段回读\n\n- 逐次实际合并 #1、#5、#2、#6；准确提交和各次 master 检查见 CURRENT-STATUS.md 与安全收敛记录。#3/#4 保留关闭。\n- 保留 Darwin 的 globals/SBOM 和供应链成果，串行同步锁文件、217 项 SPDX 和两个 CI 平台；#5 并发 Dependabot 更新已基于新 head 安全衔接。\n- #6 修复 NET 解析错误脱敏及 permit 最早到期约束；准确 master Linux、Windows、CodeQL 已通过。\n- #7 普通合入已验收 master，保留双方测试与日志；加入 Windows 稳定文件身份检查，本地 231 项测试通过，最终证据和 GitHub 验收仍待完成。\n- 本轮技术复核为 Macbeth 自审；未启动 Darwin 或替代 worker，也未提升 canonical roadmap 验收。\n\n## Historical synchronization records\n\n\n## 2026-09-12 — Local work synchronized into Macbeth dashboard\n\n- Recovered the full local Darwin management checkpoint: 41-task reality audit, decisions, queue, branch/plan, Worker A and DARWIN-A1–A8.\n- Converted task/worker Markdown to the existing dashboard schema; ASSESSMENT_COMPLETE is displayed conservatively as PARTIAL with its original disposition retained.\n- Added later PR #1–5 maintenance and 12-slide presentation delivery records, plus the legacy local prototype/M04 evidence summary.\n- Refreshed remote facts: #1/#2/#5 are open with successful checks; #3/#4 are closed; #6 remains open; #7 at 05c50ee508b0334f4c16c1f178cf2fa87ae201db is draft with successful checks. No merge performed.\n- Retained canonical roadmap and Macbeth code/history; did not import operational host profiles, raw scan bundles or private local paths.\n- The historical audit remains bound to bbb3e4b7b40cfd3aa23253866876875f8d98a1fc; it is not presented as a new audit of the current dashboard.\n\n## 2026-09-09 — Reality assessment and AlphaForge decision\n\n- Assessed all 41 canonical tasks without editing their status or acceptance: 0 verified, 3 need hardening, 5 partial, 5 ready, 1 blocked, 1 in progress, 26 not started.\n- Re-ran the configured engineering gate: 91/91 tests, typecheck/lint/format/security baselines/planning/build pass. Earlier diagnostic branch coverage remains incomplete evidence for global DoD.\n- Reproduced the malformed-RPC-URL error disclosure using synthetic input only; fix remains pending a dedicated branch.\n- Fresh remote readback: PR #6 OPEN at bbb3e4b; Worker B at [superseded Worker B checkpoint], seven findings unresolved; no merges or branch deletion.\n- User explicitly set the official name to AlphaForge; DEC-004 preserves historical evidence and stable identifiers. Product display edits use a separate branch.\n- Not fully resolved: same Standard scan finalization, remediation, independent review, clean reproducibility, Worker B integration, external governance and public-host data cleanup.\n\n## 2026-09-09 — Wave 1 opened\n\n- Created Darwin management plan, decision log, work queue, control panel and branch scope.\n- Selected immutable PR #6 candidate bbb3e4b; master is still 202e625.\n- Observed Worker B at macbeth/dashboard [superseded Worker B checkpoint] with B8 reported IN_PROGRESS; preserved all Worker B files and active work.\n- Started repository Standard scan 3d6670bc-ca8d-466c-8ec7-b1decaa097d3.\n- No roadmap status, runtime, dependency, authority, gate or deployment changes.\n- Unresolved: audit/checks/review and PR #6 integration pending.\n\n## Windows integration follow-up — 2026-09-12\n\nThe first combined head f182180e1eda69c67228db5346db5258085e685e passed Linux and CodeQL but failed 15 Windows fixture checks. Test repositories omitted the real repository’s LF attributes, so Windows checkout changed manifest bytes and the deliberately isolated Git collector correctly detected a dirty tree. Fixtures now copy the existing repository attributes; a regression enables autocrlf and checks exact LF bytes and clean status. No runtime guard, assertion or Windows gate was removed. The failed runs remain recorded; final head checks are required again before merge.\n"
       }
     }
   },
   "security": {
     "status": "BLOCKED",
     "source": "planning/risk-register.json",
-    "observedAt": "2026-09-12T06:47:54.110Z",
+    "observedAt": "2026-09-12T06:57:00.583Z",
     "counts": { "critical": 15, "high": 7, "medium": 0, "low": 0 },
     "findings": [
       {
@@ -1488,202 +1488,220 @@
   "tests": {
     "status": "PASS",
     "source": ".checks/management/latest.json",
-    "observedAt": "2026-09-12T06:47:37.276Z",
-    "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+    "observedAt": "2026-09-12T06:56:10.465Z",
+    "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
     "profile": "full",
     "items": [
       {
         "id": "typecheck",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:16.305Z",
-        "finishedAt": "2026-09-12T06:47:19.340Z",
-        "durationMs": 3035,
+        "startedAt": "2026-09-12T06:55:50.320Z",
+        "finishedAt": "2026-09-12T06:55:53.386Z",
+        "durationMs": 3066,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/typecheck.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/typecheck.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "lint",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:19.406Z",
-        "finishedAt": "2026-09-12T06:47:20.521Z",
-        "durationMs": 1115,
+        "startedAt": "2026-09-12T06:55:53.450Z",
+        "finishedAt": "2026-09-12T06:55:54.568Z",
+        "durationMs": 1118,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/lint.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/lint.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "format",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:20.584Z",
-        "finishedAt": "2026-09-12T06:47:21.426Z",
-        "durationMs": 842,
+        "startedAt": "2026-09-12T06:55:54.634Z",
+        "finishedAt": "2026-09-12T06:55:55.477Z",
+        "durationMs": 843,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/format.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/format.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "unit",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:21.488Z",
-        "finishedAt": "2026-09-12T06:47:32.459Z",
-        "durationMs": 10971,
+        "startedAt": "2026-09-12T06:55:55.541Z",
+        "finishedAt": "2026-09-12T06:56:06.563Z",
+        "durationMs": 11022,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/unit.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/unit.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "integration",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:32.525Z",
-        "finishedAt": "2026-09-12T06:47:32.849Z",
-        "durationMs": 324,
+        "startedAt": "2026-09-12T06:56:06.631Z",
+        "finishedAt": "2026-09-12T06:56:06.956Z",
+        "durationMs": 325,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/integration.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/integration.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "e2e",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:32.913Z",
-        "finishedAt": "2026-09-12T06:47:33.386Z",
-        "durationMs": 473,
+        "startedAt": "2026-09-12T06:56:07.022Z",
+        "finishedAt": "2026-09-12T06:56:07.489Z",
+        "durationMs": 467,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/e2e.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/e2e.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "secret-scan",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:33.449Z",
-        "finishedAt": "2026-09-12T06:47:33.595Z",
-        "durationMs": 146,
+        "startedAt": "2026-09-12T06:56:07.555Z",
+        "finishedAt": "2026-09-12T06:56:07.707Z",
+        "durationMs": 152,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/secret-scan.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/secret-scan.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "public-metadata",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:33.658Z",
-        "finishedAt": "2026-09-12T06:47:34.087Z",
-        "durationMs": 429,
+        "startedAt": "2026-09-12T06:56:07.771Z",
+        "finishedAt": "2026-09-12T06:56:08.214Z",
+        "durationMs": 443,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/public-metadata.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/public-metadata.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "dependency-audit",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:34.150Z",
-        "finishedAt": "2026-09-12T06:47:36.204Z",
-        "durationMs": 2054,
+        "startedAt": "2026-09-12T06:56:08.278Z",
+        "finishedAt": "2026-09-12T06:56:09.383Z",
+        "durationMs": 1105,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/dependency-audit.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/dependency-audit.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "build",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:36.287Z",
-        "finishedAt": "2026-09-12T06:47:36.765Z",
-        "durationMs": 478,
+        "startedAt": "2026-09-12T06:56:09.466Z",
+        "finishedAt": "2026-09-12T06:56:09.953Z",
+        "durationMs": 487,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/build.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/build.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "planning-consistency",
         "status": "PASS",
-        "startedAt": "2026-09-12T06:47:36.830Z",
-        "finishedAt": "2026-09-12T06:47:36.959Z",
+        "startedAt": "2026-09-12T06:56:10.017Z",
+        "finishedAt": "2026-09-12T06:56:10.146Z",
         "durationMs": 129,
         "exitCode": 0,
-        "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/planning-consistency.log",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/planning-consistency.log",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "foundry",
         "status": "NOT_RUN",
-        "startedAt": "2026-09-12T06:47:37.023Z",
-        "finishedAt": "2026-09-12T06:47:37.023Z",
+        "startedAt": "2026-09-12T06:56:10.210Z",
+        "finishedAt": "2026-09-12T06:56:10.210Z",
         "durationMs": 0,
         "exitCode": null,
         "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "fuzz",
         "status": "NOT_RUN",
-        "startedAt": "2026-09-12T06:47:37.086Z",
-        "finishedAt": "2026-09-12T06:47:37.086Z",
+        "startedAt": "2026-09-12T06:56:10.274Z",
+        "finishedAt": "2026-09-12T06:56:10.274Z",
         "durationMs": 0,
         "exitCode": null,
         "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "invariant",
         "status": "NOT_RUN",
-        "startedAt": "2026-09-12T06:47:37.150Z",
-        "finishedAt": "2026-09-12T06:47:37.150Z",
+        "startedAt": "2026-09-12T06:56:10.339Z",
+        "finishedAt": "2026-09-12T06:56:10.339Z",
         "durationMs": 0,
         "exitCode": null,
         "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       },
       {
         "id": "slither",
         "status": "NOT_RUN",
-        "startedAt": "2026-09-12T06:47:37.213Z",
-        "finishedAt": "2026-09-12T06:47:37.213Z",
+        "startedAt": "2026-09-12T06:56:10.403Z",
+        "finishedAt": "2026-09-12T06:56:10.403Z",
         "durationMs": 0,
         "exitCode": null,
         "reason": "APPROVED_TOOLCHAIN_NOT_AVAILABLE",
-        "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+        "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
         "source": ".checks/management/latest.json",
-        "observedAt": "2026-09-12T06:47:37.276Z"
+        "observedAt": "2026-09-12T06:56:10.465Z"
       }
     ]
   },
   "git": {
     "status": "READY",
     "source": ".git",
-    "observedAt": "2026-09-12T06:47:54.110Z",
+    "observedAt": "2026-09-12T06:57:00.583Z",
     "branch": "macbeth/dashboard",
-    "commit": "58053172af654708a8edc2c87547338ce9dbf027",
-    "tree": "e8b20ad00f71a987475b9b8fc1352b22d491c10e",
+    "commit": "d3ec37be4ab6309a7ee5474162ca5ea2c9925c48",
+    "tree": "557156f2e58a62547f3d30748a1f571c9052758f",
     "dirtyFiles": 0,
-    "aheadBehind": { "ahead": 21, "behind": 0 },
+    "aheadBehind": { "ahead": 24, "behind": 0 },
     "recentCommits": [
+      {
+        "hash": "d3ec37be4ab6309a7ee5474162ca5ea2c9925c48",
+        "author": "Macbeth",
+        "authoredAt": "2026-09-12T14:57:00+08:00",
+        "subject": "Record full checks for Windows fixture repair"
+      },
+      {
+        "hash": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
+        "author": "Macbeth",
+        "authoredAt": "2026-09-12T14:55:50+08:00",
+        "subject": "Preserve repository LF attributes in Windows Git fixtures"
+      },
+      {
+        "hash": "f182180e1eda69c67228db5346db5258085e685e",
+        "author": "Tianbo Sun",
+        "authoredAt": "2026-09-12T14:48:14+08:00",
+        "subject": "Generate Dashboard snapshot from combined immutable evidence"
+      },
       {
         "hash": "58053172af654708a8edc2c87547338ce9dbf027",
         "author": "Tianbo Sun",
@@ -1785,43 +1803,25 @@
         "author": "Macbeth",
         "authoredAt": "2026-09-11T22:09:17+08:00",
         "subject": "chore(management): publish updated management check report"
-      },
-      {
-        "hash": "3f09d1d247dfb9732b84716461c7c5a68809a06f",
-        "author": "Macbeth",
-        "authoredAt": "2026-09-11T22:07:48+08:00",
-        "subject": "chore(test): format fsmonitor fixture string"
-      },
-      {
-        "hash": "99b840207a21dbaf455f4f7e1112116ee09e92dc",
-        "author": "Macbeth",
-        "authoredAt": "2026-09-11T21:57:52+08:00",
-        "subject": "fix(security): harden Git provenance and static-member scanning"
-      },
-      {
-        "hash": "c1b259b418632c8898b58a998910439b5f7a6837",
-        "author": "Macbeth",
-        "authoredAt": "2026-09-11T20:47:02+08:00",
-        "subject": "chore(dashboard): publish member-chain security snapshot"
       }
     ]
   },
   "build": {
     "id": "build",
     "status": "PASS",
-    "startedAt": "2026-09-12T06:47:36.287Z",
-    "finishedAt": "2026-09-12T06:47:36.765Z",
-    "durationMs": 478,
+    "startedAt": "2026-09-12T06:56:09.466Z",
+    "finishedAt": "2026-09-12T06:56:09.953Z",
+    "durationMs": 487,
     "exitCode": 0,
-    "evidence": ".checks/management/2026-09-12T06-47-16-304Z-dc6cc64a1b89/build.log",
-    "commit": "dc6cc64a1b89767b9dad12175ae876a4af7d4e6b",
+    "evidence": ".checks/management/2026-09-12T06-55-50-319Z-d7808eac3a93/build.log",
+    "commit": "d7808eac3a93d01ee0c69fd6aa51ae2b31725822",
     "source": ".checks/management/latest.json",
-    "observedAt": "2026-09-12T06:47:37.276Z"
+    "observedAt": "2026-09-12T06:56:10.465Z"
   },
   "hackathon": {
     "status": "NOT_STARTED",
     "source": "planning/roadmap.json",
-    "observedAt": "2026-09-12T06:47:54.110Z",
+    "observedAt": "2026-09-12T06:57:00.583Z",
     "gate": {
       "id": "G4",
       "name": "比赛提交",
@@ -1905,7 +1905,7 @@
   "network": {
     "status": "READY",
     "source": "planning/security-boundary.json",
-    "observedAt": "2026-09-12T06:47:54.110Z",
+    "observedAt": "2026-09-12T06:57:00.583Z",
     "chainId": 46630,
     "environment": {
       "allowed": ["local-simulation", "robinhood-chain-testnet"],
@@ -1962,7 +1962,7 @@
   "host": {
     "status": "BLOCKED",
     "source": "docs/management/tasks/B3.md",
-    "observedAt": "2026-09-12T06:47:54.110Z",
+    "observedAt": "2026-09-12T06:57:00.583Z",
     "title": "VERIFY REMOTE ACCESS + SESSION PERSISTENCE",
     "summary": "The user cancelled the experimental remote-development workflow before any external-client\nacceptance. Its temporary project session was removed, and branch-based collaboration replaced\nthe workflow. B3 is intentionally not reported as completed.",
     "links": [
@@ -1972,7 +1972,7 @@
         "kind": "host",
         "status": "READY",
         "source": "docs/management/host",
-        "observedAt": "2026-09-12T06:47:54.110Z"
+        "observedAt": "2026-09-12T06:57:00.583Z"
       },
       {
         "label": "docs/management/host/HOST-SETUP.md",
@@ -1980,7 +1980,7 @@
         "kind": "host",
         "status": "READY",
         "source": "docs/management/host",
-        "observedAt": "2026-09-12T06:47:54.110Z"
+        "observedAt": "2026-09-12T06:57:00.583Z"
       }
     ]
   },
@@ -3054,7 +3054,7 @@
       "kind": "architecture",
       "status": "READY",
       "source": "docs/adr",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/adr/0001-testnet-mvp-scope-and-authority.md",
@@ -3062,7 +3062,7 @@
       "kind": "architecture",
       "status": "READY",
       "source": "docs/adr",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/security/DASHBOARD-DIFF-SCAN-2026-09-09.md",
@@ -3070,7 +3070,7 @@
       "kind": "security",
       "status": "READY",
       "source": "docs/security",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/security/PR-CONVERGENCE-2026-09-12.md",
@@ -3078,7 +3078,7 @@
       "kind": "security",
       "status": "READY",
       "source": "docs/security",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/security/SUPPLY-CHAIN.md",
@@ -3086,7 +3086,7 @@
       "kind": "security",
       "status": "READY",
       "source": "docs/security",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/security/SUPPLY-DIFF-SCAN-2026-09-08.md",
@@ -3094,7 +3094,7 @@
       "kind": "security",
       "status": "READY",
       "source": "docs/security",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/security/SUPPLY-FIX-2026-09-08.md",
@@ -3102,7 +3102,7 @@
       "kind": "security",
       "status": "READY",
       "source": "docs/security",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/management/host/HOST-BASELINE.md",
@@ -3110,7 +3110,7 @@
       "kind": "host",
       "status": "READY",
       "source": "docs/management/host",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/management/host/HOST-SETUP.md",
@@ -3118,7 +3118,7 @@
       "kind": "host",
       "status": "READY",
       "source": "docs/management/host",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/LOCAL-WORK-SYNC-2026-09-12.md",
@@ -3126,7 +3126,7 @@
       "kind": "project",
       "status": "READY",
       "source": "docs",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/ROBINHOOD-CHAIN.md",
@@ -3134,7 +3134,7 @@
       "kind": "project",
       "status": "READY",
       "source": "docs",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/TASK-BOARD.md",
@@ -3142,7 +3142,7 @@
       "kind": "project",
       "status": "READY",
       "source": "docs",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "label": "docs/THREAT-MODEL.md",
@@ -3150,111 +3150,111 @@
       "kind": "project",
       "status": "READY",
       "source": "docs",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     }
   ],
   "sourceHealth": [
-    { "status": "READY", "source": "planning/roadmap.json", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "planning/risk-register.json", "observedAt": "2026-09-12T06:47:54.110Z" },
+    { "status": "READY", "source": "planning/roadmap.json", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "planning/risk-register.json", "observedAt": "2026-09-12T06:57:00.583Z" },
     {
       "status": "READY",
       "source": "planning/security-boundary.json",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/workers/worker-a.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/workers/worker-b.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/CURRENT-STATUS.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/WORK-QUEUE.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
-    { "status": "READY", "source": "docs/management/DECISIONS.md", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/CHANGELOG.md", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/tasks/B1.md", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/tasks/B2.md", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/tasks/B3.md", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/tasks/B4.md", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/tasks/B5.md", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/tasks/B6.md", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/tasks/B7.md", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/tasks/B8.md", "observedAt": "2026-09-12T06:47:54.110Z" },
+    { "status": "READY", "source": "docs/management/DECISIONS.md", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/CHANGELOG.md", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/tasks/B1.md", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/tasks/B2.md", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/tasks/B3.md", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/tasks/B4.md", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/tasks/B5.md", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/tasks/B6.md", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/tasks/B7.md", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/tasks/B8.md", "observedAt": "2026-09-12T06:57:00.583Z" },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A1.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A2.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A3.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A4.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A5.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A6.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A7.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/DARWIN-A8.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/LOCAL-DELIVERY-001.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/LOCAL-HISTORY-001.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
     {
       "status": "READY",
       "source": "docs/management/tasks/PR-MAINT-001.md",
-      "observedAt": "2026-09-12T06:47:54.110Z"
+      "observedAt": "2026-09-12T06:57:00.583Z"
     },
-    { "status": "READY", "source": "docs/adr", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/security", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs/management/host", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": "docs", "observedAt": "2026-09-12T06:47:54.110Z" },
-    { "status": "READY", "source": ".git", "observedAt": "2026-09-12T06:47:54.110Z" },
+    { "status": "READY", "source": "docs/adr", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/security", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs/management/host", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": "docs", "observedAt": "2026-09-12T06:57:00.583Z" },
+    { "status": "READY", "source": ".git", "observedAt": "2026-09-12T06:57:00.583Z" },
     {
       "status": "READY",
       "source": ".checks/management/latest.json",
-      "observedAt": "2026-09-12T06:47:37.276Z"
+      "observedAt": "2026-09-12T06:56:10.465Z"
     }
   ],
   "dashboardLog": []
