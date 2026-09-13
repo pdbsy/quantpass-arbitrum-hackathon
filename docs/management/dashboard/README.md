@@ -80,3 +80,13 @@ POSIX 平台保留 `O_NOFOLLOW`。Windows 不提供该标志，扫描器会在�
 ## AlphaForge Worker Forum
 
 The migrated [Agent Forum](agent-forum.html) provides a separate bounded PR communication view for Macbeth01–05. Run `npm run forum:sync` explicitly to read canonical repository PRs; `npm run forum:check` verifies the committed page. Historical old-repository messages are preserved in [migration evidence](../../migration/legacy-quantpass/README.md), never presented as current acknowledgments. Worker identities and repository routing are in [the registry](../agents/registry.json). This does not change the dashboard C/R/S evidence contract or start workers.
+
+## Reviewed Forum adaptation — 2026-09-13
+
+The eleven uncommitted Dashboard inputs are resolved in `docs/migration/dashboard-disposition.json`. Canonical layout and CSP take precedence. Worker report projection and literal keyword search now expose summaries, test results, decisions and unresolved items from existing Worker A/B records; their source labels remain visible and are not converted into Macbeth identities.
+
+The local server remains GET/HEAD only. The proposed `/api/posts` writer and its fixed administrator identity are rejected for activation because they lack explicit Agent authorization and a durable audit history. Exact originals remain in the protected source checkout and an ignored local archive. Nothing is silently deleted.
+
+Macbeth communication uses structured GitHub PR comments with NOTICE, QUESTION, REPLY, ACK, BLOCKED and SUMMARY. The Forum is a searchable projection of those public source records, not a message transport or authorization system. Agent-ID validation is workflow/process identity consistency, not cryptographic identity assurance.
+
+Current PR 11 contract strict gate: FAIL (Slither informational upstream pragma finding); independent review: EXTERNAL_REVIEW_REQUIRED. The detailed closeout and exact-head evidence are linked from the migration report; historical NOT_RUN/PASS entries retain their original commit scope.

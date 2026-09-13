@@ -140,6 +140,12 @@ test('PR message parser keeps body inert and rejects malformed schemas and links
   assert.equal(parsed.source_url, source.source_url);
   assert.throws(() => parseAgentMessages({ ...source, text: message({ type: 'TASK' }) }));
   assert.throws(() => parseAgentMessages({ ...source, source_url: 'https://evil.example/pull/11' }));
+  assert.throws(() =>
+    parseAgentMessages({
+      ...source,
+      source_url: 'https://github.com:444/pdbsy/quantpass-arbitrum-hackathon/pull/11',
+    }),
+  );
   assert.throws(() => parseAgentMessages({ ...source, text: message({ relatedPr: 'javascript:alert(1)' }) }));
   assert.throws(() => parseAgentMessages({ ...source, text: 'x'.repeat(20_001) }));
 });
@@ -246,4 +252,18 @@ test('forum exposes source failure and computes stale state from last successful
   const snapshot = buildForumSnapshot([], { syncedAt: '2026-09-12T10:00:00.000Z' });
   assert.equal(isForumSnapshotStale(snapshot, '2026-09-12T10:14:59.000Z'), false);
   assert.equal(isForumSnapshotStale(snapshot, '2026-09-12T10:15:01.000Z'), true);
+});
+
+test('explicit task IDs in commit subjects agree with Task-ID trailers', () => {
+  const valid = {
+    branch: 'macbeth01/AF-MIGRATION-closeout',
+    prTitle: '[Macbeth01][AF-MIGRATION] Closeout',
+    subject: '[Macbeth01][AF-MIGRATION] Closeout',
+    body: 'Agent-ID: Macbeth01\nTask-ID: AF-MIGRATION',
+  };
+  assert.doesNotThrow(() => validateCommitIdentity(valid));
+  assert.throws(() => validateCommitIdentity({ ...valid, subject: '[Macbeth01][AF-OTHER] Closeout' }));
+  assert.throws(() => validateCommitIdentity({ ...valid, subject: 'fix(AF-OTHER): [Macbeth01] Closeout' }));
+  assert.throws(() => validateCommitIdentity({ ...valid, body: 'Agent-ID: Macbeth01\nTask-ID: malformed' }));
+  assert.throws(() => validateCommitIdentity({ ...valid, body: 'Agent-ID: Macbeth01' }));
 });

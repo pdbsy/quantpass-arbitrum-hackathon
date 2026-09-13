@@ -31,4 +31,4 @@ old clones or prove that prose is harmless.
 
 ## Current limitation
 
-The repository is presently owned by a single personal GitHub account. An active no-bypass ruleset, CODEOWNERS and in-repository Actions improve change control, review routing and detection, but a zero-approval single-owner setup does not provide independent identity assurance or an immutable external governance check. `SUPPLY-001` and `GOV-001` remain incomplete until that external trust boundary is established and verified.
+The repository is presently owned by a single personal GitHub account. An active no-bypass ruleset, CODEOWNERS and in-repository Actions improve change control, review routing and detection, but a single-owner setup, even with one required approval and CODEOWNER/last-push requirements, does not provide independent identity assurance or an immutable external governance check. `SUPPLY-001` and `GOV-001` remain incomplete until that external trust boundary is established and verified.

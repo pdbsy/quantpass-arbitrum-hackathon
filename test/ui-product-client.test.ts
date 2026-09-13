@@ -492,3 +492,43 @@ test('owner commands reject a simulator audit actor and retain the pending reque
   await assert.rejects(restored.retry(), /RESPONSE_CONTEXT_MISMATCH/);
   assert.equal(h.storage.getItem(pendingKey), durable);
 });
+
+test('a changed durable pending record during readback is preserved, never cleared', async (t) => {
+  const h = await harness(t);
+  let replacement = '';
+  h.controls.after = async (path) => {
+    if (path.endsWith('/commands')) {
+      const pending = JSON.parse(h.storage.getItem(pendingKey)!);
+      replacement = JSON.stringify({ ...pending, command: { ...pending.command, id: 'new-local-record' } });
+      h.storage.setItem(pendingKey, replacement);
+    }
+  };
+  await assert.rejects(
+    h.client.command('deposit', { amount: '7' }, h.client.prepare()),
+    /PENDING_STORAGE_CHANGED/,
+  );
+  assert.equal(h.storage.getItem(pendingKey), replacement);
+  assert.equal(h.client.snapshot.notice, null);
+});
+
+test('a changed durable pending record during command rejection is not overwritten', async (t) => {
+  const h = await harness(t);
+  let replacement = '';
+  h.controls.before = async (path) => {
+    if (path.endsWith('/commands')) {
+      const pending = JSON.parse(h.storage.getItem(pendingKey)!);
+      replacement = JSON.stringify({
+        ...pending,
+        owner: 'bob',
+        command: { ...pending.command, id: 'other-record' },
+      });
+      h.storage.setItem(pendingKey, replacement);
+      throw new ApiError('REVISION_CONFLICT', 409);
+    }
+  };
+  await assert.rejects(
+    h.client.command('deposit', { amount: '7' }, h.client.prepare()),
+    /PENDING_STORAGE_CHANGED/,
+  );
+  assert.equal(h.storage.getItem(pendingKey), replacement);
+});

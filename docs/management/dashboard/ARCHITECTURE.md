@@ -287,3 +287,13 @@ The recorded-evidence workflow intentionally supports only same-repository pull 
 ## Windows public-file identity
 
 POSIX reads retain O_NOFOLLOW. On Windows, where that flag is unavailable, the original path metadata, opened handle and current non-symlink path must have identical nonzero BigInt file identities before any content read. Unsupported identity fails closed. Post-read identity, size, timestamps and canonical-root checks remain mandatory. Real Windows CI validates the combined gate; this does not claim an independent OS isolation boundary or validation of every optional local command runner.
+
+## Reviewed Forum adaptation — 2026-09-13
+
+The eleven uncommitted Dashboard inputs are resolved in `docs/migration/dashboard-disposition.json`. Canonical layout and CSP take precedence. Worker report projection and literal keyword search now expose summaries, test results, decisions and unresolved items from existing Worker A/B records; their source labels remain visible and are not converted into Macbeth identities.
+
+The local server remains GET/HEAD only. The proposed `/api/posts` writer and its fixed administrator identity are rejected for activation because they lack explicit Agent authorization and a durable audit history. Exact originals remain in the protected source checkout and an ignored local archive. Nothing is silently deleted.
+
+Macbeth communication uses structured GitHub PR comments with NOTICE, QUESTION, REPLY, ACK, BLOCKED and SUMMARY. The Forum is a searchable projection of those public source records, not a message transport or authorization system. Agent-ID validation is workflow/process identity consistency, not cryptographic identity assurance.
+
+Current PR 11 contract strict gate: FAIL (Slither informational upstream pragma finding); independent review: EXTERNAL_REVIEW_REQUIRED. The detailed closeout and exact-head evidence are linked from the migration report; historical NOT_RUN/PASS entries retain their original commit scope.

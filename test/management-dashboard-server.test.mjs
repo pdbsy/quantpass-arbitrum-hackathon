@@ -134,3 +134,18 @@ test('server fails closed for methods, traversal, dotfiles, unknown types, and e
     assert.doesNotMatch(await response.text(), new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 });
+
+test('proposed local Forum write path remains disabled for every mutation method', async (t) => {
+  const { root, outside } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(() => rm(outside, { recursive: true, force: true }));
+  const server = await createDashboardServer({ root, host: '127.0.0.1', port: 0 });
+  t.after(() => server.close());
+  const origin = await listen(server);
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    const response = await fetch(`${origin}/api/posts`, { method });
+    assert.equal(response.status, 405);
+    assert.equal(response.headers.get('allow'), 'GET, HEAD');
+  }
+  assert.equal((await fetch(`${origin}/api/posts`)).status, 404);
+});

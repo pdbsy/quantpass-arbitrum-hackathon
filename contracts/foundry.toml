@@ -22,6 +22,11 @@ fs_permissions = []
 runs = 256
 seed = "0x04"
 
+[profile.default.invariant]
+runs = 64
+depth = 32
+fail_on_revert = true
+
 [fmt]
 line_length = 100
 tab_width = 4

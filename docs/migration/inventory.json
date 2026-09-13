@@ -5768,8 +5768,8 @@
       "source_repository": "pdbsy/quantpass-arbitrum-hackathon",
       "source_base": "589269e5d6848aae91471e9f6e02b192fc2fe931",
       "branch": "macbeth/dashboard",
-      "status": "USER_ACTION_REQUIRED",
-      "reason": "Protected uncommitted UI refresh and local writable posts API; not explicitly supplied as migration input and conflicts with current read-only dashboard",
+      "status": "RESOLVED",
+      "reason": "User authorized review and selective adaptation on 2026-09-13; all 11 dispositions recorded in dashboard-disposition.json",
       "files": [
         {
           "path": "docs/management/dashboard/ARCHITECTURE.md",
@@ -5815,7 +5815,8 @@
           "path": "tools/management-dashboard/posts.mjs",
           "sha256": "6ff155ff209378053d4acd94b4f3f018fa2956ede0ec66aed3ee122192f0623a"
         }
-      ]
+      ],
+      "disposition": "docs/migration/dashboard-disposition.json"
     }
   }
 }

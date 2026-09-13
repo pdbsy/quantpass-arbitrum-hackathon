@@ -203,6 +203,7 @@ h2 {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.78rem;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .data-state-error,
@@ -392,6 +393,7 @@ h2 {
 .definition-list dd {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .table-wrap {
@@ -571,4 +573,27 @@ footer {
   *::after {
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Keep evidence labels readable without forcing the document wider on mobile. */
+.check-grid li,
+.link-list li {
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#worker-report-search {
+  max-width: 100%;
+  min-height: 44px;
+}
+
+.record-list {
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
+}
+
+.record-list li,
+.record-list li > * {
+  min-width: 0;
 }

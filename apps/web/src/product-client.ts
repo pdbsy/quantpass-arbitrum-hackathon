@@ -463,6 +463,7 @@ export class ProductClient {
         error.status !== 401 &&
         error.status !== 429
       ) {
+        this.requireCurrentPending(pending);
         const rejected = { ...pending, rejection: { code: error.message, status: error.status } };
         this.rejectionRefreshed = false;
         this.withStorage(() => this.storage.setItem(PENDING_COMMAND_KEY, JSON.stringify(rejected)));
@@ -478,7 +479,12 @@ export class ProductClient {
     if (!verified || verified.revision < result.vault.revision) throw new ApiError('READBACK_STALE', 502);
     this.confirm(pending, verified, result.replayed);
   }
+  private requireCurrentPending(pending: PendingCommand): void {
+    if (JSON.stringify(this.readPending()) !== JSON.stringify(pending))
+      throw new LocalClientError('PENDING_STORAGE_CHANGED');
+  }
   private confirm(pending: PendingCommand, verified: Vault, replayed: boolean): void {
+    this.requireCurrentPending(pending);
     this.withStorage(() => this.storage.removeItem(PENDING_COMMAND_KEY));
     this.update({
       pending: null,

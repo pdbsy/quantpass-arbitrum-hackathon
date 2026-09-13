@@ -1,8 +1,15 @@
-# Ownership requests are routing evidence only until an independent reviewer is added
-# and master requires CODEOWNER approval without administrator bypass.
+# Ownership routing only. Master requires CODEOWNER approval, but the sole owner
+# is not an independent reviewer. GOV-001 remains OPEN.
 * @pdbsy
 /.github/ @pdbsy
 /planning/ @pdbsy
 /tools/ @pdbsy
 /test/ @pdbsy
 /docs/adr/ @pdbsy
+/contracts/ @pdbsy
+/docs/security/ @pdbsy
+/SECURITY.md @pdbsy
+/src/security-model/ @pdbsy
+/apps/server/ @pdbsy
+/packages/domain/ @pdbsy
+/packages/config/ @pdbsy

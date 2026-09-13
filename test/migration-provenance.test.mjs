@@ -49,3 +49,30 @@ test('generated Forum uses external assets under the existing dashboard CSP', as
   assert.match(page, /href="\.\/agent-forum\.css"/);
   assert.doesNotMatch(page, /unsafe-inline|<style>|<script>/);
 });
+
+test('all eleven uncommitted Dashboard sources have explicit final dispositions', async () => {
+  const inventory = await readJson('docs/migration/inventory.json');
+  const disposition = await readJson('docs/migration/dashboard-disposition.json');
+  assert.equal(disposition.files.length, 11);
+  assert.equal(disposition.status, 'RESOLVED');
+  assert.equal(inventory.additional_discovery.uncommitted_dashboard.status, 'RESOLVED');
+  const allowed = new Set(['ADAPT_AND_MIGRATE', 'SUPERSEDED', 'ARCHIVE_ONLY', 'REJECT_SECURITY']);
+  for (const row of disposition.files) {
+    assert.ok(allowed.has(row.classification), row.path);
+    assert.equal(
+      row.sha256,
+      inventory.additional_discovery.uncommitted_dashboard.files.find((r) => r.path === row.path).sha256,
+    );
+    assert.ok(row.reason && row.action);
+    for (const field of [
+      'modifies_ui',
+      'modifies_server_runtime',
+      'introduces_write',
+      'affects_forum',
+      'overlaps_canonical',
+      'changes_security_boundary',
+    ])
+      assert.equal(typeof row[field], 'boolean');
+    assert.ok(!row.path.startsWith('/'));
+  }
+});

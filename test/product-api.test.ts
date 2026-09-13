@@ -506,3 +506,61 @@ test('AF-BE01 canonical readback and terminal audit preserve completed and cance
     ['cancel', 'withdrawal'],
   );
 });
+
+test('owner and audit boundaries are symmetric across both registered strategies', async (t) => {
+  const h = await productHarness();
+  t.after(() => h.app.close());
+  const alice = await h.login(),
+    bob = await h.login('bob');
+  for (const strategy of ['core-flow-demo', 'satellite-flow-demo']) {
+    const a = await h.claim(alice, strategy),
+      b = await h.claim(bob, strategy);
+    for (const [cookie, foreign] of [
+      [alice, b],
+      [bob, a],
+    ] as const) {
+      for (const prefix of ['/api', '/api/v1']) {
+        assert.equal((await h.request(cookie, `${prefix}/vaults/${foreign.id}`)).statusCode, 404);
+        assert.equal((await h.request(cookie, `${prefix}/vaults/${foreign.id}/audit`)).statusCode, 404);
+      }
+    }
+    const own = (await h.request(alice, `/api/v1/strategies/${strategy}`)).json();
+    assert.equal(own.accountStrategy.vaultId, a.id);
+    assert.equal(own.accountStrategy.strategyId, strategy);
+  }
+});
+
+test('issued pagination tokens fail closed on byte changes and wrong audit resource', async (t) => {
+  const h = await productHarness();
+  t.after(() => h.app.close());
+  const alice = await h.login();
+  const a = await h.claim(alice),
+    b = await h.claim(alice, 'satellite-flow-demo');
+  for (let revision = 0; revision < 2; revision++)
+    await h.request(alice, `/api/v1/vaults/${a.id}/commands`, {
+      id: `page-${revision}`,
+      type: 'deposit',
+      amount: '1',
+      expectedRevision: revision,
+    });
+  const page = (await h.request(alice, `/api/v1/vaults/${a.id}/audit?limit=1`)).json();
+  const token: string = page.nextCursor;
+  const altered = `${token[0] === 'A' ? 'B' : 'A'}${token.slice(1)}`;
+  assert.equal((await h.request(alice, `/api/v1/vaults/${a.id}/audit?cursor=${altered}`)).statusCode, 400);
+  assert.equal((await h.request(alice, `/api/v1/vaults/${b.id}/audit?cursor=${token}`)).statusCode, 400);
+  assert.equal((await h.request(alice, `/api/v1/account?cursor=${token}`)).statusCode, 400);
+});
+
+test('local HTTP rate limit returns 429 with an explicit Retry-After', async (t) => {
+  const h = await productHarness();
+  t.after(() => h.app.close());
+  for (let i = 0; i < 500; i++)
+    assert.equal(
+      (await h.app.inject({ url: '/api/health', headers: { host: '127.0.0.1:4180' } })).statusCode,
+      200,
+    );
+  const response = await h.app.inject({ url: '/api/health', headers: { host: '127.0.0.1:4180' } });
+  assert.equal(response.statusCode, 429);
+  assert.equal(response.headers['retry-after'], '60');
+  assert.deepEqual(response.json(), { error: 'RATE_LIMITED' });
+});

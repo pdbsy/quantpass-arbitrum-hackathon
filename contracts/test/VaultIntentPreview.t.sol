@@ -154,4 +154,27 @@ contract VaultIntentPreviewTest {
             "EIP-712 reference mismatch"
         );
     }
+
+    function test_IntegerEndpointsRemainDeterministic() public view {
+        VaultIntentPreview.Intent memory intent;
+        bytes32 zero = previewer.preview(intent);
+        intent.decimals = type(uint8).max;
+        intent.amount = type(uint256).max;
+        intent.expectedRevision = type(uint256).max;
+        intent.nonce = type(uint256).max;
+        intent.deadline = type(uint256).max;
+        intent.authorizationEpoch = type(uint256).max;
+        bytes32 maximum = previewer.preview(intent);
+        require(maximum != zero, "integer endpoints are not bound");
+        require(previewer.preview(intent) == maximum, "digest changed for identical input");
+    }
+
+    function test_MalformedAbiIsRejected() public view {
+        (bool emptyOk,) =
+            address(previewer).staticcall(abi.encodePacked(previewer.preview.selector));
+        require(!emptyOk, "missing ABI tuple accepted");
+        (bool truncatedOk,) = address(previewer)
+            .staticcall(abi.encodePacked(previewer.preview.selector, bytes32(uint256(32))));
+        require(!truncatedOk, "truncated ABI tuple accepted");
+    }
 }

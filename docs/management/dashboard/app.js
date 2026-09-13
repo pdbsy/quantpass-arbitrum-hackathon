@@ -82,6 +82,84 @@ export function buildOverview(snapshot) {
   };
 }
 
+// Adapted from the uncommitted Dashboard report projection; never a write or identity authority.
+export function buildWorkerReportPosts(workers) {
+  return workers
+    .flatMap((worker) =>
+      (worker.activities ?? []).map((activity) => ({
+        author: worker.label,
+        workerId: worker.id,
+        source: worker.source,
+        readOnly: true,
+        title: activity.title ?? activity.task ?? 'Worker 工作报告',
+        body: activity.result ?? activity.action ?? '未记录结果。',
+        createdAt: activity.timestamp,
+        task: activity.task,
+        action: activity.action,
+        result: activity.result,
+        files: activity.files,
+        tests: activity.tests,
+        issues: activity.issues,
+        unresolved: activity.unresolved,
+        decision: activity.decision,
+        commit: activity.commit,
+      })),
+    )
+    .sort((left, right) => (Date.parse(right.createdAt) || 0) - (Date.parse(left.createdAt) || 0));
+}
+
+export function filterWorkerReports(posts, query) {
+  if (typeof query !== 'string' || query.length > 200) throw new Error('INVALID_REPORT_QUERY');
+  const keyword = query.trim().toLocaleLowerCase();
+  return posts.filter(
+    (post) =>
+      !keyword ||
+      [
+        post.author,
+        post.task,
+        post.title,
+        post.body,
+        post.action,
+        post.tests,
+        post.issues,
+        post.unresolved,
+        post.decision,
+        post.commit,
+      ]
+        .join(' ')
+        .toLocaleLowerCase()
+        .includes(keyword),
+  );
+}
+
+function renderWorkerReports(snapshot) {
+  const body = panelBody('worker-reports');
+  const reports = filterWorkerReports(
+    buildWorkerReportPosts(snapshot.workers),
+    browserDocument.querySelector('#worker-report-search').value,
+  );
+  if (!reports.length) empty(body, '没有匹配的已记录 Worker 活动。');
+  for (const report of reports) {
+    const card = element('article', 'source-block');
+    card.append(
+      element('h3', null, report.title),
+      element('p', 'muted', `${report.author} · ${report.createdAt} · READ_ONLY`),
+      definitionList([
+        ['Result', report.body],
+        ['Action', report.action],
+        ['Tests', report.tests],
+        ['Issues', report.issues],
+        ['Unresolved', report.unresolved],
+        ['Decision', report.decision],
+        ['Files', report.files],
+        ['Commit', report.commit],
+      ]),
+      sourceNote(report),
+    );
+    body.append(card);
+  }
+}
+
 function validateSnapshotForUi(value) {
   if (!value || value.schemaVersion !== 1) throw new Error('INVALID_SNAPSHOT');
   for (const field of [
@@ -546,6 +624,7 @@ function renderDashboard(snapshot) {
     'worker-b',
     snapshot.workers.find((worker) => worker.id === 'worker-b'),
   );
+  renderWorkerReports(snapshot);
   renderDecisions(snapshot);
   renderFindings(snapshot);
   renderChecks(snapshot);
@@ -595,6 +674,9 @@ async function boot() {
   const result = await loadDashboard();
   if (result.state === 'error') return renderFatal(result);
   renderDashboard(result.data);
+  browserDocument
+    .querySelector('#worker-report-search')
+    .addEventListener('input', () => renderWorkerReports(result.data));
   browserDocument.querySelector('#data-state').textContent = `快照：${result.data.generatedAt}`;
 }
 

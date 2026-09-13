@@ -26,7 +26,7 @@ function githubUrl(value, { allowAnchor = true } = {}) {
   } catch {
     fail('invalid GitHub URL');
   }
-  if (url.protocol !== 'https:' || url.hostname !== 'github.com' || url.username || url.password)
+  if (url.origin !== 'https://github.com' || url.username || url.password)
     fail('GitHub URL must use the allowed origin');
   if (!/^\/pdbsy\/quantpass-arbitrum-hackathon\/pull\/\d+$/.test(url.pathname))
     fail('GitHub URL is outside the repository');

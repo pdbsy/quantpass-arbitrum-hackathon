@@ -23,8 +23,10 @@
       return el('span', '', '来源链接无效');
     }
     if (
-      parsed.protocol !== 'https:' ||
-      parsed.hostname !== 'github.com' ||
+      parsed.origin !== 'https://github.com' ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
       !/^\/pdbsy\/quantpass-arbitrum-hackathon\/pull\/\d+$/.test(parsed.pathname)
     )
       return el('span', '', '来源链接无效');

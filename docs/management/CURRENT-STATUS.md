@@ -1,5 +1,7 @@
 # AlphaForge Hackathon — 项目管理状态
 
+Latest checkpoint (2026-09-13): PR 11 **NOT_READY / Draft**, eleven source files RESOLVED; strict Slither FAIL and independent review remain blockers. See [closeout](../migration/PR11-CLOSEOUT.md). The dated earlier sections below are retained historical evidence; their zero-approval/toolchain statements are superseded by this checkpoint.
+
 更新：2026-09-12（UTC+08:00）。本页同步本地交付记录与 GitHub 只读核验，dashboard 使用 macbeth/dashboard 最新版本。
 
 ## 当前工作
@@ -64,3 +66,9 @@ PR #7 merged at 2026-09-12T07:02:16Z, master 0f8cf4079f0f932e2acfd4e5ef76042e697
 ## AlphaForge 环境阶段完成
 
 PR #9 已实际合并并完成准确 master 验收；当前所有开发名称使用 AlphaForge，Hackathon 版本范围保持 local/mock。合约、外部独立治理、部署与真实资金门禁均未因本阶段完成而改变。
+
+## PR 11 quality closeout — 2026-09-13
+
+Current status: NOT_READY; Draft; no merge. All eleven protected Dashboard files now have explicit final dispositions and unchanged source hashes. Read-only report search, pending-record preservation and subject Task-ID consistency are implemented with regression coverage. Master requires verify / verify-windows / verify-macos / analyze-javascript-typescript / dependency-review, one approval, CODEOWNER and last-push approval; readback is recorded in docs/security/pr11-master-protection.json.
+
+Contract tests now include actual dedicated invariant execution (64 runs / 2048 calls / zero reverts). Slither actually ran, but the unchanged fail-pedantic gate FAILS on one informational mixed-pragma finding in hash-locked upstream dependencies. No suppression or fabricated PASS. Independent review and GOV-001/SUPPLY-001 external trust remain unresolved. Exact final-head checks are reported in PR 11; the earlier sections above remain historical. See docs/migration/PR11-CLOSEOUT.md.

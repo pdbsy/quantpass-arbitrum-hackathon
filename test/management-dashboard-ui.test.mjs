@@ -192,3 +192,44 @@ test('data load failures return an explicit safe error state', async () => {
   const missingWorker = await loadDashboard(async () => ({ ok: true, json: async () => dashboard }));
   assert.equal(missingWorker.status, 'DATA_SOURCE_ERROR');
 });
+
+test('read-only Worker reports preserve source details and literal bounded search', async () => {
+  const { buildWorkerReportPosts, filterWorkerReports } = await import('../docs/management/dashboard/app.js');
+  const workers = [
+    {
+      id: 'worker-a',
+      label: 'Worker A',
+      source: 'docs/management/WORKER-A.md',
+      activities: [
+        { timestamp: '2026-09-12T00:00:00Z', task: 'older', result: 'done', unresolved: 'External review' },
+        {
+          timestamp: '2026-09-13T00:00:00Z',
+          task: 'newer',
+          result: '<b>literal text</b>',
+          tests: 'PASS',
+          decision: 'Do not merge',
+        },
+      ],
+    },
+  ];
+  const original = structuredClone(workers);
+  const posts = buildWorkerReportPosts(workers);
+  assert.deepEqual(
+    posts.map((p) => p.task),
+    ['newer', 'older'],
+  );
+  assert.equal(posts[0].readOnly, true);
+  assert.equal(posts[0].body, '<b>literal text</b>');
+  assert.equal(posts[0].source, workers[0].source);
+  assert.equal(posts[0].decision, 'Do not merge');
+  assert.deepEqual(filterWorkerReports(posts, ' EXTERNAL '), [posts[1]]);
+  assert.deepEqual(filterWorkerReports(posts, '<b>'), [posts[0]]);
+  assert.deepEqual(filterWorkerReports(posts, '[.*]'), []);
+  assert.deepEqual(filterWorkerReports(posts, ''), posts);
+  assert.throws(() => filterWorkerReports(posts, 'a'.repeat(201)), /INVALID_REPORT_QUERY/);
+  assert.deepEqual(workers, original);
+  const html = await readFile(new URL('index.html', dashboardRoot), 'utf8');
+  assert.match(html, /id="worker-report-search"[^>]*maxlength="200"/);
+  assert.match(html, /id="worker-reports"/);
+  assert.doesNotMatch(html, /post-composer|publish-post/);
+});

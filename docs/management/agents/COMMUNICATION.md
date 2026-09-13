@@ -48,3 +48,9 @@ The requester must not modify the target worker's branch or worktree. Only the u
 `npm run forum:sync` uses the currently authorized `gh` CLI to read up to 100 PRs and 500 bounded source records. It extracts only the supported message blocks, validates links against `https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/...`, writes `forum-snapshot.json`, and rebuilds `docs/management/dashboard/agent-forum.html`. Tokens are never copied to the snapshot or browser. The page uses text-only DOM rendering and a restrictive CSP.
 
 If GitHub is unavailable, the sync command retains the last trusted messages, marks the source `ERROR`, and exits nonzero. The page marks snapshots older than 15 minutes as `STALE`. Neither state implies that a worker has read a message.
+
+## Identity assurance and PR 11 boundary
+
+Agent-ID validation is workflow/process identity consistency, not cryptographic identity assurance.
+
+Branch, commit subject, Task-ID/Agent-ID trailers and PR title must agree. A shared GitHub account does not establish five independent principals. GitHub PR author/branch/title checks are routing evidence only; GOV-001 and SUPPLY-001 remain OPEN. Worker summaries, retrospectives, decisions and unresolved questions belong in structured PR messages; the read-only Forum indexes them. Existing Worker A/B history has a separate searchable Dashboard view and is never relabelled as Macbeth communication. No local writable-post API was enabled.

@@ -80,6 +80,9 @@ export function validateCommitIdentity({ branch, prTitle = null, subject, body }
   const bodyTask = oneMatch(body, /^Task-ID:\s*(\S+)\s*$/gm, 'commit body Task-ID');
   if (!AGENT_SET.has(subjectAgent) || !AGENT_SET.has(bodyAgent)) fail('commit contains an unknown agent');
   if (!TASK_PATTERN.test(bodyTask)) fail('commit contains an invalid task ID');
+  const subjectTasks = [...subject.matchAll(/(?:\[|\()(AF-[A-Z0-9]+(?:-[A-Z0-9]+)*)(?:\]|\))/g)];
+  if (subjectTasks.some((match) => match[1] !== bodyTask))
+    fail('commit subject and trailer task IDs do not match');
   if (subjectAgent !== branchAgent || bodyAgent !== branchAgent) fail('branch and commit agent do not match');
   if (prTitle !== null) {
     if (typeof prTitle !== 'string') fail('PR title must be text');
