@@ -1,6 +1,6 @@
 # AlphaForge Hackathon — 项目管理状态
 
-Latest checkpoint (2026-09-13): PR 11 **NOT_READY / Draft**, eleven source files RESOLVED; strict Slither FAIL and independent review remain blockers. See [closeout](../migration/PR11-CLOSEOUT.md). The dated earlier sections below are retained historical evidence; their zero-approval/toolchain statements are superseded by this checkpoint.
+Latest checkpoint (2026-09-13 continuation): PR 11 **TECHNICALLY_READY_EXTERNAL_REVIEW_REQUIRED** after final-head checks; eleven source files RESOLVED; strict Slither remediation passes locally. Draft may be removed only after final-head verification; actual transition is recorded in PR 11. See [closeout](../migration/PR11-CLOSEOUT.md). The dated earlier sections below are retained historical evidence; their zero-approval/toolchain statements are superseded by this checkpoint.
 
 更新：2026-09-12（UTC+08:00）。本页同步本地交付记录与 GitHub 只读核验，dashboard 使用 macbeth/dashboard 最新版本。
 
@@ -69,6 +69,11 @@ PR #9 已实际合并并完成准确 master 验收；当前所有开发名称使
 
 ## PR 11 quality closeout — 2026-09-13
 
-Current status: NOT_READY; Draft; no merge. All eleven protected Dashboard files now have explicit final dispositions and unchanged source hashes. Read-only report search, pending-record preservation and subject Task-ID consistency are implemented with regression coverage. Master requires verify / verify-windows / verify-macos / analyze-javascript-typescript / dependency-review, one approval, CODEOWNER and last-push approval; readback is recorded in docs/security/pr11-master-protection.json.
+Historical checkpoint at 0a765d0: NOT_READY; Draft; no merge. All eleven protected Dashboard files now have explicit final dispositions and unchanged source hashes. Read-only report search, pending-record preservation and subject Task-ID consistency are implemented with regression coverage. Master requires verify / verify-windows / verify-macos / analyze-javascript-typescript / dependency-review, one approval, CODEOWNER and last-push approval; readback is recorded in docs/security/pr11-master-protection.json.
 
 Contract tests now include actual dedicated invariant execution (64 runs / 2048 calls / zero reverts). Slither actually ran, but the unchanged fail-pedantic gate FAILS on one informational mixed-pragma finding in hash-locked upstream dependencies. No suppression or fabricated PASS. Independent review and GOV-001/SUPPLY-001 external trust remain unresolved. Exact final-head checks are reported in PR 11; the earlier sections above remain historical. See docs/migration/PR11-CLOSEOUT.md.
+
+
+## PR 11 merge-readiness continuation
+
+The strict Slither gate now passes after ten dependency pragma declarations are narrowed in an explicitly derived subset. Original OpenZeppelin archive/installation remain unchanged and verified; the ten-file hash manifest and retained license document the derivation. Identical ABI and creation/runtime bytecode are checked against original dependencies and the actual Forge artifact. Ten Python regression tests and 20 Solidity tests pass locally. All final-head application, browser and GitHub gates must pass before Ready for Review. External CODEOWNER/last-push approval remains unavailable with only the author as collaborator; GOV-001/SUPPLY-001 external boundaries remain OPEN. Do not merge.

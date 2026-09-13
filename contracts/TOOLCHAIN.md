@@ -34,3 +34,9 @@ Official npm provenance attestations and GitHub signatures were discovered but *
 ## Coordination
 
 Macbeth01 approved these task-local locks/docs and explicit ID/Adapter boundaries in [PR #8 decision](https://github.com/pdbsy/quantpass/pull/8#issuecomment-5646402687). No root package/config/CI/shared types/backend/UI changes are authorized by that decision. Updating a pin means reviewing new official metadata, hashes, licenses and compatibility and re-running the relevant checks; never replace a failing expected digest with the bytes of an unexplained download.
+
+## PR 11 pragma-only derived dependency
+
+The original locks, tools and OpenZeppelin installation remain unchanged. The additional `openzeppelin-pragma-pins.json` manifest fixes original and derived hashes for the ten consumed Solidity dependencies. Only their version pragma is narrowed to the already selected 0.8.31. Their SPDX headers and the [upstream MIT license](licenses/OpenZeppelin-LICENSE), retrieved at the locked tag commit, are retained. The license source URL and SHA-256 are recorded.
+
+The separate ignored subset at `contracts/node_modules/@alphaforge/openzeppelin-pinned` is generated and verified during `check-local.sh`; neither bootstrap nor the original package is rewritten. This explicit remapping affects both Forge and Slither. Original/derived compilation outputs and the actual Forge preview artifact must have equal ABI and creation/runtime bytecode. Compiler metadata remains disabled under the existing profile; equivalence is specific to these locked settings. This source derivation and its verifier require independent CODEOWNER review; registry hash integrity is still not independent provenance.

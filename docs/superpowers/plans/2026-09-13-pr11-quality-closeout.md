@@ -48,3 +48,10 @@ No merge, deployment, broadcast, signatures, real funds, history rewrite, source
 - [ ] At final clean HEAD rerun locked install, full checks, browser and contracts; push the existing branch.
 - [ ] Verify Linux, Windows, macOS, CodeQL and dependency review on that HEAD; update PR body.
 - [ ] Keep Draft if any engineering blocker remains; otherwise mark technically ready with external review required. Never merge.
+
+## 7. User-requested continuation to merge readiness
+
+- [x] Preserve the strict gate and original upstream bytes; derive only ten pragma lines with a closed before/after hash manifest and retained license.
+- [x] Add regression-first derivation/equivalence tests and require original/derived/Forge ABI and bytecode equality; run strict Slither and all contract tests.
+- [ ] Repeat source C / manifest R / snapshot S and all final-head gates; update the existing PR and mark Ready for Review only after PASS.
+- [ ] Obtain real independent CODEOWNER/last-push approval; retain external blockers until actual evidence exists. Never merge.

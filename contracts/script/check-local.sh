@@ -51,10 +51,14 @@ if lock['solc']['longVersion'] not in solc:
 print(forge.strip())
 print(solc.strip())
 print('Slither ' + importlib.metadata.version('slither-analyzer'))
+from pinned_dependency import prepare
+prepare()
 PY
+"$TASK_PYTHON" -m unittest discover -s script/tests -v
 mkdir -p ../.checks/af-chain01/evidence
 forge fmt --check
 forge build --offline
+"$TASK_PYTHON" -c 'import sys; sys.path.insert(0, "script"); from pinned_dependency import verify_forge_output; verify_forge_output()'
 forge test --offline
 # Fail on any finding. Do not suppress findings to manufacture a clean result.
 slither . --compile-force-framework foundry --exclude-dependencies --fail-pedantic --foundry-out-directory ../.checks/af-chain01/out --json - > ../.checks/af-chain01/evidence/slither.json

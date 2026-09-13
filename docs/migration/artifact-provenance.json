@@ -1068,9 +1068,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth04",
       "target_path": "contracts/README.md",
-      "method": "selective import; authority and historical document links adapted; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
+      "method": "selective import; authority and historical document links adapted; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 pragma-only dependency derivation / current verification documentation",
       "original_sha256": "ada85b5956659b1c48af5d2aa6450fc87f248ab9bd735fd6bdaad9fecbee3bcf",
-      "migrated_sha256": "f7ae270c9ad6c9fe7ae7a29dd8b6d113ed8ad12f5e787cba5275e5ccbffbbc85"
+      "migrated_sha256": "defa7b4ccc552c5f4f35a7c27f88564de6ebde7c30a50605098eecd2577de675"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1078,9 +1078,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth04",
       "target_path": "contracts/TOOLCHAIN.md",
-      "method": "selective import; authority and historical document links adapted",
+      "method": "selective import; authority and historical document links adapted; PR11 pragma-only dependency derivation / current verification documentation",
       "original_sha256": "7535a638de64cc65af503864862a8d50f47c2fc23ce8f4fe895a1cde93fc8e3b",
-      "migrated_sha256": "772f74c4eee7d306f52de83abe7aee15eee794bef842573aadfe0a682512b628"
+      "migrated_sha256": "3c595055f65b714010eabc65ce7e0f54b08a459913b3f9d5cb11b77ef953d7ae"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1088,9 +1088,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth04",
       "target_path": "contracts/foundry.toml",
-      "method": "unchanged local-only contract source/toolchain lock; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
+      "method": "unchanged local-only contract source/toolchain lock; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 pragma-only dependency derivation / current verification documentation",
       "original_sha256": "afe88b8c4def38d57532ed352d8d92c283ae39a7192b42af8fb9df8116035a31",
-      "migrated_sha256": "f1e0800dfe7552b4d200d20f89e61e82cf9a1ca30044842848429eb3b88261fa"
+      "migrated_sha256": "2efc19c44431dce6c055eadcca39ad09b2fb5047abd172174989106b7b830573"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1118,9 +1118,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth04",
       "target_path": "contracts/script/check-local.sh",
-      "method": "unchanged local-only contract source/toolchain lock",
+      "method": "unchanged local-only contract source/toolchain lock; PR11 pragma-only dependency derivation / current verification documentation",
       "original_sha256": "360464a57d2dfd3cd2126647efd0c72bade819dcf43f1ae3e0fa2be3a5105b91",
-      "migrated_sha256": "360464a57d2dfd3cd2126647efd0c72bade819dcf43f1ae3e0fa2be3a5105b91"
+      "migrated_sha256": "93918fc4859204150c0a3da5ea19f51012937496c35d6b9d8df96a167d61c531"
     },
     {
       "source_repository": "pdbsy/quantpass",

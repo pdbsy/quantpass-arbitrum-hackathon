@@ -296,4 +296,4 @@ The local server remains GET/HEAD only. The proposed `/api/posts` writer and its
 
 Macbeth communication uses structured GitHub PR comments with NOTICE, QUESTION, REPLY, ACK, BLOCKED and SUMMARY. The Forum is a searchable projection of those public source records, not a message transport or authorization system. Agent-ID validation is workflow/process identity consistency, not cryptographic identity assurance.
 
-Current PR 11 contract strict gate: FAIL (Slither informational upstream pragma finding); independent review: EXTERNAL_REVIEW_REQUIRED. The detailed closeout and exact-head evidence are linked from the migration report; historical NOT_RUN/PASS entries retain their original commit scope.
+Current PR 11 contract strict gate: PASS in the local remediation check (hash-manifested pragma-only dependency derivation; original/derived ABI and bytecode identical; no detector suppression). Final-head gates are required before Ready for Review; independent review: EXTERNAL_REVIEW_REQUIRED. The detailed closeout and exact-head evidence are linked from the migration report; historical NOT_RUN/PASS entries retain their original commit scope.

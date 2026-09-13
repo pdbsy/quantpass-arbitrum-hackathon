@@ -5,7 +5,7 @@ script = "script"
 out = "../.checks/af-chain01/out"
 cache_path = "../.checks/af-chain01/cache"
 libs = ["node_modules"]
-remappings = ["@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/"]
+remappings = ["@openzeppelin/contracts/=node_modules/@alphaforge/openzeppelin-pinned/"]
 auto_detect_remappings = false
 solc = "../.checks/af-chain01/toolchain/bin/solc"
 auto_detect_solc = false

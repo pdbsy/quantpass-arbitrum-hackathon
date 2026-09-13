@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "upstream": "OpenZeppelin Contracts 5.4.0",
+  "upstreamArchiveSha256": "4e4d51f18935b32f0c877bf666ac37f5e5a98e75f03e7a77eb7569f84701f680",
+  "compiler": "0.8.31",
+  "transformation": "Only the single version pragma line is narrowed; all other bytes and upstream LICENSE retained. Original installation remains unchanged.",
+  "files": [
+    {
+      "path": "interfaces/IERC5267.sol",
+      "pragma": "pragma solidity >=0.4.16;",
+      "originalSha256": "f89772d2d4fafcbef8b73bb10ee9a3373edec2eedb2f1b302320915b351dc3d1",
+      "derivedSha256": "95713f44187bcf634b3e8823df392df25df7bcbb52ee928ac690474a56f03535"
+    },
+    {
+      "path": "utils/Panic.sol",
+      "pragma": "pragma solidity ^0.8.20;",
+      "originalSha256": "270fc8401c1a13fae6a7a4a2dd6e381b95d658896701e51f0d3e2688acab3dec",
+      "derivedSha256": "c65e01016667eb2e2c86db53b0d067e4a5437bd3ec9905d9be820c3b56978b1d"
+    },
+    {
+      "path": "utils/ShortStrings.sol",
+      "pragma": "pragma solidity ^0.8.20;",
+      "originalSha256": "542d5dfe5e4375d83f2e3b5246b2d0d7507406a4b582844dbc73bd31ed2faa83",
+      "derivedSha256": "35890f481cb4d5a3cf21bde5bf11df5aee5d259d20939a02a8ef86f0e5787aaa"
+    },
+    {
+      "path": "utils/StorageSlot.sol",
+      "pragma": "pragma solidity ^0.8.20;",
+      "originalSha256": "75704538dcb223239280c6726d9a31cf769a7816718517c997fc7d63bdb70778",
+      "derivedSha256": "2c5bff24327f4b537c85067bb13e5f2dc34e2c0bdfc4818937b27a51b4e21383"
+    },
+    {
+      "path": "utils/Strings.sol",
+      "pragma": "pragma solidity ^0.8.20;",
+      "originalSha256": "2db7d21151644c57f75ed3ab55e87f3cf7fbf587a65345650fd740e2cfd50be3",
+      "derivedSha256": "66f51987f11deb1cb6fe035eb8ee0d747e4aa0601ca0fc2e5d3849395749c20b"
+    },
+    {
+      "path": "utils/cryptography/EIP712.sol",
+      "pragma": "pragma solidity ^0.8.20;",
+      "originalSha256": "c20e0789a53610b2551058e0bd556dcd2caa20a7457348c3c73df037fba88861",
+      "derivedSha256": "f26ea7e3e5c8aec8634ec7440b297c1bf3657fc0862d3529075fce3ee642a934"
+    },
+    {
+      "path": "utils/cryptography/MessageHashUtils.sol",
+      "pragma": "pragma solidity ^0.8.20;",
+      "originalSha256": "936a89f512d5da84b0896b66d2398f2bea9eefdf2afa788af5265fcd74302693",
+      "derivedSha256": "f07fb8b9d30d9b0cdf6ff13f1c781e618686c096376a90afc893d186b4332989"
+    },
+    {
+      "path": "utils/math/Math.sol",
+      "pragma": "pragma solidity ^0.8.20;",
+      "originalSha256": "92fee281fd46a1b058b190cf21d6b1a528f0433a907850ae1c9bcf36c5c0cd98",
+      "derivedSha256": "cff93452116086ddb8ec79fff74e64bd1fe596069f514dcb7d08bc225ee30bca"
+    },
+    {
+      "path": "utils/math/SafeCast.sol",
+      "pragma": "pragma solidity ^0.8.20;",
+      "originalSha256": "9769274bf53f26a7c7896c526ea1980dc9bea5bf5c2a5fd04870008c4afc1de9",
+      "derivedSha256": "d97bc662501850b6af6366c3c4fcf97abbf8b5189a3833dbf75b8f1c828b13e3"
+    },
+    {
+      "path": "utils/math/SignedMath.sol",
+      "pragma": "pragma solidity ^0.8.20;",
+      "originalSha256": "1ed50b1056af886752f0fb48a0165d381e69bb4a4b18b893b066dc144a7e08d7",
+      "derivedSha256": "3bd2bfa4a0bf30804ec582515264078995566e712bd7a991fe91951ca0744611"
+    }
+  ],
+  "licenseSource": "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/c64a1edb67b6e3f4a15cca8909c9482ad33a02b0/LICENSE",
+  "licenseSha256": "13cd784a6c31361f0e0c6aa3b410a1cb9a079868b7314c13e3eb8a75351746b9"
+}
