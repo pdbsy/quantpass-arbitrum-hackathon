@@ -1,5 +1,19 @@
 # 工作队列
 
+## 当前优先事项 — 2026-09-13
+
+| 事项 | 状态 | 当前事实 / 下一步 |
+|---|---|---|
+| AF-MIGRATION / PR #11 整改 | 工程验收通过，BLOCKED | 29e2af9 的 366 测试、浏览器、合约和五项必需 CI 已通过；缺少 GitHub CODEOWNER 审批，未合并 |
+| 仓库安全清理 | DONE | 4 个已合并旧分支归档后移除分支名；628 个测试临时目录已清理并可恢复；源码和保护规则未改 |
+| Dashboard / Forum 同步 | 本次交付 | 更新 Manager、队列、Macbeth01 活动记录和 Forum；重新采集 C/R/S，准确头 CI 随 PR 更新 |
+| PR #11 受保护 squash merge | BLOCKED — REVIEW_REQUIRED | 用户已授权本次 merge 并要求保留规则；需合资格 CODEOWNER 的真实 GitHub 审批 |
+| 实际 master 合并后验证 | NOT_RUN | 必须实际合并后再验证 master SHA、tree 和本地/托管检查 |
+| GOV-001 / SUPPLY-001 | OPEN | 独立治理和信任边界不能由 Macbeth01 自审替代 |
+| PR11-L1 hosted contract-security | 后续工作 | 保留已验证 macOS-arm64 锁定工具链；另行资格验证托管工具再加入 required check |
+
+## 历史队列（不是当前活动任务）
+
 更新：2026-09-12。canonical roadmap 为 planning/roadmap.json；本表记录管理交付及剩余工作。
 
 | 记录 / 事项 | 当前状态 | 下一步 / 完成边界 |

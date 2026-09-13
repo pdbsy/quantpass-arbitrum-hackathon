@@ -2,12 +2,12 @@
 
 ## Current status
 
-- Current task: `ENV-01–05 DEVELOPMENT TOOLCHAIN ALIGNMENT`
-- Status: `DONE`
-- Branch: `macbeth/env-acceptance`
-- Last known commit: `SELF`
-- Blocker: None for the completed ENV-01–05 checkpoint; external governance and chain capabilities remain separate
-- Last activity: `2026-09-12T17:35:00+08:00`
+- Current task: `AF-MIGRATION / PR #11 integration and Dashboard synchronization`
+- Status: `BLOCKED`
+- Branch: `macbeth01/AF-MIGRATION-repository-consolidation`
+- Last known commit: `29e2af923e325c15ab6784484a349f69fcca9ff5`
+- Blocker: GitHub REVIEW_REQUIRED; qualified CODEOWNER approval missing. Rules unchanged by latest user instruction; normal squash merge rejected; cleanup completed.
+- Last activity: `2026-09-13T10:14:11Z`
 
 ## 2026-09-12T17:35:00+08:00 — AlphaForge environment accepted
 
@@ -32,6 +32,18 @@ Macbeth alone actually merged #1/#5/#2/#6/#7 and verified each precise master be
 Macbeth merged and verified #1/#5/#2/#6 sequentially; exact commits are in CURRENT-STATUS.md. PR #7 now integrates verified master 80fc3d9befef7a1749d4991cd6f00e4c604a4a5e through a normal merge retaining previous authors. Shared supply/test/record conflicts were reconciled, Windows file identity handling strengthened, and all 231 combined tests passed. Immutable evidence and real GitHub Windows checks remain pending. No independent review or Darwin approval is claimed. Historical B8 handoff completion below is distinct from this round's still-pending #7 merge stage.
 
 ## Activity log
+
+### 2026-09-13T10:14:11Z — Macbeth01 PR #11 cleanup and Dashboard synchronization
+
+- Task: `AF-MIGRATION`
+- Action: synchronized current manager status, work queue, decision and this activity log with PR #11; regenerated the read-only Forum from actual GitHub messages
+- Result: cleanup DONE: four already-merged branches archived with public tags and verified bundle; 628 closed test directories removed with a recovery archive; four remote branches retained. PR #11 remains OPEN / Ready for Review / REVIEW_REQUIRED, not merged
+- Files: docs/management current sources, agents/forum-snapshot.json and generated Dashboard assets
+- Tests: engineering baseline 29e2af9 passed 366 application tests, product 10 groups / 13 commands, management 5 groups, 20 Solidity tests/fuzz/invariant, 10 Python regressions, strict Slither and all five required hosted CI checks; this documentation update receives fresh C/R/S and exact-head CI
+- Issues: the earlier cleanup updated only the PR and private report; Dashboard sources still showed ENV-01–05 and the Forum lacked the latest structured status message
+- Unresolved: actual GitHub CODEOWNER approval, protected merge and post-merge master verification; GOV-001/SUPPLY-001 and hosted contract-security follow-up remain separate
+- Decision: latest user says keep rules unchanged and permits this merge; no approval-setting update or bypass. Preserve all source/security histories and original UI
+- Commit: `SELF` — this management synchronization source; historical engineering baseline explicitly identified above
 
 ### 2026-09-11T19:15:00+08:00 — PR #7 final pre-publication review remediation
 

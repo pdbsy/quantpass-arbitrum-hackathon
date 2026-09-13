@@ -1,5 +1,14 @@
 # Management changelog
 
+## 2026-09-13T10:14:11Z — PR #11 cleanup and live management records synchronized
+
+- Corrected Manager and Worker B current task from historical ENV-01–05 to Macbeth01 / AF-MIGRATION; current state is BLOCKED / GitHub REVIEW_REQUIRED, with cleanup DONE.
+- Synchronized the actual four retained branches, four public archive tags, 628 removed test directories, preserved source files and unchanged branch protections.
+- Kept 29e2af9 exact-head 366-test/browser/contract/CI verification as its dated engineering baseline; new Dashboard records receive fresh source C / checks R / snapshot S and hosted CI.
+- Refreshed the PR-only Forum using a new factual Macbeth01 status message; earlier messages remain historical and do not authorize current rule changes.
+- No application/runtime code, roadmap acceptance, original UI, chain execution or independent approval changed.
+
+
 ## 2026-09-12 — Startup PR convergence verified
 
 - Macbeth merged #7 at 0f8cf4079f0f932e2acfd4e5ef76042e697364d1 after all seven exact-head checks passed; post-merge Linux, Windows and CodeQL passed.

@@ -1,5 +1,21 @@
 # AlphaForge Hackathon — 项目管理状态
 
+## 当前检查点 — 2026-09-13T10:14:11Z
+
+执行者：Macbeth01。唯一正式仓库：pdbsy/quantpass-arbitrum-hackathon。当前任务：AF-MIGRATION / PR #11。总体状态：BLOCKED — GITHUB REVIEW_REQUIRED；清理已完成，尚未合并。
+
+- PR #11：OPEN、Ready for Review；已验收工程提交 29e2af923e325c15ab6784484a349f69fcca9ff5。366 项应用测试、产品浏览器 10 组 / 13 命令类型、管理浏览器 5 组、20 Solidity 测试、fuzz/invariant、10 Python 回归及严格 Slither 通过；五项必需 CI 全部 SUCCESS。
+- 本次更新仅同步管理文档、Forum 和生成快照；上述准确头结果是已完成的工程验收基线，本次新增提交的结果由重新采集的 C/R/S 与 GitHub CI 证明。
+- master 仍为 cf2284af320461bb416b17fe4fb00a73f8ffdd68。正常 squash merge 已被 GitHub 拒绝：缺少具备资格的 CODEOWNER 审批。用户最新要求“不修改，这次允许merge”；保护规则保持不变，没有规则修改授权待处理。
+- 仓库清理 DONE：4 个已合并旧分支已转为 archive/pr-* 标签保存完整历史，远程分支由 8 减至 4；628 个测试临时目录 / 670 文件已清理，并有验证过的恢复归档。
+- 保留的分支：master；macbeth01/AF-MIGRATION-repository-consolidation（活动 PR 和 C/R/S 来源）；macbeth/dashboard（仍有 11 个受保护未提交来源文件）；darwin/dashboard-sync-validation（独特历史来源）。只有 PR #11 开放，没有废弃开放 PR。
+- 验收日志、失败记录、合约锁定工具与证据、原始 UI、11 个 Dashboard 来源文件及现有任务工作区保留；未重写历史、未修改生产能力、未部署、未签名或广播。
+- GOV-001 / SUPPLY-001 外部独立治理仍 OPEN；PR11-L1 托管 contract-security 检查为后续工作。本地合约预览验证通过不等于生产 Vault 审计。
+
+下一步：具备资格的 CODEOWNER 在 GitHub 完成审批后，重新核对最终头和必需检查，再执行已授权的受保护 squash merge 与实际 master 验证。当前不能显示 MERGED 或项目全部 DONE。
+
+## 历史检查点（保留原始日期与结论，当前状态以上文为准）
+
 Latest checkpoint (2026-09-13 continuation): PR 11 **TECHNICALLY_READY_EXTERNAL_REVIEW_REQUIRED** after final-head checks; eleven source files RESOLVED; strict Slither remediation passes locally. Draft may be removed only after final-head verification; actual transition is recorded in PR 11. See [closeout](../migration/PR11-CLOSEOUT.md). The dated earlier sections below are retained historical evidence; their zero-approval/toolchain statements are superseded by this checkpoint.
 
 更新：2026-09-12（UTC+08:00）。本页同步本地交付记录与 GitHub 只读核验，dashboard 使用 macbeth/dashboard 最新版本。

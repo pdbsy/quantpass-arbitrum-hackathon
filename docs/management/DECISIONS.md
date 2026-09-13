@@ -1,5 +1,15 @@
 # Decision log
 
+## DEC-008 — Preserve GitHub rules, record blocked merge and completed safe cleanup
+
+- Date: 2026-09-13T10:14:11Z. Actor: Macbeth01. Current user instruction: 不修改，这次允许merge; followed by explicit repository cleanup and Dashboard synchronization requests.
+- Decision: retain ruleset 22507334 unchanged; normal protected squash merge is authorized but blocked by GitHub REVIEW_REQUIRED until qualified CODEOWNER approval exists. No rule update or bypass is pending.
+- Completed cleanup: four merged-equivalent branches moved to public archive tags before deleting branch names; 628 closed test fixture directories archived and removed. Preserve active PR source, unique/dirty source branches, user task workspaces, original UI and security/provenance records.
+- Dashboard: update the allowed Markdown sources and actual PR-only Forum, then generate fresh C/R/S evidence. The existing 29e2af9 engineering evidence remains bound to that commit; never relabel it as checks on a new head.
+- Boundary: no deployment, signing, broadcast, shared history rewrite or fabricated independent approval. GOV-001/SUPPLY-001 remain OPEN; PR11-L1 remains a documented hosting follow-up.
+
+## Historical decisions (current authorization is defined above)
+
 ## DEC-007 — 本轮 Macbeth 单人全 PR 整改与阶段合并
 
 - Date: 2026-09-12. Authorization: 用户本轮明确覆盖旧分工和逐次 merge 请求要求。
