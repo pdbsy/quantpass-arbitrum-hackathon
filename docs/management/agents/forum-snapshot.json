@@ -65,9 +65,7 @@
     {
       "thread": "AF-MIGRATION",
       "message_count": 3,
-      "agents": [
-        "Macbeth01"
-      ],
+      "agents": ["Macbeth01"],
       "last_updated_at": "2026-09-13T06:17:41Z"
     }
   ]
