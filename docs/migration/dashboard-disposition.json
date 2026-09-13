@@ -37,7 +37,7 @@
       "sha256": "bc21c5318b29360e59d68fe36acbd353b636de60881eb54a59fa34aa87539b38",
       "classification": "ADAPT_AND_MIGRATE",
       "action": "Retained byte-for-byte in protected source and ignored local archive; selectively adapted into canonical implementation",
-      "reason": "Adapt only pure activity projection/search and safe text rendering; omit composer, broad redesign and POST client.",
+      "reason": "Restore read-only task board/list, search, detail dialog and refresh; retain canonical validation and Worker reports; omit all local post/composer clients.",
       "modifies_ui": true,
       "modifies_server_runtime": true,
       "introduces_write": true,
@@ -50,7 +50,7 @@
       "sha256": "d77279464fddde96e4fee2fa3bab41cab30ccd4baa6222a4e6954b54312a081f",
       "classification": "ADAPT_AND_MIGRATE",
       "action": "Retained byte-for-byte in protected source and ignored local archive; selectively adapted into canonical implementation",
-      "reason": "Adapt accessible report search into the existing canonical shell; do not replace original product UI.",
+      "reason": "Restore navy Dashboard shell with AlphaForge branding and canonical read-only Worker reports / Agent Forum navigation; product prototype unchanged.",
       "modifies_ui": true,
       "modifies_server_runtime": false,
       "introduces_write": true,
@@ -61,9 +61,9 @@
     {
       "path": "docs/management/dashboard/styles.css",
       "sha256": "1b0a3dd782a9ec8168ea5abf9c75789f06c0b7021f8504c344e303b8319b4b20",
-      "classification": "SUPERSEDED",
-      "action": "Retained byte-for-byte in protected source and ignored local archive; not activated in runtime",
-      "reason": "Canonical responsive styling retained; incompatible wholesale redesign is superseded.",
+      "classification": "ADAPT_AND_MIGRATE",
+      "action": "Source and archive remain byte-identical; navy styling adapted with canonical mobile overflow fixes.",
+      "reason": "Restore the earlier blue Dashboard per current user request.",
       "modifies_ui": true,
       "modifies_server_runtime": false,
       "introduces_write": false,
@@ -128,7 +128,7 @@
       "sha256": "ce7a0e26fec4f00f9eb637f87caddc96cba69b3ee4e32ff674da8afdc21d55f8",
       "classification": "ARCHIVE_ONLY",
       "action": "Retained byte-for-byte in protected source and ignored local archive; not activated in runtime",
-      "reason": "Historical wholesale redesign retained locally; canonical layout and original user UI take precedence.",
+      "reason": "Historical plan preserved; its navy read-only design is now adapted per user correction, documented in the 2026-09-13 restoration plan.",
       "modifies_ui": false,
       "modifies_server_runtime": false,
       "introduces_write": false,
@@ -150,5 +150,6 @@
       "changes_security_boundary": true
     }
   ],
-  "effect_flags": "Runtime effects of each source file; documentation and test design intent is described in reason."
+  "effect_flags": "Runtime effects of each source file; documentation and test design intent is described in reason.",
+  "visual_restoration": "2026-09-13 user correction supersedes the earlier green-shell selection: adapt the preserved navy Dashboard and read-only interactions; preserve current management data, validation and PR Forum."
 }

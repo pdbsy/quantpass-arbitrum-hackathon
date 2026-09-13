@@ -233,3 +233,41 @@ test('read-only Worker reports preserve source details and literal bounded searc
   assert.match(html, /id="worker-reports"/);
   assert.doesNotMatch(html, /post-composer|publish-post/);
 });
+
+test('task views keep blocked tasks distinct and search text literal', async () => {
+  const ui = await import('../docs/management/dashboard/app.js');
+  const tasks = [
+    { id: 'A', status: 'NOT_STARTED' },
+    { id: 'B', status: 'PARTIAL' },
+    { id: 'C', status: 'BLOCKED' },
+    { id: 'D', status: 'VERIFIED_DONE' },
+  ];
+  assert.deepEqual(ui.groupTasks(tasks), {
+    backlog: [tasks[0]],
+    active: [tasks[1]],
+    blocked: [tasks[2]],
+    done: [tasks[3]],
+  });
+  assert.deepEqual(ui.filterTasks(tasks, 'active'), [tasks[0], tasks[1]]);
+  assert.deepEqual(ui.filterTasks(tasks, 'blocked'), [tasks[2]]);
+  assert.deepEqual(ui.filterTasks(tasks, 'done'), [tasks[3]]);
+  assert.throws(() => ui.filterTasks(tasks, 'unknown'), /UNKNOWN_TASK_FILTER/);
+  assert.equal(ui.matchesDashboardSearch(' BLOCKED ', ['blocked']), true);
+  assert.equal(ui.matchesDashboardSearch('[.*]', ['anything']), false);
+});
+
+test('task detail copies arrays and failed refresh retains the last valid snapshot', async () => {
+  const ui = await import('../docs/management/dashboard/app.js');
+  const task = { id: 'A', dependsOn: ['B'], acceptance: ['check'], evidence: ['record'] };
+  const detail = ui.buildTaskDetail(task);
+  detail.dependsOn.push('C');
+  detail.acceptance.length = 0;
+  detail.evidence.length = 0;
+  assert.deepEqual(task, { id: 'A', dependsOn: ['B'], acceptance: ['check'], evidence: ['record'] });
+  const previous = { generatedAt: 'previous' };
+  assert.equal(ui.selectSnapshotAfterLoad(previous, { state: 'error' }), previous);
+  assert.equal(ui.selectSnapshotAfterLoad(null, { state: 'error' }), null);
+  assert.deepEqual(ui.selectSnapshotAfterLoad(previous, { state: 'ready', data: { generatedAt: 'new' } }), {
+    generatedAt: 'new',
+  });
+});

@@ -22,6 +22,10 @@ const ERROR_RESULT = Object.freeze({
 });
 const SEVERITIES = new Set(['critical', 'high', 'medium', 'low']);
 const browserDocument = globalThis.document;
+let currentSnapshot = null;
+let taskFilter = 'all';
+let taskView = 'board';
+let dashboardQuery = '';
 
 export function statusLabel(status) {
   const label = STATUS_LABELS[status];
@@ -79,6 +83,46 @@ export function buildOverview(snapshot) {
     hackathon: snapshot.hackathon,
     taskCounts: { total, done, blocked, pending: total - done - blocked },
     sourceProblems: snapshot.sourceHealth.filter((source) => source.status !== 'READY').length,
+  };
+}
+
+export function groupTasks(tasks) {
+  return {
+    backlog: tasks.filter((task) => ['NOT_STARTED', 'READY'].includes(task.status)),
+    active: tasks.filter((task) => ['IN_PROGRESS', 'PARTIAL'].includes(task.status)),
+    blocked: tasks.filter((task) => task.status === 'BLOCKED'),
+    done: tasks.filter((task) => ['DONE', 'VERIFIED_DONE'].includes(task.status)),
+  };
+}
+
+export function filterTasks(tasks, filter) {
+  if (filter === 'all') return tasks;
+  const grouped = groupTasks(tasks);
+  if (filter === 'active') return [...grouped.backlog, ...grouped.active];
+  if (filter === 'blocked') return grouped.blocked;
+  if (filter === 'done') return grouped.done;
+  throw new Error(`UNKNOWN_TASK_FILTER: ${String(filter)}`);
+}
+
+export function matchesDashboardSearch(query, values) {
+  const needle = String(query ?? '')
+    .trim()
+    .slice(0, 100)
+    .toLocaleLowerCase();
+  if (!needle) return true;
+  return values.some((value) =>
+    String(value ?? '')
+      .toLocaleLowerCase()
+      .includes(needle),
+  );
+}
+
+export function buildTaskDetail(task) {
+  return {
+    ...task,
+    dependsOn: [...(task.dependsOn ?? [])],
+    acceptance: [...(task.acceptance ?? [])],
+    evidence: [...(task.evidence ?? [])],
   };
 }
 
@@ -227,6 +271,10 @@ export async function loadDashboard(fetcher = globalThis.fetch) {
   }
 }
 
+export function selectSnapshotAfterLoad(previousSnapshot, result) {
+  return result?.state === 'ready' ? result.data : previousSnapshot;
+}
+
 function element(tag, className, text) {
   const node = browserDocument.createElement(tag);
   if (className) node.className = className;
@@ -262,35 +310,108 @@ function definitionList(entries) {
 
 function renderOverview(snapshot) {
   const overview = buildOverview(snapshot);
+  const groups = groupTasks(snapshot.tasks);
   browserDocument.querySelector('#project-title').textContent = snapshot.project.name;
+  browserDocument.querySelector('#project-subtitle').textContent =
+    `${snapshot.project.network} · ${snapshot.project.currentWave ?? '阶段不可用'}`;
+  const projectStatus = browserDocument.querySelector('#project-status');
+  projectStatus.className = `status status-${snapshot.integration.status.toLowerCase().replaceAll('_', '-')}`;
+  projectStatus.textContent = `${statusLabel(snapshot.integration.status)} · ${snapshot.integration.status}`;
+
+  const facts = browserDocument.querySelector('#project-facts');
+  clear(facts);
+  for (const [label, value] of [
+    ['分支', snapshot.git.branch],
+    ['提交', snapshot.git.commit?.slice(0, 10)],
+    ['Chain ID', snapshot.project.chainId],
+  ])
+    facts.append(element('dt', null, label), element('dd', null, value ?? 'NOT_AVAILABLE'));
+
   const container = browserDocument.querySelector('#overview');
   clear(container);
   const metrics = [
-    ['项目', statusLabel(snapshot.project.status), snapshot.project.status],
-    ['分支', snapshot.project.branch, snapshot.integration.status],
-    ['提交', snapshot.git.commit?.slice(0, 12) ?? 'NOT_AVAILABLE', snapshot.git.status],
-    ['最近更新', snapshot.generatedAt, 'READY'],
-    ['当前阶段', snapshot.project.currentWave ?? 'NOT_AVAILABLE', snapshot.integration.status],
-    ['集成状态', statusLabel(snapshot.integration.status), snapshot.integration.status],
-    [
-      '安全',
-      `${snapshot.security.counts.critical} Critical · ${snapshot.security.counts.high} High`,
-      snapshot.security.status,
-    ],
-    ['测试证据', statusLabel(snapshot.tests.status), snapshot.tests.status],
-    ['发布门禁', snapshot.hackathon.gate?.name ?? 'NOT_AVAILABLE', snapshot.hackathon.status],
-    [
-      '任务进度',
-      `${overview.taskCounts.done}/${overview.taskCounts.total} 完成 · ${overview.taskCounts.blocked} 阻塞`,
-      overview.taskCounts.blocked ? 'BLOCKED' : snapshot.integration.status,
-    ],
-    ['来源异常', String(overview.sourceProblems), overview.sourceProblems ? 'BLOCKED' : 'READY'],
+    ['总任务', overview.taskCounts.total, 'neutral'],
+    ['已完成', overview.taskCounts.done, 'done'],
+    ['进行中', groups.active.length, 'active'],
+    ['已阻塞', overview.taskCounts.blocked, overview.taskCounts.blocked ? 'blocked' : 'neutral'],
   ];
-  for (const [label, value, status] of metrics) {
-    const card = element('article', 'metric-card');
-    card.append(element('p', 'metric-label', label), element('p', 'metric-value', value), badge(status));
-    container.append(card);
+  for (const [label, value, tone] of metrics) {
+    const item = element('article', `overview-stat overview-stat-${tone}`);
+    item.append(element('strong', null, value), element('span', null, label));
+    container.append(item);
   }
+
+  const readySources = snapshot.sourceHealth.filter((source) => source.status === 'READY').length;
+  const sourceRate = snapshot.sourceHealth.length
+    ? Math.round((readySources / snapshot.sourceHealth.length) * 100)
+    : 0;
+  browserDocument.querySelector('#source-health-rate').textContent = `${sourceRate}%`;
+  browserDocument.querySelector('#source-health-bar').style.width = `${sourceRate}%`;
+  renderAttention(snapshot);
+}
+
+function attentionTaskButton(task) {
+  const button = element('button', 'attention-row');
+  button.type = 'button';
+  const copy = element('span');
+  copy.append(
+    element('strong', null, `${task.id} · ${task.title}`),
+    element('small', null, `${task.owner} · ${task.lastUpdate}`),
+  );
+  button.append(
+    element('i', `task-dot task-dot-${task.status.toLowerCase()}`),
+    copy,
+    element('span', 'attention-arrow', '›'),
+  );
+  button.addEventListener('click', () => openTaskDetail(task));
+  return button;
+}
+
+function renderAttention(snapshot) {
+  const focus = browserDocument.querySelector('#focus-content');
+  const focusTasks = snapshot.tasks
+    .filter((task) => ['IN_PROGRESS', 'PARTIAL', 'READY', 'NOT_STARTED'].includes(task.status))
+    .slice(0, 3);
+  clear(focus);
+  browserDocument.querySelector('#focus-count').textContent = `${focusTasks.length} 项`;
+  if (!focusTasks.length) empty(focus, '当前没有待推进任务。');
+  else focusTasks.forEach((task) => focus.append(attentionTaskButton(task)));
+
+  const milestone = browserDocument.querySelector('#milestone-content');
+  clear(milestone);
+  const gate = (snapshot.hackathon.releaseGates ?? []).find((item) => item.status !== 'passed');
+  if (!gate)
+    empty(
+      milestone,
+      snapshot.hackathon.releaseGates?.length ? '全部发布门禁已通过。' : '发布门禁证据不可用。',
+    );
+  else {
+    const passed = (gate.checks ?? []).filter((check) => check.status === 'passed').length;
+    milestone.append(
+      element('strong', 'milestone-title', `${gate.id} · ${gate.name}`),
+      element('p', 'muted', `${passed}/${gate.checks?.length ?? 0} 项检查通过`),
+    );
+    const progress = element('div', 'mini-progress');
+    const bar = element('span');
+    bar.style.width = `${gate.checks?.length ? Math.round((passed / gate.checks.length) * 100) : 0}%`;
+    progress.append(bar);
+    milestone.append(progress);
+  }
+
+  const activity = browserDocument.querySelector('#activity-content');
+  clear(activity);
+  const events = (snapshot.tests.items ?? []).slice(0, 3);
+  if (!events.length) empty(activity, '没有可展示的检查动态。');
+  else
+    for (const event of events) {
+      const row = element('div', 'activity-row');
+      row.append(
+        element('i', `activity-dot activity-${event.status.toLowerCase()}`),
+        element('span', null, event.id),
+        element('small', null, statusLabel(event.status)),
+      );
+      activity.append(row);
+    }
 }
 
 function panelBody(id) {
@@ -301,6 +422,105 @@ function panelBody(id) {
 
 function renderTasks(snapshot) {
   const body = panelBody('task-board');
+  const visibleTasks = filterTasks(snapshot.tasks, taskFilter).filter((task) =>
+    matchesDashboardSearch(dashboardQuery, [
+      task.id,
+      task.title,
+      task.owner,
+      task.risk,
+      taskRiskLabel(task.risk),
+      task.status,
+      statusLabel(task.status),
+    ]),
+  );
+  const controls = element('div', 'task-toolbar');
+  const filters = element('div', 'filter-tabs');
+  filters.setAttribute('role', 'group');
+  filters.setAttribute('aria-label', '筛选任务');
+  const filterOptions = [
+    ['all', '全部'],
+    ['active', '待推进'],
+    ['blocked', '阻塞'],
+    ['done', '已完成'],
+  ];
+  for (const [value, label] of filterOptions) {
+    const button = element('button', value === taskFilter ? 'active' : null, label);
+    button.type = 'button';
+    button.dataset.filter = value;
+    button.setAttribute('aria-pressed', String(value === taskFilter));
+    button.addEventListener('click', () => {
+      taskFilter = value;
+      renderTasks(snapshot);
+    });
+    filters.append(button);
+  }
+  controls.append(
+    filters,
+    element('span', 'task-result-count', `${visibleTasks.length} / ${snapshot.tasks.length} 项任务`),
+  );
+  body.append(controls);
+
+  if (taskView === 'list') renderTaskList(body, visibleTasks);
+  else renderTaskBoard(body, visibleTasks);
+  body.append(sourceNote(snapshot.project));
+}
+
+function taskRiskLabel(risk) {
+  if (risk === 'critical') return '严重';
+  if (risk === 'high') return '高风险';
+  if (risk === 'medium') return '中风险';
+  if (risk === 'low') return '低风险';
+  return risk ?? '风险未标记';
+}
+
+function taskCard(task) {
+  const button = element('button', `task-card task-card-${task.status.toLowerCase().replaceAll('_', '-')}`);
+  button.type = 'button';
+  button.setAttribute('aria-label', `查看任务 ${task.id}：${task.title}`);
+  const heading = element('span', 'task-card-heading');
+  heading.append(element('small', null, task.id), element('strong', null, task.title));
+  const tags = element('span', 'task-card-tags');
+  tags.append(
+    element('span', 'task-tag task-tag-priority', task.priority),
+    element('span', `task-tag task-tag-${task.risk}`, taskRiskLabel(task.risk)),
+  );
+  const footer = element('span', 'task-card-footer');
+  footer.append(
+    element('span', null, task.owner),
+    element('span', null, task.dependsOn?.length ? `依赖 ${task.dependsOn.length}` : '无依赖'),
+  );
+  button.append(heading, tags, footer);
+  button.addEventListener('click', () => openTaskDetail(task));
+  return button;
+}
+
+function renderTaskBoard(body, tasks) {
+  const board = element('div', 'kanban-board');
+  const grouped = groupTasks(tasks);
+  const columns = [
+    ['backlog', '待办', '○'],
+    ['active', '进行中', '◉'],
+    ['blocked', '已阻塞', '!'],
+    ['done', '已完成', '✓'],
+  ];
+  for (const [key, label, icon] of columns) {
+    const column = element('section', `kanban-column kanban-${key}`);
+    const heading = element('div', 'kanban-heading');
+    heading.append(
+      element('span', 'kanban-icon', icon),
+      element('h3', null, label),
+      element('span', 'kanban-count', grouped[key].length),
+    );
+    const cards = element('div', 'kanban-cards');
+    if (!grouped[key].length) empty(cards, '此分组暂无任务。');
+    else grouped[key].forEach((task) => cards.append(taskCard(task)));
+    column.append(heading, cards);
+    board.append(column);
+  }
+  body.append(board);
+}
+
+function renderTaskList(body, tasks) {
   const tableWrap = element('div', 'table-wrap');
   const table = element('table');
   const head = element('thead');
@@ -309,10 +529,14 @@ function renderTasks(snapshot) {
     headerRow.append(element('th', null, label));
   head.append(headerRow);
   const rows = element('tbody');
-  for (const task of snapshot.tasks) {
+  for (const task of tasks) {
     const row = element('tr');
     const identity = element('td');
-    identity.append(element('strong', null, task.id), element('span', 'table-subtitle', task.title));
+    const taskButton = element('button', 'table-task-button');
+    taskButton.type = 'button';
+    taskButton.append(element('strong', null, task.id), element('span', 'table-subtitle', task.title));
+    taskButton.addEventListener('click', () => openTaskDetail(task));
+    identity.append(taskButton);
     const status = element('td');
     status.append(badge(task.status));
     const dependency = element('td');
@@ -344,7 +568,44 @@ function renderTasks(snapshot) {
   }
   table.append(head, rows);
   tableWrap.append(table);
-  body.append(tableWrap, sourceNote(snapshot.project));
+  body.append(tableWrap);
+}
+
+function appendDetailList(container, heading, items, emptyMessage) {
+  container.append(element('h3', null, heading));
+  const list = element('ul', 'detail-list');
+  if (!items.length) list.append(element('li', 'muted', emptyMessage));
+  else items.forEach((item) => list.append(element('li', null, item)));
+  container.append(list);
+}
+
+function openTaskDetail(task) {
+  const detail = buildTaskDetail(task);
+  const dialog = browserDocument.querySelector('#task-dialog');
+  browserDocument.querySelector('#task-dialog-id').textContent = detail.id;
+  browserDocument.querySelector('#task-dialog-title').textContent = detail.title;
+  const body = browserDocument.querySelector('#task-dialog-body');
+  clear(body);
+  const statusRow = element('div', 'dialog-status-row');
+  statusRow.append(
+    badge(detail.status),
+    element('span', `severity ${severityClass(detail.risk)}`, taskRiskLabel(detail.risk)),
+  );
+  body.append(
+    statusRow,
+    definitionList([
+      ['负责人', detail.owner],
+      ['优先级', detail.priority],
+      ['依赖', detail.dependsOn.length ? detail.dependsOn.join(', ') : 'NONE'],
+      ['阻塞原因', detail.blockedBy],
+      ['最后更新', detail.lastUpdate],
+      ['数据来源', detail.source],
+    ]),
+  );
+  appendDetailList(body, '验收标准', detail.acceptance, '没有记录验收标准。');
+  appendDetailList(body, '证据', detail.evidence, '没有记录证据。');
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
 }
 
 function renderSourcePanel(id, source, summary) {
@@ -613,6 +874,7 @@ function renderRawEvidence(snapshot) {
 }
 
 function renderDashboard(snapshot) {
+  currentSnapshot = snapshot;
   renderOverview(snapshot);
   renderTasks(snapshot);
   renderManager(snapshot);
@@ -664,20 +926,154 @@ function renderDashboard(snapshot) {
   renderRawEvidence(snapshot);
 }
 
+function syncTaskViewControls() {
+  for (const button of browserDocument.querySelectorAll('#task-view-switch button')) {
+    const active = button.dataset.view === taskView;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  }
+}
+
+function applyDashboardSearch(query) {
+  dashboardQuery = String(query ?? '')
+    .trim()
+    .slice(0, 100);
+  if (currentSnapshot) renderTasks(currentSnapshot);
+  const panels = [...browserDocument.querySelectorAll('.panel')];
+  let visible = 0;
+  for (const panel of panels) {
+    const title = panel.querySelector('h2')?.textContent;
+    const taskValues =
+      panel.id === 'task-board' && currentSnapshot
+        ? currentSnapshot.tasks.flatMap((task) => [
+            task.id,
+            task.title,
+            task.owner,
+            task.risk,
+            taskRiskLabel(task.risk),
+            task.status,
+            statusLabel(task.status),
+          ])
+        : [];
+    const match = matchesDashboardSearch(query, [panel.id, title, panel.textContent, ...taskValues]);
+    panel.hidden = !match;
+    if (match) visible += 1;
+    const nav = browserDocument.querySelector(`#sidebar-nav a[href="#${panel.id}"]`);
+    if (nav) nav.hidden = !match;
+  }
+  for (const group of browserDocument.querySelectorAll('.dashboard-group')) {
+    group.hidden = ![...group.querySelectorAll('.panel')].some((panel) => !panel.hidden);
+  }
+  const hasQuery = String(query ?? '').trim().length > 0;
+  browserDocument.querySelector('#search-results').textContent = hasQuery
+    ? `找到 ${visible} 个匹配面板`
+    : `显示全部 ${panels.length} 个面板`;
+  browserDocument.querySelector('#no-search-results').hidden = visible !== 0;
+}
+
+function closeMobileNavigation() {
+  browserDocument.body.classList.remove('sidebar-open');
+  const mobileMenu = browserDocument.querySelector('#mobile-menu');
+  mobileMenu.setAttribute('aria-expanded', 'false');
+  mobileMenu.setAttribute('aria-label', '打开导航');
+  browserDocument.querySelector('#sidebar-backdrop').hidden = true;
+}
+
+function wireInteractions() {
+  browserDocument.querySelector('#worker-report-search').addEventListener('input', () => {
+    if (currentSnapshot) renderWorkerReports(currentSnapshot);
+  });
+  const search = browserDocument.querySelector('#dashboard-search');
+  search.addEventListener('input', () => applyDashboardSearch(search.value));
+  browserDocument.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
+      event.preventDefault();
+      search.focus();
+      search.select();
+    } else if (event.key === '/' && !['INPUT', 'TEXTAREA'].includes(browserDocument.activeElement?.tagName)) {
+      event.preventDefault();
+      search.focus();
+    } else if (event.key === 'Escape' && search.value) {
+      search.value = '';
+      applyDashboardSearch('');
+    }
+  });
+
+  const sidebarToggle = browserDocument.querySelector('#sidebar-toggle');
+  sidebarToggle.addEventListener('click', () => {
+    const collapsed = browserDocument.body.classList.toggle('sidebar-collapsed');
+    sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+    sidebarToggle.setAttribute('aria-label', collapsed ? '展开侧栏' : '收起侧栏');
+  });
+  const mobileMenu = browserDocument.querySelector('#mobile-menu');
+  mobileMenu.addEventListener('click', () => {
+    const open = browserDocument.body.classList.toggle('sidebar-open');
+    mobileMenu.setAttribute('aria-expanded', String(open));
+    mobileMenu.setAttribute('aria-label', open ? '关闭导航' : '打开导航');
+    browserDocument.querySelector('#sidebar-backdrop').hidden = !open;
+  });
+  browserDocument.querySelector('#sidebar-backdrop').addEventListener('click', closeMobileNavigation);
+
+  for (const anchor of browserDocument.querySelectorAll('#sidebar-nav a')) {
+    anchor.addEventListener('click', () => {
+      browserDocument.querySelectorAll('#sidebar-nav a').forEach((item) => item.classList.remove('active'));
+      anchor.classList.add('active');
+      closeMobileNavigation();
+    });
+  }
+
+  for (const button of browserDocument.querySelectorAll('#task-view-switch button')) {
+    button.addEventListener('click', () => {
+      taskView = button.dataset.view;
+      syncTaskViewControls();
+      if (currentSnapshot) renderTasks(currentSnapshot);
+    });
+  }
+
+  const dialog = browserDocument.querySelector('#task-dialog');
+  browserDocument.querySelector('#close-task-dialog').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  browserDocument.querySelector('#dialog-evidence-link').addEventListener('click', () => {
+    dialog.close();
+    const evidence = browserDocument.querySelector('#raw-evidence');
+    evidence.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    evidence.focus({ preventScroll: true });
+  });
+
+  browserDocument.querySelector('#refresh-dashboard').addEventListener('click', refreshDashboard);
+}
+
 function renderFatal(result) {
   browserDocument.querySelector('#data-state').textContent =
     `${statusLabel(result.status)} · ${result.message}`;
   browserDocument.querySelector('#data-state').classList.add('data-state-error');
 }
 
-async function boot() {
+async function refreshDashboard() {
+  const refreshButton = browserDocument.querySelector('#refresh-dashboard');
+  refreshButton.disabled = true;
+  refreshButton.classList.add('is-loading');
+  browserDocument.querySelector('#data-state').textContent = '正在刷新证据快照…';
   const result = await loadDashboard();
-  if (result.state === 'error') return renderFatal(result);
-  renderDashboard(result.data);
-  browserDocument
-    .querySelector('#worker-report-search')
-    .addEventListener('input', () => renderWorkerReports(result.data));
-  browserDocument.querySelector('#data-state').textContent = `快照：${result.data.generatedAt}`;
+  currentSnapshot = selectSnapshotAfterLoad(currentSnapshot, result);
+  if (result.state === 'error') {
+    renderFatal(result);
+  } else {
+    renderDashboard(result.data);
+    browserDocument.querySelector('#data-state').classList.remove('data-state-error');
+    browserDocument.querySelector('#data-state').textContent = `快照：${result.data.generatedAt}`;
+  }
+  applyDashboardSearch(browserDocument.querySelector('#dashboard-search').value);
+  refreshButton.disabled = false;
+  refreshButton.classList.remove('is-loading');
+}
+
+async function boot() {
+  wireInteractions();
+  syncTaskViewControls();
+  await refreshDashboard();
 }
 
 if (browserDocument) boot();

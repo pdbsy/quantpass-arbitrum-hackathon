@@ -8,82 +8,236 @@
       content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
     />
     <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#07101d" />
     <title>AlphaForge Control Center</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳至主要内容</a>
     <div class="shell">
-      <aside class="sidebar" aria-label="控制中心导航">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">QP</span>
-          <div>
-            <p class="eyebrow">ROBINHOOD CHAIN TESTNET</p>
-            <p class="brand-title">ALPHAFORGE CONTROL CENTER</p>
-          </div>
+      <aside id="sidebar" class="sidebar" aria-label="控制中心导航">
+        <div class="sidebar-head">
+          <a class="brand" href="#project-preview" aria-label="AlphaForge Control Center 首页">
+            <span class="brand-mark" aria-hidden="true"><i>Q</i></span>
+            <span class="brand-copy"><strong>AlphaForge</strong><small>ALPHAFORGE CONTROL CENTER</small></span>
+          </a>
+          <button
+            id="sidebar-toggle"
+            class="icon-button sidebar-toggle"
+            type="button"
+            aria-label="收起侧栏"
+            aria-expanded="true"
+          >
+            <span aria-hidden="true">‹</span>
+          </button>
         </div>
-        <nav>
-          <p class="nav-group">项目</p>
-          <a href="#project-preview">项目预览</a>
-          <a href="#task-board">任务看板</a>
-          <a href="#manager-control">经理控制面板</a>
-          <a href="./agent-forum.html">Macbeth Agent Forum</a>
-          <a href="#worker-reports">Worker 汇总 / 回顾</a>
-          <a href="#worker-a">Worker A 日志</a>
-          <a href="#worker-b">Worker B 日志</a>
-          <a href="#decision-log">决策日志</a>
-          <p class="nav-group">验证</p>
-          <a href="#security-findings">安全发现</a>
-          <a href="#test-status">测试 / CI 状态</a>
-          <a href="#git-history">Git / 提交历史</a>
-          <a href="#build-status">构建状态</a>
-          <a href="#hackathon-compliance">黑客松合规</a>
-          <a href="#release-gates">发布门禁</a>
-          <p class="nav-group">风险与资料</p>
-          <a href="#known-issues">已知问题</a>
-          <a href="#blockers">阻塞项</a>
-          <a href="#architecture">架构 / ADR</a>
-          <a href="#documentation">项目文档</a>
-          <a href="#network-status">Robinhood 测试网</a>
-          <a href="#changelog">项目变更日志</a>
-          <a href="#ssh-host">SSH 主机状态</a>
-          <a href="#raw-evidence">原始证据 / 报告</a>
+
+        <div class="environment-pill">
+          <span class="live-dot" aria-hidden="true"></span><span class="sidebar-label">Robinhood Testnet</span
+          ><small class="sidebar-label">只读</small>
+        </div>
+
+        <nav id="sidebar-nav">
+          <a href="./agent-forum.html"><span class="nav-icon" aria-hidden="true">▤</span><span class="sidebar-label">Macbeth Agent Forum</span></a>
+          <div class="nav-section">
+            <p class="nav-group sidebar-label">工作台</p>
+            <a class="active" href="#project-preview"
+              ><span class="nav-icon" aria-hidden="true">⌂</span
+              ><span class="sidebar-label">项目预览</span></a
+            >
+            <a href="#task-board"
+              ><span class="nav-icon" aria-hidden="true">▦</span
+              ><span class="sidebar-label">任务看板</span></a
+            >
+            <a href="#worker-reports"
+              ><span class="nav-icon" aria-hidden="true">▤</span
+              ><span class="sidebar-label">Worker 汇总 / 回顾</span></a
+            >
+            <a href="#manager-control"
+              ><span class="nav-icon" aria-hidden="true">◎</span
+              ><span class="sidebar-label">经理控制面板</span></a
+            >
+            <a href="#worker-a"
+              ><span class="nav-icon" aria-hidden="true">A</span
+              ><span class="sidebar-label">Worker A 日志</span></a
+            >
+            <a href="#worker-b"
+              ><span class="nav-icon" aria-hidden="true">B</span
+              ><span class="sidebar-label">Worker B 日志</span></a
+            >
+            <a href="#decision-log"
+              ><span class="nav-icon" aria-hidden="true">◇</span
+              ><span class="sidebar-label">决策日志</span></a
+            >
+          </div>
+          <div class="nav-section">
+            <p class="nav-group sidebar-label">质量与交付</p>
+            <a href="#security-findings"
+              ><span class="nav-icon" aria-hidden="true">△</span
+              ><span class="sidebar-label">安全发现</span></a
+            >
+            <a href="#test-status"
+              ><span class="nav-icon" aria-hidden="true">∿</span
+              ><span class="sidebar-label">测试 / CI 状态</span></a
+            >
+            <a href="#git-history"
+              ><span class="nav-icon" aria-hidden="true">⑂</span
+              ><span class="sidebar-label">Git / 提交历史</span></a
+            >
+            <a href="#build-status"
+              ><span class="nav-icon" aria-hidden="true">▣</span
+              ><span class="sidebar-label">构建状态</span></a
+            >
+            <a href="#hackathon-compliance"
+              ><span class="nav-icon" aria-hidden="true">H</span
+              ><span class="sidebar-label">黑客松合规</span></a
+            >
+            <a href="#release-gates"
+              ><span class="nav-icon" aria-hidden="true">↗</span
+              ><span class="sidebar-label">发布门禁</span></a
+            >
+          </div>
+          <div class="nav-section">
+            <p class="nav-group sidebar-label">证据与环境</p>
+            <a href="#known-issues"
+              ><span class="nav-icon" aria-hidden="true">!</span
+              ><span class="sidebar-label">已知问题</span></a
+            >
+            <a href="#blockers"
+              ><span class="nav-icon" aria-hidden="true">×</span><span class="sidebar-label">阻塞项</span></a
+            >
+            <a href="#architecture"
+              ><span class="nav-icon" aria-hidden="true">⌘</span
+              ><span class="sidebar-label">架构 / ADR</span></a
+            >
+            <a href="#documentation"
+              ><span class="nav-icon" aria-hidden="true">≡</span
+              ><span class="sidebar-label">项目文档</span></a
+            >
+            <a href="#network-status"
+              ><span class="nav-icon" aria-hidden="true">◉</span
+              ><span class="sidebar-label">Robinhood 测试网</span></a
+            >
+            <a href="#changelog"
+              ><span class="nav-icon" aria-hidden="true">↻</span
+              ><span class="sidebar-label">项目变更日志</span></a
+            >
+            <a href="#ssh-host"
+              ><span class="nav-icon" aria-hidden="true">›_</span
+              ><span class="sidebar-label">SSH 主机状态</span></a
+            >
+            <a href="#raw-evidence"
+              ><span class="nav-icon" aria-hidden="true">{ }</span
+              ><span class="sidebar-label">原始证据 / 报告</span></a
+            >
+          </div>
         </nav>
+
+        <div class="sidebar-foot">
+          <div class="usage-label">
+            <span class="sidebar-label">证据完整度</span
+            ><strong class="sidebar-label" id="source-health-rate">—</strong>
+          </div>
+          <div class="usage-track"><span id="source-health-bar"></span></div>
+          <p class="sidebar-label">缺失、过期和解析失败会显式展示，不推断成功。</p>
+        </div>
       </aside>
 
-      <main id="main-content" tabindex="-1">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow">工程监督面板 · 只读</p>
-            <h1>项目控制中心</h1>
+      <div class="workspace">
+        <header class="commandbar">
+          <div class="commandbar-left">
+            <button
+              id="mobile-menu"
+              class="icon-button mobile-menu"
+              type="button"
+              aria-controls="sidebar"
+              aria-expanded="false"
+              aria-label="打开导航"
+            >
+              <span aria-hidden="true">☰</span>
+            </button>
+            <label class="global-search" for="dashboard-search"
+              ><span aria-hidden="true">⌕</span
+              ><input
+                id="dashboard-search"
+                type="search"
+                maxlength="100"
+                autocomplete="off"
+                aria-label="搜索控制中心"
+                placeholder="搜索任务、报告或证据…"
+              /><kbd>⌘ K</kbd></label
+            >
           </div>
-          <p id="data-state" class="data-state" role="status" aria-live="polite">正在读取证据…</p>
+          <div class="commandbar-right">
+            <span class="readonly-badge"><i></i> 证据只读</span
+            ><button id="refresh-dashboard" class="refresh-button" type="button">
+              <span aria-hidden="true">↻</span>刷新快照
+            </button>
+          </div>
         </header>
 
-        <section id="project-preview" class="hero" aria-labelledby="project-title">
-          <div>
-            <p class="eyebrow">PROJECT / 项目总览</p>
-            <h2 id="project-title">等待已验证的项目快照</h2>
-            <p class="hero-copy">所有完成、风险、阻塞与不可用状态均来自仓库证据，不由页面推断。</p>
-          </div>
-          <div id="overview" class="metric-grid" aria-label="项目关键指标"></div>
-        </section>
+        <main id="main-content" tabindex="-1">
+          <section id="project-preview" class="project-bar" aria-labelledby="project-title">
+            <div class="project-identity">
+              <span class="project-icon" aria-hidden="true">QP</span>
+              <div>
+                <div class="project-title-row">
+                  <h1 id="project-title">正在加载项目…</h1>
+                  <span id="project-status" class="status status-not-run">未运行 · NOT_RUN</span>
+                </div>
+                <p id="project-subtitle">证据驱动的 Robinhood Chain Testnet 工程控制中心</p>
+              </div>
+            </div>
+            <dl id="project-facts" class="project-facts" aria-label="项目快照信息"></dl>
+            <div id="overview" class="overview-stats" aria-label="项目关键指标"></div>
+          </section>
 
-        <div class="content-grid">
-          <section id="task-board" class="panel panel-wide" aria-labelledby="task-board-title">
-            <div class="panel-heading">
-              <p class="index">01</p>
-              <h2 id="task-board-title">任务看板</h2>
+          <div class="dashboard-notice">
+            <p id="data-state" class="data-state" role="status" aria-live="polite">正在读取证据…</p>
+            <p id="search-results" aria-live="polite">显示全部 20 个面板</p>
+          </div>
+
+          <section class="attention-grid" aria-label="项目重点">
+            <article class="attention-card attention-focus">
+              <div class="attention-heading">
+                <span class="attention-icon" aria-hidden="true">◎</span>
+                <h2>当前重点</h2>
+                <span id="focus-count" class="count-pill">—</span>
+              </div>
+              <div id="focus-content" class="attention-body"><p>正在读取下一项任务…</p></div>
+            </article>
+            <article class="attention-card attention-milestone">
+              <div class="attention-heading">
+                <span class="attention-icon" aria-hidden="true">⚑</span>
+                <h2>下一里程碑</h2>
+                <span class="count-pill blue">发布门禁</span>
+              </div>
+              <div id="milestone-content" class="attention-body"><p>正在读取发布门禁…</p></div>
+            </article>
+            <article class="attention-card attention-activity">
+              <div class="attention-heading">
+                <span class="attention-icon" aria-hidden="true">ϟ</span>
+                <h2>证据动态</h2>
+                <span class="count-pill green">实时快照</span>
+              </div>
+              <div id="activity-content" class="attention-body"><p>正在读取检查记录…</p></div>
+            </article>
+          </section>
+
+          <section id="task-board" class="panel task-panel" aria-labelledby="task-board-title">
+            <div class="panel-heading task-panel-heading">
+              <div>
+                <p class="index">01 / DELIVERY</p>
+                <h2 id="task-board-title">任务看板</h2>
+              </div>
+              <div id="task-view-switch" class="segmented-control" role="group" aria-label="任务视图">
+                <button class="active" type="button" data-view="board" aria-pressed="true">▦ 看板</button
+                ><button type="button" data-view="list" aria-pressed="false">☷ 列表</button>
+              </div>
             </div>
             <div class="panel-body"></div>
           </section>
-          <section id="manager-control" class="panel" aria-labelledby="manager-title">
-            <div class="panel-heading">
-              <p class="index">02</p>
-              <h2 id="manager-title">经理控制面板</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
+
           <section id="worker-reports" class="panel" aria-labelledby="worker-reports-title">
             <div class="panel-heading"><h2 id="worker-reports-title">Worker 汇总 / 回顾</h2></div>
             <p>历史 Worker A/B 记录的只读索引；不代表 Macbeth 身份认证或新消息。协作通信请使用 Agent Forum 对应的 GitHub PR。</p>
@@ -91,135 +245,202 @@
             <input id="worker-report-search" type="search" maxlength="200" aria-label="搜索 Worker 记录">
             <div class="panel-body"></div>
           </section>
-          <section id="worker-a" class="panel" aria-labelledby="worker-a-title">
-            <div class="panel-heading">
-              <p class="index">03</p>
-              <h2 id="worker-a-title">Worker A 日志</h2>
+          <section class="dashboard-group" aria-labelledby="coordination-title">
+            <div class="group-heading">
+              <div>
+                <p class="index">02 / TEAM</p>
+                <h2 id="coordination-title">协作与决策</h2>
+              </div>
+              <p>经理、Worker 与用户决策状态</p>
             </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="worker-b" class="panel" aria-labelledby="worker-b-title">
-            <div class="panel-heading">
-              <p class="index">04</p>
-              <h2 id="worker-b-title">Worker B 日志</h2>
+            <div class="content-grid">
+              <section id="manager-control" class="panel" aria-labelledby="manager-title">
+                <div class="panel-heading">
+                  <p class="index">02</p>
+                  <h2 id="manager-title">经理控制面板</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="decision-log" class="panel" aria-labelledby="decision-title">
+                <div class="panel-heading">
+                  <p class="index">05</p>
+                  <h2 id="decision-title">决策日志</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="worker-a" class="panel" aria-labelledby="worker-a-title">
+                <div class="panel-heading">
+                  <p class="index">03</p>
+                  <h2 id="worker-a-title">Worker A 日志</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="worker-b" class="panel" aria-labelledby="worker-b-title">
+                <div class="panel-heading">
+                  <p class="index">04</p>
+                  <h2 id="worker-b-title">Worker B 日志</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
             </div>
-            <div class="panel-body"></div>
           </section>
-          <section id="decision-log" class="panel" aria-labelledby="decision-title">
-            <div class="panel-heading">
-              <p class="index">05</p>
-              <h2 id="decision-title">决策日志</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="security-findings" class="panel panel-wide" aria-labelledby="security-title">
-            <div class="panel-heading">
-              <p class="index">06</p>
-              <h2 id="security-title">安全发现</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="test-status" class="panel panel-wide" aria-labelledby="tests-title">
-            <div class="panel-heading">
-              <p class="index">07</p>
-              <h2 id="tests-title">测试 / CI 状态</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="git-history" class="panel" aria-labelledby="git-title">
-            <div class="panel-heading">
-              <p class="index">08</p>
-              <h2 id="git-title">Git / 提交历史</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="build-status" class="panel" aria-labelledby="build-title">
-            <div class="panel-heading">
-              <p class="index">09</p>
-              <h2 id="build-title">构建状态</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="hackathon-compliance" class="panel" aria-labelledby="hackathon-title">
-            <div class="panel-heading">
-              <p class="index">10</p>
-              <h2 id="hackathon-title">黑客松合规</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="release-gates" class="panel" aria-labelledby="gates-title">
-            <div class="panel-heading">
-              <p class="index">11</p>
-              <h2 id="gates-title">发布门禁</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="known-issues" class="panel" aria-labelledby="issues-title">
-            <div class="panel-heading">
-              <p class="index">12</p>
-              <h2 id="issues-title">已知问题</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="blockers" class="panel" aria-labelledby="blockers-title">
-            <div class="panel-heading">
-              <p class="index">13</p>
-              <h2 id="blockers-title">阻塞项</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="architecture" class="panel" aria-labelledby="architecture-title">
-            <div class="panel-heading">
-              <p class="index">14</p>
-              <h2 id="architecture-title">架构 / ADR</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="documentation" class="panel" aria-labelledby="documentation-title">
-            <div class="panel-heading">
-              <p class="index">15</p>
-              <h2 id="documentation-title">项目文档</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="network-status" class="panel" aria-labelledby="network-title">
-            <div class="panel-heading">
-              <p class="index">16</p>
-              <h2 id="network-title">Robinhood 测试网</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="changelog" class="panel" aria-labelledby="changelog-title">
-            <div class="panel-heading">
-              <p class="index">17</p>
-              <h2 id="changelog-title">项目变更日志</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="ssh-host" class="panel" aria-labelledby="ssh-title">
-            <div class="panel-heading">
-              <p class="index">18</p>
-              <h2 id="ssh-title">SSH 主机状态</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-          <section id="raw-evidence" class="panel panel-wide" aria-labelledby="evidence-title">
-            <div class="panel-heading">
-              <p class="index">19</p>
-              <h2 id="evidence-title">原始证据 / 报告</h2>
-            </div>
-            <div class="panel-body"></div>
-          </section>
-        </div>
 
-        <footer>
-          <p>只读静态快照 · 非生产认证 · 不代表主网或真实资金可用</p>
-        </footer>
-      </main>
+          <section class="dashboard-group" aria-labelledby="quality-title">
+            <div class="group-heading">
+              <div>
+                <p class="index">03 / ASSURANCE</p>
+                <h2 id="quality-title">质量与安全</h2>
+              </div>
+              <p>风险、检查、提交与发布门禁</p>
+            </div>
+            <div class="content-grid">
+              <section id="security-findings" class="panel panel-wide" aria-labelledby="security-title">
+                <div class="panel-heading">
+                  <p class="index">06</p>
+                  <h2 id="security-title">安全发现</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="test-status" class="panel panel-wide" aria-labelledby="tests-title">
+                <div class="panel-heading">
+                  <p class="index">07</p>
+                  <h2 id="tests-title">测试 / CI 状态</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="git-history" class="panel" aria-labelledby="git-title">
+                <div class="panel-heading">
+                  <p class="index">08</p>
+                  <h2 id="git-title">Git / 提交历史</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="build-status" class="panel" aria-labelledby="build-title">
+                <div class="panel-heading">
+                  <p class="index">09</p>
+                  <h2 id="build-title">构建状态</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="hackathon-compliance" class="panel" aria-labelledby="hackathon-title">
+                <div class="panel-heading">
+                  <p class="index">10</p>
+                  <h2 id="hackathon-title">黑客松合规</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="release-gates" class="panel" aria-labelledby="gates-title">
+                <div class="panel-heading">
+                  <p class="index">11</p>
+                  <h2 id="gates-title">发布门禁</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="dashboard-group" aria-labelledby="evidence-group-title">
+            <div class="group-heading">
+              <div>
+                <p class="index">04 / EVIDENCE</p>
+                <h2 id="evidence-group-title">风险与证据</h2>
+              </div>
+              <p>问题、架构、文档与环境状态</p>
+            </div>
+            <div class="content-grid">
+              <section id="known-issues" class="panel" aria-labelledby="issues-title">
+                <div class="panel-heading">
+                  <p class="index">12</p>
+                  <h2 id="issues-title">已知问题</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="blockers" class="panel" aria-labelledby="blockers-title">
+                <div class="panel-heading">
+                  <p class="index">13</p>
+                  <h2 id="blockers-title">阻塞项</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="architecture" class="panel" aria-labelledby="architecture-title">
+                <div class="panel-heading">
+                  <p class="index">14</p>
+                  <h2 id="architecture-title">架构 / ADR</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="documentation" class="panel" aria-labelledby="documentation-title">
+                <div class="panel-heading">
+                  <p class="index">15</p>
+                  <h2 id="documentation-title">项目文档</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="network-status" class="panel" aria-labelledby="network-title">
+                <div class="panel-heading">
+                  <p class="index">16</p>
+                  <h2 id="network-title">Robinhood 测试网</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="changelog" class="panel" aria-labelledby="changelog-title">
+                <div class="panel-heading">
+                  <p class="index">17</p>
+                  <h2 id="changelog-title">项目变更日志</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section id="ssh-host" class="panel" aria-labelledby="ssh-title">
+                <div class="panel-heading">
+                  <p class="index">18</p>
+                  <h2 id="ssh-title">SSH 主机状态</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+              <section
+                id="raw-evidence"
+                class="panel panel-wide"
+                aria-labelledby="evidence-title"
+                tabindex="-1"
+              >
+                <div class="panel-heading">
+                  <p class="index">19</p>
+                  <h2 id="evidence-title">原始证据 / 报告</h2>
+                </div>
+                <div class="panel-body"></div>
+              </section>
+            </div>
+          </section>
+
+          <div id="no-search-results" class="no-search-results" hidden>
+            <span aria-hidden="true">⌕</span>
+            <h2>没有匹配的面板</h2>
+            <p>换一个关键词，或按 Esc 清除搜索。</p>
+          </div>
+          <footer>
+            <p>AlphaForge Control Center · 项目证据只读</p>
+            <p>非生产认证 · 不代表主网或真实资金可用</p>
+          </footer>
+        </main>
+      </div>
     </div>
-    <template id="empty-state-template">
-      <p class="empty-state">此来源当前没有可展示记录。</p>
-    </template>
+
+    <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+    <dialog id="task-dialog" aria-labelledby="task-dialog-title">
+      <div class="dialog-head">
+        <div>
+          <p id="task-dialog-id" class="index"></p>
+          <h2 id="task-dialog-title">任务详情</h2>
+        </div>
+        <button id="close-task-dialog" class="icon-button" type="button" aria-label="关闭任务详情">×</button>
+      </div>
+      <div id="task-dialog-body" class="dialog-body"></div>
+      <div class="dialog-foot">
+        <span><i class="live-dot"></i> 只读 · 来源于仓库快照</span
+        ><button id="dialog-evidence-link" class="secondary-button" type="button">查看证据区 →</button>
+      </div>
+    </dialog>
+    <template id="empty-state-template"><p class="empty-state">此来源当前没有可展示记录。</p></template>
     <script type="module" src="./app.js"></script>
   </body>
 </html>
