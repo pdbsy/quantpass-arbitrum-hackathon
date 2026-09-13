@@ -24,6 +24,58 @@ export function registerProductRoutes(
   session: (request: FastifyRequest) => string,
 ) {
   const cursors = productCursors();
+  app.get(
+    '/api/v1/product-snapshot',
+    {
+      schema: { querystring: { type: 'object', additionalProperties: false, properties: {} } },
+    },
+    async (request) => {
+      const owner = session(request);
+      store.db.exec('BEGIN');
+      try {
+        // At most one vault per registered local strategy; no paginated mutable reads.
+        const page = store.listPage(owner, { limit: STRATEGIES.length });
+        if (page.nextCursor) throw new Error('CORRUPT_LEDGER');
+        const states = page.items;
+        const account = accountView(owner, states, page, STRATEGIES.length);
+        const audit = states.flatMap((state) => {
+          const events = store.auditPage(owner, state.id, { limit: 10000 });
+          if (events.nextCursor) throw new Error('CORRUPT_LEDGER');
+          return events.items.map((row) => ({
+            ownerId: owner,
+            vaultId: state.id,
+            revision: row.revision,
+            commandId: row.command_id,
+            commandType: row.command_type,
+            actorId: row.actor_id,
+            recordedAt: row.recorded_at,
+          }));
+        });
+        const result = {
+          schemaVersion: 1,
+          scope: 'TEST_ONLY',
+          ownerId: owner,
+          account,
+          vaults: account.vaults,
+          audit,
+          revisions: Object.fromEntries(states.map((state) => [state.id, state.revision])),
+          details: STRATEGIES.map((strategy) => ({
+            ...strategyDetail(strategy.id),
+            accountStrategy: relation(
+              owner,
+              strategy.id,
+              states.find((state) => state.strategyId === strategy.id),
+            ),
+          })),
+        };
+        store.db.exec('COMMIT');
+        return result;
+      } catch (error) {
+        if (store.db.isTransaction) store.db.exec('ROLLBACK');
+        throw error;
+      }
+    },
+  );
   app.get<{ Querystring: Query }>(
     '/api/v1/strategies',
     { schema: { querystring: querySchema() } },

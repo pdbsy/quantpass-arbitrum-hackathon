@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { buildForumSnapshot, recordsFromPullRequests } from './agent-forum.mjs';
 import { build } from './build-agent-forum.mjs';
+import { format } from 'prettier';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const snapshotPath = resolve(root, 'docs/management/agents/forum-snapshot.json');
@@ -48,6 +49,52 @@ async function readPrevious() {
   }
 }
 
+// Each page is bounded; exhaustion, record caps and request caps are distinct.
+export async function collectGithubForum(repository, readPage = apiJson) {
+  let partial = false,
+    calls = 0;
+  const collect = async (path, jq, limit) => {
+    const items = [];
+    for (let page = 1; ; page++) {
+      if (items.length >= limit || calls >= 40) {
+        partial = true;
+        return items;
+      }
+      calls++;
+      const values = await readPage(`${path}&page=${page}`, jq);
+      if (!Array.isArray(values) || values.length > 100) throw new Error('Invalid bounded GitHub page');
+      const available = limit - items.length;
+      items.push(...values.slice(0, available));
+      if (values.length > available) {
+        partial = true;
+        return items;
+      }
+      if (values.length < 100) return items;
+    }
+  };
+  const pulls = await collect(
+    `repos/${repository}/pulls?state=all&per_page=100`,
+    '[.[] | {number,html_url,title,body,created_at,updated_at,user:{login:.user.login},head:{ref:.head.ref,repo:{full_name:.head.repo.full_name}}}]',
+    200,
+  );
+  let remaining = MAX_RECORDS - pulls.length;
+  for (const pull of pulls) {
+    pull.comments = await collect(
+      `repos/${repository}/issues/${pull.number}/comments?per_page=100`,
+      '[.[] | {html_url,body,created_at,updated_at,user:{login:.user.login}}]',
+      remaining,
+    );
+    remaining -= pull.comments.length;
+    pull.reviews = await collect(
+      `repos/${repository}/pulls/${pull.number}/reviews?per_page=100`,
+      '[.[] | {html_url,body,submitted_at,user:{login:.user.login}}]',
+      remaining,
+    );
+    remaining -= pull.reviews.length;
+  }
+  return { pulls, partial, calls };
+}
+
 export async function sync() {
   const previous = await readPrevious();
   try {
@@ -56,31 +103,13 @@ export async function sync() {
       encoding: 'utf8',
     }).trim();
     const repository = parseGithubRemote(remote);
-    const pulls = apiJson(
-      `repos/${repository}/pulls?state=all&per_page=100&page=1`,
-      '[.[:100][] | {number,html_url,title,body,created_at,updated_at,user:{login:.user.login},head:{ref:.head.ref,repo:{full_name:.head.repo.full_name}}}]',
-    );
-    let remaining = Math.max(0, MAX_RECORDS - pulls.length);
-    for (const pull of pulls) {
-      pull.comments = [];
-      pull.reviews = [];
-      if (!remaining) continue;
-      pull.comments = apiJson(
-        `repos/${repository}/issues/${pull.number}/comments?per_page=100&page=1`,
-        '[.[:100][] | {html_url,body,created_at,updated_at,user:{login:.user.login}}]',
-      ).slice(0, remaining);
-      remaining -= pull.comments.length;
-      if (!remaining) continue;
-      pull.reviews = apiJson(
-        `repos/${repository}/pulls/${pull.number}/reviews?per_page=100&page=1`,
-        '[.[:100][] | {html_url,body,submitted_at,user:{login:.user.login}}]',
-      ).slice(0, remaining);
-      remaining -= pull.reviews.length;
-    }
+    const { pulls, partial } = await collectGithubForum(repository);
     const snapshot = buildForumSnapshot(recordsFromPullRequests(pulls), {
       syncedAt: new Date().toISOString(),
+      sourceState: partial ? 'PARTIAL' : 'OK',
+      sourceError: partial ? 'Collection cap reached; some GitHub sources may be missing' : null,
     });
-    await writeFile(snapshotPath, JSON.stringify(snapshot, null, 2) + '\n', 'utf8');
+    await writeFile(snapshotPath, await format(JSON.stringify(snapshot), { parser: 'json' }), 'utf8');
     await build();
     console.log(
       `Agent Forum synced: ${snapshot.messages.length} messages across ${snapshot.threads.length} threads.`,
@@ -88,7 +117,7 @@ export async function sync() {
     return snapshot;
   } catch {
     const failed = createFailureSnapshot(previous, 'GitHub source unavailable');
-    await writeFile(snapshotPath, JSON.stringify(failed, null, 2) + '\n', 'utf8');
+    await writeFile(snapshotPath, await format(JSON.stringify(failed), { parser: 'json' }), 'utf8');
     await build();
     throw new Error('Agent Forum sync failed; previous trusted snapshot retained');
   }

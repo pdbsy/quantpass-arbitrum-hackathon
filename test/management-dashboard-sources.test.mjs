@@ -752,6 +752,43 @@ test('recorded Git collector validates an equivalent linear-history integration 
   assert.equal(forged.error, 'RECORDED_GIT_GRAPH_MISMATCH');
 });
 
+test('recorded Git collector validates an equivalent linear-history integration workflow dispatch', async (t) => {
+  const fixture = await createRecordedGitFixture(t);
+  const integratedCommit = createIntegratedPushLayout(fixture);
+
+  const reconstructed = await collectRecordedGitState(
+    fixture.root,
+    'master',
+    recordedGit('macbeth/dashboard', fixture.recordedCommit, fixture.recordedTree),
+    {
+      observedAt,
+      environment: { ...integratedPushEnvironment(integratedCommit), GITHUB_EVENT_NAME: 'workflow_dispatch' },
+    },
+  );
+
+  assert.equal(reconstructed.status, 'READY');
+  assert.equal(reconstructed.branch, 'macbeth/dashboard');
+  assert.equal(reconstructed.commit, fixture.recordedCommit);
+  assert.deepEqual(reconstructed.aheadBehind, { ahead: 1, behind: 0 });
+
+  await writeFile(join(fixture.root, 'forged-after-merge.txt'), 'forged\n');
+  git(fixture.root, ['add', 'forged-after-merge.txt']);
+  commit(fixture.root, 'forged integrated tree');
+  const forgedHead = git(fixture.root, ['rev-parse', 'HEAD']);
+  git(fixture.root, ['update-ref', 'refs/remotes/origin/master', forgedHead]);
+  const forged = await collectRecordedGitState(
+    fixture.root,
+    'master',
+    recordedGit('macbeth/dashboard', fixture.recordedCommit, fixture.recordedTree),
+    {
+      observedAt,
+      environment: { ...integratedPushEnvironment(forgedHead), GITHUB_EVENT_NAME: 'workflow_dispatch' },
+    },
+  );
+  assert.equal(forged.status, 'DATA_SOURCE_ERROR');
+  assert.equal(forged.error, 'RECORDED_GIT_GRAPH_MISMATCH');
+});
+
 test('recorded Git collector validates an equivalent local master integration', async (t) => {
   const fixture = await createRecordedGitFixture(t);
   createIntegratedPushLayout(fixture);

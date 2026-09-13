@@ -29,6 +29,12 @@ class LocalClientError extends Error {}
 
 export type LedgerAudit = Audit & { command_id: string };
 export type ApiRequest = <T>(path: string, body?: unknown) => Promise<T>;
+export interface ProductReadTransaction {
+  request: ApiRequest;
+  commit(): void;
+  discard(): void;
+}
+export type BeginProductRead = (isCurrent: () => boolean) => ProductReadTransaction;
 export type ClientStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export type Identity = 'alice' | 'bob';
 export type Strategy = (typeof STRATEGIES)[number];
@@ -115,6 +121,7 @@ function validateCommand(value: Command): void {
 
 export class ProductClient {
   private readonly request: ApiRequest;
+  private readonly beginRead: BeginProductRead | undefined;
   private readonly storage: ClientStorage;
   private readonly listeners = new Set<(snapshot: ProductSnapshot) => void>();
   private state: ProductSnapshot = {
@@ -133,9 +140,10 @@ export class ProductClient {
   private needsRefresh = true;
   private rejectionRefreshed = false;
 
-  constructor(options: { request?: ApiRequest; storage?: ClientStorage } = {}) {
+  constructor(options: { request?: ApiRequest; storage?: ClientStorage; beginRead?: BeginProductRead } = {}) {
     // api supplies same-origin credentials and a bounded 10-second AbortSignal timeout.
     this.request = options.request ?? api;
+    this.beginRead = options.beginRead;
     this.storage = options.storage ?? localStorage;
   }
   get snapshot(): ProductSnapshot {
@@ -237,10 +245,15 @@ export class ProductClient {
   }
   private async load(expectedOwner?: Identity): Promise<void> {
     const generation = ++this.generation;
+    const read = this.beginRead?.(() => generation === this.generation) ?? {
+      request: this.request,
+      commit: () => {},
+      discard: () => {},
+    };
     this.needsRefresh = true;
     this.update({ phase: 'LOADING', error: null, notice: null });
     try {
-      const session = await this.request<{ user: string }>('/session');
+      const session = await read.request<{ user: string }>('/session');
       if (generation !== this.generation) return;
       if (!identity(session.user)) throw new ApiError('RESPONSE_CONTEXT_MISMATCH', 502);
       const owner = session.user;
@@ -249,8 +262,8 @@ export class ProductClient {
         throw new ApiError('RESPONSE_CONTEXT_MISMATCH', 502);
       // Legacy array endpoints are intentionally isolated here. Pagination requires an API adapter update.
       const [strategies, vaults] = await Promise.all([
-        this.request<Strategy[]>('/strategies'),
-        this.request<Vault[]>('/vaults'),
+        read.request<Strategy[]>('/strategies'),
+        read.request<Vault[]>('/vaults'),
       ]);
       if (generation !== this.generation) return;
       if (!Array.isArray(strategies) || !Array.isArray(vaults))
@@ -261,8 +274,8 @@ export class ProductClient {
       const selected = vaults.find((vault) => vault.id === preferred) ?? vaults[0];
       const [detail, audit] = selected
         ? await Promise.all([
-            this.request<Vault>(`/vaults/${selected.id}`),
-            this.request<LedgerAudit[]>(`/vaults/${selected.id}/audit`),
+            read.request<Vault>(`/vaults/${selected.id}`),
+            read.request<LedgerAudit[]>(`/vaults/${selected.id}/audit`),
           ])
         : [null, []];
       if (generation !== this.generation) return;
@@ -277,6 +290,7 @@ export class ProductClient {
         audit.some((event) => !validId(event.command_id) || !Number.isSafeInteger(event.revision))
       )
         throw new ApiError('INVALID_AUDIT_RESPONSE', 502);
+      read.commit();
       this.needsRefresh = false;
       this.rejectionRefreshed = !!pending?.rejection && pending.owner === owner;
       this.update({
@@ -304,6 +318,8 @@ export class ProductClient {
       if (generation !== this.generation) return;
       this.fail(error);
       throw error;
+    } finally {
+      read.discard();
     }
   }
   async refresh(): Promise<void> {

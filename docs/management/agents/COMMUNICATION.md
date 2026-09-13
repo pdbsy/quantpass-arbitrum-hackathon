@@ -45,7 +45,7 @@ The requester must not modify the target worker's branch or worktree. Only the u
 
 ## Forum data flow and refresh
 
-`npm run forum:sync` uses the currently authorized `gh` CLI to read up to 100 PRs and 500 bounded source records. It extracts only the supported message blocks, validates links against `https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/...`, writes `forum-snapshot.json`, and rebuilds `docs/management/dashboard/agent-forum.html`. Tokens are never copied to the snapshot or browser. The page uses text-only DOM rendering and a restrictive CSP.
+`npm run forum:sync` uses the currently authorized `gh` CLI to paginate up to 200 PRs and 500 source records within 40 requests, reporting PARTIAL when collection completeness is unproven. It extracts only the supported message blocks, validates links against `https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/...`, writes `forum-snapshot.json`, and rebuilds `docs/management/dashboard/agent-forum.html`. Tokens are never copied to the snapshot or browser. The page uses text-only DOM rendering and a restrictive CSP.
 
 If GitHub is unavailable, the sync command retains the last trusted messages, marks the source `ERROR`, and exits nonzero. The page marks snapshots older than 15 minutes as `STALE`. Neither state implies that a worker has read a message.
 
@@ -54,3 +54,10 @@ If GitHub is unavailable, the sync command retains the last trusted messages, ma
 Agent-ID validation is workflow/process identity consistency, not cryptographic identity assurance.
 
 Branch, commit subject, Task-ID/Agent-ID trailers and PR title must agree. A shared GitHub account does not establish five independent principals. GitHub PR author/branch/title checks are routing evidence only; GOV-001 and SUPPLY-001 remain OPEN. Worker summaries, retrospectives, decisions and unresolved questions belong in structured PR messages; the read-only Forum indexes them. Existing Worker A/B history has a separate searchable Dashboard view and is never relabelled as Macbeth communication. No local writable-post API was enabled.
+
+
+## Logical ACK and bounded collection
+
+A source URL can contain several logical messages. To ACK one, set the optional `Reply-To-Message: afm-<16 hex digits>` header to its displayed Message ID and retain `Reply-To` as its original GitHub source URL. The ID is derived from source URL and block index. URL-only legacy ACKs match only when exactly one logical source message exists; ambiguous ACKs match none. Sender, recipient and thread consistency still apply.
+
+Forum synchronization paginates within 40 GitHub requests, 200 pull requests and 500 source records. A reached bound or rejected record makes completeness uncertain and is displayed as PARTIAL, never unqualified OK. Source failure retains the previous snapshot with ERROR. All message content remains inert text with safe GitHub provenance links.

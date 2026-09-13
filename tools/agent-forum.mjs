@@ -4,7 +4,8 @@ import { REGISTERED_AGENTS } from './agent-identity.mjs';
 const AGENTS = new Set(REGISTERED_AGENTS);
 const TYPES = new Set(['CHECK_IN', 'NOTICE', 'QUESTION', 'REPLY', 'ACK', 'BLOCKED', 'SUMMARY']);
 const SOURCE_TYPES = new Set(['PR_DESCRIPTION', 'PR_COMMENT', 'PR_REVIEW']);
-const HEADER_NAMES = new Set(['Schema-Version', 'Agent', 'To', 'Type', 'Thread', 'Reply-To', 'Related-PR']);
+const REQUIRED_HEADERS = ['Schema-Version', 'Agent', 'To', 'Type', 'Thread', 'Reply-To', 'Related-PR'];
+const HEADER_NAMES = new Set([...REQUIRED_HEADERS, 'Reply-To-Message']);
 const MAX_SOURCE_LENGTH = 20_000;
 const MAX_BODY_LENGTH = 4_000;
 const MAX_RECORDS = 500;
@@ -83,7 +84,8 @@ function parseBlock(block, source, blockIndex) {
     if (!match || !HEADER_NAMES.has(match[1]) || fields.has(match[1])) fail('malformed or duplicate header');
     fields.set(match[1], match[2]);
   }
-  if (bodyIndex < 0 || fields.size !== HEADER_NAMES.size) fail('message is missing required fields');
+  if (bodyIndex < 0 || REQUIRED_HEADERS.some((name) => !fields.has(name)))
+    fail('message is missing required fields');
   const body = lines
     .slice(bodyIndex + 1)
     .join('\n')
@@ -101,6 +103,9 @@ function parseBlock(block, source, blockIndex) {
   const replyValue = fields.get('Reply-To');
   const replyTo = replyValue === 'NONE' ? null : githubUrl(replyValue);
   const relatedPr = githubUrl(fields.get('Related-PR'), { allowAnchor: false });
+  const replyToMessage = fields.get('Reply-To-Message') ?? null;
+  if (replyToMessage !== null && (!replyTo || !/^afm-[a-f0-9]{16}$/.test(replyToMessage)))
+    fail('invalid logical reply target');
   return {
     message_id: `afm-${createHash('sha256').update(`${source.source_url}#${blockIndex}`).digest('hex').slice(0, 16)}`,
     schema_version: 1,
@@ -109,6 +114,7 @@ function parseBlock(block, source, blockIndex) {
     type,
     thread,
     reply_to: replyTo,
+    reply_to_message: replyToMessage,
     related_pr: relatedPr,
     body,
     github_author: source.github_author,
@@ -141,7 +147,7 @@ export function buildForumSnapshot(
   { syncedAt = new Date().toISOString(), sourceState = 'OK', sourceError = null } = {},
 ) {
   if (!Array.isArray(records) || records.length > MAX_RECORDS) fail('record limit exceeded');
-  if (!new Set(['OK', 'ERROR', 'NOT_SYNCED']).has(sourceState)) fail('invalid source state');
+  if (!new Set(['OK', 'ERROR', 'NOT_SYNCED', 'PARTIAL']).has(sourceState)) fail('invalid source state');
   if (sourceError !== null && (typeof sourceError !== 'string' || sourceError.length > 200))
     fail('invalid source error');
   const lastSyncAt = validDate(syncedAt, true);
@@ -173,6 +179,9 @@ export function buildForumSnapshot(
         candidate.type === 'ACK' &&
         candidate.thread === item.thread &&
         candidate.reply_to === item.source_url &&
+        (candidate.reply_to_message
+          ? candidate.reply_to_message === item.message_id
+          : messages.filter((message) => message.source_url === item.source_url).length === 1) &&
         candidate.to === item.agent &&
         (item.to === 'ALL' || candidate.agent === item.to),
     );
@@ -195,7 +204,8 @@ export function buildForumSnapshot(
   const threads = [...threadMap.values()]
     .map((thread) => ({ ...thread, agents: [...thread.agents].sort() }))
     .sort((left, right) => Date.parse(right.last_updated_at) - Date.parse(left.last_updated_at));
-  const source = { state: sourceState, error: sourceError, last_sync_at: lastSyncAt };
+  const partial = sourceState === 'OK' && (records.length === MAX_RECORDS || rejectedRecords > 0);
+  const source = { state: partial ? 'PARTIAL' : sourceState, error: sourceError, last_sync_at: lastSyncAt };
   if (rejectedRecords) source.rejected_records = rejectedRecords;
   return { schema_version: 1, source, messages, threads };
 }
@@ -244,7 +254,7 @@ export function recordsFromPullRequests(pulls) {
   const append = (record) => {
     if (records.length < MAX_RECORDS) records.push(record);
   };
-  for (const pull of pulls.slice(0, 100)) {
+  for (const pull of pulls) {
     append(projectedRecord('PR_DESCRIPTION', pull, pull));
     for (const comment of pull.comments || []) append(projectedRecord('PR_COMMENT', pull, comment));
     for (const review of pull.reviews || []) append(projectedRecord('PR_REVIEW', pull, review));

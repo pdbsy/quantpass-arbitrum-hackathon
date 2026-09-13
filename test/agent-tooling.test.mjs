@@ -51,3 +51,38 @@ test('failed sync preserves last trusted messages and records only a bounded gen
   assert.deepEqual(failed.threads, previous.threads);
   assert.throws(() => createFailureSnapshot(previous, 'x'.repeat(201)));
 });
+
+test('PR11-P5 GitHub collector paginates comments beyond 100 and exposes hard bounds', async () => {
+  const { collectGithubForum } = await import('../tools/sync-agent-forum.mjs');
+  for (const count of [150, 600]) {
+    const calls = [];
+    const result = await collectGithubForum('pdbsy/quantpass-arbitrum-hackathon', async (endpoint) => {
+      calls.push(endpoint);
+      const url = new URL(endpoint, 'https://api.github.com/');
+      const page = Number(url.searchParams.get('page'));
+      if (url.pathname.endsWith('/pulls')) return [{ number: 11, comments: [], reviews: [] }];
+      if (url.pathname.endsWith('/reviews')) return [];
+      return Array.from({ length: count }, (_, n) => ({ body: `comment-${n}` })).slice(
+        (page - 1) * 100,
+        page * 100,
+      );
+    });
+    assert.equal(result.pulls[0].comments.length, Math.min(count, 499));
+    assert.equal(result.partial, count > 499);
+    assert.ok(calls.some((path) => path.includes('comments?per_page=100&page=2')));
+    assert.ok(result.calls <= 40);
+  }
+});
+
+test('PR11-P5 bounded PR pagination and request budget report PARTIAL rather than silent OK', async () => {
+  const { collectGithubForum } = await import('../tools/sync-agent-forum.mjs');
+  const result = await collectGithubForum('pdbsy/quantpass-arbitrum-hackathon', async (endpoint) => {
+    const url = new URL(endpoint, 'https://api.github.com/');
+    if (!url.pathname.endsWith('/pulls')) return [];
+    const page = Number(url.searchParams.get('page'));
+    return Array.from({ length: 201 }, (_, n) => ({ number: n + 1 })).slice((page - 1) * 100, page * 100);
+  });
+  assert.equal(result.pulls.length, 200);
+  assert.equal(result.partial, true);
+  assert.equal(result.calls, 40);
+});

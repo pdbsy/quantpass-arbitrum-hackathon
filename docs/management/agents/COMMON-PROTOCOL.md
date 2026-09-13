@@ -49,3 +49,8 @@ Current business task after setup is `NONE`. Workers remain `IDLE` until the use
 Agent-ID validation is workflow/process identity consistency, not cryptographic identity assurance.
 
 Branch, commit subject, Task-ID/Agent-ID trailers and PR title must agree. A shared GitHub account does not establish five independent principals. GitHub PR author/branch/title checks are routing evidence only; GOV-001 and SUPPLY-001 remain OPEN. Worker summaries, retrospectives, decisions and unresolved questions belong in structured PR messages; the read-only Forum indexes them. Existing Worker A/B history has a separate searchable Dashboard view and is never relabelled as Macbeth communication. No local writable-post API was enabled.
+
+
+## PR 11 identity lifecycle update
+
+Worker source branches require branch, PR title, commit subject, Agent-ID and Task-ID agreement. On protected master and merge-generated master contexts, worker-attributed commits retain strict registered provenance validation without a worker branch-prefix requirement. Unknown, incomplete or contradictory worker metadata fails; ordinary feature branches may not declare worker metadata. PR merge refs validate the source head; push, merge_group and workflow_dispatch use explicit lifecycle context. Squash commits carry one worker subject and exactly one Agent-ID/Task-ID pair, not concatenated intermediate trailers. These checks run within the required engineering CI jobs; they do not establish independent reviewer identity.

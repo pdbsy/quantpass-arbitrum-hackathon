@@ -267,3 +267,80 @@ test('explicit task IDs in commit subjects agree with Task-ID trailers', () => {
   assert.throws(() => validateCommitIdentity({ ...valid, body: 'Agent-ID: Macbeth01\nTask-ID: malformed' }));
   assert.throws(() => validateCommitIdentity({ ...valid, body: 'Agent-ID: Macbeth01' }));
 });
+
+test('PR11-P5 collectors never publish capped or omitted records as unqualified OK', () => {
+  const pulls = Array.from({ length: 101 }, (_, n) => ({
+    number: n + 1,
+    html_url: github(`/pull/${n + 1}`),
+    title: '[Macbeth01][AF-MIGRATION] Source',
+    head: { ref: 'macbeth01/AF-MIGRATION-source', repo: { full_name: 'pdbsy/quantpass-arbitrum-hackathon' } },
+    user: { login: 'pdbsy' },
+    body: message({ relatedPr: github(`/pull/${n + 1}`) }),
+    created_at: '2026-09-13T00:00:00Z',
+    updated_at: '2026-09-13T00:00:00Z',
+    comments: [],
+    reviews: [],
+  }));
+  const records = recordsFromPullRequests(pulls);
+  assert.equal(records.length, 101);
+  const many = Array.from({ length: 501 }, (_, index) => ({
+    ...pulls[0],
+    number: index + 1,
+    html_url: github(`/pull/${index + 1}`),
+  }));
+  const capped = recordsFromPullRequests(many);
+  assert.equal(capped.length, 500);
+  assert.equal(buildForumSnapshot(capped).source.state, 'PARTIAL');
+});
+
+test('PR11-P6 a URL-only ACK cannot acknowledge two blocks; an explicit message ID selects one', () => {
+  const source = {
+    source_type: 'PR_COMMENT',
+    source_url: github('/pull/11#issuecomment-999'),
+    pr_url: github('/pull/11'),
+    pr_number: 11,
+    pr_head_ref: 'macbeth01/AF-MIGRATION-source',
+    pr_title: '[Macbeth01][AF-MIGRATION] Source',
+    pr_author: 'pdbsy',
+    pr_head_repo: 'pdbsy/quantpass-arbitrum-hackathon',
+    github_author: 'pdbsy',
+    text: message({ body: 'First logical message' }) + '\n' + message({ body: 'Second logical message' }),
+    created_at: '2026-09-13T00:00:00Z',
+    updated_at: '2026-09-13T00:00:00Z',
+  };
+  const ack = {
+    ...source,
+    source_url: github('/pull/12#issuecomment-998'),
+    pr_url: github('/pull/12'),
+    pr_number: 12,
+    pr_head_ref: 'macbeth02/AF-MIGRATION-source',
+    pr_title: '[Macbeth02][AF-MIGRATION] Source',
+    text: message({
+      agent: 'Macbeth02',
+      to: 'Macbeth01',
+      type: 'ACK',
+      replyTo: source.source_url,
+      relatedPr: github('/pull/12'),
+    }),
+  };
+  const ambiguous = buildForumSnapshot([source, ack]);
+  assert.equal(
+    ambiguous.messages.filter((m) => m.type !== 'ACK' && m.ack_state === 'ACKNOWLEDGED').length,
+    0,
+  );
+  const target = parseAgentMessages(source)[1];
+  const explicit = {
+    ...ack,
+    text: ack.text.replace('Body:', `Reply-To-Message: ${target.message_id}\nBody:`),
+  };
+  const precise = buildForumSnapshot([source, explicit]);
+  assert.deepEqual(
+    precise.messages.filter((m) => m.ack_state === 'ACKNOWLEDGED').map((m) => m.message_id),
+    [target.message_id],
+  );
+  const wrong = { ...ack, text: ack.text.replace('Body:', 'Reply-To-Message: afm-0000000000000000\nBody:') };
+  assert.equal(
+    buildForumSnapshot([source, wrong]).messages.filter((m) => m.ack_state === 'ACKNOWLEDGED').length,
+    0,
+  );
+});

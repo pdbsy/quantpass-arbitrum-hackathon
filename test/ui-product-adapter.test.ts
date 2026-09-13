@@ -233,6 +233,23 @@ const fixture = {
   },
   error: null,
 } as const;
+function canonicalSnapshot(audit: unknown[] = []) {
+  return structuredClone({
+    schemaVersion: 1,
+    scope: 'TEST_ONLY',
+    ownerId: 'alice',
+    vaults: [fixture.vault],
+    revisions: { [fixture.vault.vaultId]: fixture.vault.revision },
+    account: {
+      ...fixture.accountSummary,
+      vaults: [fixture.vault],
+      strategies: fixture.accountSummary.strategies.filter((v) => v.strategyId === 'core-flow-demo'),
+      passBalances: fixture.accountSummary.passBalances.filter((v) => v.strategyId === 'core-flow-demo'),
+    },
+    details: [fixture.strategyDetail],
+    audit,
+  });
+}
 const storage = () => {
   const map = new Map<string, string>();
   return {
@@ -274,7 +291,7 @@ test('gateway consumes opaque pages and account/detail without legacy aliases', 
       result = { items: [fixture.strategySummary], nextCursor: 'opaque +/?' };
     else if (path === '/v1/strategies?limit=100&cursor=opaque%20%2B%2F%3F')
       result = { items: [], nextCursor: null };
-    else if (path === '/v1/account') result = fixture.accountSummary;
+    else if (path === '/v1/product-snapshot') result = canonicalSnapshot();
     else if (path === '/v1/strategies/core-flow-demo') result = fixture.strategyDetail;
     else if (path === '/v1/vaults?limit=100') result = { items: [fixture.vault], nextCursor: null };
     else if (path === '/v1/vaults/' + fixture.vault.vaultId) result = fixture.vault;
@@ -417,7 +434,18 @@ test('owned audit accepts actual simulator actor only for executor commands', as
       if (path === '/session') return { user: 'alice' } as T;
       if (path.startsWith('/v1/strategies?'))
         return { items: [fixture.strategySummary], nextCursor: null } as T;
-      if (path === '/v1/account') return fixture.accountSummary as T;
+      if (path === '/v1/product-snapshot')
+        return canonicalSnapshot([
+          {
+            ownerId: 'alice',
+            vaultId: fixture.vault.vaultId,
+            commandId: 'reserve1',
+            commandType: type,
+            actorId: actor,
+            revision: 6,
+            recordedAt: '2026-09-12T00:00:00.000Z',
+          },
+        ]) as T;
       if (path === '/v1/strategies/core-flow-demo') return fixture.strategyDetail as T;
       if (path.startsWith('/v1/vaults?')) return { items: [fixture.vault], nextCursor: null } as T;
       if (path.endsWith('/audit?limit=100'))
@@ -528,7 +556,31 @@ test('contract-minimum detail accepts a null relation and still rejects a foreig
       if (path === '/session') return { user: 'alice' } as T;
       if (path.startsWith('/v1/strategies?'))
         return { items: [fixture.strategySummary], nextCursor: null } as T;
-      if (path === '/v1/account') return { ownerId: 'alice', strategies: [], passBalances: [] } as T;
+      if (path === '/v1/product-snapshot')
+        return {
+          schemaVersion: 1,
+          scope: 'TEST_ONLY',
+          ownerId: 'alice',
+          vaults: [],
+          revisions: {},
+          audit: [],
+          account: {
+            ...fixture.accountSummary,
+            idle: '0',
+            passes: '0',
+            vaultCount: 0,
+            status: null,
+            balances: Object.fromEntries(
+              Object.keys(fixture.accountSummary.balances).map((key) => [key, '0']),
+            ),
+            strategies: [
+              { ownerId: 'alice', strategyId: 'core-flow-demo', vaultId: null, status: 'not_started' },
+            ],
+            passBalances: [{ strategyId: 'core-flow-demo', total: '0', allowance: '0' }],
+            vaults: [],
+          },
+          details: [{ ...fixture.strategyDetail, accountStrategy: relation }],
+        } as T;
       if (path === '/v1/strategies/core-flow-demo')
         return { ...fixture.strategyDetail, accountStrategy: relation } as T;
       if (path.startsWith('/v1/vaults?')) return { items: [], nextCursor: null } as T;

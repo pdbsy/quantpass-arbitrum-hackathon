@@ -69,12 +69,9 @@ function oneMatch(text, pattern, label) {
   return matches[0][1];
 }
 
-export function validateCommitIdentity({ branch, prTitle = null, subject, body }) {
-  for (const [label, value] of Object.entries({ branch, subject, body }))
+export function validateCommitProvenance({ subject, body }) {
+  for (const [label, value] of Object.entries({ subject, body }))
     if (typeof value !== 'string' || !value.trim()) fail(`${label} is required`);
-  const branchPrefix = branch.match(/^(macbeth0[1-5])\//)?.[1];
-  if (!branchPrefix) fail('branch must use a registered worker prefix');
-  const branchAgent = `Macbeth${branchPrefix.slice(-2)}`;
   const subjectAgent = oneMatch(subject, /\[(Macbeth\d{2})\]/g, 'commit subject Agent-ID');
   const bodyAgent = oneMatch(body, /^Agent-ID:\s*(\S+)\s*$/gm, 'commit body Agent-ID');
   const bodyTask = oneMatch(body, /^Task-ID:\s*(\S+)\s*$/gm, 'commit body Task-ID');
@@ -83,7 +80,17 @@ export function validateCommitIdentity({ branch, prTitle = null, subject, body }
   const subjectTasks = [...subject.matchAll(/(?:\[|\()(AF-[A-Z0-9]+(?:-[A-Z0-9]+)*)(?:\]|\))/g)];
   if (subjectTasks.some((match) => match[1] !== bodyTask))
     fail('commit subject and trailer task IDs do not match');
-  if (subjectAgent !== branchAgent || bodyAgent !== branchAgent) fail('branch and commit agent do not match');
+  if (subjectAgent !== bodyAgent) fail('subject and body agent do not match');
+  return { agentId: subjectAgent, taskId: bodyTask };
+}
+
+export function validateCommitIdentity({ branch, prTitle = null, subject, body }) {
+  if (typeof branch !== 'string') fail('branch is required');
+  const branchPrefix = branch.match(/^(macbeth0[1-5])\//)?.[1];
+  if (!branchPrefix) fail('branch must use a registered worker prefix');
+  const branchAgent = `Macbeth${branchPrefix.slice(-2)}`;
+  const { agentId, taskId: bodyTask } = validateCommitProvenance({ subject, body });
+  if (agentId !== branchAgent) fail('branch and commit agent do not match');
   if (prTitle !== null) {
     if (typeof prTitle !== 'string') fail('PR title must be text');
     const match = prTitle.match(/^\[(Macbeth\d{2})\]\[(AF-[A-Z0-9]+(?:-[A-Z0-9]+)*)\]\s+\S/);

@@ -1258,9 +1258,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "tools/agent-forum.mjs",
-      "method": "selective import; canonical repository allowlist and dashboard link adapted; PR11 closeout defensive adaptation",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted; PR11 closeout defensive adaptation; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "562111e0bc5badc25b53562f8113e5288860ed17d79b32cd94dd978457674359",
-      "migrated_sha256": "e682ef0f79cb32178ca3d523964871a69f36b86277b5f2da37d99b847fb96cfe"
+      "migrated_sha256": "78ca6aa58d895ade79c658c3dd28f00f590e26f1335072496c54fa294c5eaa2f"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1268,9 +1268,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "tools/agent-forum-app.js",
-      "method": "selective import; canonical repository allowlist and dashboard link adapted; PR11 closeout defensive adaptation",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted; PR11 closeout defensive adaptation; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "798d168b50b340ce4a3e73f4d2a4e68e1c33469edf02d5e52325f649e09b6bc6",
-      "migrated_sha256": "021bcd5fefff08b74843a9bb7ea5ed434deaa1677017c0831115dc4d9934e9c6"
+      "migrated_sha256": "8156b249bf86d0f5a5678976f56cd4237ff87006811fa71d2cc37e55538b6740"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1288,9 +1288,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "tools/agent-identity.mjs",
-      "method": "selective import; canonical repository allowlist and dashboard link adapted; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "f1b67a9cdb2ce0fa25c95d7927dbffda16cd5320d636891a9b60b721491395a6",
-      "migrated_sha256": "bc89cf44659e6d4f78e351a971dbc8fb925842b17236ad56047174c36710280e"
+      "migrated_sha256": "85c630be0023003e62d455e835e2ec9178991751d0ef505724c530523abb9d6d"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1298,9 +1298,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "tools/agent-identity-set.mjs",
-      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "a7f79ed3ebfc5d0b5d54e9b6eb29182ac72e3460fc3ed2cf9540e34aa4154b73",
-      "migrated_sha256": "a7f79ed3ebfc5d0b5d54e9b6eb29182ac72e3460fc3ed2cf9540e34aa4154b73"
+      "migrated_sha256": "d3f5786f0e5b5b0fb2d4321ea5b46d67375a1b18121adccd9dc7bde264028504"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1308,9 +1308,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "tools/check-agent-identity.mjs",
-      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "d3cebb25a3334804f336e867a92c00e60d71cfb20e11191a5469fdbad24d6e3e",
-      "migrated_sha256": "d3cebb25a3334804f336e867a92c00e60d71cfb20e11191a5469fdbad24d6e3e"
+      "migrated_sha256": "291f18a1a461a446e54a4c8a968e0e065d0971bfd98c723611e44f83e0fb19b0"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1328,9 +1328,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "tools/sync-agent-forum.mjs",
-      "method": "selective import; canonical repository allowlist and dashboard link adapted",
+      "method": "selective import; canonical repository allowlist and dashboard link adapted; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "d4743301b018a830585c1fc00c988122844cc455aa21b35b426165cab56e5acd",
-      "migrated_sha256": "f387933d1661345a809fc324ffb6117276b8a6cd4dc225e74ee40264029f7cf5"
+      "migrated_sha256": "618dc6c4655f143579e1ebef7352b1891013bf401d3d7e0d4c10db0f3514e53a"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1338,9 +1338,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "docs/management/agents/COMMON-PROTOCOL.md",
-      "method": "protocol import with current repository/authority preamble; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
+      "method": "protocol import with current repository/authority preamble; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "9ac5209eb9777fdcec2697ae4180cda66526ac2f4d51f9e4e6255f7c3effd2b9",
-      "migrated_sha256": "e6c733c1922e18b1af515403ebeea2dcbfafdebc374bc53cab9e24262a1bb99a"
+      "migrated_sha256": "ee0260e406fa2b181dc96fa047c2cb669193ca566391fbd2c11a7b8ec6658627"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1348,9 +1348,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "docs/management/agents/COMMUNICATION.md",
-      "method": "protocol import with current repository/authority preamble; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
+      "method": "protocol import with current repository/authority preamble; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "6d6805887eaea930324756abf88671964d51a00422e670a1e33cddcfb2dd3ef3",
-      "migrated_sha256": "0c559d27fba6bf14742b5983af2e9da4dc6ad340d99d982d9388bb1a9d3cf02f"
+      "migrated_sha256": "2ab0c6ebc621dbe54d3750cbf573a7bd0977567f0b393c9a44b9b9c517497e83"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1438,9 +1438,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "test/agent-management.test.mjs",
-      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "f5c916f2f10f3fbc2e31e89bce0cf041bf091cae876b20490eac7f87140ebc42",
-      "migrated_sha256": "ba3491f7f4b7b7d40a7b5ca234f43587f1e9e5193bba69b2507055114c1da23a"
+      "migrated_sha256": "cdcb4908cc7a7d621c564a62d27205a7948971a91263b4fb61cfe9406f4aaf39"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1458,9 +1458,9 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "test/agent-tooling.test.mjs",
-      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "8ea91af803dc35a566ab7f1e63c16536a473fdecf77729efe07cc4352f57a707",
-      "migrated_sha256": "431d8f4e792bd81f42e708768e59aa73401834ef6ae259d0045eeda76dbd40c0"
+      "migrated_sha256": "ecbc2925c1d9d661b82edb01c87b05381dbcd95c348d6ad3c59390b7ca684f36"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1508,9 +1508,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth03",
       "target_path": "apps/server/src/product-routes.ts",
-      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "f85924f35c58a9375dc793df66f5ed9277092c80c4c28d0f733011013552a28d",
-      "migrated_sha256": "f85924f35c58a9375dc793df66f5ed9277092c80c4c28d0f733011013552a28d"
+      "migrated_sha256": "7e815176011046331e660190e21eb6c80c5be6afa29b5e7cc723cb0f16a75088"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1568,9 +1568,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth03",
       "target_path": "test/product-api.test.ts",
-      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "8b3a473750525b7b1f5f62361b1296c8780504aa01c2cae98811cf3e2dc5e619",
-      "migrated_sha256": "b05ffcde4b01918e8205330a79f79909c78941dfdaf26cc943c382da17ee11a7"
+      "migrated_sha256": "b20171a6d73e69572756fc826cd49bc6fb24305f163817038b2640450ff08264"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1608,9 +1608,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth02",
       "target_path": "apps/web/src/product-adapter.ts",
-      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "c95ffad4bab8130593980a3d8810b57df944f2dd53124e7a0a209490c322c737",
-      "migrated_sha256": "c95ffad4bab8130593980a3d8810b57df944f2dd53124e7a0a209490c322c737"
+      "migrated_sha256": "6cafad19335160e3a9af2107e3feedd1484434df70f7c4e4b802fc561ab2ba0f"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1618,9 +1618,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth02",
       "target_path": "apps/web/src/product-client.ts",
-      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "f43567f177f78af12f48779ed3b868c7adee57ffb0cdaa0c2189c7e55147b143",
-      "migrated_sha256": "7e366cbbec2cd91b10b20b0e00dbe32674cf94a13f0bf9f11a4cc0de1df7d67b"
+      "migrated_sha256": "a79b8984e8f409b17e4ca6b7345cd33c77e45d9e7795ddceafe530d2ad583b9a"
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1658,9 +1658,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth02",
       "target_path": "test/ui-product-adapter.test.ts",
-      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "58e98d6eb7a1e9f7c9356448b830666e10576aa2b6997c671040e913507e4d77",
-      "migrated_sha256": "58e98d6eb7a1e9f7c9356448b830666e10576aa2b6997c671040e913507e4d77"
+      "migrated_sha256": "abfe391bec2be602eae84c3c42f9292f2ae86efe6a8e3dd5f5fa4da4f9f7acb1"
     },
     {
       "source_repository": "pdbsy/quantpass",

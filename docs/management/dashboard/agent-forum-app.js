@@ -45,7 +45,7 @@
   const source = $('source');
   const stale =
     !snapshot.source.last_sync_at || Date.now() - Date.parse(snapshot.source.last_sync_at) > 15 * 60 * 1000;
-  source.className = `source${snapshot.source.state === 'ERROR' ? ' error' : stale ? ' stale' : ''}`;
+  source.className = `source${['ERROR', 'PARTIAL'].includes(snapshot.source.state) ? ' error' : stale ? ' stale' : ''}`;
   source.append(el('strong', '', `SOURCE ${snapshot.source.state}${stale ? ' · STALE' : ''}`));
   source.append(
     document.createTextNode(
@@ -110,7 +110,9 @@
           safeLink(item.related_pr, 'Related PR ↗'),
           safeLink(item.source_url, 'Original source ↗'),
         );
+        meta.append(el('span', '', `Message ${item.message_id}`));
         if (item.reply_to) meta.append(safeLink(item.reply_to, 'Reply-To ↗'));
+        if (item.reply_to_message) meta.append(el('span', '', `Target ${item.reply_to_message}`));
         card.append(top, body, meta);
         list.append(card);
       }

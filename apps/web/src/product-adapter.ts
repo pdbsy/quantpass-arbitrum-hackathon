@@ -210,32 +210,67 @@ export function fromLegacyVault(v: Vault): ProductVault {
     ],
   };
 }
+interface Projection {
+  owner: Identity;
+  mode: 'v1' | 'legacy';
+  strategies: StrategySummary[];
+  vaults: Map<string, ProductVault>;
+  account: AccountSummary | null;
+  details: StrategyDetail[];
+  audit: Map<string, AuditEvent>;
+}
+const auditKey = (owner: string, vault: string, command: string) => JSON.stringify([owner, vault, command]);
+function stable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
+  if (value !== null && typeof value === 'object')
+    return `{${Object.entries(value)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${JSON.stringify(k)}:${stable(v)}`)
+      .join(',')}}`;
+  return JSON.stringify(value);
+}
+function vaultState(v: ProductVault): string {
+  return stable({
+    vaultId: v.vaultId,
+    ownerId: v.ownerId,
+    strategyId: v.strategyId,
+    scope: v.scope,
+    status: v.status,
+    revision: v.revision,
+    passBalance: v.passBalance,
+    balances: v.balances,
+    pendingOperations: [...v.pendingOperations].sort((a, b) =>
+      `${a.kind}:${a.operationId}`.localeCompare(`${b.kind}:${b.operationId}`),
+    ),
+  });
+}
 export class ProductAdapter {
   readonly client: ProductClient;
-  mode: 'unknown' | 'v1' | 'legacy' = 'unknown';
+  private projection: Projection | null = null;
   private readonly transport: ApiRequest;
   private readonly now: () => number;
-  private detection: Promise<void> | null = null;
-  private owner: Identity | null = null;
-  private vaults = new Map<string, ProductVault>();
-  private strategies: StrategySummary[] = [];
-  private account: AccountSummary | null = null;
-  private details: StrategyDetail[] = [];
-  private audit = new Map<string, AuditEvent>();
   private blockedUntil = 0;
   private readonly storage: ClientStorage;
   private readonly retryKey = 'quantpass.local.retry-after.v1';
   constructor(options: { request?: ApiRequest; storage?: ClientStorage; now?: () => number } = {}) {
     this.transport = options.request ?? api;
     this.now = options.now ?? Date.now;
-    // Resolve browser storage only during an operation, so the shell/status can mount
-    // even when accessing window.localStorage itself is denied.
     this.storage = options.storage ?? {
       getItem: (key) => localStorage.getItem(key),
       setItem: (key, value) => localStorage.setItem(key, value),
       removeItem: (key) => localStorage.removeItem(key),
     };
-    this.client = new ProductClient({ request: this.request, storage: this.storage });
+    this.client = new ProductClient({
+      request: this.request,
+      storage: this.storage,
+      beginRead: (current) => this.beginRead(current),
+    });
+    this.client.subscribe((snapshot) => {
+      if (snapshot.user === null) this.projection = null;
+    });
+  }
+  get mode(): 'unknown' | 'v1' | 'legacy' {
+    return this.projection?.mode ?? 'unknown';
   }
   private readRetryDeadline(): void {
     let deadline: string | null;
@@ -247,27 +282,23 @@ export class ProductAdapter {
     if (deadline === null) return;
     if (!/^(0|[1-9][0-9]*)$/.test(deadline) || !Number.isSafeInteger(Number(deadline)))
       throw new ApiError('INVALID_RETRY_AFTER_STORAGE', 503);
-    // Never shorten a known cooldown. A later refresh rereads recovered storage.
     this.blockedUntil = Math.max(this.blockedUntil, Number(deadline));
   }
-
   get retryAfterSeconds(): number {
     return Math.max(0, Math.ceil((this.blockedUntil - this.now()) / 1000));
   }
   get snapshot(): CanonicalSnapshot {
-    const s = this.client.snapshot,
-      owned = s.user === this.owner;
+    const s = this.client.snapshot;
+    const p = this.projection?.owner === s.user ? this.projection : null;
     return structuredClone({
       ...s,
       strategies: s.strategies.map(
-        (v) => this.strategies.find((x) => x.strategyId === v.id) ?? { ...v, strategyId: v.id },
+        (v) => p?.strategies.find((x) => x.strategyId === v.id) ?? { ...v, strategyId: v.id },
       ),
-      vaults: s.vaults.map((v) =>
-        owned ? (this.vaults.get(v.id) ?? fromLegacyVault(v)) : fromLegacyVault(v),
-      ),
+      vaults: s.vaults.map((v) => p?.vaults.get(v.id) ?? fromLegacyVault(v)),
       audit: s.audit.map(
         (e) =>
-          this.audit.get(e.command_id) ?? {
+          p?.audit.get(auditKey(s.user!, s.selectedVaultId!, e.command_id)) ?? {
             commandId: e.command_id,
             commandType: e.command_type,
             actorId: e.actor_id,
@@ -275,72 +306,67 @@ export class ProductAdapter {
             recordedAt: e.recorded_at,
           },
       ),
-      account: owned ? structuredClone(this.account) : null,
-      details: owned ? structuredClone(this.details) : [],
+      account: p?.account ?? null,
+      details: p?.details ?? [],
     });
   }
-  private async send<T>(path: string, body?: unknown): Promise<T> {
+  private async send<T>(path: string, body?: unknown, current: () => boolean = () => true): Promise<T> {
+    if (!current()) invalid('STALE_READ');
     this.readRetryDeadline();
     if (this.retryAfterSeconds) throw new ApiError('RATE_LIMITED', 429, String(this.retryAfterSeconds));
     try {
-      return await this.transport<T>(path, body);
+      const result = await this.transport<T>(path, body);
+      if (!current()) invalid('STALE_READ');
+      return result;
     } catch (error) {
-      if (error instanceof ApiError && error.status === 429) {
+      // Cooldown is server-wide operational state, separate from owner projection.
+      // A discarded generation cannot alter it, and a shorter reply cannot shorten it.
+      if (current() && error instanceof ApiError && error.status === 429) {
         const raw = error.retryAfter;
         const delay = raw && /^\d+$/.test(raw) ? Number(raw) * 1000 : raw ? Date.parse(raw) - this.now() : 0;
         if (Number.isFinite(delay) && delay > 0) {
-          this.blockedUntil = this.now() + delay;
+          this.blockedUntil = Math.max(this.blockedUntil, this.now() + delay);
           this.storage.setItem(this.retryKey, String(this.blockedUntil));
         }
       }
       throw error;
     }
   }
-  private async pages(path: string, first?: unknown): Promise<unknown[]> {
-    const results: unknown[] = [],
+  private async catalogue(
+    current: () => boolean,
+  ): Promise<{ mode: 'v1' | 'legacy'; strategies: StrategySummary[] }> {
+    if (this.mode === 'legacy') return { mode: 'legacy', strategies: [] };
+    const values: StrategySummary[] = [],
       seen = new Set<string>();
     let cursor: string | null = null;
-    for (let count = 0; count < 1000; count++) {
-      const value = object(
-        count === 0 && first !== undefined
-          ? first
-          : await this.send(
-              `${path}?limit=100${cursor === null ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
-            ),
-      );
+    for (let page = 0; page < 1000; page++) {
+      let raw: unknown;
+      try {
+        raw = await this.send(
+          `/v1/strategies?limit=100${cursor === null ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
+          undefined,
+          current,
+        );
+      } catch (error) {
+        if (page === 0 && this.mode === 'unknown' && error instanceof ApiError && error.status === 404)
+          return { mode: 'legacy', strategies: [] };
+        throw error;
+      }
+      const value = object(raw);
       if (!Array.isArray(value.items) || !(value.nextCursor === null || typeof value.nextCursor === 'string'))
         invalid('INVALID_PAGINATION_RESPONSE');
-      results.push(...(value.items as unknown[]));
-      if (results.length > 100000) invalid('INVALID_PAGINATION_RESPONSE');
-      if (value.nextCursor === null) return results;
+      values.push(...(value.items as unknown[]).map((item) => this.strategy(item)));
+      if (values.length > 100000) invalid('INVALID_PAGINATION_RESPONSE');
+      if (value.nextCursor === null) {
+        if (new Set(values.map((v) => v.strategyId)).size !== values.length)
+          invalid('RESPONSE_CONTEXT_MISMATCH');
+        return { mode: 'v1', strategies: values };
+      }
       cursor = string(value.nextCursor);
       if (!cursor || seen.has(cursor)) invalid('INVALID_PAGINATION_RESPONSE');
       seen.add(cursor);
     }
     return invalid('INVALID_PAGINATION_RESPONSE');
-  }
-  private async detect(): Promise<void> {
-    if (this.mode !== 'unknown') return;
-    this.detection ??= (async () => {
-      let first: unknown;
-      try {
-        first = await this.send('/v1/strategies?limit=100');
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 404) {
-          this.mode = 'legacy';
-          return;
-        }
-        throw error;
-      }
-      const values = await this.pages('/v1/strategies', first);
-      this.strategies = values.map((v) => this.strategy(v));
-      this.mode = 'v1';
-    })();
-    try {
-      await this.detection;
-    } finally {
-      this.detection = null;
-    }
   }
   private strategy(value: unknown): StrategySummary {
     const s = object(value);
@@ -351,120 +377,244 @@ export class ProductAdapter {
     if (s.scope !== 'TEST_ONLY') invalid();
     return structuredClone(value) as StrategySummary;
   }
-  private normalize(value: unknown): Vault {
-    if (!this.owner) invalid('RESPONSE_CONTEXT_MISMATCH');
-    const v = canonicalVault(value, this.owner!);
-    this.vaults.set(v.vaultId, v);
-    return fromCanonicalVault(v, this.owner!);
-  }
-  private async loadAccount(): Promise<void> {
-    const value = object(await this.send('/v1/account'));
+  private canonical(raw: unknown, owner: Identity, strategies: StrategySummary[]): Projection {
+    const value = object(raw),
+      account = object(value.account);
     if (
-      value.ownerId !== this.owner ||
-      !Array.isArray(value.strategies) ||
-      !Array.isArray(value.passBalances)
+      value.schemaVersion !== 1 ||
+      value.scope !== 'TEST_ONLY' ||
+      value.ownerId !== owner ||
+      account.ownerId !== owner ||
+      !Array.isArray(value.vaults) ||
+      !Array.isArray(value.details) ||
+      !Array.isArray(value.audit) ||
+      !Array.isArray(account.strategies) ||
+      !Array.isArray(account.passBalances) ||
+      !Array.isArray(account.vaults)
     )
       invalid('RESPONSE_CONTEXT_MISMATCH');
-    for (const assoc of value.strategies as unknown[]) {
-      if (object(assoc).ownerId !== this.owner) invalid('RESPONSE_CONTEXT_MISMATCH');
+    const vaults = new Map<string, ProductVault>();
+    for (const item of value.vaults as unknown[]) {
+      const vault = canonicalVault(item, owner);
+      if (vaults.has(vault.vaultId) || !strategies.some((s) => s.strategyId === vault.strategyId))
+        invalid('RESPONSE_CONTEXT_MISMATCH');
+      vaults.set(vault.vaultId, vault);
     }
-    // Account's complete relationship/pass projections are authoritative; consume its optional vault pagination too.
-    const allVaults: unknown[] = [...(Array.isArray(value.vaults) ? value.vaults : [])];
-    let cursor = object(value.pagination ?? { nextCursor: null }).nextCursor;
-    const seen = new Set<string>();
-    while (cursor !== null) {
-      if (typeof cursor !== 'string' || !cursor || seen.has(cursor) || seen.size >= 1000)
-        invalid('INVALID_PAGINATION_RESPONSE');
-      seen.add(cursor as string);
-      const next = object(
-        await this.send(`/v1/account?limit=100&cursor=${encodeURIComponent(cursor as string)}`),
-      );
-      if (next.ownerId !== this.owner || !Array.isArray(next.vaults)) invalid('RESPONSE_CONTEXT_MISMATCH');
-      allVaults.push(...(next.vaults as unknown[]));
-      cursor = object(next.pagination).nextCursor;
+    const revisions = object(value.revisions);
+    if (
+      Object.keys(revisions).length !== vaults.size ||
+      [...vaults].some(([id, v]) => revisions[id] !== v.revision)
+    )
+      invalid('RESPONSE_CONTEXT_MISMATCH');
+    const accountVaults = (account.vaults as unknown[]).map((v) => canonicalVault(v, owner));
+    if (
+      accountVaults.length !== vaults.size ||
+      new Set(accountVaults.map((v) => v.vaultId)).size !== vaults.size ||
+      accountVaults.some(
+        (v) => !vaults.has(v.vaultId) || vaultState(v) !== vaultState(vaults.get(v.vaultId)!),
+      )
+    )
+      invalid('RESPONSE_CONTEXT_MISMATCH');
+    const relations = new Map<string, Record<string, unknown>>();
+    for (const item of account.strategies as unknown[]) {
+      const a = object(item),
+        strategy = string(a.strategyId);
+      const vault = [...vaults.values()].find((v) => v.strategyId === strategy);
+      if (
+        a.ownerId !== owner ||
+        relations.has(strategy) ||
+        a.vaultId !== (vault?.vaultId ?? null) ||
+        a.status !== (vault?.status ?? 'not_started')
+      )
+        invalid('RESPONSE_CONTEXT_MISMATCH');
+      relations.set(strategy, a);
     }
-    for (const v of allVaults) canonicalVault(v, this.owner!);
-    this.account = structuredClone({ ...value, vaults: allVaults }) as unknown as AccountSummary;
-    this.details = await Promise.all(
-      this.strategies.map(async (s) => {
-        const d = object(await this.send(`/v1/strategies/${encodeURIComponent(s.strategyId)}`));
-        this.strategy(d);
-        if (d.strategyId !== s.strategyId) invalid('RESPONSE_CONTEXT_MISMATCH');
-        if (d.accountStrategy !== null) {
-          const a = object(d.accountStrategy);
-          if (a.ownerId !== this.owner || a.strategyId !== s.strategyId) invalid('RESPONSE_CONTEXT_MISMATCH');
+    for (const pass of account.passBalances as unknown[]) {
+      const p = object(pass);
+      string(p.strategyId);
+      money(p.total);
+      money(p.allowance);
+      const vault = [...vaults.values()].find((v) => v.strategyId === p.strategyId);
+      if (
+        p.total !== (vault?.passBalance.total ?? '0') ||
+        p.allowance !== (vault?.passBalance.allowance ?? '0')
+      )
+        invalid('RESPONSE_CONTEXT_MISMATCH');
+    }
+    const all = [...vaults.values()];
+    if (
+      relations.size !== strategies.length ||
+      strategies.some((s) => !relations.has(s.strategyId)) ||
+      (account.passBalances as unknown[]).length !== strategies.length ||
+      new Set((account.passBalances as Record<string, unknown>[]).map((p) => p.strategyId)).size !==
+        strategies.length ||
+      new Set(all.map((v) => v.strategyId)).size !== all.length ||
+      account.scope !== 'TEST_ONLY' ||
+      object(account.identity).id !== owner ||
+      object(account.identity).mode !== 'DEMO' ||
+      account.vaultCount !== vaults.size ||
+      account.passes !== all.reduce((sum, v) => sum + BigInt(v.passBalance.total), 0n).toString() ||
+      account.idle !== all.reduce((sum, v) => sum + BigInt(String(v.balances.idle)), 0n).toString()
+    )
+      invalid('RESPONSE_CONTEXT_MISMATCH');
+    const totals = object(account.balances);
+    for (const key of [
+      'reserved',
+      'pending',
+      'unrealized',
+      'activeGross',
+      'activeNet',
+      'equity',
+      'allowance',
+    ])
+      if (totals[key] !== all.reduce((sum, v) => sum + BigInt(String(v.balances[key])), 0n).toString())
+        invalid('RESPONSE_CONTEXT_MISMATCH');
+    const status = all.some((v) => v.status === 'stopping')
+      ? 'stopping'
+      : all.some((v) => v.status === 'running')
+        ? 'running'
+        : all.length
+          ? 'stopped'
+          : null;
+    if (account.status !== status) invalid('RESPONSE_CONTEXT_MISMATCH');
+    const details = (value.details as unknown[]).map((item) => {
+      const d = object(item),
+        summary = this.strategy(d);
+      if (!strategies.some((s) => s.strategyId === summary.strategyId)) invalid('RESPONSE_CONTEXT_MISMATCH');
+      const a = relations.get(summary.strategyId);
+      if (!a || (d.accountStrategy === null ? a.vaultId !== null : stable(d.accountStrategy) !== stable(a)))
+        invalid('RESPONSE_CONTEXT_MISMATCH');
+      return structuredClone(d) as unknown as StrategyDetail;
+    });
+    if (
+      details.length !== strategies.length ||
+      new Set(details.map((d) => d.strategyId)).size !== strategies.length
+    )
+      invalid('RESPONSE_CONTEXT_MISMATCH');
+    const audit = new Map<string, AuditEvent>();
+    for (const item of value.audit as unknown[]) {
+      const e = object(item),
+        vault = vaults.get(string(e.vaultId));
+      const key = auditKey(owner, string(e.vaultId), string(e.commandId));
+      const executor = [
+        'reserveBuy',
+        'fillBuy',
+        'markPosition',
+        'settlePosition',
+        'confirmWithdrawal',
+        'payFees',
+      ].includes(string(e.commandType));
+      string(e.recordedAt);
+      if (
+        !vault ||
+        e.ownerId !== owner ||
+        e.actorId !== (executor ? 'local-simulator' : owner) ||
+        !Number.isSafeInteger(e.revision) ||
+        Number(e.revision) < 1 ||
+        Number(e.revision) > vault.revision ||
+        audit.has(key)
+      )
+        invalid('RESPONSE_CONTEXT_MISMATCH');
+      audit.set(key, structuredClone(e) as AuditEvent);
+    }
+    return {
+      owner,
+      mode: 'v1',
+      strategies,
+      vaults,
+      account: structuredClone(account) as unknown as AccountSummary,
+      details,
+      audit,
+    };
+  }
+  private beginRead(isCurrent: () => boolean) {
+    let closed = false,
+      owner: Identity | null = null,
+      staged: Projection | null = null;
+    let loading: Promise<Projection> | null = null;
+    const current = () => !closed && isCurrent();
+    const load = () =>
+      (loading ??= (async () => {
+        if (!owner) return invalid('RESPONSE_CONTEXT_MISMATCH');
+        const catalogue = await this.catalogue(current);
+        if (catalogue.mode === 'legacy')
+          return (staged = {
+            owner,
+            mode: 'legacy',
+            strategies: [],
+            vaults: new Map(),
+            account: null,
+            details: [],
+            audit: new Map(),
+          });
+        const value = await this.send('/v1/product-snapshot', undefined, current);
+        return (staged = this.canonical(value, owner, catalogue.strategies));
+      })());
+    const request: ApiRequest = async <T>(path: string, body?: unknown): Promise<T> => {
+      if (body !== undefined) invalid('READ_TRANSACTION_WRITE');
+      if (path === '/session') {
+        const value = await this.send<{ user: Identity }>(path, undefined, current);
+        if (value.user !== 'alice' && value.user !== 'bob') invalid('RESPONSE_CONTEXT_MISMATCH');
+        owner = value.user;
+        return value as T;
+      }
+      const p = await load();
+      if (p.mode === 'legacy') return this.send<T>(path, undefined, current);
+      if (path === '/strategies') return p.strategies.map((v) => ({ ...v, id: v.strategyId })) as T;
+      if (path === '/vaults') return [...p.vaults.values()].map((v) => fromCanonicalVault(v, p.owner)) as T;
+      const match = path.match(/^\/vaults\/([a-zA-Z0-9_-]+)(\/audit)?$/);
+      if (!match || !p.vaults.has(match[1]!)) return invalid('RESPONSE_CONTEXT_MISMATCH');
+      if (!match[2]) return fromCanonicalVault(p.vaults.get(match[1]!)!, p.owner) as T;
+      return [...p.audit.values()]
+        .filter((e) => e.vaultId === match[1])
+        .map((e): LedgerAudit => ({
+          command_id: e.commandId,
+          command_type: e.commandType,
+          actor_id: e.actorId,
+          revision: e.revision,
+          recorded_at: e.recordedAt,
+        })) as T;
+    };
+    return {
+      request,
+      commit: () => {
+        if (!current() || !staged) invalid('STALE_READ');
+        const next = staged!;
+        if (this.projection?.owner === next.owner) {
+          for (const [id, value] of next.vaults) {
+            const previous = this.projection.vaults.get(id);
+            if (
+              previous &&
+              (value.revision < previous.revision ||
+                (value.revision === previous.revision && vaultState(value) !== vaultState(previous)))
+            )
+              invalid('RESPONSE_CONTEXT_MISMATCH');
+          }
+          for (const [key, value] of next.audit) {
+            const previous = this.projection.audit.get(key);
+            if (previous && stable(value) !== stable(previous)) invalid('RESPONSE_CONTEXT_MISMATCH');
+          }
         }
-        return structuredClone(d) as unknown as StrategyDetail;
-      }),
-    );
+        this.projection = next;
+        closed = true;
+      },
+      discard: () => {
+        closed = true;
+      },
+    };
   }
   readonly request: ApiRequest = async <T>(path: string, body?: unknown): Promise<T> => {
-    if (path === '/session' || path === '/demo/session') {
-      if (path === '/demo/session') {
-        this.owner = null;
-        this.vaults.clear();
-        this.account = null;
-        this.details = [];
-        this.audit.clear();
-      }
-      const result = await this.send<{ user: Identity }>(path, body);
-      if (result.user !== this.owner) {
-        this.vaults.clear();
-        this.account = null;
-        this.details = [];
-        this.audit.clear();
-      }
-      this.owner = result.user;
-      return result as T;
-    }
-    await this.detect();
-    if (this.mode === 'legacy') return this.send<T>(path, body);
-    if (path === '/strategies') {
-      this.strategies = (await this.pages('/v1/strategies')).map((v) => this.strategy(v));
-      return this.strategies.map((v) => ({ ...v, id: v.strategyId })) as T;
-    }
-    if (path === '/vaults' && body === undefined) {
-      const list = await this.pages('/v1/vaults');
-      await this.loadAccount();
-      return list.map((v) => this.normalize(v)) as T;
-    }
-    if (path.endsWith('/audit')) {
-      const vaultId = path.split('/')[2];
-      const ownedVault = this.vaults.get(vaultId ?? '');
-      if (!ownedVault || ownedVault.ownerId !== this.owner) invalid('RESPONSE_CONTEXT_MISMATCH');
-      const rows = await this.pages(`/v1${path}`);
-      return rows.map((value) => {
-        const e = object(value);
-        if (e.ownerId !== undefined && e.ownerId !== this.owner) invalid('RESPONSE_CONTEXT_MISMATCH');
-        if (e.vaultId !== undefined && e.vaultId !== vaultId) invalid('RESPONSE_CONTEXT_MISMATCH');
-        const row: LedgerAudit = {
-          command_id: string(e.commandId),
-          command_type: string(e.commandType),
-          actor_id: string(e.actorId),
-          revision: Number(e.revision),
-          recorded_at: string(e.recordedAt),
-        };
-        const executor = [
-          'reserveBuy',
-          'fillBuy',
-          'markPosition',
-          'settlePosition',
-          'confirmWithdrawal',
-          'payFees',
-        ].includes(row.command_type);
-        const expectedActor = executor ? 'local-simulator' : this.owner;
-        if (row.actor_id !== expectedActor || !Number.isSafeInteger(row.revision) || row.revision < 1)
-          invalid('RESPONSE_CONTEXT_MISMATCH');
-        this.audit.set(row.command_id, structuredClone(e) as AuditEvent);
-        return row;
-      }) as T;
-    }
-    const result = await this.send<unknown>(`/v1${path}`, body);
+    if (path === '/session' || path === '/demo/session') return this.send<T>(path, body);
+    const mode = this.mode === 'unknown' ? (await this.catalogue(() => true)).mode : this.mode;
+    if (mode === 'legacy') return this.send<T>(path, body);
+    const raw = await this.send<unknown>(`/v1${path}`, body);
+    const owner = this.client.snapshot.user;
+    if (!owner) return invalid('RESPONSE_CONTEXT_MISMATCH');
     if (path.endsWith('/commands')) {
-      const r = object(result);
-      if (typeof r.replayed !== 'boolean') invalid();
-      return { vault: this.normalize(r.vault), replayed: r.replayed } as T;
+      const result = object(raw);
+      if (typeof result.replayed !== 'boolean') invalid();
+      return { vault: fromCanonicalVault(result.vault, owner), replayed: result.replayed } as T;
     }
-    return this.normalize(result) as T;
+    return fromCanonicalVault(raw, owner) as T;
   };
 }

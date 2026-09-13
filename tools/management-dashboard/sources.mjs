@@ -320,7 +320,7 @@ function parseGitHubActionsContext(environment, baseBranch, recordedBranch) {
     const branch = githubBranchRef(values.GITHUB_REF);
     if (!emptyGitHubPullRefs(values)) throw new SourceError('RECORDED_GIT_CI_CONTEXT_INVALID');
     if (branch === recordedBranch) return { kind: 'branch', branch, sha: values.GITHUB_SHA };
-    if (values.GITHUB_EVENT_NAME === 'push' && branch === baseBranch && recordedBranch !== baseBranch)
+    if (branch === baseBranch && recordedBranch !== baseBranch)
       return { kind: 'integrated_branch', branch, sha: values.GITHUB_SHA };
     throw new SourceError('RECORDED_GIT_CI_CONTEXT_INVALID');
   }

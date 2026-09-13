@@ -564,3 +564,87 @@ test('local HTTP rate limit returns 429 with an explicit Retry-After', async (t)
   assert.equal(response.headers['retry-after'], '60');
   assert.deepEqual(response.json(), { error: 'RATE_LIMITED' });
 });
+
+test('PR11-P3 product snapshot isolates owners and correlates account, vaults, relations and audit', async (t) => {
+  const h = await productHarness();
+  t.after(() => h.app.close());
+  const alice = await h.login(),
+    bob = await h.login('bob');
+  const a = await h.claim(alice),
+    b = await h.claim(alice, 'satellite-flow-demo');
+  for (const [vault, amount] of [
+    [a, '100'],
+    [b, '200'],
+  ] as const)
+    assert.equal(
+      (
+        await h.request(alice, `/api/vaults/${vault.id}/commands`, {
+          id: 'same',
+          type: 'deposit',
+          expectedRevision: 0,
+          amount,
+        })
+      ).statusCode,
+      200,
+    );
+  const response = await h.request(alice, '/api/v1/product-snapshot');
+  assert.equal(response.statusCode, 200);
+  const value = response.json();
+  assert.equal(value.account.idle, '300');
+  assert.equal(value.ownerId, 'alice');
+  assert.equal(value.vaults.length, 2);
+  assert.deepEqual(value.account.vaults, value.vaults);
+  assert.equal(value.audit.length, 2);
+  assert.equal(new Set(value.audit.map((e: { vaultId: string }) => e.vaultId)).size, 2);
+  for (const vault of value.vaults) {
+    assert.equal(value.revisions[vault.vaultId], vault.revision);
+    assert.equal(
+      value.details.find((d: { strategyId: string }) => d.strategyId === vault.strategyId).accountStrategy
+        .vaultId,
+      vault.vaultId,
+    );
+  }
+  const other = (await h.request(bob, '/api/v1/product-snapshot')).json();
+  assert.equal(other.ownerId, 'bob');
+  assert.deepEqual(other.vaults, []);
+  assert.deepEqual(other.audit, []);
+  assert.equal((await h.request('', '/api/v1/product-snapshot')).statusCode, 401);
+  assert.equal((await h.request(alice, '/api/v1/product-snapshot?ownerId=bob')).statusCode, 400);
+});
+
+test('PR11-P3 external SQLite write during snapshot construction cannot mix account/vault/audit moments', async (t) => {
+  const { LocalStore } = await import('../apps/server/src/store.ts');
+  const h = await productHarness();
+  const peer = new LocalStore(h.path);
+  t.after(async () => {
+    peer.db.close();
+    await h.app.close();
+  });
+  const alice = await h.login(),
+    vault = await h.claim(alice);
+  let injected = false;
+  const audit = h.store.auditPage.bind(h.store);
+  h.store.auditPage = (...args) => {
+    if (!injected) {
+      injected = true;
+      peer.command(
+        'alice',
+        vault.id,
+        { id: 'alice', role: 'owner' },
+        { id: 'between-reads', type: 'deposit', expectedRevision: 0, amount: '23' },
+      );
+    }
+    return audit(...args);
+  };
+  const first = await h.request(alice, '/api/v1/product-snapshot');
+  assert.equal(first.statusCode, 200);
+  assert.equal(injected, true);
+  const old = first.json();
+  assert.equal(old.vaults[0].revision, 0);
+  assert.equal(old.account.idle, '0');
+  assert.deepEqual(old.audit, []);
+  const next = (await h.request(alice, '/api/v1/product-snapshot')).json();
+  assert.equal(next.vaults[0].revision, 1);
+  assert.equal(next.account.idle, '23');
+  assert.equal(next.audit[0].commandId, 'between-reads');
+});

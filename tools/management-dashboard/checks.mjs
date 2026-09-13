@@ -37,6 +37,8 @@ const unitTests = [
   'test/agent-security-regressions.test.mjs',
   'test/agent-identity-bypass.test.mjs',
   'test/migration-provenance.test.mjs',
+  'test/agent-identity-lifecycle.test.mjs',
+  'test/ui-product-adapter-races.test.ts',
 ];
 
 function executable(id, file, args, timeoutMs, profiles = ['quick', 'full']) {

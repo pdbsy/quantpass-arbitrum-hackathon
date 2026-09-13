@@ -1,5 +1,7 @@
 # PR 11 engineering closeout
 
+> Historical pre-review checkpoint. The later [remediation record](PR11-REMEDIATION.md) supersedes the status and merge authorization below, including the user's explicit waiver of human approval.
+
 Status: **TECHNICALLY_READY_EXTERNAL_REVIEW_REQUIRED**, subject to the final-head gates recorded in PR 11. Change Draft to Ready for Review only after those checks pass. No merge, deployment, broadcast or real funds.
 
 Canonical repository: `pdbsy/quantpass-arbitrum-hackathon`. Branch: `macbeth01/AF-MIGRATION-repository-consolidation`. Base: `cf2284af320461bb416b17fe4fb00a73f8ffdd68`. The PR body and final local report bind each executed gate to the final HEAD; this source document cannot contain its own commit SHA.
