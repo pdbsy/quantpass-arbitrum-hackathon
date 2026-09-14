@@ -1,14 +1,15 @@
-> Canonical repository: `pdbsy/quantpass-arbitrum-hackathon`. Migration task AF-MIGRATION takes precedence over historical setup defaults. Check actual origin before any work. Existing user UI adaptations are protected. No new worker task, merge or chain transaction is authorized by this document.
+> Current M3 assignments and verified task receipts are recorded in [M3-ASSIGNMENTS.md](M3-ASSIGNMENTS.md). They supersede historical migration/setup defaults only within the user-assigned scope.
 
 # AlphaForge persistent worker protocol
 
-Protocol version: 1.0.0  
+Protocol version: 1.1.0
+
 Setup task: AF-AGENT-SETUP  
 Default branch: `master`
 
 ## Identity and isolation
 
-The fixed workers are Macbeth01 through Macbeth05. Their branch prefixes are `macbeth01/` through `macbeth05/`. Names and prefixes are case-sensitive.
+The fixed workers are Macbeth01 through Macbeth05. Current prefixes are `macbeth01/`, `02/`, `03/`, `04/`, `05/`. Historical `macbeth02/` through `macbeth05/` remain valid provenance aliases for the same identities. Names and prefixes are case-sensitive.
 
 One Chat = One Worker. One Worker = One Worktree. One Task = One Branch. One Branch = One Pull Request.
 
@@ -24,7 +25,7 @@ Unknown local changes are protected work. Do not reset, clean, overwrite or refo
 
 Before coding, publish a Task Intake with Agent, Task, Goal, Scope, Expected Files, Protected Files, Dependencies, Risks and Acceptance Criteria. Use the worker branch prefix. Create a Draft PR before substantive development and maintain it as the public work log.
 
-Commit subjects contain the exact worker ID, for example `feat(AF-042): [Macbeth03] implement vault adapter`. Commit bodies contain exactly one `Agent-ID: Macbeth03` and one matching `Task-ID: AF-042`. PR titles use `[Macbeth03][AF-042] Description`. CI validates these fields on `macbethXX/` branches. The check is advisory until a repository administrator makes it a Required Check.
+Commit subjects contain the exact worker ID, for example `feat(AF-042): [Macbeth03] implement vault adapter`. Commit bodies contain exactly one `Agent-ID: Macbeth03` and one matching `Task-ID: AF-042`. PR titles use `[Macbeth03][AF-042] Description`. CI validates these fields on both historical and numbered worker branches. New M3 tasks use `M3-0N-<TASK>` with the number bound to the same Agent-ID; old `AF-*` tasks remain valid. The check is advisory until a repository administrator makes it a Required Check.
 
 Never force-push, rewrite existing authorship, weaken checks, change rulesets, or self-merge. End work at `READY FOR REVIEW`.
 
@@ -34,7 +35,7 @@ Every PR records Agent, Task, Goal, Current Status, Completed work, Changed File
 
 ## Source of truth and communication
 
-Priority: current user instruction; safety and data protection; actual default branch; merged PRs; open PRs; PR comments/reviews/checks; formal plans; task files; worker defaults. GitHub PR descriptions, comments, reviews, checks and published commits are the only shared worker channel. See [COMMUNICATION.md](COMMUNICATION.md).
+Priority: current user instruction; safety and data protection; actual default branch; merged PRs; open PRs; PR comments/reviews/checks; formal plans; task files; worker defaults. GitHub PR descriptions, comments, reviews, checks and published commits are the public evidence channel. User-authorized manager task messages can coordinate the assigned work; an app task receipt is not a public Forum ACK or independent review. See [COMMUNICATION.md](COMMUNICATION.md).
 
 ## Protected scope and security
 

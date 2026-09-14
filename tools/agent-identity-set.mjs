@@ -1,6 +1,5 @@
-import { validateCommitIdentity, validateCommitProvenance } from './agent-identity.mjs';
+import { agentForBranch, validateCommitIdentity, validateCommitProvenance } from './agent-identity.mjs';
 
-const WORKER_BRANCH = /^macbeth0[1-5]\//;
 const WORKER_LABEL = /\[Macbeth/i;
 const WORKER_TRAILER = /^(?:Agent-ID|Task-ID):/im;
 const declaresWorker = (commit) =>
@@ -22,8 +21,8 @@ export function validateCommitSetIdentity({
     for (const commit of attributed) validateCommitProvenance(commit);
     return { skipped: false, verified: attributed.length };
   }
-  if (!WORKER_BRANCH.test(branch)) {
-    if (declaredWorker || /^macbeth/i.test(branch))
+  if (!agentForBranch(branch)) {
+    if (declaredWorker || /^(?:macbeth|[0-9]{2}\/)/i.test(branch))
       throw new Error('Worker identity requires a registered worker branch prefix');
     return { skipped: true, verified: 0 };
   }

@@ -11,7 +11,20 @@ const SESSION_STATUSES = new Set([
 const CONFIRMATION_STATUSES = new Set(['UNVERIFIED', 'VERIFIED']);
 const COMMUNICATION_STATUSES = new Set(['UNVERIFIED', 'COMMUNICATION_VERIFIED', 'BLOCKED']);
 const RUNTIME_STATUSES = new Set(['ACTIVE', 'READY', 'BLOCKED', 'IDLE']);
-const TASK_PATTERN = /^AF-[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
+const LEGACY_TASK_PATTERN = /^AF-[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
+
+export function agentForBranch(branch) {
+  if (typeof branch !== 'string') return null;
+  const match = branch.match(/^(?:macbeth(0[1-5])|(0[2-5]))\//);
+  return match ? `Macbeth${match[1] ?? match[2]}` : null;
+}
+
+export function taskMatchesAgent(task, agentId) {
+  if (typeof task !== 'string' || !AGENT_SET.has(agentId)) return false;
+  if (LEGACY_TASK_PATTERN.test(task)) return true;
+  const match = task.match(/^M3-(0[1-5])-[A-Z0-9]+(?:-[A-Z0-9]+)*$/);
+  return Boolean(match && `Macbeth${match[1]}` === agentId);
+}
 
 function fail(message) {
   throw new Error(`Agent identity validation failed: ${message}`);
@@ -33,7 +46,10 @@ export function validateRegistry(value) {
       fail(`unexpected agent at index ${index}`);
     if (seen.has(agent.agent_id)) fail(`duplicate agent ${agent.agent_id}`);
     seen.add(agent.agent_id);
-    if (agent.branch_prefix !== `${agent.agent_id.toLowerCase()}/`)
+    if (
+      agent.branch_prefix !== `${agent.agent_id.toLowerCase()}/` &&
+      !(agent.agent_id !== 'Macbeth01' && agent.branch_prefix === `${agent.agent_id.slice(-2)}/`)
+    )
       fail(`${agent.agent_id} has an invalid branch prefix`);
     if (!WORKSPACE_STATUSES.has(agent.workspace_status))
       fail(`${agent.agent_id} has an invalid workspace status`);
@@ -42,7 +58,7 @@ export function validateRegistry(value) {
       fail(`${agent.agent_id} has an invalid confirmation status`);
     if (!COMMUNICATION_STATUSES.has(agent.communication_status))
       fail(`${agent.agent_id} has an invalid communication status`);
-    if (agent.current_task !== 'NONE' && !TASK_PATTERN.test(agent.current_task))
+    if (agent.current_task !== 'NONE' && !taskMatchesAgent(agent.current_task, agent.agent_id))
       fail(`${agent.agent_id} has an invalid current task`);
     if (!RUNTIME_STATUSES.has(agent.runtime_status)) fail(`${agent.agent_id} has an invalid runtime status`);
     return { ...agent };
@@ -76,8 +92,8 @@ export function validateCommitProvenance({ subject, body }) {
   const bodyAgent = oneMatch(body, /^Agent-ID:\s*(\S+)\s*$/gm, 'commit body Agent-ID');
   const bodyTask = oneMatch(body, /^Task-ID:\s*(\S+)\s*$/gm, 'commit body Task-ID');
   if (!AGENT_SET.has(subjectAgent) || !AGENT_SET.has(bodyAgent)) fail('commit contains an unknown agent');
-  if (!TASK_PATTERN.test(bodyTask)) fail('commit contains an invalid task ID');
-  const subjectTasks = [...subject.matchAll(/(?:\[|\()(AF-[A-Z0-9]+(?:-[A-Z0-9]+)*)(?:\]|\))/g)];
+  if (!taskMatchesAgent(bodyTask, bodyAgent)) fail('commit contains an invalid task ID');
+  const subjectTasks = [...subject.matchAll(/(?:\[|\()((?:AF|M3)-[A-Z0-9]+(?:-[A-Z0-9]+)*)(?:\]|\))/g)];
   if (subjectTasks.some((match) => match[1] !== bodyTask))
     fail('commit subject and trailer task IDs do not match');
   if (subjectAgent !== bodyAgent) fail('subject and body agent do not match');
@@ -86,14 +102,13 @@ export function validateCommitProvenance({ subject, body }) {
 
 export function validateCommitIdentity({ branch, prTitle = null, subject, body }) {
   if (typeof branch !== 'string') fail('branch is required');
-  const branchPrefix = branch.match(/^(macbeth0[1-5])\//)?.[1];
-  if (!branchPrefix) fail('branch must use a registered worker prefix');
-  const branchAgent = `Macbeth${branchPrefix.slice(-2)}`;
+  const branchAgent = agentForBranch(branch);
+  if (!branchAgent) fail('branch must use a registered worker prefix');
   const { agentId, taskId: bodyTask } = validateCommitProvenance({ subject, body });
   if (agentId !== branchAgent) fail('branch and commit agent do not match');
   if (prTitle !== null) {
     if (typeof prTitle !== 'string') fail('PR title must be text');
-    const match = prTitle.match(/^\[(Macbeth\d{2})\]\[(AF-[A-Z0-9]+(?:-[A-Z0-9]+)*)\]\s+\S/);
+    const match = prTitle.match(/^\[(Macbeth\d{2})\]\[((?:AF|M3)-[A-Z0-9]+(?:-[A-Z0-9]+)*)\]\s+\S/);
     if (!match || !AGENT_SET.has(match[1])) fail('PR title does not use the required format');
     if (match[1] !== branchAgent || match[2] !== bodyTask)
       fail('PR, branch and commit metadata do not match');

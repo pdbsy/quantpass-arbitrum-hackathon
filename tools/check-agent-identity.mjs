@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { agentForBranch } from './agent-identity.mjs';
 import { validateCommitSetIdentity } from './agent-identity-set.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -51,9 +52,7 @@ export function check() {
     argument('head') || pull?.head?.sha || group?.head_sha || event.after || process.env.GITHUB_SHA || 'HEAD';
   let base = argument('base') || pull?.base?.sha || group?.base_sha || event.before;
   if (!base || /^0+$/.test(base)) {
-    base = /^macbeth0[1-5]\//.test(branch)
-      ? git('merge-base', 'origin/master', head)
-      : git('rev-parse', `${head}^`);
+    base = agentForBranch(branch) ? git('merge-base', 'origin/master', head) : git('rev-parse', `${head}^`);
   }
   const prTitle = argument('pr-title') || pull?.title || null;
   const commits = commitsInRange(base, head);

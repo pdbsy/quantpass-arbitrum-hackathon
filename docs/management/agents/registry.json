@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "protocol_version": "1.0.0",
+  "protocol_version": "1.1.0",
   "project": "AlphaForge",
   "default_branch": "master",
   "setup_task": "AF-AGENT-SETUP",
@@ -12,48 +12,48 @@
       "session_status": "SELF_CONFIRMED",
       "self_confirmation": "VERIFIED",
       "communication_status": "UNVERIFIED",
-      "current_task": "AF-MIGRATION",
+      "current_task": "AF-M3-IDENTITY",
       "runtime_status": "ACTIVE"
     },
     {
       "agent_id": "Macbeth02",
-      "branch_prefix": "macbeth02/",
+      "branch_prefix": "02/",
       "workspace_status": "WORKSPACE_PREPARED",
-      "session_status": "SESSION_CREATED",
-      "self_confirmation": "UNVERIFIED",
+      "session_status": "SELF_CONFIRMED",
+      "self_confirmation": "VERIFIED",
       "communication_status": "UNVERIFIED",
-      "current_task": "NONE",
-      "runtime_status": "IDLE"
+      "current_task": "M3-02-PROTOCOL",
+      "runtime_status": "BLOCKED"
     },
     {
       "agent_id": "Macbeth03",
-      "branch_prefix": "macbeth03/",
+      "branch_prefix": "03/",
       "workspace_status": "WORKSPACE_PREPARED",
-      "session_status": "SESSION_CREATED",
-      "self_confirmation": "UNVERIFIED",
+      "session_status": "SELF_CONFIRMED",
+      "self_confirmation": "VERIFIED",
       "communication_status": "UNVERIFIED",
-      "current_task": "NONE",
-      "runtime_status": "IDLE"
+      "current_task": "M3-03-AUDIT",
+      "runtime_status": "BLOCKED"
     },
     {
       "agent_id": "Macbeth04",
-      "branch_prefix": "macbeth04/",
+      "branch_prefix": "04/",
       "workspace_status": "WORKSPACE_PREPARED",
-      "session_status": "SESSION_CREATED",
-      "self_confirmation": "UNVERIFIED",
+      "session_status": "SELF_CONFIRMED",
+      "self_confirmation": "VERIFIED",
       "communication_status": "UNVERIFIED",
-      "current_task": "NONE",
-      "runtime_status": "IDLE"
+      "current_task": "M3-04-AUDIT",
+      "runtime_status": "BLOCKED"
     },
     {
       "agent_id": "Macbeth05",
-      "branch_prefix": "macbeth05/",
+      "branch_prefix": "05/",
       "workspace_status": "WORKSPACE_PREPARED",
-      "session_status": "SESSION_CREATED",
-      "self_confirmation": "UNVERIFIED",
+      "session_status": "SELF_CONFIRMED",
+      "self_confirmation": "VERIFIED",
       "communication_status": "UNVERIFIED",
-      "current_task": "NONE",
-      "runtime_status": "IDLE"
+      "current_task": "M3-05-AUDIT",
+      "runtime_status": "BLOCKED"
     }
   ],
   "canonical_repository": "pdbsy/quantpass-arbitrum-hackathon"

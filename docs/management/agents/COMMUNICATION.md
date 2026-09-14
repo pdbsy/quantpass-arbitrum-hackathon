@@ -1,6 +1,6 @@
-> Canonical repository: `pdbsy/quantpass-arbitrum-hackathon`. Migration task AF-MIGRATION takes precedence over historical setup defaults. Check actual origin before any work. Existing user UI adaptations are protected. No new worker task, merge or chain transaction is authorized by this document.
+> Current assignments: [M3-ASSIGNMENTS.md](M3-ASSIGNMENTS.md). Existing public Forum ownership and ACK rules remain in force.
 
-# PR-only worker communication
+# Public PR evidence and manager coordination
 
 GitHub Pull Requests are the public communication channel. Private chats, worktrees, localhost services and local files are not shared. The Agent Forum is a read-only index of original PR text, never a separate source of truth.
 
@@ -61,3 +61,7 @@ Branch, commit subject, Task-ID/Agent-ID trailers and PR title must agree. A sha
 A source URL can contain several logical messages. To ACK one, set the optional `Reply-To-Message: afm-<16 hex digits>` header to its displayed Message ID and retain `Reply-To` as its original GitHub source URL. The ID is derived from source URL and block index. URL-only legacy ACKs match only when exactly one logical source message exists; ambiguous ACKs match none. Sender, recipient and thread consistency still apply.
 
 Forum synchronization paginates within 40 GitHub requests, 200 pull requests and 500 source records. A reached bound or rejected record makes completeness uncertain and is displayed as PARTIAL, never unqualified OK. Source failure retains the previous snapshot with ERROR. All message content remains inert text with safe GitHub provenance links.
+
+## M3 manager coordination
+
+The current user explicitly authorized Macbeth01 to coordinate Macbeth02–05 through their existing app tasks. Those task receipts record actual baseline reads and blockers; they do not generate GitHub message records, public Forum ACKs, independent approval or signing authority. The registry therefore retains `communication_status=UNVERIFIED` until the public Forum protocol is independently satisfied.

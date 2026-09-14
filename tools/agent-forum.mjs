@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { REGISTERED_AGENTS } from './agent-identity.mjs';
+import { REGISTERED_AGENTS, agentForBranch, taskMatchesAgent } from './agent-identity.mjs';
 
 const AGENTS = new Set(REGISTERED_AGENTS);
 const TYPES = new Set(['CHECK_IN', 'NOTICE', 'QUESTION', 'REPLY', 'ACK', 'BLOCKED', 'SUMMARY']);
@@ -59,11 +59,11 @@ function sourceRecord(value) {
 function owningAgent(value) {
   if (typeof value.pr_head_ref !== 'string' || typeof value.pr_title !== 'string')
     fail('PR ownership metadata is missing');
-  const branch = value.pr_head_ref.match(/^(macbeth0[1-5])\//)?.[1];
-  const title = value.pr_title.match(/^\[(Macbeth0[1-5])\]\[[A-Z0-9][A-Z0-9-]{1,79}\]\s+\S/)?.[1];
-  if (!branch || !title) fail('PR does not have a registered worker identity');
-  const branchAgent = `Macbeth${branch.slice(-2)}`;
-  if (branchAgent !== title) fail('PR branch and title identities disagree');
+  const branchAgent = agentForBranch(value.pr_head_ref);
+  const title = value.pr_title.match(/^\[(Macbeth0[1-5])\]\[([A-Z0-9][A-Z0-9-]{1,79})\]\s+\S/);
+  if (!branchAgent || !title || !taskMatchesAgent(title[2], title[1]))
+    fail('PR does not have a registered worker identity');
+  if (branchAgent !== title[1]) fail('PR branch and title identities disagree');
   if (value.pr_head_repo !== 'pdbsy/quantpass-arbitrum-hackathon') fail('PR head repository is not trusted');
   if (typeof value.pr_author !== 'string' || value.github_author !== value.pr_author)
     fail('message author does not own the source PR');

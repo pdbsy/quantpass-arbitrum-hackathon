@@ -146,3 +146,55 @@ test('workflow_dispatch master does not skip malformed current provenance', (t) 
   const s = scenario(t, { commits: [{ subject: '[Macbeth99] invalid', body }] });
   outcome(s.run('workflow_dispatch', { ref: 'refs/heads/master' }), false);
 });
+
+const m3Commit = {
+  subject: '[Macbeth02][M3-02-PROTOCOL] Implement protocol',
+  body: 'Agent-ID: Macbeth02\nTask-ID: M3-02-PROTOCOL',
+};
+test('numbered M3 PR and master squash validate exact worker provenance', (t) => {
+  const s = scenario(t, { commits: [m3Commit], mergeCheckout: true });
+  outcome(
+    s.run('pull_request', {
+      pull_request: {
+        title: m3Commit.subject,
+        head: { ref: '02/protocol-m3', sha: s.head },
+        base: { ref: 'master', sha: s.base },
+      },
+    }),
+    true,
+  );
+  outcome(s.run('push', { ref: 'refs/heads/master', before: s.base, after: s.head }), true);
+});
+for (const eventName of ['workflow_dispatch', 'push']) {
+  test(`numbered M3 ${eventName} checks entire branch history, not just the last commit`, (t) => {
+    const s = scenario(t, { commits: [{ subject: 'unattributed change', body: '' }, m3Commit] });
+    outcome(
+      s.run(eventName, { ref: 'refs/heads/02/protocol-m3', before: '0'.repeat(40), after: s.head }),
+      false,
+    );
+  });
+}
+test('numbered worker branch never skips an unattributed commit', (t) => {
+  const s = scenario(t, { commits: [{ subject: 'unattributed change', body: '' }] });
+  outcome(s.run('push', { ref: 'refs/heads/02/protocol-m3', before: s.base, after: s.head }), false);
+});
+
+for (const [commit, pass] of [
+  [m3Commit, true],
+  [{ ...m3Commit, body: 'Agent-ID: Macbeth02\nTask-ID: M3-03-PROTOCOL' }, false],
+]) {
+  test(`M3 merge_group retains worker task ownership: valid=${pass}`, (t) => {
+    const s = scenario(t, { commits: [commit] });
+    outcome(
+      s.run('merge_group', {
+        merge_group: {
+          base_ref: 'refs/heads/master',
+          base_sha: s.base,
+          head_sha: s.head,
+          head_ref: 'refs/heads/gh-readonly-queue/master/pr-20-fixture',
+        },
+      }),
+      pass,
+    );
+  });
+}

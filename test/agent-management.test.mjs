@@ -48,7 +48,13 @@ test('registry and bootstrap prompts preserve five unique fixed worker identitie
   const validated = validateRegistry(registry);
   assert.deepEqual(
     validated.agents.map(({ agent_id, branch_prefix }) => [agent_id, branch_prefix]),
-    [1, 2, 3, 4, 5].map((n) => [`Macbeth0${n}`, `macbeth0${n}/`]),
+    [
+      ['Macbeth01', 'macbeth01/'],
+      ['Macbeth02', '02/'],
+      ['Macbeth03', '03/'],
+      ['Macbeth04', '04/'],
+      ['Macbeth05', '05/'],
+    ],
   );
   for (const agent of validated.agents) {
     const bootstrap = await read(`docs/management/agents/bootstrap/${agent.agent_id}.md`);
@@ -343,4 +349,78 @@ test('PR11-P6 a URL-only ACK cannot acknowledge two blocks; an explicit message 
     buildForumSnapshot([source, wrong]).messages.filter((m) => m.ack_state === 'ACKNOWLEDGED').length,
     0,
   );
+});
+
+test('M3 numbered branches preserve agent ownership across registry, commits and PRs', () => {
+  const input = {
+    branch: '02/protocol-m3',
+    prTitle: '[Macbeth02][M3-02-PROTOCOL] Implement protocol',
+    subject: 'feat(M3-02-PROTOCOL): [Macbeth02] implement protocol',
+    body: 'Agent-ID: Macbeth02\nTask-ID: M3-02-PROTOCOL',
+  };
+  assert.deepEqual(validateCommitIdentity(input), { agentId: 'Macbeth02', taskId: 'M3-02-PROTOCOL' });
+  for (const patch of [
+    { branch: '03/protocol-m3' },
+    { branch: '02x/protocol-m3' },
+    { branch: '06/protocol-m3' },
+    { body: 'Agent-ID: Macbeth02\nTask-ID: M3-03-PROTOCOL' },
+    { subject: 'feat(M3-03-PROTOCOL): [Macbeth02] implement protocol' },
+    { prTitle: '[Macbeth02][M3-03-PROTOCOL] Implement protocol' },
+  ])
+    assert.throws(() => validateCommitIdentity({ ...input, ...patch }));
+});
+
+test('M3 registry binds each numbered prefix and task to its own worker', async () => {
+  const registry = JSON.parse(await read('docs/management/agents/registry.json'));
+  const current = structuredClone(registry);
+  Object.assign(current.agents[1], { branch_prefix: '02/', current_task: 'M3-02-PROTOCOL' });
+  assert.doesNotThrow(() => validateRegistry(current));
+  for (const patch of [{ branch_prefix: '03/' }, { current_task: 'M3-03-PROTOCOL' }]) {
+    const invalid = structuredClone(current);
+    Object.assign(invalid.agents[1], patch);
+    assert.throws(() => validateRegistry(invalid));
+  }
+});
+
+test('Forum accepts numbered M3 ownership but rejects cross-worker task identity', () => {
+  const record = {
+    source_type: 'PR_DESCRIPTION',
+    source_url: github('/pull/20'),
+    pr_url: github('/pull/20'),
+    pr_number: 20,
+    pr_head_ref: '02/protocol-m3',
+    pr_title: '[Macbeth02][M3-02-PROTOCOL] Protocol',
+    pr_author: 'pdbsy',
+    github_author: 'pdbsy',
+    pr_head_repo: 'pdbsy/quantpass-arbitrum-hackathon',
+    text: message({ agent: 'Macbeth02', thread: 'M3-02-PROTOCOL', relatedPr: github('/pull/20') }),
+    created_at: '2026-09-14T10:00:00.000Z',
+    updated_at: '2026-09-14T10:00:00.000Z',
+  };
+  assert.equal(buildForumSnapshot([record]).messages.length, 1);
+  for (const patch of [
+    { pr_head_ref: '03/protocol-m3' },
+    { pr_title: '[Macbeth02][M3-03-PROTOCOL] Protocol' },
+  ])
+    assert.equal(buildForumSnapshot([{ ...record, ...patch }]).messages.length, 0);
+});
+
+test('all numbered M3 workers accept their own task and reject the next worker task', () => {
+  for (const [prefix, agent, task, otherTask] of [
+    ['02/', 'Macbeth02', 'M3-02-PROTOCOL', 'M3-03-AUDIT'],
+    ['03/', 'Macbeth03', 'M3-03-AUDIT', 'M3-04-AUDIT'],
+    ['04/', 'Macbeth04', 'M3-04-AUDIT', 'M3-05-AUDIT'],
+    ['05/', 'Macbeth05', 'M3-05-AUDIT', 'M3-02-PROTOCOL'],
+  ]) {
+    const input = {
+      branch: `${prefix}m3-work`,
+      subject: `[${agent}][${task}] Work`,
+      body: `Agent-ID: ${agent}\nTask-ID: ${task}`,
+      prTitle: `[${agent}][${task}] Work`,
+    };
+    assert.deepEqual(validateCommitIdentity(input), { agentId: agent, taskId: task });
+    assert.throws(() =>
+      validateCommitIdentity({ ...input, body: `Agent-ID: ${agent}\nTask-ID: ${otherTask}` }),
+    );
+  }
 });
