@@ -12,7 +12,7 @@
       "session_status": "SELF_CONFIRMED",
       "self_confirmation": "VERIFIED",
       "communication_status": "UNVERIFIED",
-      "current_task": "AF-M3-IDENTITY",
+      "current_task": "AF-M3-ASSIGNMENT-04",
       "runtime_status": "ACTIVE"
     },
     {
@@ -37,13 +37,15 @@
     },
     {
       "agent_id": "Macbeth04",
-      "branch_prefix": "04/",
+      "branch_prefix": "macbeth04/",
       "workspace_status": "WORKSPACE_PREPARED",
       "session_status": "SELF_CONFIRMED",
       "self_confirmation": "VERIFIED",
       "communication_status": "UNVERIFIED",
-      "current_task": "M3-04-AUDIT",
-      "runtime_status": "BLOCKED"
+      "current_task": "M3-04-PRODUCT-UI",
+      "runtime_status": "ACTIVE",
+      "canonical_baseline": "7ecba357d5a19f387e86f578822af04a6261fed2",
+      "implementation_branch": "macbeth04/M3-product-ui"
     },
     {
       "agent_id": "Macbeth05",

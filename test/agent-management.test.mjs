@@ -52,7 +52,7 @@ test('registry and bootstrap prompts preserve five unique fixed worker identitie
       ['Macbeth01', 'macbeth01/'],
       ['Macbeth02', '02/'],
       ['Macbeth03', '03/'],
-      ['Macbeth04', '04/'],
+      ['Macbeth04', 'macbeth04/'],
       ['Macbeth05', '05/'],
     ],
   );

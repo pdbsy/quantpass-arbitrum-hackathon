@@ -1372,13 +1372,19 @@
       "target_path": "docs/management/agents/COMMON-PROTOCOL.md",
       "method": "protocol import with current repository/authority preamble; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "9ac5209eb9777fdcec2697ae4180cda66526ac2f4d51f9e4e6255f7c3effd2b9",
-      "migrated_sha256": "3e63031465f7b009b4b95a909ced7caf7c3f1a6f5d6b4a765bca3328615e41f0",
+      "migrated_sha256": "e1fe01c7111bf26d8bc890ad012700e826992f4b5a20251ab6b2a3f1bdfcb44b",
       "subsequent_adaptations": [
         {
           "task": "AF-M3-IDENTITY",
           "base_commit": "45e80f921df2d3f9172ddbbc8e6ab37c327107e7",
           "previous_sha256": "ee0260e406fa2b181dc96fa047c2cb669193ca566391fbd2c11a7b8ec6658627",
           "reason": "M3 worker identity and assignment compatibility; original migration source is preserved."
+        },
+        {
+          "task": "AF-M3-ASSIGNMENT-04",
+          "base_commit": "7ecba357d5a19f387e86f578822af04a6261fed2",
+          "previous_sha256": "3e63031465f7b009b4b95a909ced7caf7c3f1a6f5d6b4a765bca3328615e41f0",
+          "reason": "Register user-authorized Macbeth04 implementation branch and fixed baseline; original source preserved."
         }
       ]
     },
@@ -1462,13 +1468,19 @@
       "target_path": "docs/management/agents/bootstrap/Macbeth04.md",
       "method": "protocol import with current repository/authority preamble",
       "original_sha256": "46ff73062c73b043a204f07bdee932f5450272c4fbc29b20bbd7141670d4ddd5",
-      "migrated_sha256": "3d203fd4d3c3ff4dcaf208f3a9481b12c7238478295bce833800da8bdd78ec74",
+      "migrated_sha256": "ed56ce44f8584c0ca75c4cd6a72fd5b1c5f5e78876a08e34c007f54b72b85667",
       "subsequent_adaptations": [
         {
           "task": "AF-M3-IDENTITY",
           "base_commit": "45e80f921df2d3f9172ddbbc8e6ab37c327107e7",
           "previous_sha256": "c2f8001ec32162d6ad70aa143732e93b0614df4a1e2331464fccd44ded1149e6",
           "reason": "M3 worker identity and assignment compatibility; original migration source is preserved."
+        },
+        {
+          "task": "AF-M3-ASSIGNMENT-04",
+          "base_commit": "7ecba357d5a19f387e86f578822af04a6261fed2",
+          "previous_sha256": "3d203fd4d3c3ff4dcaf208f3a9481b12c7238478295bce833800da8bdd78ec74",
+          "reason": "Register user-authorized Macbeth04 implementation branch and fixed baseline; original source preserved."
         }
       ]
     },
@@ -1498,13 +1510,19 @@
       "target_path": "docs/management/agents/registry.json",
       "method": "registry migrated; historical confirmations reset for canonical repository",
       "original_sha256": "ecb05bfdcccf1abb036c4e4fdd16155e959ae706395020db4a1dac49e43f50b6",
-      "migrated_sha256": "9eb6236235ed0740e31d9c8ff026b7c6910e7bc209a2cbb3b77c8c0af5823252",
+      "migrated_sha256": "18acce9c358e43944f03d3c13543fa17978b94c655699f1fedc885d0cf4f2d42",
       "subsequent_adaptations": [
         {
           "task": "AF-M3-IDENTITY",
           "base_commit": "45e80f921df2d3f9172ddbbc8e6ab37c327107e7",
           "previous_sha256": "3e748b89ca406eca21a2e7d0e2c5e9f5c3b6feceeb502477d8f50e7341be7fb1",
           "reason": "M3 worker identity and assignment compatibility; original migration source is preserved."
+        },
+        {
+          "task": "AF-M3-ASSIGNMENT-04",
+          "base_commit": "7ecba357d5a19f387e86f578822af04a6261fed2",
+          "previous_sha256": "9eb6236235ed0740e31d9c8ff026b7c6910e7bc209a2cbb3b77c8c0af5823252",
+          "reason": "Register user-authorized Macbeth04 implementation branch and fixed baseline; original source preserved."
         }
       ]
     },
@@ -1536,13 +1554,19 @@
       "target_path": "test/agent-management.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "f5c916f2f10f3fbc2e31e89bce0cf041bf091cae876b20490eac7f87140ebc42",
-      "migrated_sha256": "4803cb492aaf6bbf67a817169f115e3ec42fab4127d04b2c6a41418e427f44db",
+      "migrated_sha256": "e0a9c46de394710a30ff047a05959e9bf64364d22ff5df0c14b46731fe9bf019",
       "subsequent_adaptations": [
         {
           "task": "AF-M3-IDENTITY",
           "base_commit": "45e80f921df2d3f9172ddbbc8e6ab37c327107e7",
           "previous_sha256": "cdcb4908cc7a7d621c564a62d27205a7948971a91263b4fb61cfe9406f4aaf39",
           "reason": "M3 worker identity and assignment compatibility; original migration source is preserved."
+        },
+        {
+          "task": "AF-M3-ASSIGNMENT-04",
+          "base_commit": "7ecba357d5a19f387e86f578822af04a6261fed2",
+          "previous_sha256": "4803cb492aaf6bbf67a817169f115e3ec42fab4127d04b2c6a41418e427f44db",
+          "reason": "Register user-authorized Macbeth04 implementation branch and fixed baseline; original source preserved."
         }
       ]
     },

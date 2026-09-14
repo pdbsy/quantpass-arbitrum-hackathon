@@ -12,15 +12,17 @@ The four receipts were delivered by the respective app tasks to Macbeth01 at the
 
 ## Current assignments
 
+Macbeth04 received a subsequent explicit implementation assignment. Its current task, fixed baseline and scope are recorded in [M3-04-PRODUCT-UI.md](M3-04-PRODUCT-UI.md); the earlier four audit receipts remain historical facts.
+
 | Agent | Task | Role | Current prefix | Execution state |
 | --- | --- | --- | --- | --- |
-| Macbeth01 | AF-M3-IDENTITY | Manager / Integrator | macbeth01/ | Implement and verify identity compatibility; prepare PR |
+| Macbeth01 | AF-M3-ASSIGNMENT-04 | Manager / Integrator | macbeth01/ | Register the newly authorized frontend task and fixed baseline |
 | Macbeth02 | M3-02-PROTOCOL | Protocol / Smart Contracts | 02/ | Implementation assigned; startup blocked until this alignment is integrated into master |
 | Macbeth03 | M3-03-AUDIT | Chain / Backend / Adapter | 03/ | Information/readiness audit completed; implementation awaits its own final assignment and interfaces |
-| Macbeth04 | M3-04-AUDIT | Product / Frontend | 04/ | Information/readiness audit completed; implementation awaits its own final assignment and interfaces |
+| Macbeth04 | M3-04-PRODUCT-UI | Product / Frontend | macbeth04/ | Implementation assigned; independent product shell can proceed, supported chain actions require 02/03 capabilities |
 | Macbeth05 | M3-05-AUDIT | QA / Security / Integration | 05/ | Information/readiness audit completed; M3 acceptance remains blocked |
 
-The user-supplied Macbeth02 protocol prompt explicitly requires registry prefix `02/`, task `M3-02-PROTOCOL`, and branch `02/protocol-m3` from the latest aligned origin/master; it forbids direct master edits and asks 02 to report mismatches to 01. The identity compatibility change satisfies the naming prerequisite, not the protocol's other acceptance conditions. 03–05 have not been granted implementation by this registry change.
+The user-supplied Macbeth02 protocol prompt explicitly requires registry prefix `02/`, task `M3-02-PROTOCOL`, and branch `02/protocol-m3` from the latest aligned origin/master; it forbids direct master edits and asks 02 to report mismatches to 01. The identity compatibility change satisfies the naming prerequisite, not the protocol's other acceptance conditions. This original identity alignment did not grant 03–05 implementation. The subsequent explicit user assignment now authorizes 04 within its separate implementation record; 03/05 scope is unchanged.
 
 ## Identity compatibility
 

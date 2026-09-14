@@ -1,3 +1,5 @@
+> Subsequent M3 assignment — Macbeth04 is now explicitly authorized for `M3-04-PRODUCT-UI` on `macbeth04/M3-product-ui`, from fixed validated baseline `7ecba357d5a19f387e86f578822af04a6261fed2`. See [the task record](agents/M3-04-PRODUCT-UI.md). Earlier audit-only statements below retain their historical scope; this does not grant chain writes or alter other worker assignments.
+
 > Current update — 2026-09-14: remote master is `45e80f921df2d3f9172ddbbc8e6ab37c327107e7` (PR #11 merged, 45% finish). Macbeth02–05 have returned baseline-reading receipts. M3 identity/task alignment is in review preparation; 02 implementation awaits aligned master, and 03–05 retain audit-only scope. See [M3 assignments](agents/M3-ASSIGNMENTS.md) for exact status and blockers. Earlier PR #11 unmerged/master NOT_RUN statements below are historical source snapshots, not current Git status. This update does not claim M3 Testnet completion or independent approval.
 
 # 工作队列

@@ -9,7 +9,7 @@ Default branch: `master`
 
 ## Identity and isolation
 
-The fixed workers are Macbeth01 through Macbeth05. Current prefixes are `macbeth01/`, `02/`, `03/`, `04/`, `05/`. Historical `macbeth02/` through `macbeth05/` remain valid provenance aliases for the same identities. Names and prefixes are case-sensitive.
+The fixed workers are Macbeth01 through Macbeth05. The registry selects each current task prefix. Protocol 1.1.0 accepts `macbeth01/`–`macbeth05/` and `02/`–`05/` as exact aliases of the corresponding worker. Macbeth04's latest user assignment explicitly uses `macbeth04/M3-product-ui`; see its current assignment record. Names and prefixes are case-sensitive.
 
 One Chat = One Worker. One Worker = One Worktree. One Task = One Branch. One Branch = One Pull Request.
 
