@@ -1,5 +1,6 @@
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
+import { extendM3ProductPages } from './m3-product-shell.ts';
 import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
 interface Prototype {
   strategies: { id: string }[];
@@ -162,11 +163,22 @@ function workspace(id: string): string {
 }
 const original = { ...AF.pages };
 AF.pages.market = () => catalogue() + original.market();
-AF.pages.account = (tab) => account() + original.account(tab);
-AF.pages.trade = (id) =>
-  AF.strategies.some((s) => s.id === id)
-    ? `<div class="wrap dialog-notice">MOCK / FIXTURE — synthetic charts and separate browser-only Pass exchange. No API vault mapping.</div>${original.trade(id)}`
-    : workspace(id);
+const productPages = extendM3ProductPages(
+  {
+    account: (tab) => account() + original.account(tab),
+    trade: (id) =>
+      AF.strategies.some((s) => s.id === id)
+        ? `<div class="wrap dialog-notice">MOCK / FIXTURE — synthetic charts and separate browser-only Pass exchange. No API vault mapping.</div>${original.trade(id)}`
+        : workspace(id),
+  },
+  {
+    accountId: () => adapter.snapshot.user,
+    contentProvenance: (id) =>
+      AF.strategies.some((strategy) => strategy.id === id) ? 'FIXTURE' : 'LOCAL SIMULATION',
+  },
+);
+AF.pages.account = productPages.account;
+AF.pages.trade = productPages.trade;
 function render(): void {
   const s = adapter.snapshot;
   status.innerHTML = `<div class="dialog-notice"><div class="inline-actions"><strong data-product-state role="status">${localError ? 'ERROR' : s.phase}</strong><span>API ${esc(s.user ?? 'no session')} · ${adapter.mode === 'v1' ? 'v1' : adapter.mode === 'legacy' ? 'legacy compatibility' : 'connecting'}</span><button class="text-link" data-product-login="alice" ${s.phase === 'LOADING' ? 'disabled' : ''}>Alice</button><button class="text-link" data-product-login="bob" ${s.phase === 'LOADING' ? 'disabled' : ''}>Bob</button><button class="text-link" data-product-refresh ${s.phase === 'LOADING' ? 'disabled' : ''}>Refresh API</button>${s.pending && !s.pending.rejection ? `<button class="outline-btn" data-product-retry ${adapter.retryAfterSeconds ? 'disabled' : ''}>Retry original request${adapter.retryAfterSeconds ? ` after ${adapter.retryAfterSeconds}s` : ''}</button>` : ''}${s.pending?.rejection ? '<button class="text-link" data-product-dismiss>Dismiss reviewed rejection</button>' : ''}</div>${localError || s.error ? `<p role="alert">${esc(localError ?? s.error)}</p>` : ''}${s.notice ? `<p>${esc(s.notice)}</p>` : ''}${s.pending ? `<p>Unresolved ${esc(s.pending.command.type)} · ${esc(s.pending.command.id)} · reviewed revision ${s.pending.command.expectedRevision}. No new command may be submitted.</p>` : ''}</div>`;

@@ -1524,7 +1524,7 @@
       "source_commit": "52c61def3604bd78d6523ba348cf296debf53bc5",
       "source_agent": "Macbeth01",
       "target_path": "test/agent-identity-bypass.test.mjs",
-      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; later product extension tracked by M3-04-PRODUCT-UI",
       "original_sha256": "a74858528632dda64d154eee56bba80d8ae1e7139dcc00708d0e29a0a7d8d4b4",
       "migrated_sha256": "a74858528632dda64d154eee56bba80d8ae1e7139dcc00708d0e29a0a7d8d4b4"
     },
@@ -1734,7 +1734,7 @@
       "target_path": "apps/web/src/product-ui.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38",
-      "migrated_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38"
+      "migrated_sha256": "85ca3f42e52459a1cd7e83d1c46e1461d4c42d3e14aac031c69e868a686d07af"
     },
     {
       "source_repository": "pdbsy/quantpass",
