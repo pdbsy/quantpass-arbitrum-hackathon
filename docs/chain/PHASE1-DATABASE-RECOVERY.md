@@ -26,18 +26,49 @@ The repeatable local drill is:
 node --test --test-name-pattern="local recovery drill measures" test/chain-store.test.ts
 ```
 
+For an operator-controlled source that is no longer being written, the local CLI creates a new,
+non-overwriting backup and verifies schema, integrity, and complete table contents before reporting
+success:
+
+```sh
+node tools/chain-recovery.ts backup /path/to/source.sqlite /path/to/new-backup.sqlite
+```
+
+The restore drill also writes a new path, preserving both the incident database and the selected backup:
+
+```sh
+node tools/chain-recovery.ts restore /path/to/verified-backup.sqlite /path/to/new-restored.sqlite
+```
+
+Both commands first open the source read-only and require the exact current schema without running
+migrations or initializing an empty file. They refuse a missing source, an existing destination, a
+source/destination path collision, a legacy or unhealthy schema, or a content mismatch. After
+preflight, the command keeps a read transaction open from the source snapshot through target
+validation. Concurrent writers may continue in WAL mode, while the backup remains fixed at the
+validated recovery point. Still run the commands only after stopping writers for the selected source,
+as described below, so operators can identify and retain an unambiguous incident recovery point.
+
+Schema admission compares SQLite's stored table and index definitions against an independent
+in-memory database initialized by the repository's canonical migrations. This checks columns,
+declared types, primary keys, nullability, defaults, check constraints, unique indexes, index keys and
+partial-index predicates; extra application schema objects such as triggers or views also fail.
+Version 6 plus the six expected table names is insufficient. Comparison is deliberately exact:
+manually reconstructed definitions, even if semantically similar, are not admitted. No migration or
+DDL is executed on the input database. SQLite-owned internal objects, such as query-planner statistics,
+are excluded from this application-schema comparison.
+
 The test creates three isolated schema-6 databases. Each run synchronizes an empty-log canonical fixture through block 1000, performs an online backup, reopens and checks the copy, advances the observed head to 1128, catches up exactly 128 blocks, and requires a healthy checkpoint at the new head. It emits the measured components as a diagnostic without imposing a machine-speed assertion.
 
 ## Recorded local recovery measurement
 
 The following sample was recorded on 2026-09-20 with Node 24.21.0 using the repeatable test above. The backup artifact was 495,616 bytes in each of three runs.
 
-| Component | Three-run median |
-| --- | ---: |
-| Online backup at block 1000 | 1.856 ms |
-| Reopen plus schema/integrity health check | 0.686 ms |
-| Read-only catch-up from block 1001 through 1128 | 30.100 ms |
-| Reopen through healthy block-1128 checkpoint | 30.768 ms |
+| Component                                       | Three-run median |
+| ----------------------------------------------- | ---------------: |
+| Online backup at block 1000                     |         1.856 ms |
+| Reopen plus schema/integrity health check       |         0.686 ms |
+| Read-only catch-up from block 1001 through 1128 |        30.100 ms |
+| Reopen through healthy block-1128 checkpoint    |        30.768 ms |
 
 This is a local deterministic fixture measurement, not a Testnet or production SLA. In this fixture, the recovery point gap is intentionally 128 blocks because the backup checkpoint is 1000 and the later observed head is 1128. Operational RPO is the age of the selected verified backup at incident time. Operational RTO also includes artifact selection, process startup, real RPC latency, log volume, and any manual review; those factors were not measured here.
 

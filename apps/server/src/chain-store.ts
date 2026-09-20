@@ -1,5 +1,5 @@
 import { DatabaseSync, backup } from 'node:sqlite';
-import { closeSync, openSync, readFileSync } from 'node:fs';
+import { closeSync, openSync, readFileSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   asAddress,
@@ -550,8 +550,19 @@ export class ChainStore {
         throw new Error('BACKUP_TARGET_EXISTS', { cause: error });
       throw error;
     }
-    await backup(this.db, path);
-    return path;
+    try {
+      await backup(this.db, path);
+      return path;
+    } catch (error) {
+      try {
+        unlinkSync(path);
+      } catch (cleanupError) {
+        throw new AggregateError([error, cleanupError], 'BACKUP_FAILED_CLEANUP_FAILED', {
+          cause: cleanupError,
+        });
+      }
+      throw error;
+    }
   }
 
   #assertSyncOwner(id: number, address: string, ownerToken: string | null): void {
