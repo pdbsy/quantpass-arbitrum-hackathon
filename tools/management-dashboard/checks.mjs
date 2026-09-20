@@ -13,6 +13,7 @@ const unitTests = [
   'test/coverage-toolchain.test.mjs',
   'test/coverage-inventory.test.mjs',
   'test/coverage-artifacts.test.mjs',
+  'test/coverage-browser-runtime.test.mjs',
   'test/m3-browser-journeys.test.mjs',
   'test/local-ci.test.mjs',
   'test/local-agent-integration.test.mjs',

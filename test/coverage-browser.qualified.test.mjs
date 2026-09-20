@@ -268,3 +268,61 @@ test('snapshot transport loss records zero and still lets the real navigation ru
   assert.match(result.observations[0].error.message, /Execution context was destroyed/);
   assert.doesNotThrow(() => result.index);
 });
+
+for (const scenario of ['location', 'reload', 'hash', 'history']) {
+  test(`real ${scenario} navigation preserves document boundaries and conservative counters`, async (t) => {
+    const f = fixture(t);
+    const outputDirectory = join(f.root, 'navigation-raw');
+    const tracker = createBrowserCoverageLifecycle({
+      manifest: f.manifest,
+      outputDirectory,
+      loaded: new Set([sourcePath]),
+    });
+    const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH, headless: true });
+    t.after(() => browser.close());
+    const page = await browser.newPage();
+    page.setDefaultTimeout(8000);
+    tracker.registerPage(page);
+    const first = join(f.root, 'navigation-a.html');
+    const second = join(f.root, 'navigation-b.html');
+    writeFileSync(first, `<title>A</title><script>${f.code};choose(true);</script>`);
+    writeFileSync(second, `<title>B</title><script>${f.code};choose(false);</script>`);
+    await page.goto(pathToFileURL(first).href);
+    if (scenario === 'location') {
+      await page.evaluate((url) => {
+        globalThis.location.href = url;
+      }, pathToFileURL(second).href);
+      await page.waitForFunction(
+        () => globalThis.document.title === 'B' && typeof globalThis.choose === 'function',
+      );
+    } else if (scenario === 'reload') {
+      await page.evaluate(() => {
+        globalThis.oldRealm = true;
+        globalThis.location.reload();
+      });
+      await page.waitForFunction(() => typeof globalThis.choose === 'function' && !globalThis.oldRealm);
+    } else {
+      await page.evaluate((mode) => {
+        if (mode === 'hash') globalThis.location.hash = 'same-document';
+        else globalThis.history.pushState({}, '', '?same-document=1');
+        globalThis.choose(false);
+      }, scenario);
+    }
+    const result = await tracker.finish();
+    const replay = replayBrowserCoverage({ manifest: f.manifest, outputDirectory, index: result.index });
+    assert.deepEqual(replay.observations, result.observations);
+    const incomplete = result.observations.filter((row) => !row.complete);
+    if (scenario === 'hash' || scenario === 'history') {
+      assert.equal(incomplete.length, 0);
+      assert.deepEqual(result.observations.at(-1).sources[sourcePath].coverage.b['0'], [1, 1]);
+    } else {
+      assert.equal(incomplete.length, 1);
+      assert.equal(incomplete[0].reason, 'UNFLUSHED_NAVIGATION');
+      assert.deepEqual(incomplete[0].sources, {});
+      assert.deepEqual(
+        result.observations.at(-1).sources[sourcePath].coverage.b['0'],
+        scenario === 'location' ? [0, 1] : [1, 0],
+      );
+    }
+  });
+}

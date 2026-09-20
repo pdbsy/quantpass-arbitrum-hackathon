@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { spawn } from 'node:child_process';
-import { dirname, relative, resolve, sep } from 'node:path';
+import { execFileSync, spawn } from 'node:child_process';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   browserDigest,
@@ -24,16 +24,94 @@ export function driverForBrowserWorkflow(workflow) {
   return driver;
 }
 
-async function copyRuntimeRoot(root, outputDirectory, nodeModulesDirectory) {
-  const runtimeRoot = resolve(outputDirectory, 'runtime-root');
-  await cp(root, runtimeRoot, {
-    recursive: true,
-    force: false,
-    errorOnExist: true,
-    filter: (source) => !source.includes(`${sep}.git${sep}`) && source !== outputDirectory,
+function gitValue(root, ...args) {
+  return execFileSync('git', ['--no-replace-objects', ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 30000,
+    maxBuffer: 16 * 1024 * 1024,
+  }).trim();
+}
+
+function verifyCandidate(root, manifest) {
+  assert.equal(
+    gitValue(root, 'rev-parse', '--is-shallow-repository'),
+    'false',
+    'complete Git history required',
+  );
+  assert.equal(
+    gitValue(root, 'rev-parse', 'HEAD'),
+    manifest.candidateCommit,
+    'coverage candidate commit mismatch',
+  );
+  assert.equal(
+    gitValue(root, 'rev-parse', 'HEAD^{tree}'),
+    manifest.candidateTree,
+    'coverage candidate tree mismatch',
+  );
+  assert.equal(
+    gitValue(root, 'status', '--porcelain', '--untracked-files=normal'),
+    '',
+    'coverage source must be clean',
+  );
+}
+
+const isolatedGitEnvironment = () => ({
+  ...process.env,
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_CONFIG_SYSTEM: '/dev/null',
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_OPTIONAL_LOCKS: '0',
+});
+
+function gitCommand(root, args, options = {}) {
+  return execFileSync('git', ['-c', 'core.hooksPath=/dev/null', ...args], {
+    cwd: root,
+    env: isolatedGitEnvironment(),
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 120000,
+    maxBuffer: 16 * 1024 * 1024,
+    ...options,
   });
-  if (!nodeModulesDirectory && !(await exists(resolve(runtimeRoot, 'node_modules'))))
-    nodeModulesDirectory = resolve(process.cwd(), 'node_modules');
+}
+
+async function copyRuntimeRoot(root, outputDirectory, nodeModulesDirectory, manifest) {
+  const runtimeRoot = resolve(outputDirectory, 'runtime-root');
+  const source = resolve(root);
+  const destination = resolve(runtimeRoot);
+  const destinationFromSource = relative(source, destination);
+  assert.ok(
+    destinationFromSource !== '' && destinationFromSource !== '..' && !isAbsolute(destinationFromSource),
+    'runtime output cannot replace or contain source',
+  );
+  if (!destinationFromSource.startsWith(`..${sep}`)) {
+    const ignored = (() => {
+      try {
+        gitCommand(source, [
+          'check-ignore',
+          '--quiet',
+          '--no-index',
+          '--',
+          destinationFromSource.split(sep).join('/'),
+        ]);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    assert.ok(ignored, 'nested runtime output must be Git-ignored');
+  }
+  await mkdir(resolve(outputDirectory), { recursive: true });
+  gitCommand(source, ['clone', '--no-local', '--no-checkout', '--quiet', source, destination]);
+  gitCommand(destination, ['checkout', '--quiet', '--detach', manifest.candidateCommit]);
+  verifyCandidate(destination, manifest);
+  if (!nodeModulesDirectory && !(await exists(resolve(runtimeRoot, 'node_modules')))) {
+    const sourceDependencies = resolve(source, 'node_modules');
+    nodeModulesDirectory = (await exists(sourceDependencies))
+      ? sourceDependencies
+      : resolve(process.cwd(), 'node_modules');
+  }
   if (nodeModulesDirectory && !(await exists(resolve(runtimeRoot, 'node_modules'))))
     await cp(resolve(nodeModulesDirectory), resolve(runtimeRoot, 'node_modules'), {
       recursive: true,
@@ -255,7 +333,13 @@ export async function prepareLegacyRuntime({
   nodeModulesDirectory,
 }) {
   driverForBrowserWorkflow(workflow);
-  const runtimeRoot = await copyRuntimeRoot(resolve(root), resolve(outputDirectory), nodeModulesDirectory);
+  verifyCandidate(resolve(root), manifest);
+  const runtimeRoot = await copyRuntimeRoot(
+    resolve(root),
+    resolve(outputDirectory),
+    nodeModulesDirectory,
+    manifest,
+  );
   if (workflow === 'management') await materializeManagement({ root: runtimeRoot, manifest, generated });
   else await materializeWeb({ root: runtimeRoot, manifest, generated });
   return { runtimeRoot, driver: driverForBrowserWorkflow(workflow) };

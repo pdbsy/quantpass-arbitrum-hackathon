@@ -67,16 +67,21 @@ export function createBrowserCoverageLifecycle({
   }
   async function capture(page, reason) {
     const state = pages.get(page);
-    if (!state?.active) return;
+    if (!state) return;
+    await state.ready;
+    if (state.setupError && !page.isClosed()) throw state.setupError;
+    if (!state.active) return;
+    const interval = state.active;
     let serialized;
     try {
       assert.ok(!page.isClosed(), 'browser page closed before flush');
       serialized = await page.evaluate(snapshotExpression);
+      if (state.active !== interval) return { captured: false };
     } catch (error) {
       // A navigation can destroy the document before the old realm answers. This is
       // an incomplete lower-bound interval; the caller must still perform its real
       // navigation or close operation.
-      incomplete(state, reason, error);
+      if (state.active === interval) incomplete(state, reason, error);
       return { captured: false, transportError: error };
     }
     let raw;
@@ -87,8 +92,9 @@ export function createBrowserCoverageLifecycle({
       // The retained raw bytes precede mutation of the real counter objects.
       try {
         await page.evaluate(resetExpression);
+        if (state.active !== interval) return { captured: false, raw };
       } catch (error) {
-        incomplete(state, reason, error, raw);
+        if (state.active === interval) incomplete(state, reason, error, raw);
         return { captured: false, transportError: error, raw };
       }
       complete(state, {
@@ -103,7 +109,7 @@ export function createBrowserCoverageLifecycle({
     } catch (error) {
       // Once raw bytes exist, parse/graph/map failures are evidence failures and
       // must stop the workflow rather than being reclassified as transport loss.
-      incomplete(state, reason, error, raw);
+      if (state.active === interval) incomplete(state, reason, error, raw);
       throw error;
     }
   }
@@ -113,9 +119,32 @@ export function createBrowserCoverageLifecycle({
       pageId: `page-${randomUUID()}`,
       active: null,
       transitioning: false,
+      expectedNavigation: false,
+      setupError: null,
     };
     pages.set(page, state);
     start(state, 'page-created');
+    // Chromium's loader identity changes for a new document, but remains stable
+    // for hash/history navigation. URL comparisons cannot distinguish those cases.
+    state.ready = (async () => {
+      const session = await page.context().newCDPSession(page);
+      const { frameTree } = await session.send('Page.getFrameTree');
+      let loaderId = frameTree.frame.loaderId;
+      session.on('Page.frameNavigated', ({ frame }) => {
+        if (finished || frame.parentId || frame.loaderId === loaderId) return;
+        loaderId = frame.loaderId;
+        if (state.expectedNavigation) {
+          state.expectedNavigation = false;
+          return;
+        }
+        incomplete(state, 'UNFLUSHED_NAVIGATION');
+        if (!page.isClosed()) start(state, 'document-navigation');
+      });
+      await session.send('Page.enable');
+    })().catch((error) => {
+      state.setupError = error;
+      incomplete(state, 'DOCUMENT_TRACKING_UNAVAILABLE', error);
+    });
     for (const method of ['goto', 'reload']) {
       const original = page[method].bind(page);
       page[method] = async (...args) => {
@@ -124,11 +153,13 @@ export function createBrowserCoverageLifecycle({
         try {
           await capture(page, `before-${method}`);
           start(state, method);
+          state.expectedNavigation = true;
           return await original(...args);
         } catch (error) {
           incomplete(state, `${method}-failed`, error);
           throw error;
         } finally {
+          state.expectedNavigation = false;
           state.transitioning = false;
         }
       };
@@ -138,16 +169,13 @@ export function createBrowserCoverageLifecycle({
       await capture(page, 'before-close');
       return close(...args);
     };
-    // Navigation boundaries are explicit through the wrapped goto/reload methods.
-    // A late frame event can represent a redirect or SPA transition, so treating it
-    // as an uncontrolled document replacement would create false zero intervals.
     page.on('close', () => incomplete(state, 'UNFLUSHED_CLOSE'));
     page.on('crash', () => incomplete(state, 'PAGE_CRASH'));
     return true;
   }
   async function flush(page, reason) {
     await capture(page, reason);
-    if (!page.isClosed()) start(pages.get(page), `after-${reason}`);
+    if (!page.isClosed() && !pages.get(page).active) start(pages.get(page), `after-${reason}`);
   }
   async function finish() {
     assert.ok(!finished, 'browser collection already finished');

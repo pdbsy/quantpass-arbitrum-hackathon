@@ -13,7 +13,7 @@
 ## Global constraints
 
 - SOURCE_BASE 3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8; local base master 18f5352070910a867b9729b031aa2e3951785e01. New candidates receive new evidence.
-- Local/mock only. No remote writes, hosted triggers/status queries, new costs/credentials/permissions, merge or chain transactions.
+- Local/mock only. Normal PR validation is reauthorized by the public-repository decision; publish only after reviewing the exact outgoing history. No new costs, credentials, permissions, merge or chain transactions.
 - Preserve all findings, raw failures and absent-platform NOT_RUN. No fabricated context, result or denominator exclusion.
 - Independent writable workspaces/dependencies/data. Local commit/ref or bundle handoff only.
 
