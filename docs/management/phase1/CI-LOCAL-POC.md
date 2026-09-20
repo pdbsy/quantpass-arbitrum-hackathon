@@ -135,3 +135,26 @@ Windows supervisor尚未实现资格验证；Linux supervisor未做本机实测�
 同版执行器的真实源码及负向接受序列重新执行：`acceptance-review-final.json`，观察2026-09-20T16:04:04.598Z（北京时间09-21）。真实源仍是3a78e34/tree6f1a218；31项子集及3检查脚本通过。当前真实源run=`run-BgRpqX`，report SHA-256 `126fbb69f0f8add19c9eb9be95c0cdd7c231f7326d7cf1e2ee7fffddc18214f7`。命令失败`run-AMK9m5`仍FAIL，后续成功`run-Y31iAJ`未改写它；超时`run-CZZ6Cn`/信号`run-gCtlit`为FAIL；平台`run-9Ceqhk`为NOT_RUN；缺日志`run-hQXxlH`为BLOCKED。新序列14.237秒、执行器自身maxRSS665440KiB，不能外推九job容量。
 
 交付来源声明：d1c52e3及16d7868的实际Git author/committer均为工作区原有`Macbeth01 <Macbeth01@users.noreply.github.com>`配置；subject/Agent-ID/Task-ID标注的是执行本任务的Macbeth06。两者不一致已披露，历史原样保留，不伪称原Git作者是06。此后06自己新增提交采用命令级`Macbeth06 <Macbeth06@users.noreply.github.com>`，不修改全局配置或重写历史。旧bundle与索引继续保留；修复后交付使用新增版本包/清单。
+
+## 2026-09-21 LOCAL 经理身份入口交付
+
+01追加授权后新增 `verifyLocalManagerIntegration(root,{branch,head,base})` 及独立 `tools/check-local-agent-integration.mjs`。它只接受目标 `macbeth01/m3-phase1-closeout` / `M3-01-PHASE1-CLOSEOUT`，读取**准确head内** `docs/management/agents/integrations/M3-01-PHASE1-CLOSEOUT.local.json`，不接受工作区未提交清单、不回退hosted manifest。真实清单由01维护，06未修改。
+
+LOCAL清单保留schema_version1/repository/branch/task/base/sources，新增必需`provider: "LOCAL"`；每条source必须包含agent/task/branch/head/`local_ref`。local_ref准确形式为`refs/remotes/local-macbethXX/<branch去掉macbethXX/后的后缀>`，必须是非symbolic直接ref，解析commit**等于**pin的完整40位head，不能用后来的分支tip代替。base作为CLI显式准确pin且与清单一致；完整历史、base→source→candidate祖先关系、每提交Agent-ID/Task-ID、source tip身份、02–05各自来源和全部外来历史登记仍须通过。拒绝replace/graft历史；读取Git时不继承GIT_*覆盖。
+
+```sh
+fnm exec --using=24.21.0 node tools/check-local-agent-integration.mjs \
+  --branch macbeth01/m3-phase1-closeout \
+  --base <准确固定base的40位SHA> \
+  --head <已经提交local清单的候选40位SHA>
+```
+
+输出只含LOCAL来源统计、`githubStatus:false`、`independentAttestation:false`；失败退出1、BLOCKED说明。检测到GITHUB_/ACTIONS_/RUNNER_上下文拒绝执行。canonical origin URL仍核对，但LOCAL不读取或制造origin/source替代物，也不把成功映射为GitHub PASS。
+
+04从经理3a78e34派生的堆叠历史使用独立source条目：`agent=Macbeth01`、`task=M3-01-PHASE1-CLOSEOUT`、`branch=macbeth01/<固定checkpoint后缀>`、`head=3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8`、匹配的`refs/remotes/local-macbeth01/<同后缀>`。checkpoint名称必须不同于目标经理分支，同时保留所有原02–05来源登记；源历史里每个外来提交都必须落在独立pin的对应来源范围内。只登记04tip而省略01 checkpoint或其head pin会拒绝；不改写04历史。
+
+用户公开仓库并恢复验证后，01另行授权hosted06最小扩展：仅已登记的`M3-01-PHASE1-CLOSEOUT`目标可接受`Macbeth06/M3-06-CI-GATES`来源。默认`verifyManagerIntegration`仍只读原`${task}.json`、真实`origin/master`和`origin/<source.branch>`，要求pin可达及完整元数据/祖先；拒绝LOCAL provider/local_ref，不接受调用参数切成LOCAL。其他经理任务和错误06任务均拒绝。06没有修改MANAGER_INTEGRATIONS注册表或默认check-agent-identity.mjs；经理已有phase1注册由01维护，测试仅在临时fixture复现该已登记配置。
+
+TDD：`.checks/macbeth06-local-identity/red.log`先证明LOCAL接口缺失；`hosted06-red.log`先证明默认hosted不支持06。最终`hosted06-green.log` **58/58 PASS，0跳过/失败，16.797秒**，包括新LOCAL/hosted06、原22项经理集成及原bypass/lifecycle边界回归。覆盖缺ref/错namespace/先进ref/symbolic、准确base、hosted不fallback、外来提交、错误06任务/目标、固定01checkpoint有无pin、committed manifest/replace防护、CLI显式参数及hosted上下文拒绝。Prettier/ESLint通过。
+
+这是可复核的本地工程结果。01实际最终集成清单与远程origin来源仍须准确候选验证；05审查结论、正式GitHub门禁和有效review不能由这58项单元回归预先宣布通过。
