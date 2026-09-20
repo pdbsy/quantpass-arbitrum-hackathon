@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { verifyPrepared } from '/private/tmp/AlphaForge-M3-05-COVERAGE-9AEFA70/tools/coverage/prepare.mjs';
+import { collectNodeWorkflow, verifyNodeWorkflow } from '/private/tmp/AlphaForge-M3-05-COVERAGE-9AEFA70/tools/coverage/collect.mjs';
+const root='/private/tmp/AlphaForge-M3-05-COVERAGE-9AEFA70';
+const prepared=JSON.parse(readFileSync('/tmp/macbeth05-9aefa70-coverage-prepare.log','utf8'));
+const options={sourceBase:prepared.baseCommit,instrumentationDirectory:root+'/.checks/coverage-tools/instrumentation/node_modules'};
+const {manifest,preparation}=await verifyPrepared(root,prepared.directory,options);
+const results=[];
+for(const [id,file,expected] of [['qa-config','tools/check-config.ts','PASS'],['qa-privacy-negative','tools/check-public-metadata.mjs','FAIL']]){
+ const args=id==='qa-config'?['--env-file=.env.example',file]:[file];
+ const run=await collectNodeWorkflow(root,prepared.directory,{...options,id,args,timeoutMs:60000});
+ assert.equal(run.state,expected);
+ const replay=await verifyNodeWorkflow(run.directory,manifest,preparation.manifestSha256,{id,args});
+ assert.equal(replay.state,expected);
+ results.push({id,file,expected,state:run.state,readback:replay.state,observations:replay.observations.length,incomplete:replay.observations.filter(x=>!x.complete).length,directory:run.directory});
+}
+console.log(JSON.stringify({candidate:manifest.candidateCommit,tree:manifest.candidateTree,sourceCount:Object.keys(manifest.sources).length,regeneratedGraph:'MATCH',methodAdmission:'PENDING',results},null,2));

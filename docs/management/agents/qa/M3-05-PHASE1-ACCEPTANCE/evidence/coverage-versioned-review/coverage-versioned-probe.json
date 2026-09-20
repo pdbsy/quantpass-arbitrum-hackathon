@@ -1,0 +1,29 @@
+{
+  "candidate": "9aefa70c7af30f5710500d128c7aa49e20fda7e4",
+  "tree": "ab0d9c084c1d384e6a299f849586eb789a82830d",
+  "sourceCount": 128,
+  "regeneratedGraph": "MATCH",
+  "methodAdmission": "PENDING",
+  "results": [
+    {
+      "id": "qa-config",
+      "file": "tools/check-config.ts",
+      "expected": "PASS",
+      "state": "PASS",
+      "readback": "PASS",
+      "observations": 2,
+      "incomplete": 0,
+      "directory": "/private/tmp/AlphaForge-M3-05-COVERAGE-9AEFA70/outputs/phase1-local-closeout/coverage/2026-09-20T16-29-55.236Z-ed197472-7dda-4619-b67f-cebb7b86277a/workflow-qa-config-c32a648b-612a-445b-8e77-45477fbe4e5b"
+    },
+    {
+      "id": "qa-privacy-negative",
+      "file": "tools/check-public-metadata.mjs",
+      "expected": "FAIL",
+      "state": "FAIL",
+      "readback": "FAIL",
+      "observations": 2,
+      "incomplete": 0,
+      "directory": "/private/tmp/AlphaForge-M3-05-COVERAGE-9AEFA70/outputs/phase1-local-closeout/coverage/2026-09-20T16-29-55.236Z-ed197472-7dda-4619-b67f-cebb7b86277a/workflow-qa-privacy-negative-e9510884-2e85-419f-beea-e56f87a621a2"
+    }
+  ]
+}

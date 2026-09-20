@@ -1,0 +1,68 @@
+✔ started but unflushed process is explicitly retained as zero-hit lower bound (2.120334ms)
+✔ complete artifact requires matching source-bound start and exact workflow identity (6.6555ms)
+✔ unknown and partially written artifacts reject instead of dropping input (1.632708ms)
+✔ verified complementary observations retain unexecuted denominator without mutating raw input (1.871583ms)
+✔ missing and incomplete lifecycles contribute no inferred hits (0.537208ms)
+✔ rejects candidate mismatch before aggregation (1.191041ms)
+✔ rejects tree mismatch before aggregation (0.249333ms)
+✔ rejects tool mismatch before aggregation (0.168459ms)
+✔ rejects source mismatch before aggregation (0.226084ms)
+✔ rejects unknown source mismatch before aggregation (0.799ms)
+✔ rejects graph mismatch before aggregation (0.484625ms)
+✔ rejects path mismatch before aggregation (0.14025ms)
+✔ rejects counter ID mismatch before aggregation (0.191084ms)
+✔ rejects missing counter mismatch before aggregation (0.597792ms)
+✔ rejects branch length mismatch before aggregation (0.396667ms)
+✔ rejects negative mismatch before aggregation (0.349042ms)
+✔ rejects fraction mismatch before aggregation (0.49575ms)
+✔ rejects unsafe mismatch before aggregation (0.395875ms)
+✔ rejects lifecycle mismatch before aggregation (0.1935ms)
+✔ rejects unreported source digest mismatch before aggregation (0.12275ms)
+✔ duplicate observation is rejected rather than replay counted (0.173458ms)
+✔ unsafe accumulated counters are rejected (0.170833ms)
+✔ manifest cannot seed hits or escape canonical paths (2.444625ms)
+✔ Git inventory retains never-run, declarations, and non-app executable paths (224.164375ms)
+✔ changed and untracked source cannot inherit clean-candidate evidence (219.153458ms)
+✔ unregistered executable HTML inline source prevents an incomplete denominator (228.917333ms)
+✔ type-only proof does not mistake runtime imports and re-exports for erased syntax (0.174875ms)
+✔ hidden index flags cannot make modified configuration inherit a source identity (218.822666ms)
+✔ real Node hook unions original TypeScript branches and retains never-loaded zero graph (590.626708ms)
+✔ changed source fails and killed lifecycle keeps its start without inventing complete hits (439.496167ms)
+✔ bounded real workflow preserves pass/failure and rejects missing execution logs (4451.711584ms)
+✔ prepared graph has the full unexecuted denominator and can be independently regenerated (660.166791ms)
+✔ replay rejects regenerated-hash tampering and stale source candidates (722.780584ms)
+✔ prototype mapping preserves extraction and insertion positions including UTF-16 columns (1.02925ms)
+✔ missing, ambiguous and malformed script sources cannot produce a mapping (0.521584ms)
+✖ actual tracked prototype maps exactly to the served bytes across all seventeen substitutions (3.14125ms)
+✔ locked installed bytes validate without executing package code (2.064ms)
+✔ altered installed bytes and missing files fail before tool import (2.321458ms)
+✔ unreviewed extra files are not silently accepted (0.948083ms)
+✔ symlink redirection and descriptors escaping the tool root reject (2.813958ms)
+✔ reviewed internal executable symlinks validate, altered targets reject (2.656417ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 40
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5540.016375
+
+✖ failing tests:
+
+test at test/coverage-prototype-map.test.mjs:31:1
+✖ actual tracked prototype maps exactly to the served bytes across all seventeen substitutions (3.14125ms)
+  Error: ENOENT: no such file or directory, open 'build/ui-import/user-ui.js'
+      at readFileSync (node:fs:483:20)
+      at TestContext.<anonymous> (file:///private/tmp/AlphaForge-M3-05-COVERAGE-9AEFA70/test/coverage-prototype-map.test.mjs:35:18)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'build/ui-import/user-ui.js'
+  }

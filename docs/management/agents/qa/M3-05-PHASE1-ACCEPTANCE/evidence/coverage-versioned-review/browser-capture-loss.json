@@ -1,0 +1,13 @@
+{
+  "sourceCommit": "c35803523b4219059826fd7fd5b26af96f397e4e",
+  "captureFailure": "Execution context was destroyed during navigation",
+  "navigationActuallyAttempted": false,
+  "incomplete": [
+    {
+      "complete": false,
+      "sources": {}
+    }
+  ],
+  "finalCaptureError": "browser coverage flush failed",
+  "finalIncompleteIsZero": true
+}

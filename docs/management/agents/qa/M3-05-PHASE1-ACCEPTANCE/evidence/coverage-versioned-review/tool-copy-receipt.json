@@ -1,0 +1,8 @@
+{
+  "sourceCandidate": "9aefa70c7af30f5710500d128c7aa49e20fda7e4",
+  "descriptorSha256": "9c7cfe03cb7dd97d5313a61d4e70d85ccb38c3b9a97ab287c950c27bbffaa39a",
+  "files": 2009,
+  "symlinks": 9,
+  "localCopyOnly": true,
+  "distinctFileInodes": true
+}

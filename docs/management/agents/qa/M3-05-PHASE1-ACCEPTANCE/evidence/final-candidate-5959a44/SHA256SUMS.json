@@ -1,0 +1,10 @@
+{
+  "format-failure.log": {
+    "bytes": 301,
+    "sha256": "d06df3925147f22457cec677feea84115e272d2eb17ea90aa433df2e7301280f"
+  },
+  "summary.json": {
+    "bytes": 741,
+    "sha256": "47ae5cffb1445418bd09b3152c88019b1f73cf3995c6a9dd4f9f740600f9f10e"
+  }
+}
