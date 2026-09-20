@@ -1,0 +1,12 @@
+{
+  "failureInjection": "One successful but partial fs.writeSync for a 16-byte stdout chunk",
+  "injected": 1,
+  "state": "PASS",
+  "stdoutBytes": 1,
+  "stdout": "c",
+  "logFailure": false,
+  "readback": {
+    "state": "PASS",
+    "independentAttestation": false
+  }
+}

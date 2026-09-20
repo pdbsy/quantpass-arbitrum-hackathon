@@ -1,0 +1,21 @@
+import { DatabaseSync } from 'node:sqlite';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+const root='/private/tmp/AlphaForge-M3-05-RECOVERY-7335386';
+const directory=mkdtempSync(join(tmpdir(),'af-qa-schema-'));
+const source=join(directory,'source.sqlite'), target=join(directory,'restored.sqlite');
+const db=new DatabaseSync(source);
+for(const name of ['chain_blocks','chain_checkpoints','chain_events','chain_sync_leases','chain_transactions','product_projections']) db.exec(`CREATE TABLE ${name} (unrelated TEXT)`);
+db.exec('PRAGMA user_version=6'); db.close();
+const hash=p=>createHash('sha256').update(readFileSync(p)).digest('hex');
+const before=hash(source);
+const run=spawnSync(process.execPath,[join(root,'tools/chain-recovery.ts'),'restore',source,target],{encoding:'utf8',cwd:root});
+const recovered=new DatabaseSync(target,{readOnly:true});
+let operationalRead;
+try { recovered.prepare('SELECT block_number, block_hash FROM chain_checkpoints').all(); operationalRead='unexpected success'; }
+catch(e){ operationalRead=e.message; }
+recovered.close();
+console.log(JSON.stringify({sourceCommit:'733538600fb2c643afbfe5e13e3c9de9b7dbbd67',sourceUnchanged:before===hash(source),exitCode:run.status,stdout:run.stdout.trim(),operationalRead},null,2));

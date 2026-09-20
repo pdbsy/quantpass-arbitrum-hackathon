@@ -1,0 +1,4 @@
+
+> alphaforge-robinhood-chain-hackathon@0.1.0 typecheck
+> tsc --noEmit && tsc --project apps/web/tsconfig.json
+

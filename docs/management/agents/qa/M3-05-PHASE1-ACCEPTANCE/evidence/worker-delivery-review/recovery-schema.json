@@ -1,0 +1,7 @@
+{
+  "sourceCommit": "733538600fb2c643afbfe5e13e3c9de9b7dbbd67",
+  "sourceUnchanged": true,
+  "exitCode": 0,
+  "stdout": "{\"operation\":\"restore\",\"status\":\"HEALTHY\",\"schemaVersion\":6,\"integrity\":\"OK\",\"content\":\"MATCH\"}",
+  "operationalRead": "no such column: block_number"
+}

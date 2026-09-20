@@ -135,3 +135,87 @@ Priority contract gaps are:
 - settlement: SwapAdapter line 87 (venue return below minimum), Vault lines 238/249/257 (custody settlement mismatch/deficit), and Vault line 283 (StrategyPass identity call failure).
 
 The direct Owner authorization branch at Vault line 38 and the PassLocker controller authorization branch at line 72 are covered in this report. That does not satisfy the broader 100% critical authorization/accounting target while the listed session, amount, capacity, settlement, and recovery branches remain uncovered.
+
+## Local integration candidate update
+
+At candidate `639ffd8f85a89ee9266112c6d80e90e9428381a2`, tree
+`7a6b8cc6ae06d8424674669727b06cf0f923c4ba`, the candidate contract source is identical to the PR
+#24 evidence source whose three core contracts independently reached 100% lines, statements,
+branches and functions. The exact candidate's complete 705-test list also ran against the 13
+explicitly included critical Chain/API sources and reported 97.37% lines, 95.40% branches and
+98.56% functions.
+
+Every concrete frozen critical zero-hit from the earlier Chain/API checkpoint remains closed. The
+raw residual records are `chain-sync.ts:242`, the closing brace of an executed `finally`, and
+`rpc.ts:325`, the retry-loop closing brace before an unreachable fallback. They remain in the raw
+denominator. The concrete critical subset is `PASS_AT_639_LOCAL_CANDIDATE`; overall JS/TS coverage
+remains `NOT_MEASURED` because this targeted population is not a complete homogeneous denominator
+for all Node and production-browser first-party source.
+
+Exact-candidate artifacts are recorded in [Execution Log](EXECUTION-LOG.md). The critical log,
+LCOV and branch-gap JSON SHA-256 values are respectively
+`bc59d41daf49b98d37a743e034022500daf0f66acfddef43f535ff949ec4c8b1`,
+`ad7248f05f9ba092d07dd88df571e3ccee004d693a01dd3ac13575b355f88e20` and
+`e938e3fe48bf701bb3031ed002440397a5ee62ad8fa82f0945a7e2a2a9c956e3`.
+
+## Refreshed candidate `3a78e34...`
+
+Candidate `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8` does not change the contract,
+Chain/API or product functional source from `639ffd8...`. Macbeth05 nevertheless reran the complete
+711-test list with the 13 critical Chain/API sources explicitly included. All tests pass; coverage
+is 97.37% lines, 95.40% branches and 98.56% functions. The only adjacent residual V8 records remain
+`chain-sync.ts:242`, an executed `finally` closing brace, and `rpc.ts:325`, the retry-loop closing
+brace before a fallback that cannot be reached because the final attempt returns or throws. The
+frozen concrete critical subset is `PASS_AT_3A78_LOCAL_CANDIDATE`; raw coverage is retained without
+rewriting the percentage.
+
+The manager's new canonical counter probe demonstrates that one original TypeScript AST count graph
+can conservatively merge a Node positive branch and a browser-minified negative branch from the
+same source: `[[1,0]] + [[0,1]]` becomes `[[1,1]]`, while an uncalled function, type-only source and
+an unimported file remain in the denominator at zero. This is useful method evidence, but it is not
+yet an admitted repository-wide measurement. Full syntax and prototype coverage, mixed callbacks,
+subprocess propagation and incomplete-process handling remain unqualified. A prior V8 Node/Vite
+union duplicated the branch denominator and is retained as a counterexample rather than reported as
+coverage. The production browser build with hidden source maps produced the same JavaScript and CSS
+bytes as the ordinary build, but byte equality alone does not solve the semantic branch mapping.
+
+An independent tracked-file recount at `3a78e34...` finds 112 non-test `.js`, `.mjs`, `.ts` and
+`.tsx` paths, including the sole declaration `apps/web/src/vite-env.d.ts`; 111 remain after excluding
+that declaration. Five executable tracked paths sit outside the old source globs:
+
+- `apps/web/vite.config.ts`;
+- `docs/management/dashboard/agent-forum-app.js`;
+- `docs/management/dashboard/app.js`;
+- `docs/task-board.js`;
+- `eslint.config.mjs`.
+
+`docs/management/dashboard/agent-forum-app.js` and `tools/agent-forum-app.js` are byte-identical at
+SHA-256 `2788e38b53c585297ffa53aecee58115f72ac58d796dcb5bb60976ef35b5d68b`; the build tool copies the
+latter to the former and its check mode enforces equality. They may share one semantic denominator
+only while that exact generation relationship is proved. The other four paths have distinct bytes
+and executable behavior and must be included unless the acceptance scope explicitly excludes their
+runtime class. The tracked prototype inline script is additional executable source outside the
+extension inventory. Therefore neither the old 98-file list nor a naive 112-file count is the final
+semantic denominator; the admitted counter must inventory all tracked executable source, exclude
+declarations by proof and deduplicate only exact generated copies.
+
+For a process intentionally terminated by `SIGKILL`, missing or incomplete coverage output may be
+treated only as zero hits on the complete canonical denominator. If the conservative union still
+exceeds 90%, it can establish a mathematical lower bound; it cannot claim that the killed lifecycle
+was completely observed. The crash-recovery behavior remains proved by its functional test, and
+coverage hits must come from separately traceable executions. Until the complete method qualifies
+and produces a candidate-bound report, overall JS/TS coverage remains `NOT_MEASURED`.
+
+| Critical coverage artifact                      | SHA-256                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------ |
+| `run-integration-3a78e34-critical-coverage.mjs` | `aaefa45a9c1eb8b26a93695bec27fb755ad3c8293fce0d25072264e545215591` |
+| `integration-3a78e34-critical-coverage.log`     | `2f7f11c8964dd1def6e29e31ad699d62550d73365f41dd6c511c8592c3383a9b` |
+| `integration-3a78e34-critical-coverage.lcov`    | `d3227b94ed7ae3d07ea3ca03847ba5db149e67b0497b0b367aa7ad524664f3d3` |
+| `summarize-integration-3a78e34-branches.mjs`    | `c0dfc8da70b861c90a821d790cfd1fbcb095c1750584b002c26403d677a13998` |
+| `integration-3a78e34-critical-branch-gaps.json` | `e1bb666812d4c031679185a633e99f9002d12e5f35fcfe4e16d9d82bf6745a34` |
+
+## Current canonical-counter gap signal
+
+The manager's 175-observation exploratory run retains both forum copies and includes two incomplete Node lifecycles as zero contribution. It reports 78.76% lines, 73.27% statements, 77.29% functions and 70.34% standard Istanbul branches. Because the package is not admitted, these values do not replace `NOT_MEASURED`, but they show that method qualification alone cannot close the target: every disclosed dimension is presently below 90%.
+
+The principal reported populations needing real workflow coverage or an explicit scope decision are the prototype UI, management dashboard/browser tooling, the unused React entry and tool lifecycles. Remediation must map each zero counter to a real business, error, recovery or management scenario. Direct imports and assertion-free execution are not accepted. Optional-chain, logical/nullish, default-parameter, switch/fallthrough and implicit-constructor semantics remain in the separate critical-case list because standard Istanbul counters do not enumerate all outcomes.

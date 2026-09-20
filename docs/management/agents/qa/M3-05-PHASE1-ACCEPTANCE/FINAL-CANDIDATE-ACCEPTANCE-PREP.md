@@ -4,7 +4,7 @@ Recorded: 2026-09-20 (Asia/Shanghai)
 
 Task: `M3-05-PHASE1-ACCEPTANCE`
 
-Status: `PREPARED / UNIFIED_CANDIDATE_NOT_FROZEN`
+Status: `LOCAL_CANDIDATE_RERUN_COMPLETE / FINAL_EVIDENCE_BLOCKED`
 
 This record maps the currently published Phase One contract, Chain/API and product sources to the
 frozen QA requirements. It defines the commands, real journeys, inputs and decision rules that
@@ -20,6 +20,40 @@ candidate PASS.
 | Earlier Chain/API handoff | `500914b900d61ea5b26c32ab5cc39c4b0d829c3c`, tree `f5257183b1b114295e565f1799b736a124797f72` | Source consumed by the product worker. Superseded for final integration by the later PR #26 head.                                                                                                                                                                                                                                           |
 | Latest Chain/API head     | `a4d73bb197ff1f715fcf6ea9f1fe1daae2c75030`, tree `bf9726cd560c51a7c60e320e1bdfe45501c9a91b` | PR #26 final remediation checkpoint. The independent full suite passes 643/643 and the same 13-source population reports 97.37% lines, 95.39% branches and 98.56% functions. Every concrete frozen critical zero-hit from the preceding checkpoint is covered; two residual V8 branch records are source-proved nonsemantic or unreachable. |
 | Latest product head       | `ffe7d08b0aa4fc2a71e01418033ced942526bfdf`, tree `544c9204dbaf2425acb9cac4cbdf01526d7ad7b3` | PR #27 final evidence checkpoint. Product code is unchanged from `bb8b628efa092e9f83669ee62263e4910a7f1418`. Independent 86-test focused and 137-test critical-product groups pass, and the local real-browser multi-Vault journey passes. It remains a separate worker source rather than the unified candidate.                           |
+
+## Local unified candidate checkpoint
+
+Macbeth01 supplied a readable local worktree for candidate
+`639ffd8f85a89ee9266112c6d80e90e9428381a2`, tree
+`7a6b8cc6ae06d8424674669727b06cf0f923c4ba`. Macbeth05 cloned it with `--no-local --no-hardlinks`
+into `/private/tmp/AlphaForge-M3-05-INTEGRATION-639FFD8`, checked out the exact SHA detached, and
+installed 193 packages with `npm ci --ignore-scripts`. The candidate contains PR #26
+`a4d73bb197ff1f715fcf6ea9f1fe1daae2c75030`, PR #27
+`ffe7d08b0aa4fc2a71e01418033ced942526bfdf`, and prior QA source `c27c869...`.
+
+Path-scoped source comparison produces no diff for `contracts/**` against PR #24 evidence head
+`a130529...`, no diff for the critical Chain/API source and test population against PR #26
+`a4d73bb...`, and no diff for the product source and critical product tests against PR #27
+`ffe7d08...`. This permits the unchanged contract result to be inherited as source-equivalent while
+the complete Node suite, critical coverage, identity, static/build gates and real browser journey
+were rerun on the exact candidate.
+
+The candidate passes 705/705 Node tests, typecheck, lint, format, secrets, privacy, web build, and
+canonical identity verification for 64 records. The 13-source critical collection reports 97.37%
+lines, 95.40% branches and 98.56% functions. The frozen concrete critical subset has no new
+zero-hit; its only adjacent residual V8 records remain `chain-sync.ts:242`, the `finally` closing
+brace whose body executes, and `rpc.ts:325`, the retry-loop closing brace before an unreachable
+fallback. The real local `DEV_MOCK` journey passes multi-Vault Owner/spender/allowance isolation,
+one-raw-unit Pass transfer with exact balance delta, pending-review invalidation on Vault switch,
+and wrong-network disablement of Deposit, Withdraw, Close and Pass transfer. Buy/Sell remain outside
+Phase One, strategy execution remains deferred, and browser warning/error logs are empty.
+
+This is `LOCAL_UNIFIED_CANDIDATE_FUNCTIONAL_PASS`, not final acceptance. `management:check` fails
+`RECORDED_GIT_BRANCH_MISMATCH` because no new candidate-bound C/R/S evidence exists. The exact
+base-to-candidate `git diff --check` also fails because
+`docs/protocol/PHASE1-TESTNET-DEPLOYMENT-PLAN.md` lines 3-4 contain trailing whitespace. Overall
+JS/TS coverage remains `NOT_MEASURED`; hosted required checks, independent approval, the restricted
+security-review result and authorized Testnet evidence also remain absent.
 
 ## Recovery and evidence boundary
 
@@ -283,14 +317,22 @@ Then run the explicitly marked local fixture on the actual product route with ch
 Any later real Testnet journey remains `NOT_RUN` until separately authorized deployment addresses,
 manifest, RPC, wallet and signing/broadcast scope exist.
 
-## Inputs still missing
+## Current inputs and evidence still missing
 
-- exact frozen unified candidate SHA, tree and composition from Macbeth01;
-- an admitted production-browser source coverage mapper and source maps; Playwright and mapping
-  packages are absent and Macbeth05 will not install unreviewed dependencies;
+Candidate `3a78e34...` now has a clean source-hygiene result and candidate-bound C/R/S; the earlier
+missing-candidate and missing-C/R/S prerequisites are resolved. Remaining inputs are:
+
+- a tracked, reproducible and admitted overall Istanbul coverage entry satisfying
+  [Coverage Method Admission Review](COVERAGE-METHOD-ADMISSION-REVIEW.md), followed by gap
+  remediation and Macbeth05's exact-candidate replay;
+- integration of Macbeth04 fix `aa6c764...` for the delayed wallet-operation/Vault-selection race
+  into a new exact candidate, followed by the already defined focused Macbeth05 candidate replay;
+- native Windows diagnostic and stable rerun evidence for the unexplained test-file process failure;
 - Testnet deployment, addresses, manifest, RPC and explicit write authorization;
-- the restricted final security-review service result, which ordinary QA does not replace;
-- hosted required-check and independent-review results for the exact candidate.
+- the final independent security disposition, which the bounded `639ffd8...3a78e34...` scan and
+  ordinary functional QA do not replace;
+- hosted required-check results after the user explicitly resumes hosted execution/status reads,
+  plus an eligible independent review and applicable merge authorization.
 
 ## Decision rules
 
@@ -306,18 +348,33 @@ A final `PASS` requires all of the following on one exact clean candidate:
 - all required CLI and browser journeys pass and their evidence is bound to the exact candidate;
 - no unresolved required `BLOCKED`, `NOT_RUN` or `NOT_MEASURED` item remains.
 
-The latest published checkpoints still do not meet those rules on one candidate. PR #26 final
-remediation head passes 643/643 Node tests; its 13 explicitly measured Chain/API sources report
-97.37% lines, 95.39% branches and 98.56% functions. Macbeth05 found no remaining concrete zero-hit
-in the frozen critical Chain/API subset: `chain-sync.ts:242` is a V8 branch record on a `finally`
-brace whose body executes, and `rpc.ts:325` is a loop-close record whose following fallback is
-unreachable because each terminal attempt returns or throws. The raw denominator is retained and
-is not rewritten as 100%. PR #24 independently passes its locked contract gate and core 100%
-target at its separate source checkpoint. PR #27 final evidence head passes the 86-test focused and
-137-test critical-product groups and an independent local real-browser multi-Vault journey, while
-its full suite remains 642/643 because the shared migration provenance still records the previous
-`product-ui.ts` hash. Macbeth01 subsequently announced local integration source `639ffd8...`, but
-that object is not yet available through Macbeth05's repository refs and has no newly published
-C/R/S evidence; its reported 705/705 result is therefore manager evidence rather than an
-independent Macbeth05 rerun. Combined JS/TS overall coverage remains `NOT_MEASURED`. Those remaining
-evidence conditions keep acceptance open.
+Local integration candidate `639ffd8...` consolidates the unchanged PR #24 contract source, PR #26
+Chain/API source and PR #27 product source. Macbeth05 independently reran the complete 705-test
+suite, critical collection, identity, static/build gates and real multi-Vault browser journey at
+that exact SHA; those functional results pass. The raw critical branch denominator is retained at
+95.40% and is not rewritten as 100%, while source inspection establishes that the two adjacent
+residual records are nonsemantic or unreachable. Combined JS/TS overall coverage remains
+`NOT_MEASURED`. The candidate also lacks new C/R/S, fails the base-to-candidate diff check, and has
+no exact-candidate hosted, independent-review, restricted-security-service or Testnet-write
+evidence. Those conditions keep final acceptance open.
+
+## Refreshed candidate disposition
+
+For `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8`, tree
+`6f1a21845a99e16a0ba171612cd97e9bf3439294`, the former C/R/S and source-hygiene blockers are
+closed. Candidate evidence C is `cb6ecd7ce7d8d230a03f87c64065df8b3aa66793`; review evidence R is
+`41e36815ca5f07a1a825cf7ea55fae4bbf63e2ab`. The exact environment gate, 71-record identity gate,
+management dashboard, complete `npm run check`, base-to-candidate diff check, focused security
+regression and local Gitleaks 8.30.1 gate all pass. The complete check executes 711/711 tests.
+
+Contract, Chain/API and product functional sources are byte-identical to `639ffd8...`. The PR #24
+contract result and the `639ffd8...` real browser journey therefore remain applicable by source
+equivalence. Macbeth05 reran the exact critical Chain/API collection on `3a78e34...`; all 711 tests
+pass and every frozen concrete critical branch remains covered.
+
+The final local decision is
+`LOCAL_UNIFIED_CANDIDATE_GATE_PASS / FINAL_COVERAGE_AND_EXTERNAL_EVIDENCE_BLOCKED`. Closure still
+requires a candidate-bound admitted overall JS/TS coverage report at or above 90%, exact-candidate
+hosted required checks, eligible independent approval, disposition of the historical restricted
+security-service limitation, and separately authorized Testnet evidence. A canonical coverage
+counter probe is promising but does not yet satisfy the overall measurement requirement.

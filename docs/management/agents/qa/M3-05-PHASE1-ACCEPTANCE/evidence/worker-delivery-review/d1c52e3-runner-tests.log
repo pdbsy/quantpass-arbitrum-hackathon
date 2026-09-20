@@ -1,0 +1,22 @@
+✔ local evidence runner is available before commands can be accepted (0.580917ms)
+✔ success binds the source, tool bytes and actual output without inherited credentials (1972.367334ms)
+✔ a command failure remains failed after a separate successful rerun (2933.981417ms)
+✔ timeouts terminate stubborn process groups rather than leave background work (1949.100708ms)
+✔ abnormal signal termination cannot become PASS (1600.191375ms)
+✔ a parent exiting successfully with a live child is blocked and cleaned up (1545.422625ms)
+✔ missing and tampered logs invalidate previously successful evidence (3335.647833ms)
+✔ stale source and wrong tool requirements cannot launch a passing command (2890.73975ms)
+✔ unsupported native platforms are NOT_RUN, not simulated successes (1513.017083ms)
+✔ source mutation during execution invalidates the run (1665.894875ms)
+✔ temporary non-repositories cannot inherit the enclosing checkout history (1633.458083ms)
+✔ invalid jobs and absent executables do not silently pass (1688.699333ms)
+✔ readback rejects stale candidate and report tampering; no private runtime directories remain (1721.035125ms)
+✔ readback rejects unknown job states even with a recomputed transport checksum (1642.097333ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26148.971166

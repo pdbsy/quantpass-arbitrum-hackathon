@@ -88,15 +88,15 @@ The earlier test-only run had 77 represented extension candidates. The real `npm
 
 Probe evidence:
 
-| Artifact | SHA-256 |
-| --- | --- |
-| `/private/tmp/af-cov-check-union/check.log` | `7eca4ba98147790a6cc23358fe64321a3d5405f068bbf0cdca9b310c9e441c7e` |
-| `/private/tmp/af-cov-check-union/summarize.cjs` | `99ee4aaa38fd07e5f986092c59874189ab38aa9e0a2c8edf034a8f88adf16763` |
+| Artifact                                                    | SHA-256                                                            |
+| ----------------------------------------------------------- | ------------------------------------------------------------------ |
+| `/private/tmp/af-cov-check-union/check.log`                 | `7eca4ba98147790a6cc23358fe64321a3d5405f068bbf0cdca9b310c9e441c7e` |
+| `/private/tmp/af-cov-check-union/summarize.cjs`             | `99ee4aaa38fd07e5f986092c59874189ab38aa9e0a2c8edf034a8f88adf16763` |
 | `/private/tmp/af-cov-check-union/summary-node-24.21.0.json` | `7e061a19a64c4b3127ae2957f25fa930e0a723e439146cd87ad01b18252384d7` |
-| `/private/tmp/af-cov-check-union/result-node-24.21.0.json` | `cd78273a58f6a6cbd69af76c1a1f9ffadc3b60e9b578b3ba6a58570fcaf45f02` |
-| `/private/tmp/af-cov-check-union/represented-78.txt` | `590586fc418117a70fbe4cda40ac7536852cdcb563c87d39ce07e5b083bc2fd7` |
-| `/private/tmp/af-cov-check-union/unrepresented-20.txt` | `bb8096687f546e906b5433f696f7be3e43d13bec4c659854049ce256ea94f04d` |
-| `/private/tmp/af-cov-check-union/raw-sha256-manifest.txt` | `b28d4a75aaea468c688552ba99417ce6e38fa497fa604daf7b962dd154af4c7a` |
+| `/private/tmp/af-cov-check-union/result-node-24.21.0.json`  | `cd78273a58f6a6cbd69af76c1a1f9ffadc3b60e9b578b3ba6a58570fcaf45f02` |
+| `/private/tmp/af-cov-check-union/represented-78.txt`        | `590586fc418117a70fbe4cda40ac7536852cdcb563c87d39ce07e5b083bc2fd7` |
+| `/private/tmp/af-cov-check-union/unrepresented-20.txt`      | `bb8096687f546e906b5433f696f7be3e43d13bec4c659854049ce256ea94f04d` |
+| `/private/tmp/af-cov-check-union/raw-sha256-manifest.txt`   | `b28d4a75aaea468c688552ba99417ce6e38fa497fa604daf7b962dd154af4c7a` |
 
 This was a collection-method probe on the base, not a final-candidate acceptance run.
 
@@ -126,15 +126,38 @@ Accordingly:
 
 For the final candidate, the remaining files should be classified by observable execution rather than forced into a percentage:
 
-| Population | Treatment |
-| --- | --- |
-| Node CLI checks such as config, environment, identity, management, OSV, and Semgrep | Run the real admitted command with inherited raw coverage. If its prerequisites are unavailable, record `NOT_RUN` or `NOT_EXECUTED_NODE_SOURCE` and the exact blocker. |
-| Long-running Node server entrypoints such as `main.ts` and `m3-main.ts` | Use an existing real lifecycle with readiness, accepted local/mock interaction, and graceful shutdown. Otherwise retain `NOT_EXECUTED_NODE_SOURCE`. |
-| One-shot `tools/backup-demo.ts` CLI | Run only through its real isolated local database backup/restore workflow; it exits normally and is not a server. Otherwise retain `NOT_EXECUTED_NODE_SOURCE`. |
-| Bootstrap/install entrypoints | Measure only when the authorized locked bootstrap workflow actually runs. Do not execute them merely for coverage. |
-| Runtime re-export barrels such as `packages/chain-adapter/src/index.ts` | Count only when a real adapter workflow loads them. Import-only execution is invalid. |
-| Type-only `reconciliation.ts` | Record `NO_EXECUTABLE_CODE`; do not import it merely to create a runtime record. `index.ts` remains a runtime re-export barrel and requires a real consumer workflow. |
-| Browser source including `agent-forum-app.js`, web entrypoints, and normalized `user-ui.js` | Functional browser evidence remains separate; source coverage is `NOT_MEASURED_BROWSER_SOURCE` under the present admitted tools. |
-| Node-driven browser verifiers | Measure the actual Node driver when its admitted prerequisites exist; keep renderer callbacks and page source in the browser population. |
+| Population                                                                                  | Treatment                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node CLI checks such as config, environment, identity, management, OSV, and Semgrep         | Run the real admitted command with inherited raw coverage. If its prerequisites are unavailable, record `NOT_RUN` or `NOT_EXECUTED_NODE_SOURCE` and the exact blocker. |
+| Long-running Node server entrypoints such as `main.ts` and `m3-main.ts`                     | Use an existing real lifecycle with readiness, accepted local/mock interaction, and graceful shutdown. Otherwise retain `NOT_EXECUTED_NODE_SOURCE`.                    |
+| One-shot `tools/backup-demo.ts` CLI                                                         | Run only through its real isolated local database backup/restore workflow; it exits normally and is not a server. Otherwise retain `NOT_EXECUTED_NODE_SOURCE`.         |
+| Bootstrap/install entrypoints                                                               | Measure only when the authorized locked bootstrap workflow actually runs. Do not execute them merely for coverage.                                                     |
+| Runtime re-export barrels such as `packages/chain-adapter/src/index.ts`                     | Count only when a real adapter workflow loads them. Import-only execution is invalid.                                                                                  |
+| Type-only `reconciliation.ts`                                                               | Record `NO_EXECUTABLE_CODE`; do not import it merely to create a runtime record. `index.ts` remains a runtime re-export barrel and requires a real consumer workflow.  |
+| Browser source including `agent-forum-app.js`, web entrypoints, and normalized `user-ui.js` | Functional browser evidence remains separate; source coverage is `NOT_MEASURED_BROWSER_SOURCE` under the present admitted tools.                                       |
+| Node-driven browser verifiers                                                               | Measure the actual Node driver when its admitted prerequisites exist; keep renderer callbacks and page source in the browser population.                               |
 
 This method makes runtime execution auditable without turning file discovery, imports, builds, or test counts into coverage claims.
+
+## Candidate inventory correction at `3a78e34...`
+
+The complete tracked extension population is broader than the original eight include globs. At
+`3a78e34...`, `git ls-files` yields 112 non-test `.js`, `.mjs`, `.ts` and `.tsx` paths. Excluding the
+one declaration leaves 111 paths. Five are outside the old globs: `apps/web/vite.config.ts`,
+`docs/management/dashboard/agent-forum-app.js`, `docs/management/dashboard/app.js`,
+`docs/task-board.js` and `eslint.config.mjs`.
+
+The dashboard copy of `agent-forum-app.js` is byte-identical to `tools/agent-forum-app.js`, and
+`tools/build-agent-forum.mjs` proves the latter is its generator input and rejects a stale output.
+That pair may be counted once as one semantic source while those proofs hold. The other four omitted
+files are distinct executable source and belong in a complete denominator unless an explicit scope
+decision excludes their runtime class. The HTML prototype's inline script is also executable source
+despite having no JavaScript extension. Inventory construction must therefore start from all tracked
+source and explicit embedded-code extraction, then classify declarations and proven generated
+duplicates; a path-glob union alone is not complete.
+
+## Independent admission decision for the manager Istanbul package
+
+Macbeth05 reviewed the manager's candidate-bound package, the Macbeth03 lifecycle report and the Macbeth04 syntax report. The single canonical graph, zero-count static denominator and strict observation merger address the earlier V8 branch-identity problem. The method remains `NOT_ADMITTED` because its executable entry and raw evidence are only in ignored `.checks` paths, its lower-bound lifecycle and browser-boundary accounting is not yet a versioned reporting contract, the forum alias policy remains provisional, and a final candidate replay from persistent versioned inputs has not occurred. Missing, `SIGKILL`, pruned-environment or otherwise incomplete lifecycles may remain zero on the complete static denominator; they do not need fabricated completion artifacts and can only reduce a correctly implemented lower bound.
+
+The complete decision, evidence hashes and ten closure conditions are in [Coverage Method Admission Review](COVERAGE-METHOD-ADMISSION-REVIEW.md). Until they are satisfied, the exploratory 78.76% lines, 73.27% statements, 77.29% functions and 70.34% branches remain gap diagnostics rather than a formal result, and overall coverage remains `NOT_MEASURED`.
