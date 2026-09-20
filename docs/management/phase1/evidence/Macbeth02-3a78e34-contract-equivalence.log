@@ -1,0 +1,58 @@
+producer=Macbeth02
+task=M3-02-PHASE1-CONTRACTS
+evidence_type=LOCAL_GIT_OBJECT_EQUIVALENCE
+executed_at_utc=2026-09-20T10:46:14+00:00
+repository=pdbsy/quantpass-arbitrum-hackathon
+branch=macbeth02/m3-phase1-contracts
+worker_head=a13052993b6f408b7be835ecd6f4b13ef6df367d
+worker_tree=0db6b922fa8c33219793f4d758e39d46665905d0
+manager_source=3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8
+manager_tree=6f1a21845a99e16a0ba171612cd97e9bf3439294
+base=18f5352070910a867b9729b031aa2e3951785e01
+startup_worktree=CLEAN
+current_uncommitted_scope=Macbeth02 candidate-review plan and evidence only
+command=uname -m
+architecture_exit=0
+arm64
+command=sw_vers -productVersion
+macos_exit=0
+26.6.2
+command=/opt/homebrew/opt/python@3.12/bin/python3.12 --version
+python_exit=0
+Python 3.12.9
+command=.checks/af-chain01/toolchain/bin/forge --version
+forge_exit=0
+forge Version: 1.5.1-v1.5.1
+Commit SHA: b0a9dd9ceda36f63e2326ce530c10e6916f4b8a2
+Build Timestamp: 2025-12-19T14:10:53.027269000Z (1766153453)
+Build Profile: maxperf
+command=.checks/af-chain01/toolchain/bin/solc --version
+solc_exit=0
+solc, the solidity compiler commandline interface
+Version: 0.8.31+commit.fd3a2265.Darwin.appleclang
+command=.checks/af-chain01/toolchain/slither-venv/bin/slither --version
+slither_exit=0
+0.11.3
+object_identity_begin
+contracts	worker=0fa7e3e471f32a6d6b742e42540add6e047b536a	manager=0fa7e3e471f32a6d6b742e42540add6e047b536a	equal=true
+contracts/src	worker=393258e9829a76dc2695442c8da8de3e350e0144	manager=393258e9829a76dc2695442c8da8de3e350e0144	equal=true
+contracts/test	worker=32a7227d2b7fccfeaa4cabc7993734ac7cf3bc7c	manager=32a7227d2b7fccfeaa4cabc7993734ac7cf3bc7c	equal=true
+contracts/script	worker=031ae0c1b864c6471a64caf4c7fe4ca045095daf	manager=031ae0c1b864c6471a64caf4c7fe4ca045095daf	equal=true
+contracts/deployment	worker=92d58ea9ac5a1373b5fd745ed2708660f3bd1f64	manager=92d58ea9ac5a1373b5fd745ed2708660f3bd1f64	equal=true
+contracts/foundry.toml	worker=e3630acb0ad8a070568b1ef097685357db4909f3	manager=e3630acb0ad8a070568b1ef097685357db4909f3	equal=true
+contracts/toolchain.lock.json	worker=a1159409a7f3608d8e43ea84be4f2afe74219303	manager=a1159409a7f3608d8e43ea84be4f2afe74219303	equal=true
+contracts/requirements-slither.lock	worker=8b655a54415239597fc6853c6984d5d9648939c6	manager=8b655a54415239597fc6853c6984d5d9648939c6	equal=true
+contracts/openzeppelin-pragma-pins.json	worker=197c8bfb0916aa7a44365795d9247461357390b9	manager=197c8bfb0916aa7a44365795d9247461357390b9	equal=true
+docs/protocol/PHASE1-CONTRACT-DELIVERY.md	worker=ebc5d24c092b0b8fc3eadf0b9733db8be049b4a9	manager=ebc5d24c092b0b8fc3eadf0b9733db8be049b4a9	equal=true
+docs/protocol/PHASE1-TESTNET-DEPLOYMENT-PLAN.md	worker=803904cd65d049969c730463069a16fba77b2efe	manager=37e0af788c2fe107d4bb98c575c988301fb8793e	equal=false
+object_identity_end
+all_listed_objects_equal=false
+command=git diff --exit-code a13052993b6f408b7be835ecd6f4b13ef6df367d 3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8 -- contracts
+contracts_diff_exit=0
+(no diff output)
+initial_combined_result=FAIL_ALL_LISTED_OBJECTS_EQUAL
+classification=PASS_CONTRACT_SOURCE_EQUIVALENCE_WITH_DOCUMENTATION_ONLY_DELTA
+contracts_scope=The complete contracts subtree and every listed source/test/script/deployment/config/lock component are object-identical.
+documentation_delta=docs/protocol/PHASE1-TESTNET-DEPLOYMENT-PLAN.md differs only by removal of two Markdown hard-break trailing-space pairs on the Status and Chain lines in the manager source.
+documentation_delta_effect=No constructor, deployment parameter, authorization, executable source, test, compiler setting, dependency, ABI, manifest, or local VM rehearsal behavior changes.
+limits=No GitHub Checks query or execution; no hosted result inherited; no Testnet deployment, signing, broadcast, external review, or merge conclusion.

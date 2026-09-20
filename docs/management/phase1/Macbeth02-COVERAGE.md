@@ -56,3 +56,32 @@ forge coverage --offline --report summary --report lcov \
 
 The LCOV output is derived local evidence under `.checks/`; it is regenerated from the committed
 source and tests and is not a deployment artifact.
+
+## Manager-candidate equivalence
+
+The manager source `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8` and PR24 head `a130529` share
+the exact `contracts/` Git tree `0fa7e3e471f32a6d6b742e42540add6e047b536a`, including the complete
+test tree and `foundry.toml`. Macbeth05 independently reproduced the 134-test suite and coverage at
+the exact PR24 head. Therefore the existing contract coverage counters apply to the same executable
+contract/test source in the manager candidate; this is source-equivalence evidence, not a new
+coverage execution in the current turn.
+
+The distinction remains mandatory: Vault/Locker/Pass are 100% for all four dimensions, while the
+complete compiled report remains 95.53% lines, 95.12% statements, 73.42% branches and 95.54%
+functions. Neither result is a measurement of combined Node/browser coverage.
+
+The retained LCOV with SHA-256
+`ab68b1355c159d195c72ef262246b7ad7ffcc5fcee0b127fa31b2141ffa95115` identifies the broader raw
+gaps without changing counters:
+
+| Broader production source | Lines | Branches | Functions | Phase One classification |
+| --- | ---: | ---: | ---: | --- |
+| `AlphaForgeSwapAdapter.sol` | 41/45 | 5/8 | 5/5 | Compiled inventory; excluded from the minimum candidate with strategy execution |
+| `AlphaForgeTestVenue.sol` | 74/76 | 10/16 | 10/10 | Compiled inventory; excluded from the minimum candidate with strategy execution |
+
+Additional misses occur in invariant handlers, harnesses and malicious/mock support code. They
+remain in the complete compiled denominator and explain why the broader branch value is 73.42%.
+They are not concealed, but they do not establish a new gap in the 100%-covered frozen
+Vault/Locker/Pass authorization and accounting core. No business scope, assertion or counter is
+changed to raise the broad optional/support result. The file-by-file classification is retained in
+`evidence/Macbeth02-a130-coverage-scope.log`; it reads existing LCOV and is not a new coverage run.
