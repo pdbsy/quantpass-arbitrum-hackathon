@@ -2,7 +2,7 @@
 
 记录日期：2026-09-21（Asia/Shanghai）。执行者：Macbeth05；任务 `M3-05-PHASE1-ACCEPTANCE`。
 
-结论：`CHANGES_REQUIRED`。03 的恢复回归 66/66 与类型检查通过，06 的执行器回归 14/14 通过；额外负例独立复现两项 P1 和两项 P2。该结果是本地工程复核，不构成治理批准、独立安全身份背书或最终统一候选验收。业务修复由 Macbeth01 分派给原责任 worker；05 未修改 worker 源码。
+当前结论：**四项发现均已在准确 worker 修复提交独立复验通过，统一候选待验收**（03 `ac266ca`；06 `c817e94`；详见文末修复记录）。以下原始审查结论保留为修复前证据：`CHANGES_REQUIRED`。03 的恢复回归 66/66 与类型检查通过，06 的执行器回归 14/14 通过；额外负例独立复现两项 P1 和两项 P2。该结果是本地工程复核，不构成治理批准、独立安全身份背书或最终统一候选验收。业务修复由 Macbeth01 分派给原责任 worker；05 未修改 worker 源码。
 
 ## 版本、环境与边界
 
@@ -92,3 +92,27 @@
 ## 后续授权更新
 
 本次初始取证后，01 回传用户已将仓库设为 public，并授权恢复正常 PR 验证；由 01/06 统一核对和安排托管执行。05 继续本地复核，不自行重复触发 CI。上述历史未执行记录保留，不再将此前暂停解释为持续有效的用户禁令。
+
+## 03 修复复验：`ac266ca`
+
+修复 HEAD `ac266cac8aaf5f2c045f4cc96b3a2145c2fa1a43`，tree `f9bdcaddb34849ee5b5e6e2766ec69d0bdbc517b`，parent `733538600fb2c643afbfe5e13e3c9de9b7dbbd67`。05 从原本地 worker 获取新增对象后，在自身隔离 clone 切换到准确修复提交；该 clone 名仍带旧 SHA，执行结论以这里实际 HEAD 为准。旧红证据和原脚本不改写；复跑旧脚本时应先检出其记录的旧 SHA。
+
+独立 `node --test test/chain-store.test.ts test/chain-sync.test.ts` 为 **79/79 PASS**；`npm run typecheck` 和修复 diff check 通过。新增 12 类畸形 schema 分别执行 backup/restore，均验证源文件字节保持不变、目标不存在、错误分类正确。此前的并发 snapshot、旧/损坏库拒绝和失败清理用例继续通过。05 自有原始“六张单列假表”负例另行复跑：exit 1、`CHAIN_RECOVERY_SOURCE_UNSUPPORTED`、stdout 为空、sourceUnchanged=true、targetExists=false。
+
+实现将规范迁移仅应用到独立 `:memory:` ChainStore，输入仍由 readOnly DatabaseSync 打开，并在同一 BEGIN 读事务内验证 schema 和内容。源和恢复目标均比较当前 sqlite_schema 的 type/name/tbl_name/sql，覆盖列、类型、主键、约束、索引及额外应用对象；SQLite 内部对象排除。该方案是精确 DDL 准入，明确拒绝手工重建但语义相近的定义；这项边界已写入恢复文档，未扩大到任意 SQLite 格式转换。
+
+`M3-05-P1-RECOVERY-SCHEMA-01` 更新为 **PASS_AT_AC266CA / FINAL_INTEGRATION_PENDING**。这仅关闭该 worker 修复上的具体 P2，06 三项仍 OPEN。原始日志、独立负例和哈希清单见 [修复证据](evidence/recovery-schema-retest/SHA256SUMS.json)。已回传 01，由经理纳入准确统一候选后完成最终复验。
+
+## 06 修复复验：`c817e94`
+
+修复 HEAD `c817e94163c14b882b67cfa53400cae032a9a4f4`，tree `7d51f4efd5d92abb1c19fc71b00a64fe8e93c7f1`，parent `16d78684d12fa9cb3659685d13588071bce2aa8e`。05 的原隔离 clone 获取本地对象后准确切换，运行 `node --test test/local-ci.test.mjs` 为 **19/19 PASS**；diff check 通过。新提交 author 和 Agent-ID 均为 Macbeth06，旧提交作者差异继续保留声明。
+
+05 自有脚本另行执行 **22 项负例/对照，全部符合预期**：真实 exit 7 保持 FAIL；顶层 PASS + reason / 子项 FAIL 拒绝；assume-unchanged 和 skip-worktree 隐藏源均 BLOCKED；逐项删除 10 个执行结果字段及 4 个错类型均 BLOCKED；stdout/stderr 成功短写循环保存完整 16 字节，零字节写入均 BLOCKED 且 logFailure=true。
+
+首次运行自有复验脚本时，清除 skip-worktree 后仅执行 git checkout 未恢复原工作字节，后续“干净对照”被执行器正确拒绝。检查 fixture 文件确认仍为 exit 0；在脚本复位步骤显式从 HEAD 写回原字节并刷新索引后，全部复验通过。这是测试夹具复位纠正，未修改 worker 实现或放宽断言。原始失败发现仍保存在前一证据目录，修复脚本及本次结果独立保存。
+
+实现现在拒绝隐藏索引标记，逐个比较 tracked 文件内容的 Git blob 身份和执行位，并在运行前后校验；本地入口刻意只接受常规文件，符号链接/不支持的 tree 项保持 BLOCKED。回读强制完整字段及类型，按真实退出、超时、signal、日志/清理事实推导子项结果；只有明确 BLOCKED 的前置失败可以携带 reason，不能覆盖成 PASS。短写处理必须取得正向有界进展。它仍是可信本地工作区上的过程证据，不宣称同一 OS 账号间的独立认证。
+
+`M3-05-P1-LOCAL-SOURCE-01`、`M3-05-P1-LOCAL-READBACK-01`、`M3-05-P1-LOCAL-LOG-01` 均更新为 **PASS_AT_C817E94 / FINAL_INTEGRATION_PENDING**。证据及哈希见 [执行器复验](evidence/local-runner-retest/SHA256SUMS.json)。已回传 01。新增 LOCAL 身份入口 `62444c8` 的审查与此分开记录。
+
+06后续 `62444c8` LOCAL身份入口独立58/58通过，见 [身份入口复核](LOCAL-IDENTITY-REVIEW.md)；04 `f26e919` 浏览器独立复跑通过，见 [浏览器复核](BROWSER-DRIVER-REVIEW.md)。

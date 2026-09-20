@@ -1,0 +1,18 @@
+{
+  "ac266ca-recovery-tests.log": {
+    "bytes": 7176,
+    "sha256": "1cfdb475b75ffae49b56f0ce647fa8c46a5b6b9c0a313873cd79b55fc8d5ebf9"
+  },
+  "ac266ca-typecheck.log": {
+    "bytes": 112,
+    "sha256": "2a6a2c0222a96232b5dd3dea2c3e4411abfc22401c3a741d0a8e3f88ad508016"
+  },
+  "probe-recovery-schema-fixed.mjs.txt": {
+    "bytes": 1298,
+    "sha256": "19de15985559e20669b534eecc98f16f706ecb4f7e9424a70ec3db54a0cb69e0"
+  },
+  "recovery-schema-fixed.json": {
+    "bytes": 202,
+    "sha256": "f9aba6eaca081e4c439aff71ed9f2a7504549487726f1bbafacfdfb4d4d80f15"
+  }
+}

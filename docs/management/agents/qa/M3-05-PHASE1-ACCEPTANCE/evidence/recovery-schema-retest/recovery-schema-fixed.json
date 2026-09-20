@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "ac266cac8aaf5f2c045f4cc96b3a2145c2fa1a43",
+  "sourceUnchanged": true,
+  "exitCode": 1,
+  "stdout": "",
+  "errorCode": "CHAIN_RECOVERY_SOURCE_UNSUPPORTED",
+  "targetExists": false
+}

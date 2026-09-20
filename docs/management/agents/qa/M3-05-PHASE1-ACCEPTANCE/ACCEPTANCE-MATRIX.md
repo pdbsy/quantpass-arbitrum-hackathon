@@ -91,3 +91,9 @@ overlay for the latest local acceptance conclusion; the historical base matrix r
 | New reusable browser driver                                                 | 04 `f26e919`      | NOT_RUN                                           | Received; not independently executed in this record                       |
 
 Overall worker review is `CHANGES_REQUIRED`; this supplement does not replace exact unified-candidate acceptance.
+
+03 schema fix `ac266cac8aaf5f2c045f4cc96b3a2145c2fa1a43` independently passes 79/79 and typecheck; the original malformed-schema probe now rejects without source mutation or target creation. Recovery schema is `PASS_AT_AC266CA / FINAL_INTEGRATION_PENDING`. This supersedes only the 03 schema FAIL at the older source.
+
+06 actual-source binding, strict readback and complete logs now pass at `c817e94` (19/19 and 22 extra cases). 04 reusable browser driver independently passes at `f26e919` (43/43, typecheck, real DEV_MOCK browser 8 groups / 9 exact sends). Both remain `FINAL_INTEGRATION_PENDING`; see [Browser Driver Review](BROWSER-DRIVER-REVIEW.md).
+
+LOCAL identity tool at exact `62444c86c35c9af4c1a76a49c9a7c231f5a47f90` passes 58/58 independent tests and source review (`PASS_AT_62444C8 / REAL_CANDIDATE_VALIDATION_PENDING`); [Local Identity Review](LOCAL-IDENTITY-REVIEW.md) separates fixture qualification from real candidate provenance.
