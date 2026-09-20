@@ -15,12 +15,20 @@ await main(import.meta.url, async () => {
     'contracts/requirements-slither.lock',
     'tools/security/requirements-semgrep-darwin-arm64.lock',
     'tools/security/requirements-semgrep-linux-x64.lock',
+    'planning/coverage-instrumentation.package-lock.json',
+    'planning/coverage-toolchain.lock.json',
   ];
   const inputs = Object.fromEntries(files.map((file) => [file, readFileSync(join(root, file), 'utf8')]));
   const inventory = buildInventory({
     npmLock: JSON.parse(inputs[files[0]]),
     contractLock: JSON.parse(inputs[files[1]]),
-    pythonLocks: files.slice(2).map((f) => inputs[f]),
+    pythonLocks: files.slice(2, 5).map((f) => inputs[f]),
+    extraNpmLocks: [{ source: files[5], lock: JSON.parse(inputs[files[5]]) }],
+    browserPackage: {
+      source: `${files[6]}#browser.package`,
+      ...JSON.parse(inputs[files[6]]).browser.package,
+    },
+    requireCoverage: true,
   });
   const tool = await installScanner('osv');
   try {
@@ -62,6 +70,10 @@ await main(import.meta.url, async () => {
       inventorySha256: createHash('sha256').update(JSON.stringify(inventory.packages)).digest('hex'),
       npmEntries: inventory.npmEntries,
       pythonEntries: inventory.pythonEntries,
+      extraNpmEntries: inventory.extraNpmEntries,
+      browserEntries: inventory.browserEntries,
+      sourceCounts: inventory.sourceCounts,
+      packageSources: inventory.packageSources,
       unmapped: inventory.unmapped,
       boundary:
         'All reported advisories block. Exact npm/PyPI and identified Git package inventory; known advisory coverage only, no independent audit or full native toolchain coverage.',

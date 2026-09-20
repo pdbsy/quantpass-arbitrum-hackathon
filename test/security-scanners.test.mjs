@@ -98,6 +98,115 @@ test('OSV inventory cannot silently omit malformed lock entries or an empty grap
   assert.throws(() => buildInventory({ ...base, pythonLocks: [] }));
 });
 
+test('OSV inventory includes the exact coverage lock graph and fixed browser package with source counts', () => {
+  const coverageLock = {
+    lockfileVersion: 3,
+    packages: {
+      '': { name: 'coverage-fixture', version: '0.0.0' },
+      'node_modules/istanbul-lib-instrument': { version: '6.0.3' },
+      'node_modules/shared': { version: '1.2.3' },
+    },
+  };
+  const inventory = buildInventory({
+    npmLock: {
+      lockfileVersion: 3,
+      packages: {
+        '': { name: 'fixture', version: '0.1.0' },
+        'node_modules/shared': { version: '1.2.3' },
+      },
+    },
+    extraNpmLocks: [{ source: 'planning/coverage-instrumentation.package-lock.json', lock: coverageLock }],
+    browserPackage: {
+      source: 'planning/coverage-toolchain.lock.json#browser.package',
+      name: 'playwright-core',
+      version: '1.62.1',
+      url: 'https://registry.npmjs.org/playwright-core/-/playwright-core-1.62.1.tgz',
+      sha256: 'a'.repeat(64),
+    },
+    pythonLocks: [pin('foo', '2.0.0')],
+    contractLock: {
+      openzeppelin: { version: '5.4.0' },
+      foundry: { version: '1.5.1', commit: 'b'.repeat(40) },
+      solc: { version: '0.8.31' },
+    },
+  });
+  assert.ok(inventory.packages.some((p) => p.name === 'playwright-core' && p.version === '1.62.1'));
+  assert.equal(inventory.extraNpmEntries, 2);
+  assert.equal(inventory.browserEntries, 1);
+  assert.equal(inventory.sourceCounts['package-lock.json'], 1);
+  assert.equal(inventory.sourceCounts['planning/coverage-instrumentation.package-lock.json'], 2);
+  assert.deepEqual(inventory.packageSources['npm:shared:1.2.3'].sort(), [
+    'package-lock.json',
+    'planning/coverage-instrumentation.package-lock.json',
+  ]);
+  assert.deepEqual(inventory.packageSources['npm:playwright-core:1.62.1'], [
+    'planning/coverage-toolchain.lock.json#browser.package',
+  ]);
+});
+
+test('coverage OSV inputs fail closed for missing, malformed or non-exact extra/browser pins', () => {
+  const base = {
+    npmLock: { lockfileVersion: 3, packages: { '': {}, 'node_modules/a': { version: '1.0.0' } } },
+    pythonLocks: [pin('foo', '2.0.0')],
+    contractLock: {
+      openzeppelin: { version: '5.4.0' },
+      foundry: { version: '1.5.1', commit: 'b'.repeat(40) },
+      solc: { version: '0.8.31' },
+    },
+    extraNpmLocks: [
+      {
+        source: 'planning/coverage-instrumentation.package-lock.json',
+        lock: {
+          lockfileVersion: 3,
+          packages: { '': {}, 'node_modules/instrumenter': { version: '1.0.0' } },
+        },
+      },
+    ],
+    browserPackage: {
+      source: 'planning/coverage-toolchain.lock.json#browser.package',
+      name: 'playwright-core',
+      version: '1.62.1',
+      url: 'https://registry.npmjs.org/playwright-core/-/playwright-core-1.62.1.tgz',
+      sha256: 'a'.repeat(64),
+    },
+  };
+  assert.doesNotThrow(() => buildInventory(base));
+  assert.throws(() =>
+    buildInventory({ ...base, requireCoverage: true, extraNpmLocks: undefined, browserPackage: undefined }),
+  );
+  for (const patch of [
+    { extraNpmLocks: [] },
+    {
+      extraNpmLocks: [
+        {
+          source: 'planning/coverage-instrumentation.package-lock.json',
+          lock: { lockfileVersion: 2, packages: {} },
+        },
+      ],
+    },
+    {
+      extraNpmLocks: [
+        {
+          source: 'planning/coverage-instrumentation.package-lock.json',
+          lock: { lockfileVersion: 3, packages: { 'node_modules/instrumenter': { version: '*' } } },
+        },
+      ],
+    },
+    {
+      extraNpmLocks: [
+        {
+          source: 'planning/coverage-instrumentation.package-lock.json',
+          lock: { lockfileVersion: 3, packages: { 'node_modules/playwright-core': { version: '1.62.0' } } },
+        },
+      ],
+    },
+    { browserPackage: { ...base.browserPackage, version: '1.62.0' } },
+    { browserPackage: { ...base.browserPackage, sha256: 'not-a-sha' } },
+    { browserPackage: { ...base.browserPackage, url: 'https://registry.npmjs.org/other.tgz' } },
+  ])
+    assert.throws(() => buildInventory({ ...base, ...patch }));
+});
+
 test('Semgrep coverage includes tracked Python and config code but excludes test fixtures and dependency output', () => {
   assert.deepEqual(
     scannerTargets([
