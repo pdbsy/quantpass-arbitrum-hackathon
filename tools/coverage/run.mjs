@@ -32,27 +32,31 @@ const collected = await collectNodeWorkflow(root, prepared.directory, {
 const workflows = [{ ...configuration, directory: collected.directory }];
 if (options.browserDirectory) {
   assert.ok(options.executablePath, 'explicit browser executable required');
-  const browserConfiguration = {
-    id: 'm3-browser',
-    args: [
-      'tools/coverage/run-browser.mjs',
-      '--tools',
-      options.instrumentationDirectory,
-      '--browser-tools',
-      options.browserDirectory,
-      '--chrome',
-      options.executablePath,
-      '--base',
-      options.sourceBase,
-    ],
-  };
-  const browserRun = await collectNodeWorkflow(root, prepared.directory, {
-    ...options,
-    ...browserConfiguration,
-    artifactFiles: ['browser-receipt.json'],
-    timeoutMs: 300000,
-  });
-  workflows.push({ ...browserConfiguration, directory: browserRun.directory, browser: true });
+  for (const workflow of ['m3', 'legacy', 'management']) {
+    const browserConfiguration = {
+      id: `${workflow}-browser`,
+      args: [
+        'tools/coverage/run-browser.mjs',
+        '--tools',
+        options.instrumentationDirectory,
+        '--browser-tools',
+        options.browserDirectory,
+        '--chrome',
+        options.executablePath,
+        '--base',
+        options.sourceBase,
+        '--workflow',
+        workflow,
+      ],
+    };
+    const browserRun = await collectNodeWorkflow(root, prepared.directory, {
+      ...options,
+      ...browserConfiguration,
+      artifactFiles: ['browser-receipt.json'],
+      timeoutMs: 300000,
+    });
+    workflows.push({ ...browserConfiguration, directory: browserRun.directory, browser: true });
+  }
 }
 const result = await reportCoverage(root, prepared.directory, {
   ...options,

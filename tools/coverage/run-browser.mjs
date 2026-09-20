@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { verifyPrepared } from './prepare.mjs';
 import { collectBrowserCoverage } from './browser.mjs';
+import { collectLegacyBrowserCoverage } from './browser-legacy.mjs';
 import { sha256 } from './toolchain.mjs';
 const options = {};
 const args = process.argv.slice(2);
@@ -13,11 +14,13 @@ for (let i = 0; i < args.length; i += 2) {
     '--browser-tools': 'browserDirectory',
     '--chrome': 'executablePath',
     '--base': 'sourceBase',
+    '--workflow': 'workflow',
   }[args[i]];
   assert.ok(key && args[i + 1] && !Object.hasOwn(options, key));
   options[key] = args[i + 1];
 }
 assert.ok(options.browserDirectory && options.executablePath && options.sourceBase);
+assert.ok(!options.workflow || ['m3', 'legacy', 'management'].includes(options.workflow));
 const root = resolve(import.meta.dirname, '../..');
 const prepared = process.env.AF_COVERAGE_PREPARED;
 const output = resolve(process.env.AF_COVERAGE_RAW, '..');
@@ -28,15 +31,31 @@ const browserRuntime = {
 };
 let receipt;
 try {
-  const result = await collectBrowserCoverage({
-    root,
-    manifest,
-    generated,
-    tools,
-    outputDirectory: resolve(output, 'browser'),
-    executablePath: options.executablePath,
-  });
-  assert.equal(result.workflowResult.state, 'PASS');
+  const result =
+    options.workflow && options.workflow !== 'm3'
+      ? await collectLegacyBrowserCoverage({
+          root,
+          manifest,
+          generated,
+          tools,
+          outputDirectory: resolve(output, 'browser', options.workflow),
+          executablePath: options.executablePath,
+          browserPath: resolve(options.browserDirectory, 'index.mjs'),
+          workflow: options.workflow,
+          nodeHook: resolve(output, 'node-hook.mjs'),
+        })
+      : await collectBrowserCoverage({
+          root,
+          manifest,
+          generated,
+          tools,
+          outputDirectory: resolve(output, 'browser'),
+          executablePath: options.executablePath,
+        });
+  assert.equal(
+    options.workflow && options.workflow !== 'm3' ? result.status : result.workflowResult.state,
+    'PASS',
+  );
   receipt = {
     schemaVersion: 1,
     provider: 'LOCAL',
@@ -44,10 +63,14 @@ try {
     candidateCommit: manifest.candidateCommit,
     candidateTree: manifest.candidateTree,
     manifestSha256: sha256(readFileSync(resolve(prepared, 'manifest.json'))),
-    directory: result.directory,
-    index: result.index,
+    directory: options.workflow && options.workflow !== 'm3' ? result.directory : result.directory,
+    index: options.workflow && options.workflow !== 'm3' ? result.collection.index : result.index,
     browserRuntime,
-    checks: result.workflowResult.checks,
+    checks:
+      options.workflow && options.workflow !== 'm3'
+        ? result.collection.observations.length
+        : result.workflowResult.checks,
+    workflow: options.workflow || 'm3',
   };
 } catch (error) {
   receipt = {
