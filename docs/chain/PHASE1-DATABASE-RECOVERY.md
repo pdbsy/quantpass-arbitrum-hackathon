@@ -31,18 +31,22 @@ non-overwriting backup and verifies schema, integrity, and complete table conten
 success:
 
 ```sh
-npm run m3:recovery -- backup /path/to/source.sqlite /path/to/new-backup.sqlite
+node tools/chain-recovery.ts backup /path/to/source.sqlite /path/to/new-backup.sqlite
 ```
 
 The restore drill also writes a new path, preserving both the incident database and the selected backup:
 
 ```sh
-npm run m3:recovery -- restore /path/to/verified-backup.sqlite /path/to/new-restored.sqlite
+node tools/chain-recovery.ts restore /path/to/verified-backup.sqlite /path/to/new-restored.sqlite
 ```
 
-Both commands refuse a missing source, an existing destination, a source/destination path collision,
-an unhealthy schema, or a content mismatch. Run them only after stopping writers for the selected
-source, as described below.
+Both commands first open the source read-only and require the exact current schema without running
+migrations or initializing an empty file. They refuse a missing source, an existing destination, a
+source/destination path collision, a legacy or unhealthy schema, or a content mismatch. After
+preflight, the command keeps a read transaction open from the source snapshot through target
+validation. Concurrent writers may continue in WAL mode, while the backup remains fixed at the
+validated recovery point. Still run the commands only after stopping writers for the selected source,
+as described below, so operators can identify and retain an unambiguous incident recovery point.
 
 The test creates three isolated schema-6 databases. Each run synchronizes an empty-log canonical fixture through block 1000, performs an online backup, reopens and checks the copy, advances the observed head to 1128, catches up exactly 128 blocks, and requires a healthy checkpoint at the new head. It emits the measured components as a diagnostic without imposing a machine-speed assertion.
 

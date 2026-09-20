@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
+import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
+import { spawn, spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { once } from 'node:events';
+import { setTimeout as delay } from 'node:timers/promises';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { DatabaseSync } from 'node:sqlite';
@@ -33,6 +35,16 @@ async function databasePath() {
   return resolve(directory, 'chain.sqlite');
 }
 
+function runRecovery(
+  operation: 'backup' | 'restore',
+  source: string,
+  target: string,
+): SpawnSyncReturns<string> {
+  return spawnSync(process.execPath, [resolve('tools/chain-recovery.ts'), operation, source, target], {
+    encoding: 'utf8',
+  });
+}
+
 function event(overrides: Partial<IndexedChainEvent> = {}): IndexedChainEvent {
   return {
     chainId: CHAIN_ID,
@@ -50,6 +62,34 @@ function event(overrides: Partial<IndexedChainEvent> = {}): IndexedChainEvent {
     normalizedData: { owner: OWNER_A, amount: '1000000' },
     ...overrides,
   };
+}
+
+async function largeRecoveryDatabase(): Promise<string> {
+  const source = await databasePath();
+  const seed = new ChainStore(source);
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  seed.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, []);
+  seed.commitProjections(CHAIN_ID, CONTRACT, block, []);
+  seed.close();
+  const fixture = new DatabaseSync(source);
+  const insert = fixture.prepare(
+    'INSERT INTO product_projections (chain_id, owner_address, contract_address, projection_key, block_number, block_hash, state_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  );
+  const state = JSON.stringify({ payload: 'x'.repeat(60_000) });
+  fixture.exec('BEGIN IMMEDIATE');
+  for (let index = 0; index < 512; index++)
+    insert.run(
+      CHAIN_ID,
+      `0x${index.toString(16).padStart(40, '0')}`,
+      CONTRACT,
+      `fixture-${index}`,
+      100,
+      BLOCK_100,
+      state,
+    );
+  fixture.exec('COMMIT');
+  fixture.close();
+  return source;
 }
 
 test('transaction identity conflicts use a fixed store error', async () => {
@@ -1095,10 +1135,7 @@ test('chain recovery CLI creates and restores a validated independent database',
   ]);
   store.close();
 
-  const tool = resolve('tools/chain-recovery.ts');
-  const backupResult = spawnSync(process.execPath, [tool, 'backup', source, backupPath], {
-    encoding: 'utf8',
-  });
+  const backupResult = runRecovery('backup', source, backupPath);
   assert.equal(backupResult.status, 0, backupResult.stderr);
   assert.deepEqual(JSON.parse(backupResult.stdout), {
     operation: 'backup',
@@ -1108,9 +1145,7 @@ test('chain recovery CLI creates and restores a validated independent database',
     content: 'MATCH',
   });
   assert.equal((await stat(backupPath)).mode & 0o777, 0o600);
-  const restoreResult = spawnSync(process.execPath, [tool, 'restore', backupPath, restoredPath], {
-    encoding: 'utf8',
-  });
+  const restoreResult = runRecovery('restore', backupPath, restoredPath);
   assert.equal(restoreResult.status, 0, restoreResult.stderr);
   assert.deepEqual(JSON.parse(restoreResult.stdout), {
     operation: 'restore',
@@ -1120,9 +1155,7 @@ test('chain recovery CLI creates and restores a validated independent database',
     content: 'MATCH',
   });
   assert.equal((await stat(restoredPath)).mode & 0o777, 0o600);
-  const overwriteResult = spawnSync(process.execPath, [tool, 'restore', backupPath, restoredPath], {
-    encoding: 'utf8',
-  });
+  const overwriteResult = runRecovery('restore', backupPath, restoredPath);
   assert.notEqual(overwriteResult.status, 0);
 
   const restored = new ChainStore(restoredPath);
@@ -1140,6 +1173,159 @@ test('chain recovery CLI creates and restores a validated independent database',
   } finally {
     restored.close();
   }
+});
+
+test('chain recovery CLI rejects an empty source without initializing or changing it', async () => {
+  const directory = await mkdtemp(resolve('.checks/chain-recovery-empty-'));
+  const source = resolve(directory, 'empty.sqlite');
+  const target = resolve(directory, 'backup.sqlite');
+  await writeFile(source, '');
+  const before = readFileSync(source);
+
+  const result = runRecovery('backup', source, target);
+
+  assert.notEqual(result.status, 0);
+  assert.deepEqual(readFileSync(source), before);
+  await assert.rejects(stat(target), { code: 'ENOENT' });
+});
+
+test('chain recovery CLI rejects a legacy chain source without migrating it', async () => {
+  const directory = await mkdtemp(resolve('.checks/chain-recovery-legacy-'));
+  const source = resolve(directory, 'legacy.sqlite');
+  const target = resolve(directory, 'restored.sqlite');
+  const legacy = new DatabaseSync(source);
+  legacy.exec(
+    readFileSync(
+      new URL('../apps/server/chain-migrations/001-chain-projection.sql', import.meta.url),
+      'utf8',
+    ),
+  );
+  legacy.close();
+  const before = readFileSync(source);
+
+  const result = runRecovery('restore', source, target);
+
+  assert.notEqual(result.status, 0);
+  assert.deepEqual(readFileSync(source), before);
+  const reopened = new DatabaseSync(source, { readOnly: true });
+  assert.equal(reopened.prepare('PRAGMA user_version').get()?.user_version, 1);
+  reopened.close();
+  await assert.rejects(stat(target), { code: 'ENOENT' });
+});
+
+test('chain recovery CLI rejects unrelated and damaged sources without creating a target', async () => {
+  for (const fixture of ['unrelated', 'damaged'] as const) {
+    const directory = await mkdtemp(resolve(`.checks/chain-recovery-${fixture}-`));
+    const source = resolve(directory, 'source.sqlite');
+    const target = resolve(directory, 'backup.sqlite');
+    if (fixture === 'unrelated') {
+      const database = new DatabaseSync(source);
+      database.exec("CREATE TABLE unrelated (value TEXT); INSERT INTO unrelated VALUES ('preserve');");
+      database.close();
+    } else {
+      await writeFile(source, 'not-a-sqlite-database');
+    }
+    const before = readFileSync(source);
+
+    const result = runRecovery('backup', source, target);
+
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(readFileSync(source), before);
+    await assert.rejects(stat(target), { code: 'ENOENT' });
+  }
+});
+
+test('chain recovery CLI preserves the source and destination on path or overwrite conflicts', async () => {
+  const source = await databasePath();
+  const target = `${source}.existing`;
+  const store = new ChainStore(source);
+  store.close();
+  await writeFile(target, 'preserve-existing-destination');
+  const sourceBefore = readFileSync(source);
+  const targetBefore = readFileSync(target);
+
+  assert.notEqual(runRecovery('backup', source, source).status, 0);
+  assert.notEqual(runRecovery('restore', source, target).status, 0);
+  assert.deepEqual(readFileSync(source), sourceBefore);
+  assert.deepEqual(readFileSync(target), targetBefore);
+});
+
+test('chain recovery CLI keeps a consistent source snapshot while writers continue', async () => {
+  const source = await largeRecoveryDatabase();
+  const target = `${source}.backup`;
+
+  const child = spawn(process.execPath, [resolve('tools/chain-recovery.ts'), 'backup', source, target], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    stderr += String(chunk);
+  });
+  for (let attempt = 0; attempt < 2_000; attempt++) {
+    try {
+      await stat(target);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      if (child.exitCode !== null) assert.fail(`recovery exited before reserving target: ${stderr}`);
+      await delay(1);
+    }
+  }
+  await stat(target);
+
+  const competingWriter = new DatabaseSync(source);
+  competingWriter
+    .prepare('UPDATE product_projections SET state_json = ? WHERE projection_key = ?')
+    .run('{}', 'fixture-0');
+  competingWriter.close();
+  const exitCode = child.exitCode === null ? (await once(child, 'exit'))[0] : child.exitCode;
+  assert.equal(exitCode, 0, stderr);
+
+  const current = new DatabaseSync(source, { readOnly: true });
+  const recovered = new DatabaseSync(target, { readOnly: true });
+  try {
+    assert.equal(
+      current.prepare("SELECT state_json FROM product_projections WHERE projection_key = 'fixture-0'").get()
+        ?.state_json,
+      '{}',
+    );
+    assert.notEqual(
+      recovered.prepare("SELECT state_json FROM product_projections WHERE projection_key = 'fixture-0'").get()
+        ?.state_json,
+      '{}',
+    );
+  } finally {
+    recovered.close();
+    current.close();
+  }
+});
+
+test('chain recovery CLI removes a completed copy when target validation cannot open it', async () => {
+  const source = await largeRecoveryDatabase();
+  const target = `${source}.backup`;
+  const child = spawn(process.execPath, [resolve('tools/chain-recovery.ts'), 'backup', source, target], {
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    stderr += String(chunk);
+  });
+  for (let attempt = 0; attempt < 2_000; attempt++) {
+    try {
+      await stat(target);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      if (child.exitCode !== null) assert.fail(`recovery exited before reserving target: ${stderr}`);
+      await delay(1);
+    }
+  }
+  await chmod(target, 0o000);
+  const exitCode = child.exitCode === null ? (await once(child, 'exit'))[0] : child.exitCode;
+  assert.notEqual(exitCode, 0);
+  await assert.rejects(stat(target), { code: 'ENOENT' });
 });
 
 test('sync leases and rollback remain isolated by contract in a shared chain database', async () => {
