@@ -23,8 +23,5 @@
     "bytes": 1297040,
     "sha256": "5d88fac489e5901a2b755ef6766bf4fbf9f0a3810be25dc36a78840cc48c31f8"
   },
-  "result.json": {
-    "bytes": 3748,
-    "sha256": "7743a266070e48b6cd28f45bb623e8b902ebbb73460407139845e91e15c2b875"
-  }
+  "result.json": "0110494eb972ee4d6310167a04119301e5e9fbbec7c685c9c9b1c9e06b2bf6f2"
 }

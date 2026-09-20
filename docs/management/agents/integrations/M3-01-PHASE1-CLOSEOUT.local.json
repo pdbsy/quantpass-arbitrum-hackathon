@@ -17,14 +17,14 @@
       "agent": "Macbeth03",
       "task": "M3-03-PHASE1-RECOVERY",
       "branch": "macbeth03/m3-phase1-recovery-final",
-      "head": "ac266cac8aaf5f2c045f4cc96b3a2145c2fa1a43",
+      "head": "4caa95424201691f4728882f9dbf6707d3b5ab1d",
       "local_ref": "refs/remotes/local-macbeth03/m3-phase1-recovery-final"
     },
     {
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
       "branch": "macbeth04/m3-phase1-product-race",
-      "head": "1845447a0e0d817f42327cb81309b472f60c1da2",
+      "head": "956418bf4bdb6107faf962c16986cf9d643351d5",
       "local_ref": "refs/remotes/local-macbeth04/m3-phase1-product-race"
     },
     {

@@ -85,10 +85,7 @@
       "passTransferMode": "INJECTED_MOCK",
       "writeMode": "INJECTED_MOCK",
       "exitPath": "SIMULATION",
-      "supportedActions": [
-        "rescue-token",
-        "rescue-native"
-      ],
+      "supportedActions": ["rescue-token", "rescue-native"],
       "vaultAddress": "0x2222222222222222222222222222222222222222"
     },
     "vaultSelection": {
