@@ -325,8 +325,8 @@ missing-candidate and missing-C/R/S prerequisites are resolved. Remaining inputs
 - a tracked, reproducible and admitted overall Istanbul coverage entry satisfying
   [Coverage Method Admission Review](COVERAGE-METHOD-ADMISSION-REVIEW.md), followed by gap
   remediation and Macbeth05's exact-candidate replay;
-- Macbeth04's exact fix SHA and focused regression for the delayed wallet-operation/Vault-selection
-  race, followed by an independent Macbeth05 local retest;
+- integration of Macbeth04 fix `aa6c764...` for the delayed wallet-operation/Vault-selection race
+  into a new exact candidate, followed by the already defined focused Macbeth05 candidate replay;
 - native Windows diagnostic and stable rerun evidence for the unexplained test-file process failure;
 - Testnet deployment, addresses, manifest, RPC and explicit write authorization;
 - the final independent security disposition, which the bounded `639ffd8...3a78e34...` scan and

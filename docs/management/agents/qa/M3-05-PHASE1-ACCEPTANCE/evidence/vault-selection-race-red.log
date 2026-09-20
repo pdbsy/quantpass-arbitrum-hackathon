@@ -1,0 +1,75 @@
+✔ allowlisted runtime set accepts a shared StrategyPass and rejects unknown Vault selection (1.706542ms)
+✔ allowlisted runtime set rejects empty and duplicate Vault identities (0.168583ms)
+✔ Vault selection isolates owner sessions, allowances, operations and stale reviews with a shared Pass (5.745208ms)
+✔ Vault selection rejects a review whose simulation completes after the selected Vault changed (0.76725ms)
+✖ Vault action confirmation is invalidated before wallet send when selection changes during runtime checks (0.96375ms)
+✖ Pass transfer confirmation is invalidated before wallet send when selection changes during runtime checks (0.750833ms)
+✖ deposit approval confirmation is invalidated before wallet send when selection changes during runtime checks (0.89075ms)
+✖ A to B to A selection still invalidates the original review and duplicate confirmation (0.542917ms)
+✔ selection changes after wallet send starts preserve the original Vault submission and tracking (0.505959ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 5
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.949083
+
+✖ failing tests:
+
+test at test/m3-browser-runtime-set.test.ts:330:1
+✖ Vault action confirmation is invalidated before wallet send when selection changes during runtime checks (0.96375ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///private/tmp/AlphaForge-M3-05-RACE-RED/test/m3-browser-runtime-set.test.ts:343:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /M3_VAULT_SELECTION_CHANGED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at test/m3-browser-runtime-set.test.ts:348:1
+✖ Pass transfer confirmation is invalidated before wallet send when selection changes during runtime checks (0.750833ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///private/tmp/AlphaForge-M3-05-RACE-RED/test/m3-browser-runtime-set.test.ts:363:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /M3_VAULT_SELECTION_CHANGED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at test/m3-browser-runtime-set.test.ts:367:1
+✖ deposit approval confirmation is invalidated before wallet send when selection changes during runtime checks (0.89075ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///private/tmp/AlphaForge-M3-05-RACE-RED/test/m3-browser-runtime-set.test.ts:379:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /M3_VAULT_SELECTION_CHANGED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at test/m3-browser-runtime-set.test.ts:383:1
+✖ A to B to A selection still invalidates the original review and duplicate confirmation (0.542917ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///private/tmp/AlphaForge-M3-05-RACE-RED/test/m3-browser-runtime-set.test.ts:397:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /M3_VAULT_SELECTION_CHANGED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

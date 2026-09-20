@@ -462,3 +462,19 @@ The saved Windows log was reviewed without querying the provider. It records 711
 At the time of this record, the Macbeth04 task branch still points to `ffe7d08...`; the newly required delayed wallet-operation/Vault-selection race fix has not arrived. Macbeth05 therefore has not claimed a retest. The earlier multi-Vault browser journey remains valid for its recorded review-invalidation behavior but is not a substitute for the new focused race case.
 
 This closeout round made no hosted status read, workflow trigger/rerun, push, remote PR change, security-service call, deployment, signing, broadcast or Testnet write. The actual billing/quota cause remains `UNKNOWN`.
+
+## Independent Vault-selection confirmation-race retest
+
+Macbeth04 delivered local commit `aa6c7648e13f46b98e14cf4474adbc48073ee8e0`, tree
+`fcd6d4446ab66705891052d08eac8508dccc2c5c`, from source base `3a78e34...`. Macbeth05 used two
+independent no-local clones with separate dependencies. Applying only the new runtime-set test to
+the old source reproduced four `Missing expected rejection` failures. The exact fix passes 72/72
+related tests, typecheck, lint, format check, web build and base-to-fix diff check.
+
+The first full-suite run inside the default sandbox reports 713/717: three local-listen operations
+fail `EPERM`, and the HTTP process test times out. A permitted rerun binding only local 127.0.0.1
+passes 717/717. This is an environment correction, not a changed test or lowered assertion.
+
+The independent result is `PASS_AT_04_WORKER_FIX / FINAL_CANDIDATE_INTEGRATION_PENDING`. Exact
+commands, behavior analysis and persistent raw logs are recorded in
+[Vault-Selection Race Retest](VAULT-SELECTION-RACE-RETEST.md).
