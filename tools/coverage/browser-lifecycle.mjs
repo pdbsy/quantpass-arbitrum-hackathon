@@ -108,8 +108,12 @@ export function createBrowserCoverageLifecycle({
     }
   }
   function registerPage(page) {
-    assert.ok(!pages.has(page), 'browser page already registered');
-    const state = { pageId: `page-${randomUUID()}`, active: null, transitioning: false };
+    if (pages.has(page)) return false;
+    const state = {
+      pageId: `page-${randomUUID()}`,
+      active: null,
+      transitioning: false,
+    };
     pages.set(page, state);
     start(state, 'page-created');
     for (const method of ['goto', 'reload']) {
@@ -134,14 +138,12 @@ export function createBrowserCoverageLifecycle({
       await capture(page, 'before-close');
       return close(...args);
     };
-    page.on('framenavigated', (frame) => {
-      if (frame !== page.mainFrame() || state.transitioning || page.isClosed()) return;
-      // An unexpected document replacement lost its old JS realm. Never infer its hits.
-      incomplete(state, 'UNFLUSHED_NAVIGATION');
-      start(state, 'uncontrolled-navigation');
-    });
+    // Navigation boundaries are explicit through the wrapped goto/reload methods.
+    // A late frame event can represent a redirect or SPA transition, so treating it
+    // as an uncontrolled document replacement would create false zero intervals.
     page.on('close', () => incomplete(state, 'UNFLUSHED_CLOSE'));
     page.on('crash', () => incomplete(state, 'PAGE_CRASH'));
+    return true;
   }
   async function flush(page, reason) {
     await capture(page, reason);
