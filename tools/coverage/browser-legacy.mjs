@@ -3,7 +3,7 @@ import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { dirname, relative, resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   browserDigest,
   browserHelperBootstrap,
@@ -150,7 +150,7 @@ async function writePlaywrightShim({
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' });
   await writeFile(generatedPath, `${JSON.stringify(generated)}\n`, { flag: 'wx' });
   const lifecyclePath = pathToFileURL(
-    resolve(dirname(new URL(import.meta.url).pathname), 'browser-lifecycle.mjs'),
+    resolve(dirname(fileURLToPath(import.meta.url)), 'browser-lifecycle.mjs'),
   ).href;
   const summaryPath = resolve(outputDirectory, `driver-summary-${randomUUID()}.json`);
   const rawDirectory = resolve(outputDirectory, 'raw');
