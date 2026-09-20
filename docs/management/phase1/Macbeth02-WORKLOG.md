@@ -1,5 +1,15 @@
 # Macbeth02 Phase One Contracts Worklog
 
+## Additive acceptance-entry closure after bbf54cc
+
+Final integration preparation identified that the final standalone rehearsal in
+`check-phase1-contracts.sh` inherited the caller directory. The entry now explicitly selects its
+contract project. A new regression failed first for two caller locations and then passed for all
+three; the real pinned, offline targeted rehearsal subsequently passed 2/2 with unchanged Solidity
+and skipped compilation. Full unchanged contract suites were not repeated. See
+`Macbeth02-ENTRYPOINT-CLOSURE.md` for source-equivalence limits, the historical standalone-stage
+evidence correction and preserved original failure-log hashes. No remote operation was performed.
+
 - Task: `M3-02-PHASE1-CONTRACTS`
 - Base: `18f5352070910a867b9729b031aa2e3951785e01`
 - Branch: `macbeth02/m3-phase1-contracts`
@@ -66,3 +76,29 @@ No external RPC, signature, deployment, transaction or broadcast was performed.
 - Root `npm run check`: 591/591 tests and all checks before management passed; final command remains
   FAIL at manager-owned `management:check` with `RECORDED_GIT_BRANCH_MISMATCH`.
 - `npm run build:web`: PASS when run separately after the management-owned stop.
+
+## Exact manager-candidate binding — 2026-09-20
+
+The user assigned a new local-only review against manager source
+`3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8`, tree
+`6f1a21845a99e16a0ba171612cd97e9bf3439294`. Macbeth02 fetched only that exact commit and did not
+query or execute GitHub Actions/Checks, push, update a remote PR, alter repository policy, deploy,
+sign or broadcast.
+
+Git object comparison proves that the complete `contracts/` subtree is identical between the
+manager source and PR24 head `a130529`: both resolve to
+`0fa7e3e471f32a6d6b742e42540add6e047b536a`. Source, tests, scripts, deployment files, Forge
+configuration and both dependency locks also match individually. The only reviewed protocol-doc
+delta removes two trailing-space pairs from the Testnet plan headings and changes no semantics.
+
+After this mapping, a targeted offline forced compile rebuilt 55 files. Fresh compiled/published
+Vault ABI comparison and schema-2 manifest equality both passed. The full unchanged test, fuzz,
+invariant, Slither, coverage and local VM rehearsal suites were deliberately not repeated; their
+PR24 and Macbeth05 independent checkpoint results remain bound through the exact contract-tree
+identity rather than being relabelled as a new execution.
+
+The detailed conclusion and collector boundaries are in `Macbeth02-CANDIDATE-REVIEW.md` and
+`Macbeth02-EVIDENCE-INDEX.md`; raw logs are under `docs/management/phase1/evidence/`. The management
+collector's `foundry`, `fuzz`, `invariant` and `slither` records remain
+`NOT_RUN / NOT_REGISTERED_IN_MANAGEMENT_COLLECTOR` even though the separate locked contract entry
+has real source-checkpoint evidence.

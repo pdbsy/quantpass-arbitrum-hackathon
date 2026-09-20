@@ -1,0 +1,289 @@
+producer=Macbeth02
+task=M3-02-PHASE1-CONTRACTS
+evidence_type=LOCAL_LOCKED_COMPILER_ABI_MANIFEST_EQUALITY
+executed_at_utc=2026-09-20T10:46:58+00:00
+worker_head=a13052993b6f408b7be835ecd6f4b13ef6df367d
+manager_source=3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8
+contract_tree=0fa7e3e471f32a6d6b742e42540add6e047b536a
+source_binding=contracts subtree identical by Git object identity
+toolchain=Forge 1.5.1-v1.5.1 b0a9dd9; solc 0.8.31+commit.fd3a2265; CPython 3.12.9
+network=OFFLINE
+rpc=NONE
+signing=NONE
+broadcast=NONE
+step=forge_build_offline_force
+command=forge build --offline --force
+exit=0
+Compiling 55 files with Solc 0.8.31
+Solc 0.8.31 finished in 676.39ms
+Compiler run successful!
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+ --> test/mocks/ReentrantAsset.sol:7:29
+  |
+7 |     uint8 private immutable configuredDecimals;
+  |                             ^^^^^^^^^^^^^^^^^^ help: consider using: `CONFIGURED_DECIMALS`
+  |
+  = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeSwapAdapter.sol:35:33
+   |
+35 |     ITestVenue public immutable venue;
+   |                                 ^^^^^ help: consider using: `VENUE`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeSwapAdapter.sol:36:30
+   |
+36 |     address public immutable afUsdc;
+   |                              ^^^^^^ help: consider using: `AF_USDC`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeSwapAdapter.sol:37:30
+   |
+37 |     address public immutable afEth;
+   |                              ^^^^^ help: consider using: `AF_ETH`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeSwapAdapter.sol:38:30
+   |
+38 |     address public immutable afBtc;
+   |                              ^^^^^ help: consider using: `AF_BTC`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/StrategyPass.sol:11:30
+   |
+11 |     bytes32 public immutable strategyId;
+   |                              ^^^^^^^^^^ help: consider using: `STRATEGY_ID`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> test/AlphaForgeVault.custody.t.sol:22:30
+   |
+22 |     address public immutable owner;
+   |                              ^^^^^ help: consider using: `OWNER`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+ --> test/mocks/ConfigurableAsset.sol:7:29
+  |
+7 |     uint8 private immutable configuredDecimals;
+  |                             ^^^^^^^^^^^^^^^^^^ help: consider using: `CONFIGURED_DECIMALS`
+  |
+  = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeTestVenue.sol:42:30
+   |
+42 |     address public immutable afUsdc;
+   |                              ^^^^^^ help: consider using: `AF_USDC`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeTestVenue.sol:43:30
+   |
+43 |     address public immutable afEth;
+   |                              ^^^^^ help: consider using: `AF_ETH`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> test/harness/AlphaForgeVaultHarness.sol:13:30
+   |
+13 |     address public immutable harnessController;
+   |                              ^^^^^^^^^^^^^^^^^ help: consider using: `HARNESS_CONTROLLER`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/PassLocker.sol:24:30
+   |
+24 |     address public immutable vault;
+   |                              ^^^^^ help: consider using: `VAULT`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/PassLocker.sol:25:30
+   |
+25 |     address public immutable owner;
+   |                              ^^^^^ help: consider using: `OWNER`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeVault.sol:21:39
+   |
+21 |     address public immutable override owner;
+   |                                       ^^^^^ help: consider using: `OWNER`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeVault.sol:22:39
+   |
+22 |     address public immutable override strategyCreator;
+   |                                       ^^^^^^^^^^^^^^^ help: consider using: `STRATEGY_CREATOR`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeVault.sol:23:39
+   |
+23 |     bytes32 public immutable override strategyId;
+   |                                       ^^^^^^^^^^ help: consider using: `STRATEGY_ID`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeVault.sol:24:39
+   |
+24 |     bytes32 public immutable override strategyRef;
+   |                                       ^^^^^^^^^^^ help: consider using: `STRATEGY_REF`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeVault.sol:25:39
+   |
+25 |     address public immutable override pass;
+   |                                       ^^^^ help: consider using: `PASS`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeVault.sol:26:39
+   |
+26 |     address public immutable override afUsdc;
+   |                                       ^^^^^^ help: consider using: `AF_USDC`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeVault.sol:27:39
+   |
+27 |     address public immutable override afEth;
+   |                                       ^^^^^ help: consider using: `AF_ETH`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeVault.sol:28:39
+   |
+28 |     address public immutable override afBtc;
+   |                                       ^^^^^ help: consider using: `AF_BTC`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeTestVenue.sol:44:30
+   |
+44 |     address public immutable afBtc;
+   |                              ^^^^^ help: consider using: `AF_BTC`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> test/mocks/ConfigurableAsset.sol:74:30
+   |
+74 |     bytes32 public immutable strategyId;
+   |                              ^^^^^^^^^^ help: consider using: `STRATEGY_ID`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/AlphaForgeVault.sol:29:39
+   |
+29 |     address public immutable override passLocker;
+   |                                       ^^^^^^^^^^ help: consider using: `PASS_LOCKER`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> src/PassLocker.sol:26:29
+   |
+26 |     IERC20 public immutable pass;
+   |                             ^^^^ help: consider using: `PASS`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> test/mocks/MaliciousVenue.sol:20:29
+   |
+20 |     IERC20 public immutable tokenIn;
+   |                             ^^^^^^^ help: consider using: `TOKEN_IN`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE
+  --> test/mocks/MaliciousVenue.sol:21:29
+   |
+21 |     IERC20 public immutable tokenOut;
+   |                             ^^^^^^^^ help: consider using: `TOKEN_OUT`
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable
+
+note[unwrapped-modifier-logic]: wrap modifier logic to reduce code size
+  --> src/AlphaForgeVault.sol:37:5
+   |
+37 | /     modifier onlyOwner() {
+38 | |         if (msg.sender != owner) revert Unauthorized(msg.sender);
+39 | |         _;
+40 | |     }
+   | |_____^
+   |
+help: wrap modifier logic to reduce code size
+   |
+37 ~     modifier onlyOwner() {
+38 +         _onlyOwner();
+39 +         _;
+40 +     }
+41 +
+42 +     function _onlyOwner() internal {
+43 +         if (msg.sender != owner) revert Unauthorized(msg.sender);
+44 +     }
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic
+
+note[unwrapped-modifier-logic]: wrap modifier logic to reduce code size
+  --> src/AlphaForgeVault.sol:42:5
+   |
+42 | /     modifier whenActive() {
+43 | |         if (closed) revert VaultClosed();
+44 | |         _;
+45 | |     }
+   | |_____^
+   |
+help: wrap modifier logic to reduce code size
+   |
+42 ~     modifier whenActive() {
+43 +         _whenActive();
+44 +         _;
+45 +     }
+46 +
+47 +     function _whenActive() internal {
+48 +         if (closed) revert VaultClosed();
+49 +     }
+   |
+   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic
+step=published_vault_abi_equality
+command=python check_vault_artifact.py <fresh AlphaForgeVault artifact> <published ABI>
+exit=0
+AlphaForgeVault ABI matches frozen M3 interface
+step=phase1_manifest_equality
+command=python build_phase1_contract_manifest.py --artifact-root <fresh artifact root> --output contracts/deployment/phase1-contract-artifacts.json --check
+exit=0
+Phase One contract manifest matches compiler artifacts
+result=PASS_LOCAL_COMPILER_ABI_MANIFEST_EQUALITY
+capture_normalization=Trailing spaces and tabs were removed from captured Forge stdout for a stable tracked text artifact; message text and line order are unchanged.
+limits=No Solidity tests, fuzz, invariants, Slither, coverage, or deployment rehearsal were repeated; those unchanged suites remain cited through exact source equivalence and their original independently executed checkpoints.
