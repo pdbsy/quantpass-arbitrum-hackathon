@@ -341,6 +341,76 @@ test('Vault projection is unavailable before the first canonical synchronization
   assert.equal(response.json().error, 'CHAIN_PROJECTION_UNAVAILABLE');
 });
 
+test('chain routes translate unexpected projection reads into a fixed unavailable error', async (t) => {
+  const directory = await folder();
+  const runtime = new M3ChainRuntime({
+    dbPath: resolve(directory, 'chain.sqlite'),
+    rpc: new InertRpc(),
+    manifest,
+  });
+  runtime.store.recordCanonicalBlock(
+    CHAIN_ID,
+    CONTRACT,
+    { number: 1n, hash: BLOCK_HASH, parentHash: PARENT_HASH, timestamp: 1n },
+    [],
+  );
+  Object.defineProperty(runtime.store, 'projection', {
+    configurable: true,
+    value: () => {
+      throw new Error('UNEXPECTED_PROJECTION_READ_FAILURE');
+    },
+  });
+  const { app } = await buildApp({
+    dbPath: resolve(directory, 'ledger.sqlite'),
+    env,
+    origin,
+    chainRuntime: runtime,
+  });
+  t.after(async () => app.close());
+
+  const response = await app.inject({ url: `/api/v1/chain/vaults/${OWNER}`, headers });
+  assert.equal(response.statusCode, 503, response.body);
+  assert.equal(response.json().error, 'CHAIN_PROJECTION_UNAVAILABLE');
+});
+
+test('chain routes preserve fixed API errors while surfacing unknown submission failures generically', async (t) => {
+  const directory = await folder();
+  const runtime = new M3ChainRuntime({
+    dbPath: resolve(directory, 'chain.sqlite'),
+    rpc: new InertRpc(),
+    manifest,
+  });
+  Object.defineProperty(runtime, 'recordSubmission', {
+    configurable: true,
+    value: () => {
+      throw new Error('UNEXPECTED_SUBMISSION_FAILURE');
+    },
+  });
+  const { app } = await buildApp({
+    dbPath: resolve(directory, 'ledger.sqlite'),
+    env,
+    origin,
+    chainRuntime: runtime,
+  });
+  t.after(async () => app.close());
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/v1/chain/operations',
+    headers: { ...headers, origin, 'x-quantpass-demo': '1' },
+    payload: {
+      operationId: 'unexpected-submission-failure',
+      chainId: CHAIN_ID,
+      owner: OWNER,
+      target: CONTRACT,
+      calldata: encodeM3VaultCall('deposit(uint256)', [1_000_000n]),
+      txHash: TX_HASH,
+    },
+  });
+  assert.equal(response.statusCode, 500, response.body);
+  assert.equal(response.json().error, 'LOCAL_OPERATION_FAILED');
+});
+
 test('submission API accepts only pending identity and rejects forged state or conflicts', async (t) => {
   const directory = await folder();
   const runtime = new M3ChainRuntime({

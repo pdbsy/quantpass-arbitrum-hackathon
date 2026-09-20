@@ -1126,3 +1126,70 @@ test('reorg without a verified common ancestor degrades without erasing indexed 
   assert.throws(() => store.projection(CHAIN_ID, OWNER, CONTRACT, 'trend-vault'), /CHAIN_SYNC_UNHEALTHY/);
   store.close();
 });
+
+test('a head below the required target remains explicitly incomplete until catch-up', async () => {
+  const rpc = new FixtureRpc();
+  rpc.blocks.set(100n, block(100n, HASH_100, HASH_99));
+  const store = new ChainStore(await databasePath());
+  const sync = createSynchronizer({ rpc, store, manifest, integration, softReadyDepth: 1 });
+
+  await sync.syncTo(100n);
+  assert.deepEqual(await sync.syncTo(100n, 101n), {
+    scannedBlocks: 0,
+    insertedEvents: 0,
+    reorgedBlocks: 0,
+  });
+  assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT), {
+    healthy: false,
+    error: 'CHAIN_SYNC_INCOMPLETE',
+  });
+  assert.equal(store.syncTarget(CHAIN_ID, CONTRACT), 101n);
+  assert.throws(() => store.projection(CHAIN_ID, OWNER, CONTRACT, 'trend-vault'), /CHAIN_SYNC_UNHEALTHY/);
+  store.close();
+});
+
+test('projection persistence failures and rollback failures remain observable to callers', async () => {
+  const rpc = new FixtureRpc();
+  rpc.blocks.set(100n, block(100n, HASH_100, HASH_99));
+  rpc.receipts.set(TX_A, receipt(TX_A, 100n, HASH_100));
+  const rollbackStore = new ChainStore(await databasePath());
+  const rollbackFailure = new Error('ROLLBACK_FAILED');
+  Object.defineProperty(rollbackStore, 'rollbackFromBlock', {
+    configurable: true,
+    value: () => {
+      throw rollbackFailure;
+    },
+  });
+  const rollbackSync = createSynchronizer({
+    rpc,
+    store: rollbackStore,
+    manifest,
+    integration: {
+      ...integration,
+      async rebuildProjections() {
+        throw new Error('PROJECTION_FIXTURE_FAILED');
+      },
+    },
+    softReadyDepth: 1,
+  });
+  await assert.rejects(() => rollbackSync.syncTo(100n), { message: 'ROLLBACK_FAILED' });
+  assert.equal(rollbackStore.checkpoint(CHAIN_ID, CONTRACT)?.blockNumber, 100n);
+  rollbackStore.close();
+
+  const saveStore = new ChainStore(await databasePath());
+  const saveSync = createSynchronizer({ rpc, store: saveStore, manifest, integration, softReadyDepth: 1 });
+  await saveSync.syncTo(100n);
+  saveStore.saveOperation(submitted('operation-save-failure', TX_A));
+  Object.defineProperty(saveStore, 'saveOperationAtCheckpoint', {
+    configurable: true,
+    value: () => {
+      throw new Error('SAVE_CHECKPOINT_FAILED');
+    },
+  });
+  await assert.rejects(
+    () => saveSync.trackOperation('operation-save-failure', block(100n, HASH_100, HASH_99)),
+    { message: 'SAVE_CHECKPOINT_FAILED' },
+  );
+  assert.equal(saveStore.operation('operation-save-failure')?.state, 'SUBMITTED');
+  saveStore.close();
+});

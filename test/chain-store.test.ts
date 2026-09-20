@@ -1061,6 +1061,54 @@ test('version-three incomplete targets remain authoritative after sync-lease mig
   store.close();
 });
 
+test('chain store completes every supported migration and rolls back duplicate DDL', async () => {
+  const migrationNames = [
+    '001-chain-projection.sql',
+    '002-projection-checkpoint.sql',
+    '003-sync-target.sql',
+    '004-sync-lease.sql',
+    '005-transaction-index.sql',
+    '006-operation-calldata.sql',
+  ];
+  for (const targetVersion of [2, 3, 4, 5]) {
+    const path = await databasePath();
+    const legacy = new DatabaseSync(path);
+    for (const name of migrationNames.slice(0, targetVersion))
+      legacy.exec(readFileSync(new URL(`../apps/server/chain-migrations/${name}`, import.meta.url), 'utf8'));
+    legacy.close();
+    const store = new ChainStore(path);
+    assert.equal(store.db.prepare('PRAGMA user_version').get()?.user_version, 6);
+    store.close();
+  }
+
+  const duplicateDdl: readonly [number, string][] = [
+    [1, 'ALTER TABLE chain_checkpoints ADD COLUMN projected_block_number INTEGER'],
+    [2, 'ALTER TABLE chain_checkpoints ADD COLUMN sync_target_block_number INTEGER'],
+    [3, 'ALTER TABLE chain_transactions ADD COLUMN transaction_index INTEGER'],
+    [4, 'ALTER TABLE chain_transactions ADD COLUMN calldata TEXT'],
+    [5, 'ALTER TABLE chain_transactions ADD COLUMN calldata TEXT'],
+  ];
+  for (const [version, ddl] of duplicateDdl) {
+    const path = await databasePath();
+    const legacy = new DatabaseSync(path);
+    for (const name of migrationNames.slice(0, version))
+      legacy.exec(readFileSync(new URL(`../apps/server/chain-migrations/${name}`, import.meta.url), 'utf8'));
+    legacy.exec(ddl);
+    legacy.exec(`PRAGMA user_version = ${version}`);
+    legacy.close();
+    assert.throws(() => new ChainStore(path));
+    const reopened = new DatabaseSync(path, { readOnly: true });
+    assert.equal(reopened.prepare('PRAGMA user_version').get()?.user_version, version);
+    reopened.close();
+  }
+
+  const unsupported = await databasePath();
+  const database = new DatabaseSync(unsupported);
+  database.exec('PRAGMA user_version = 7');
+  database.close();
+  assert.throws(() => new ChainStore(unsupported), /UNSUPPORTED_CHAIN_DATABASE/);
+});
+
 test('chain projection online backup reopens independently and never overwrites a destination', async () => {
   const path = await databasePath();
   const target = `${path}.backup`;
@@ -1685,5 +1733,156 @@ test('chain store fails closed on corrupted persisted event and projection JSON'
   store.db.prepare('UPDATE chain_events SET topics_json = ?').run(JSON.stringify([SIGNATURE]));
   store.db.prepare('UPDATE product_projections SET state_json = ?').run('[]');
   assert.throws(() => store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'm3-vault'), /CORRUPT_CHAIN_DATABASE/);
+  store.close();
+});
+
+test('chain store fails closed on inconsistent persisted health and identity fields', async () => {
+  const store = new ChainStore(await databasePath());
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [event()]);
+
+  store.db
+    .prepare('UPDATE chain_checkpoints SET projected_block_number = ?, projected_block_hash = NULL')
+    .run(100);
+  assert.throws(() => store.projectionCheckpoint(CHAIN_ID, CONTRACT), /CORRUPT_CHAIN_DATABASE/);
+  store.db
+    .prepare('UPDATE chain_checkpoints SET projected_block_number = NULL, projected_block_hash = ?')
+    .run(BLOCK_100);
+  assert.throws(() => store.projectionCheckpoint(CHAIN_ID, CONTRACT), /CORRUPT_CHAIN_DATABASE/);
+  store.db
+    .prepare('UPDATE chain_checkpoints SET projected_block_number = NULL, projected_block_hash = NULL')
+    .run();
+
+  for (const [healthy, error, target] of [
+    [1, 'CHAIN_SYNC_INCOMPLETE', null],
+    [0, 'UNKNOWN', null],
+    [0, 'CHAIN_SYNC_INCOMPLETE', null],
+  ] as const) {
+    store.db
+      .prepare('UPDATE chain_checkpoints SET sync_healthy = ?, sync_error = ?, sync_target_block_number = ?')
+      .run(healthy, error, target);
+    assert.throws(() => store.syncHealth(CHAIN_ID, CONTRACT), /CORRUPT_CHAIN_DATABASE/);
+  }
+  store.db
+    .prepare('UPDATE chain_checkpoints SET sync_healthy = 0, sync_error = ?, sync_target_block_number = NULL')
+    .run('CHAIN_REORG_DEPTH_EXCEEDED');
+  assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT), {
+    healthy: false,
+    error: 'CHAIN_REORG_DEPTH_EXCEEDED',
+  });
+  store.db
+    .prepare('UPDATE chain_checkpoints SET sync_healthy = 0, sync_error = ?, sync_target_block_number = ?')
+    .run('CHAIN_SYNC_INCOMPLETE', 101);
+  assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT), {
+    healthy: false,
+    error: 'CHAIN_SYNC_INCOMPLETE',
+  });
+
+  assert.throws(
+    () => store.markSyncUnhealthy(CHAIN_ID, CONTRACT, 'CHAIN_SYNC_INCOMPLETE'),
+    /INVALID_CHAIN_SYNC_HEALTH/,
+  );
+  assert.throws(
+    () => store.markSyncUnhealthy(CHAIN_ID, CONTRACT, 'CHAIN_REORG_DEPTH_EXCEEDED', 101n),
+    /INVALID_CHAIN_SYNC_HEALTH/,
+  );
+  assert.throws(
+    () => store.markSyncUnhealthy(CHAIN_ID, CONTRACT_B, 'CHAIN_REORG_DEPTH_EXCEEDED'),
+    /CHAIN_CHECKPOINT_NOT_FOUND/,
+  );
+  store.db
+    .prepare(
+      'INSERT INTO chain_sync_leases (chain_id, contract_address, owner_token, target_block_number) VALUES (?, ?, ?, ?)',
+    )
+    .run(CHAIN_ID, CONTRACT_B.toLowerCase(), '00000000-0000-4000-8000-000000000001', 101);
+  assert.throws(
+    () => store.releaseSyncIncomplete(CHAIN_ID, CONTRACT_B, 101n, '00000000-0000-4000-8000-000000000001'),
+    /CHAIN_CHECKPOINT_NOT_FOUND/,
+  );
+
+  store.db
+    .prepare(
+      'UPDATE chain_checkpoints SET sync_healthy = 1, sync_error = NULL, sync_target_block_number = NULL',
+    )
+    .run();
+  assert.equal(store.markSyncHealthy(CHAIN_ID, CONTRACT, 100n), false);
+
+  store.db
+    .prepare('UPDATE chain_events SET topics_json = ?, normalized_json = ?')
+    .run(JSON.stringify({}), JSON.stringify({ owner: OWNER_A }));
+  assert.throws(() => store.canonicalEvents(CHAIN_ID, CONTRACT), /CORRUPT_CHAIN_DATABASE/);
+  store.db
+    .prepare('UPDATE chain_events SET topics_json = ?, normalized_json = ?')
+    .run(JSON.stringify([SIGNATURE]), JSON.stringify([]));
+  assert.throws(() => store.canonicalEvents(CHAIN_ID, CONTRACT), /CORRUPT_CHAIN_DATABASE/);
+
+  const operation = transitionOperation(
+    createOperation({
+      operationId: 'corrupt-persisted-operation',
+      chainId: CHAIN_ID,
+      owner: OWNER_A,
+      target: CONTRACT,
+      state: 'AWAITING_SIGNATURE',
+    }),
+    { state: 'SUBMITTED', txHash: TX_A, submittedAt: '2026-09-20T00:00:00.000Z' },
+  );
+  store.saveOperation(operation);
+  store.db
+    .prepare('UPDATE chain_transactions SET state = ? WHERE operation_id = ?')
+    .run('UNKNOWN', operation.operationId);
+  assert.throws(() => store.operation(operation.operationId), /CORRUPT_CHAIN_DATABASE/);
+  store.db
+    .prepare('UPDATE chain_transactions SET state = ?, owner_address = ? WHERE operation_id = ?')
+    .run('SUBMITTED', 'not-an-address', operation.operationId);
+  assert.throws(() => store.operation(operation.operationId), /CORRUPT_CHAIN_DATABASE/);
+  store.close();
+});
+
+test('chain store rejects malformed block and event evidence before changing the checkpoint', async () => {
+  const store = new ChainStore(await databasePath());
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  for (const malformed of [
+    event({ chainId: 1 }),
+    event({ address: OWNER_B }),
+    event({ blockNumber: 101n }),
+    event({ blockHash: BLOCK_101 }),
+    event({ removed: true }),
+    event({ transactionIndex: -1 }),
+    event({ logIndex: -1 }),
+    event({ eventName: 'bad/name' }),
+    event({ topics: [] }),
+    event({ eventSignature: asHexData(`0x${'dd'.repeat(32)}`) }),
+  ])
+    assert.throws(
+      () => store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [malformed]),
+      /INVALID_CHAIN_EVENT/,
+    );
+  assert.throws(
+    () => store.recordCanonicalBlock(CHAIN_ID, CONTRACT, { ...block, timestamp: -1n }, []),
+    /INVALID_CHAIN_BLOCK/,
+  );
+  assert.throws(
+    () => store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [], 99n),
+    /INVALID_CHAIN_SYNC_TARGET/,
+  );
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, []);
+  assert.throws(
+    () =>
+      store.recordCanonicalBlock(
+        CHAIN_ID,
+        CONTRACT,
+        { number: 101n, hash: BLOCK_101, parentHash: BLOCK_101_ALT, timestamp: 1_001n },
+        [],
+      ),
+    /CHAIN_PARENT_MISMATCH/,
+  );
+  assert.throws(
+    () => store.recordCanonicalBlock(CHAIN_ID, CONTRACT, { ...block, hash: BLOCK_101 }, []),
+    /CHAIN_BLOCK_CONFLICT/,
+  );
+  assert.deepEqual(store.checkpoint(CHAIN_ID, CONTRACT), {
+    blockNumber: 100n,
+    blockHash: BLOCK_100,
+  });
   store.close();
 });
