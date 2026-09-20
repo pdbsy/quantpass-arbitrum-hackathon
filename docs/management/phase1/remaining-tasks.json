@@ -17,7 +17,10 @@
       "acceptance": "所有来源映射；真实 ACK；无旧状态冒充当前",
       "evidence": "ASSIGNMENTS.md；PR21；本轮 PR",
       "blocker_type": "NONE",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-02",
@@ -32,7 +35,10 @@
       "acceptance": "25 Vault selectors/7 topics 等完整 compiler equality；发行/转账精度及异常 token 回归",
       "evidence": "PR24 a130529；05独立134/134 Solidity、24/24 Python、Slither和核心Vault/Locker/Pass 100%已通过；统一候选待复跑",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-03",
@@ -47,7 +53,10 @@
       "acceptance": "干净重建一致；重复运行不覆盖；明确无外部链广播",
       "evidence": "PR24 a130529；05独立ABI/manifest/local deployment rehearsal通过；无真实Testnet部署",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-04",
@@ -60,9 +69,12 @@
       "dependencies": "base；接口变化依赖PH1-02",
       "deliverables": "配置/适配回归与接入说明",
       "acceptance": "错链/错地址/错ABI/错owner失败关闭；真实参数缺失保持 NOT_DEPLOYED",
-      "evidence": "PR26 a4d73bb；05独立643/643，冻结Chain/API关键授权会计分支清单已通过；整体13文件95.39%分支保持原值",
+      "evidence": "PR26 a4d73bb；05独立643/643，冻结Chain/API关键授权会计分支清单已通过；整体13文件95.39%分支保持原值；统一3a78e34已独立711/711通过，旧关键子集不重新标OPEN；本轮差异需准确复验",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-05",
@@ -77,7 +89,10 @@
       "acceptance": "SUBMISSION_AMBIGUOUS 不自动重发；刷新恢复不重复经济动作",
       "evidence": "PR26 67b7d48；最终共享 Pass / Vault 选择候选仍待复测",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-06",
@@ -90,9 +105,12 @@
       "dependencies": "base索引实现",
       "deliverables": "重启/竞争/多Vault多钱包多策略回归",
       "acceptance": "同块多操作不丢失；无共同祖先保留证据且持久degraded",
-      "evidence": "PR26 a4d73bb 已集成；共享Pass隔离及关键竞态分支已独立验证，统一候选待复跑",
+      "evidence": "PR26 a4d73bb 已集成；共享Pass隔离及关键竞态分支已独立验证，统一候选待复跑；统一3a78e34已独立711/711通过，旧关键子集不重新标OPEN；本轮差异需准确复验",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-07",
@@ -107,7 +125,10 @@
       "acceptance": "备份一致且不覆盖原库；恢复后身份和索引对账；实际 RPO/RTO",
       "evidence": "PR26 67b7d48 三次 local recovery drills；仅本地确定性夹具，不是生产 SLA",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-08",
@@ -120,9 +141,12 @@
       "dependencies": "apps/web/index.html 加载 product-ui.ts 与 user-ui.js",
       "deliverables": "产品状态/来源缺口修复、浏览器证据",
       "acceptance": "主页/市场/详情/账户/用户论坛/排名准确；不改未使用React入口",
-      "evidence": "PR27 332549c；05 新定向125/125 与 typecheck PASS，尚非最终统一候选",
+      "evidence": "3a78e34历史统一功能检查与真实local/mock浏览器通过；本轮新增确认中Vault切换竞态待验证/复测，不继承为新候选PASS",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-09",
@@ -135,9 +159,12 @@
       "dependencies": "PH1-02/04；PH1-16已明确仅首发分配与转账",
       "deliverables": "操作闭环、精确接口和浏览器用例",
       "acceptance": "1 PASS容量不等于价格；转账18位；创建或选择 Vault；受审 allowlist 选择满足产品路径，创建保留显式 Owner 部署流程；切换废弃旧意图/模拟",
-      "evidence": "PR27 ffe7d08；05独立86/86与137/137及真实多Vault浏览器通过；统一639ffd8的705/705及浏览器亦独立通过，新C/R/S仍待完成",
+      "evidence": "3a78e34历史统一功能检查与真实local/mock浏览器通过；本轮新增确认中Vault切换竞态待验证/复测，不继承为新候选PASS",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-10",
@@ -150,9 +177,12 @@
       "dependencies": "PH1-04/05",
       "deliverables": "完整受支持动作UI与浏览器回归",
       "acceptance": "关闭后禁用存取/close和无效approve；合法Owner rescue可执行；金额不舍入",
-      "evidence": "PR27 332549c；新候选切换失效/Owner隔离仍待验证",
+      "evidence": "3a78e34历史统一功能检查与真实local/mock浏览器通过；本轮新增确认中Vault切换竞态待验证/复测，不继承为新候选PASS",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-11",
@@ -165,9 +195,12 @@
       "dependencies": "PH1-04/10",
       "deliverables": "直接读取、提款/关闭/救援路径证据",
       "acceptance": "API失败不显示陈旧READY；链/Owner可验证时退出仍可用",
-      "evidence": "PR26/27；共享 Pass / Vault 选择完成后，复验直接退出与 degraded 情景",
+      "evidence": "3a78e34历史统一功能检查与真实local/mock浏览器通过；本轮新增确认中Vault切换竞态待验证/复测，不继承为新候选PASS",
       "blocker_type": "CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-12",
@@ -180,9 +213,12 @@
       "dependencies": "起点base；最终统一候选",
       "deliverables": "独立功能复测/覆盖率/缺陷及修复SHA",
       "acceptance": "测量总体90%目标和关键授权会计100%分支要求；不足仍FAIL/BLOCKED，不拿数量替代",
-      "evidence": "05独立639ffd8全套705/705和多Vault浏览器通过；冻结Chain/API关键子集通过；总体仍NOT_MEASURED，隔离mapper资格验证进行中，P1-001 OPEN",
+      "evidence": "05对3a78e34的711/711、C/R/S、身份与环境已有独立通过；总体正式覆盖仍NOT_MEASURED。历史探索诊断不用于新候选；本轮方法准入/真实路径/竞态/独立复验继续",
       "blocker_type": "BROWSER_MEASUREMENT_AND_CANDIDATE_DEPENDENCY",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-13",
@@ -197,22 +233,28 @@
       "acceptance": "服务限制未解除不得重试规避；普通功能复测不能代替；无伪造通过",
       "evidence": "05 2026-09-19服务失败；新05状态报告",
       "blocker_type": "EXTERNAL_REVIEW",
-      "requires_user_decision": true
+      "requires_user_decision": true,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-14",
       "source": "用户06；CI-GATES/SECRET-001/SUPPLY-001",
       "goal": "7必需CI、附加任务、合约/scanner覆盖和证据真实性",
-      "status": "APPROVED_DISPOSITION_PENDING_VERIFICATION",
+      "status": "GITHUB_CHECKS_PAUSED_LOCAL_VALIDATION_IN_PROGRESS",
       "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
       "owner": "06",
       "collaborators": "01/05",
       "dependencies": "base；每个准确候选",
       "deliverables": "六项分列结论和run/job/step证据",
       "acceptance": "9jobs每关键步骤实际执行；错误失败关闭；旧CI失败不改写",
-      "evidence": "用户已批准GITLEAKS-FP-001精确历史误报例外；实现26/26针对回归通过；待准确新候选真实scanner、CI与06独立验证，旧失败记录保留",
-      "blocker_type": "NEW_CANDIDATE_SCANNER_AND_CI_VERIFICATION",
-      "requires_user_decision": false
+      "evidence": "GITLEAKS-FP-001已实现并在3a78e34历史执行通过；本轮不查询/继承hosted状态；06提供九job映射、本地PoC、开源比较和接回方案",
+      "blocker_type": "HOSTED_EXECUTION_PAUSED",
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": true,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-15",
@@ -227,7 +269,10 @@
       "acceptance": "不可仅改JSON verified；外部修订/摘要/强制规则/失败样本均可验证",
       "evidence": "docs/security/SUPPLY-CHAIN.md；组织准备方案",
       "blocker_type": "EXTERNAL_DEPENDENCY_AND_AUTHORIZATION",
-      "requires_user_decision": true
+      "requires_user_decision": true,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-16",
@@ -242,7 +287,10 @@
       "acceptance": "不实现付费机制；不重复询问已确认范围",
       "evidence": "docs/management/phase1/DECISIONS.md；用户本轮异步答复",
       "blocker_type": "NONE",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-17",
@@ -257,7 +305,10 @@
       "acceptance": "不凭非祖先判断缺失；不重复merge；不删除来源refs；未覆盖差异保留任务",
       "evidence": "PR-SUPERSESSION.json / PR-SUPERSESSION.md；PR15–20 已按准确来源覆盖证据关闭，原 refs 保留",
       "blocker_type": "NONE",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-18",
@@ -272,7 +323,10 @@
       "acceptance": "不得手填PASS；若阶段硬门槛则真实解决；否则明确两套证据覆盖",
       "evidence": "tools/management-dashboard/checks.mjs；contract job",
       "blocker_type": "SCOPE_EVIDENCE",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-19",
@@ -287,22 +341,28 @@
       "acceptance": "实现/本地/CI/QA/review/merge/testnet各状态分列；所有限制留存",
       "evidence": "本轮最终PR/交付报告",
       "blocker_type": "DEPENDENCIES",
-      "requires_user_decision": false
+      "requires_user_decision": false,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-20",
       "source": "用户第3B/6节；本轮无普通merge授权",
       "goal": "正常PR审批与本轮合并",
-      "status": "WAITING_APPROVAL_AND_AUTHORIZATION",
+      "status": "REVIEW_BLOCKED_MERGE_NOT_AUTHORIZED",
       "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
       "owner": "01",
       "collaborators": "用户/独立GitHub reviewer/06",
-      "dependencies": "最终候选、全CI、真实review及适用授权",
+      "dependencies": "最终候选、本地/覆盖率/安全/治理、用户恢复托管检查、适格review及本轮merge授权",
       "deliverables": "具体PR/SHA/门禁预览后用户决定",
       "acceptance": "不复用21例外、不降规则；实际merge后master验证",
       "evidence": "ruleset22507334；本轮最终PR",
       "blocker_type": "GITHUB_REVIEW_AND_MERGE_AUTHORIZATION",
-      "requires_user_decision": true
+      "requires_user_decision": true,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": true,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-21",
@@ -317,7 +377,10 @@
       "acceptance": "先完整方案再批准；不向聊天索要私钥助记词；无自动重发",
       "evidence": "新02部署方案；新03smoke；01审批包",
       "blocker_type": "DEPLOYMENT_PARAMETERS_AND_AUTHORIZATION",
-      "requires_user_decision": true
+      "requires_user_decision": true,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
     {
       "task_id": "PH1-22",
@@ -332,7 +395,69 @@
       "acceptance": "local VM/mock非testnet；仅批准交易；未知结果先查链",
       "evidence": "尚无真实链证据",
       "blocker_type": "EXTERNAL_CHAIN_AUTHORIZATION",
-      "requires_user_decision": true
+      "requires_user_decision": true,
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "budget_limited": false,
+      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
+    },
+    {
+      "task_id": "PH1-23",
+      "source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md",
+      "goal": "确认中Vault A→B与A→B→A失效；Vault action/Pass transfer/deposit approval",
+      "status": "CONFIRM_INFLIGHT_VAULT_SELECTION_RACE",
+      "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "owner": "04",
+      "collaborators": "01/03/05/06",
+      "dependencies": "本地准确候选及既有工具链",
+      "deliverables": "版本化本地实现/报告与原始执行证据",
+      "acceptance": "05定向独立复测；真正钱包发送前失效，已发送操作按原身份跟踪",
+      "evidence": "本轮待实际交付，不预写PASS",
+      "blocker_type": "ENGINEERING_VALIDATION",
+      "requires_user_decision": false,
+      "budget_limited": false
+    },
+    {
+      "task_id": "PH1-24",
+      "source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md",
+      "goal": "九job本地映射、Woodpecker/Jenkins/act比较、PoC与接回方案",
+      "status": "LOCAL_CI_ALTERNATIVE_IN_PROGRESS",
+      "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "owner": "06",
+      "collaborators": "01/05/06",
+      "dependencies": "本地准确候选及既有工具链",
+      "deliverables": "版本化本地实现/报告与原始执行证据",
+      "acceptance": "真实失败/超时/日志缺失负例；无新服务/凭据；未运行平台NOT_RUN",
+      "evidence": "本轮待实际交付，不预写PASS",
+      "blocker_type": "LOCAL_VALIDATION",
+      "requires_user_decision": false,
+      "budget_limited": false
+    },
+    {
+      "task_id": "PH1-25",
+      "source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md",
+      "goal": "使用保存日志调查Windows文件级进程失败",
+      "status": "WINDOWS_ROOT_CAUSE_UNDETERMINED",
+      "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
+      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "owner": "05",
+      "collaborators": "01/05/06",
+      "dependencies": "本地准确候选及既有工具链",
+      "deliverables": "版本化本地实现/报告与原始执行证据",
+      "acceptance": "06协作；无合格原生Windows则NOT_RUN，不用macOS证明Windows通过",
+      "evidence": "本轮待实际交付，不预写PASS",
+      "blocker_type": "PLATFORM_AND_EVIDENCE",
+      "requires_user_decision": false,
+      "budget_limited": true
     }
-  ]
+  ],
+  "local_closeout": {
+    "source_base": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+    "source_tree": "6f1a21845a99e16a0ba171612cd97e9bf3439294",
+    "hosted_status": "GITHUB_CHECKS_PAUSED",
+    "billing_cause": "UNKNOWN",
+    "remote_write": "NOT_AUTHORIZED_THIS_ROUND",
+    "spec": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
+  }
 }

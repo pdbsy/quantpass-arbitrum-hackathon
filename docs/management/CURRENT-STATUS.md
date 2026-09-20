@@ -1,3 +1,11 @@
+# PR22 本地收尾 — 托管执行暂停
+
+本轮按 [用户规范](specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md) 推进；准确起点 `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8`。当前 `NOT_READY_TO_MERGE`。GitHub Checks/Actions 执行和状态查询暂停；不推送、不更改 Draft 或保护规则。实际账单原因 UNKNOWN，详见 [暂停记录](phase1/CI-BUDGET-PAUSE.md)。
+
+起点 711/711、准确 C/R/S 与独立功能 QA 已有证据，GITLEAKS-FP-001 已批准并实现。旧文档关于“候选不可访问、C/R/S未通过、等待误报批准”的说法保留为历史，不代表此起点。总体正式覆盖率、确认中Vault切换竞态、本地替代CI PoC与Windows根因调查继续；安全/治理/适格review/合并授权/Testnet分开记录。见 [当前矩阵](phase1/REMAINING-TASKS.md)。
+
+## 以下为此前准确候选的历史记录
+
 # 当前第一阶段收尾 — 2026-09-20
 
 唯一正式仓库：`pdbsy/quantpass-arbitrum-hackathon`。经理：Macbeth01。实际 master / BASE_SHA：`18f5352070910a867b9729b031aa2e3951785e01`；PR #21 已合并，提交备注 `65%finish`。主分支 tree `a4b1cf782f6e5f2aaa90c955cfffb629ee5231ba` 与原候选 `a712685c1645d9a924dcb0931c98d917da919ced` 完全相同。

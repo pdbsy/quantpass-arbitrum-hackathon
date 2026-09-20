@@ -1,3 +1,5 @@
+> 本轮预算暂停/本地PoC范围以 [Macbeth06-TASK](../../phase1/Macbeth06-TASK.md) 为准；不得按下面历史“核查PR head”指引访问Checks接口。允许明确范围内本地实现/提交，禁止push和托管执行。
+
 > Current phase-one task: [M3-06-CI-GATES](../../phase1/Macbeth06-TASK.md), base `18f5352070910a867b9729b031aa2e3951785e01`. Read before historical instructions below; no new ACK is implied.
 
 # Macbeth06 bootstrap

@@ -1,3 +1,20 @@
+# 本轮本地收尾派发 — 2026-09-20
+
+[当前规范](../specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md) 与 [暂停边界](CI-BUDGET-PAUSE.md) 优先于下方历史 PR-first / push / hosted 规则。本轮五个既有 app task 均已实际接收任务；不是新建 Worker。经理只维护自己的工作区。
+
+| Worker | 已派发本轮工作 | 本人实际 ACK | 独占增量边界 |
+| --- | --- | --- | --- |
+| 02 | 精确合约源码等价、本地验证、ABI/演练和四NOT_RUN独立证据索引 | a130529 分支/干净工作区与范围本人已确认 | 原合约/测试/02报告 |
+| 03 | Chain/API真实覆盖缺口和备份恢复流程 | a4d73bb 干净、负责目录与3a78e34字节等价本人已确认；ACK旧Task标签已要求纠正 | 原03 backend/chain/测试/03报告，不写apps/web |
+| 04 | 确认中切Vault定向竞态先复现后修复、真实浏览器覆盖 | WAITING_ACTUAL_ACK | 原apps/web与产品tests |
+| 05 | 正式方法独立准入、事实文档同步、04竞态复测、Windows协查 | 已确认本轮约束及独立验收分支，正在复核已有00eb22c文档工作区 | 原QA文档；新测试路径先协调 |
+| 06 | 九job映射、本地PoC、开源比较、Windows日志与接回方案 | 8c86276 分支/干净工作区与范围本人已确认 | tools/local-ci/**、test/local-ci*.test.mjs；CI-ALTERNATIVES / CI-LOCAL-POC / CI-GATE-MAPPING / CI-RECONNECT-PLAN / WINDOWS-PROCESS-FAILURE 五文档 |
+| 01 | 正式覆盖入口、管理状态、C/R/S、本地集成/证据包及治理准备 | 当前经理 | tools/coverage/**、test/coverage*.test.mjs、planning/coverage-*、共享package和管理源 |
+
+06实现范围是用户本轮明确要求本地PoC后的经理细分，既有M3-06-CI-GATES身份不变。所有成果本地提交及明确只读refs/bundle交接，禁止push；不得把未来公开仓库设想当作当前权限。
+
+## 以下为既有分工与历史回执
+
 # AlphaForge 第一阶段收尾任务登记
 
 登记日期：2026-09-20。Owner：Macbeth01。正式仓库：`pdbsy/quantpass-arbitrum-hackathon`；默认分支 `master`。
