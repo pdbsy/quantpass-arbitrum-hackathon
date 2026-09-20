@@ -2,17 +2,30 @@ import { closeSync, openSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { DatabaseSync, backup } from 'node:sqlite';
+import { ChainStore } from '../apps/server/src/chain-store.ts';
 
 type RecoveryOperation = 'backup' | 'restore';
 
-const expectedTables = [
-  'chain_blocks',
-  'chain_checkpoints',
-  'chain_events',
-  'chain_sync_leases',
-  'chain_transactions',
-  'product_projections',
-];
+function schemaDefinition(database: DatabaseSync): string {
+  // Stored DDL includes constraints and index predicates that column lists cannot establish.
+  return JSON.stringify(
+    database
+      .prepare(
+        "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*' ORDER BY type, name",
+      )
+      .all(),
+  );
+}
+
+function canonicalSchemaDefinition(): string {
+  // Only this independent in-memory reference is initialized; recovery inputs stay read-only.
+  const reference = new ChainStore(':memory:');
+  try {
+    return schemaDefinition(reference.db);
+  } finally {
+    reference.close();
+  }
+}
 
 function databaseSnapshot(database: DatabaseSync): string {
   const tables = (
@@ -30,18 +43,10 @@ function databaseSnapshot(database: DatabaseSync): string {
   );
 }
 
-function validatedSnapshot(database: DatabaseSync, code: string): string {
+function validatedSnapshot(database: DatabaseSync, expectedSchema: string, code: string): string {
   const version = Number(database.prepare('PRAGMA user_version').get()?.user_version);
-  const tables = (
-    database
-      .prepare(
-        "SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-      )
-      .all() as { name: string }[]
-  ).map(({ name }) => name);
-  const integrity = database.prepare('PRAGMA quick_check').get()?.quick_check;
-  if (version !== 6 || JSON.stringify(tables) !== JSON.stringify(expectedTables) || integrity !== 'ok')
-    throw new Error(code);
+  if (version !== 6 || schemaDefinition(database) !== expectedSchema) throw new Error(code);
+  if (database.prepare('PRAGMA quick_check').get()?.quick_check !== 'ok') throw new Error(code);
   return databaseSnapshot(database);
 }
 
@@ -58,11 +63,16 @@ const operation = operationValue as RecoveryOperation;
 const source = resolve(sourceValue);
 const target = resolve(targetValue);
 if (source === target) throw new Error('CHAIN_RECOVERY_PATH_CONFLICT');
+const expectedSchema = canonicalSchemaDefinition();
 const sourceDatabase = new DatabaseSync(source, { readOnly: true });
 let targetCreated = false;
 try {
   sourceDatabase.exec('BEGIN');
-  const expectedSnapshot = validatedSnapshot(sourceDatabase, 'CHAIN_RECOVERY_SOURCE_UNSUPPORTED');
+  const expectedSnapshot = validatedSnapshot(
+    sourceDatabase,
+    expectedSchema,
+    'CHAIN_RECOVERY_SOURCE_UNSUPPORTED',
+  );
   try {
     const targetDescriptor = openSync(target, 'wx', 0o600);
     targetCreated = true;
@@ -75,7 +85,7 @@ try {
   await backup(sourceDatabase, target);
   const recovered = new DatabaseSync(target, { readOnly: true });
   try {
-    const recoveredSnapshot = validatedSnapshot(recovered, 'CHAIN_RECOVERY_TARGET_UNHEALTHY');
+    const recoveredSnapshot = validatedSnapshot(recovered, expectedSchema, 'CHAIN_RECOVERY_TARGET_UNHEALTHY');
     if (recoveredSnapshot !== expectedSnapshot) throw new Error('CHAIN_RECOVERY_CONTENT_MISMATCH');
   } finally {
     recovered.close();

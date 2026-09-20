@@ -1235,6 +1235,84 @@ test('chain recovery CLI rejects unrelated and damaged sources without creating 
   }
 });
 
+test('chain recovery CLI rejects forged version-six schema definitions', async (t) => {
+  const fixtures: { name: string; sql?: string; replacement?: readonly [string, string] }[] = [
+    { name: 'six unrelated single-column tables' },
+    { name: 'wrong column type', replacement: ['block_number INTEGER', 'block_number TEXT'] },
+    {
+      name: 'missing primary key',
+      replacement: ['PRIMARY KEY (chain_id, contract_address)', 'CHECK (chain_id > 0)'],
+    },
+    { name: 'missing check constraint', replacement: ['CHECK (block_number >= 0)', ''] },
+    { name: 'missing null constraint', replacement: ['block_hash TEXT NOT NULL', 'block_hash TEXT'] },
+    { name: 'changed default', replacement: ['DEFAULT 1', 'DEFAULT 0'] },
+    { name: 'missing canonical index', sql: 'DROP INDEX one_canonical_block_per_height' },
+    {
+      name: 'nonunique canonical index',
+      sql: 'DROP INDEX one_canonical_block_per_height; CREATE INDEX one_canonical_block_per_height ON chain_blocks (chain_id, contract_address, block_number) WHERE canonical = 1',
+    },
+    {
+      name: 'changed index keys',
+      sql: 'DROP INDEX one_canonical_block_per_height; CREATE UNIQUE INDEX one_canonical_block_per_height ON chain_blocks (chain_id, contract_address, block_hash) WHERE canonical = 1',
+    },
+    {
+      name: 'changed index predicate',
+      sql: 'DROP INDEX one_canonical_block_per_height; CREATE UNIQUE INDEX one_canonical_block_per_height ON chain_blocks (chain_id, contract_address, block_number) WHERE canonical = 0',
+    },
+    {
+      name: 'unexpected trigger',
+      sql: 'CREATE TRIGGER discard_projection AFTER INSERT ON product_projections BEGIN DELETE FROM product_projections; END',
+    },
+    { name: 'unexpected view', sql: 'CREATE VIEW unexpected AS SELECT * FROM chain_checkpoints' },
+  ];
+  for (const fixture of fixtures) {
+    await t.test(fixture.name, async () => {
+      const source = await databasePath();
+      const seed = new ChainStore(source);
+      seed.close();
+      const malformed = new DatabaseSync(source);
+      try {
+        if (fixture.replacement) {
+          const definition = malformed
+            .prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'chain_checkpoints'")
+            .get()?.sql;
+          assert.equal(typeof definition, 'string');
+          const [from, to] = fixture.replacement;
+          assert.ok(String(definition).includes(from));
+          malformed.exec('DROP TABLE chain_checkpoints');
+          malformed.exec(String(definition).replace(from, to));
+        } else if (fixture.sql) {
+          malformed.exec(fixture.sql);
+        } else {
+          for (const table of [
+            'chain_blocks',
+            'chain_checkpoints',
+            'chain_events',
+            'chain_sync_leases',
+            'chain_transactions',
+            'product_projections',
+          ])
+            malformed.exec(`DROP TABLE ${table}; CREATE TABLE ${table} (unrelated TEXT)`);
+        }
+        assert.equal(malformed.prepare('PRAGMA user_version').get()?.user_version, 6);
+        assert.equal(malformed.prepare('PRAGMA quick_check').get()?.quick_check, 'ok');
+      } finally {
+        malformed.close();
+      }
+      const before = readFileSync(source);
+      for (const operation of ['backup', 'restore'] as const) {
+        const target = `${source}.${operation}`;
+        const result = runRecovery(operation, source, target);
+        assert.notEqual(result.status, 0, `${operation} accepted ${fixture.name}`);
+        assert.match(result.stderr, /CHAIN_RECOVERY_SOURCE_UNSUPPORTED/);
+        assert.equal(result.stdout, '');
+        assert.deepEqual(readFileSync(source), before);
+        await assert.rejects(stat(target), { code: 'ENOENT' });
+      }
+    });
+  }
+});
+
 test('chain recovery CLI preserves the source and destination on path or overwrite conflicts', async () => {
   const source = await databasePath();
   const target = `${source}.existing`;

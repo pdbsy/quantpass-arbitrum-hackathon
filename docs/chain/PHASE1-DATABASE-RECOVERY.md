@@ -48,6 +48,15 @@ validation. Concurrent writers may continue in WAL mode, while the backup remain
 validated recovery point. Still run the commands only after stopping writers for the selected source,
 as described below, so operators can identify and retain an unambiguous incident recovery point.
 
+Schema admission compares SQLite's stored table and index definitions against an independent
+in-memory database initialized by the repository's canonical migrations. This checks columns,
+declared types, primary keys, nullability, defaults, check constraints, unique indexes, index keys and
+partial-index predicates; extra application schema objects such as triggers or views also fail.
+Version 6 plus the six expected table names is insufficient. Comparison is deliberately exact:
+manually reconstructed definitions, even if semantically similar, are not admitted. No migration or
+DDL is executed on the input database. SQLite-owned internal objects, such as query-planner statistics,
+are excluded from this application-schema comparison.
+
 The test creates three isolated schema-6 databases. Each run synchronizes an empty-log canonical fixture through block 1000, performs an online backup, reopens and checks the copy, advances the observed head to 1128, catches up exactly 128 blocks, and requires a healthy checkpoint at the new head. It emits the measured components as a diagnostic without imposing a machine-speed assertion.
 
 ## Recorded local recovery measurement
