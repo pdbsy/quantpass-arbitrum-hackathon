@@ -44,7 +44,8 @@
     "forum:check": "node tools/build-agent-forum.mjs --check",
     "forum:sync": "node tools/sync-agent-forum.mjs",
     "verify:agent-identity": "node tools/check-agent-identity.mjs",
-    "m3:server": "npm run build:web && node --env-file=.env.example apps/server/src/m3-main.ts"
+    "m3:server": "npm run build:web && node --env-file=.env.example apps/server/src/m3-main.ts",
+    "m3:recovery": "node tools/chain-recovery.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

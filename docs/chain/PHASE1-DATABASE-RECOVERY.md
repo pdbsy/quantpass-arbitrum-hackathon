@@ -26,18 +26,36 @@ The repeatable local drill is:
 node --test --test-name-pattern="local recovery drill measures" test/chain-store.test.ts
 ```
 
+For an operator-controlled source that is no longer being written, the local CLI creates a new,
+non-overwriting backup and verifies schema, integrity, and complete table contents before reporting
+success:
+
+```sh
+npm run m3:recovery -- backup /path/to/source.sqlite /path/to/new-backup.sqlite
+```
+
+The restore drill also writes a new path, preserving both the incident database and the selected backup:
+
+```sh
+npm run m3:recovery -- restore /path/to/verified-backup.sqlite /path/to/new-restored.sqlite
+```
+
+Both commands refuse a missing source, an existing destination, a source/destination path collision,
+an unhealthy schema, or a content mismatch. Run them only after stopping writers for the selected
+source, as described below.
+
 The test creates three isolated schema-6 databases. Each run synchronizes an empty-log canonical fixture through block 1000, performs an online backup, reopens and checks the copy, advances the observed head to 1128, catches up exactly 128 blocks, and requires a healthy checkpoint at the new head. It emits the measured components as a diagnostic without imposing a machine-speed assertion.
 
 ## Recorded local recovery measurement
 
 The following sample was recorded on 2026-09-20 with Node 24.21.0 using the repeatable test above. The backup artifact was 495,616 bytes in each of three runs.
 
-| Component | Three-run median |
-| --- | ---: |
-| Online backup at block 1000 | 1.856 ms |
-| Reopen plus schema/integrity health check | 0.686 ms |
-| Read-only catch-up from block 1001 through 1128 | 30.100 ms |
-| Reopen through healthy block-1128 checkpoint | 30.768 ms |
+| Component                                       | Three-run median |
+| ----------------------------------------------- | ---------------: |
+| Online backup at block 1000                     |         1.856 ms |
+| Reopen plus schema/integrity health check       |         0.686 ms |
+| Read-only catch-up from block 1001 through 1128 |        30.100 ms |
+| Reopen through healthy block-1128 checkpoint    |        30.768 ms |
 
 This is a local deterministic fixture measurement, not a Testnet or production SLA. In this fixture, the recovery point gap is intentionally 128 blocks because the backup checkpoint is 1000 and the later observed head is 1128. Operational RPO is the age of the selected verified backup at incident time. Operational RTO also includes artifact selection, process startup, real RPC latency, log volume, and any manual review; those factors were not measured here.
 

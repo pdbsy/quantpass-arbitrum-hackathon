@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { DatabaseSync } from 'node:sqlite';
@@ -15,6 +16,7 @@ import type { ChainOperation } from '../packages/chain-adapter/src/lifecycle.ts'
 
 const CHAIN_ID = 46_630;
 const CONTRACT = asAddress('0x2222222222222222222222222222222222222222');
+const CONTRACT_B = asAddress('0x3333333333333333333333333333333333333333');
 const OWNER_A = asAddress('0x1111111111111111111111111111111111111111');
 const OWNER_B = asAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 const BLOCK_99 = asBlockHash(`0x${'09'.repeat(32)}`);
@@ -1061,6 +1063,138 @@ test('chain projection online backup reopens independently and never overwrites 
     restored.close();
     store.close();
   }
+});
+
+test('a failed chain backup removes its incomplete destination so an operator can retry', async () => {
+  const path = await databasePath();
+  const target = `${path}.backup`;
+  const store = new ChainStore(path);
+  store.close();
+
+  await assert.rejects(store.backupTo(target));
+  await assert.rejects(stat(target), { code: 'ENOENT' });
+});
+
+test('chain recovery CLI creates and restores a validated independent database', async () => {
+  const source = await databasePath();
+  const backupPath = `${source}.backup`;
+  const restoredPath = `${source}.restored`;
+  const store = new ChainStore(source);
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [event()]);
+  store.commitProjections(CHAIN_ID, CONTRACT, block, [
+    {
+      chainId: CHAIN_ID,
+      owner: OWNER_A,
+      contract: CONTRACT,
+      projectionKey: 'm3-vault',
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+      state: { principalBasis: '1000000' },
+    },
+  ]);
+  store.close();
+
+  const tool = resolve('tools/chain-recovery.ts');
+  const backupResult = spawnSync(process.execPath, [tool, 'backup', source, backupPath], {
+    encoding: 'utf8',
+  });
+  assert.equal(backupResult.status, 0, backupResult.stderr);
+  assert.deepEqual(JSON.parse(backupResult.stdout), {
+    operation: 'backup',
+    status: 'HEALTHY',
+    schemaVersion: 6,
+    integrity: 'OK',
+    content: 'MATCH',
+  });
+  assert.equal((await stat(backupPath)).mode & 0o777, 0o600);
+  const restoreResult = spawnSync(process.execPath, [tool, 'restore', backupPath, restoredPath], {
+    encoding: 'utf8',
+  });
+  assert.equal(restoreResult.status, 0, restoreResult.stderr);
+  assert.deepEqual(JSON.parse(restoreResult.stdout), {
+    operation: 'restore',
+    status: 'HEALTHY',
+    schemaVersion: 6,
+    integrity: 'OK',
+    content: 'MATCH',
+  });
+  assert.equal((await stat(restoredPath)).mode & 0o777, 0o600);
+  const overwriteResult = spawnSync(process.execPath, [tool, 'restore', backupPath, restoredPath], {
+    encoding: 'utf8',
+  });
+  assert.notEqual(overwriteResult.status, 0);
+
+  const restored = new ChainStore(restoredPath);
+  try {
+    assert.deepEqual(restored.health(), { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' });
+    assert.deepEqual(restored.checkpoint(CHAIN_ID, CONTRACT), {
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+    });
+    assert.equal(restored.canonicalEvents(CHAIN_ID, CONTRACT).length, 1);
+    assert.equal(
+      restored.projection(CHAIN_ID, OWNER_A, CONTRACT, 'm3-vault')?.state.principalBasis,
+      '1000000',
+    );
+  } finally {
+    restored.close();
+  }
+});
+
+test('sync leases and rollback remain isolated by contract in a shared chain database', async () => {
+  const store = new ChainStore(await databasePath());
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [event()]);
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT_B, block, [
+    event({ address: CONTRACT_B, transactionHash: TX_B }),
+  ]);
+  for (const [contract, owner] of [
+    [CONTRACT, OWNER_A],
+    [CONTRACT_B, OWNER_B],
+  ] as const)
+    store.commitProjections(CHAIN_ID, contract, block, [
+      {
+        chainId: CHAIN_ID,
+        owner,
+        contract,
+        projectionKey: 'm3-vault',
+        blockNumber: 100n,
+        blockHash: BLOCK_100,
+        state: { owner },
+      },
+    ]);
+
+  const firstOwner = '00000000-0000-4000-8000-000000000001';
+  const replacementOwner = '00000000-0000-4000-8000-000000000002';
+  store.claimSync(CHAIN_ID, CONTRACT, 101n, firstOwner);
+  assert.throws(
+    () => store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [event()], null, replacementOwner),
+    /CHAIN_SYNC_SUPERSEDED/,
+  );
+  assert.equal(store.projection(CHAIN_ID, OWNER_B, CONTRACT_B, 'm3-vault')?.state.owner, OWNER_B);
+  assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT_B), { healthy: true, error: null });
+
+  store.claimSync(CHAIN_ID, CONTRACT, 101n, replacementOwner);
+  assert.throws(
+    () => store.releaseSyncIncomplete(CHAIN_ID, CONTRACT, 101n, firstOwner),
+    /CHAIN_SYNC_SUPERSEDED/,
+  );
+  store.releaseSyncIncomplete(CHAIN_ID, CONTRACT, 101n, replacementOwner);
+  assert.deepEqual(store.rollbackFromBlock(CHAIN_ID, CONTRACT, 100n), {
+    blocks: 1,
+    events: 1,
+    operations: 0,
+    projections: 1,
+  });
+  assert.equal(store.checkpoint(CHAIN_ID, CONTRACT), null);
+  assert.deepEqual(store.checkpoint(CHAIN_ID, CONTRACT_B), {
+    blockNumber: 100n,
+    blockHash: BLOCK_100,
+  });
+  assert.equal(store.canonicalEvents(CHAIN_ID, CONTRACT_B).length, 1);
+  assert.equal(store.projection(CHAIN_ID, OWNER_B, CONTRACT_B, 'm3-vault')?.state.owner, OWNER_B);
+  store.close();
 });
 
 test('local recovery drill measures backup, reopen and 128-block catch-up separately', async (context) => {
