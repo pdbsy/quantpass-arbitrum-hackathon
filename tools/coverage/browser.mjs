@@ -9,6 +9,14 @@ import { createBrowserCoverageLifecycle } from './browser-lifecycle.mjs';
 const prototypePath = 'apps/web/prototype/AlphaForge_v3_EN.html';
 const driverPath = 'tools/verify-m3-browser.mjs';
 
+export function shouldTransformBrowserPath(path) {
+  return (
+    /\.(?:js|mjs|cjs|ts|tsx)$/.test(path) &&
+    !path.startsWith('node_modules/') &&
+    !path.includes('/node_modules/')
+  );
+}
+
 export async function collectBrowserCoverage({
   root,
   manifest,
@@ -83,7 +91,7 @@ export async function collectBrowserCoverage({
             const absolute = id.split('?')[0];
             if (!absolute.startsWith(root + sep)) return null;
             const path = relative(root, absolute).split(sep).join('/');
-            if (!/\.(?:js|mjs|cjs|ts|tsx)$/.test(path) || path.includes('/node_modules/')) return null;
+            if (!shouldTransformBrowserPath(path)) return null;
             try {
               const item = verifyBrowserSource({ root, manifest, generated, path, source: code });
               loaded.add(manifest.aliases?.[path]?.canonical || path);
