@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { collectBrowserCoverage } from '../tools/coverage/browser.mjs';
+import { collectBrowserCoverage, shouldTransformBrowserPath } from '../tools/coverage/browser.mjs';
 import { replayBrowserCoverage } from '../tools/coverage/browser-evidence.mjs';
 
 const root = process.env.AF_QUALIFIED_BROWSER_CANDIDATE;
@@ -18,6 +18,14 @@ const parser = require('@babel/parser');
 const { chromium } = await import(
   pathToFileURL(resolve(process.env.AF_QUALIFIED_BROWSER_TOOLS, 'index.mjs')).href
 );
+
+test('local Vite dependency paths stay third-party while first-party paths remain eligible', () => {
+  assert.equal(shouldTransformBrowserPath('node_modules/vite/dist/client/client.mjs'), false);
+  assert.equal(shouldTransformBrowserPath('packages/node_modules/helper/index.mjs'), false);
+  assert.equal(shouldTransformBrowserPath('apps/web/src/product-ui.ts'), true);
+  assert.equal(shouldTransformBrowserPath('tools/verify-m3-browser.mjs'), true);
+  assert.equal(shouldTransformBrowserPath('apps/web/index.html'), false);
+});
 
 test('actual instrumented M3 workflow retains canonical prototype and original TS browser graphs', async () => {
   const result = await collectBrowserCoverage({
@@ -34,7 +42,9 @@ test('actual instrumented M3 workflow retains canonical prototype and original T
   const replay = replayBrowserCoverage({ manifest, outputDirectory: result.directory, index: result.index });
   assert.deepEqual(replay.observations, result.observations);
   assert.ok(result.observations.every((row) => row.complete));
-  const completed = result.observations.find((row) => row.sources['apps/web/src/product-ui.ts']);
+  const completed = result.observations.find(
+    (row) => row.sources['apps/web/src/product-ui.ts'] && row.sources['tools/verify-m3-browser.mjs'],
+  );
   assert.ok(completed);
   const prototype = completed.sources['apps/web/prototype/AlphaForge_v3_EN.html'].coverage;
   assert.deepEqual(prototype.statementMap, manifest.sources[prototype.path].coverage.statementMap);
