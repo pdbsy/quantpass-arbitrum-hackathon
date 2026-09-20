@@ -12,10 +12,10 @@
 | tree           | `7176490cf1965afcd43960e104a671d84c3ba6d2`                                  | `5150146e94f1a4ec8033643d0eb30d5767dd9a21`       |
 | parent         | `276aa041bbf0ef0c5ad57050bfd7a52a1a66fb7c`                                  | `8c86276d5a4c24bd2052132bd8608ad9bb55fe4b`       |
 | 复核范围       | `a4d73bb197ff1f715fcf6ea9f1fe1daae2c75030..7335386`，包含 parent 的恢复改动 | `8c86276..d1c52e3`                               |
-| 只读源         | `/Users/ikol/.codex/worktrees/a424/AlphaForge/work/m3-phase1-recovery`      | `/Users/ikol/.codex/worktrees/9491/quant meme`   |
+| 只读源         | `<WORKER03_RECOVERY_CHECKOUT>`                                              | `<WORKER06_CI_CHECKOUT>`                         |
 | 独立执行 clone | `/private/tmp/AlphaForge-M3-05-RECOVERY-7335386`                            | `/private/tmp/AlphaForge-M3-05-LOCAL-CI-D1C52E3` |
 
-运行工具为批准的 Node 24.21.0 / npm 11.19.1，darwin arm64，macOS 26.6.2（25G83），Git 2.50.1（Apple Git-155）。Node 来自 `/Users/ikol/.local/share/fnm/node-versions/v24.21.0/installation/bin/node`。03 clone 离线安装自身的 193 个锁定包；06 专项仅使用 Node 内置模块。两者均保留完整本地 Git 历史，SQLite 与依赖不共享可写数据。QA 报告编辑前 HEAD 为 `ab4fbb40c1b1d15707de946df73c078c4f27af35`。
+运行工具为批准的 Node 24.21.0 / npm 11.19.1，darwin arm64，macOS 26.6.2（25G83），Git 2.50.1（Apple Git-155）。Node 来自 `<APPROVED_FNM_NODE_24_21_0>`。03 clone 离线安装自身的 193 个锁定包；06 专项仅使用 Node 内置模块。两者均保留完整本地 Git 历史，SQLite 与依赖不共享可写数据。QA 报告编辑前 HEAD 为 `ab4fbb40c1b1d15707de946df73c078c4f27af35`。
 
 03 交付接收时干净。06 源工作树存在两份 worker 所有的未提交 CI 方案文档，复核使用 `d1c52e3` 的已提交字节。该提交实际 author/committer 为 Macbeth01，而标题和 Agent-ID 为 Macbeth06；已向 01 报告身份来源不一致，保留原提交，不改写作者或历史。未来严格 LOCAL 身份入口需独立复核。
 

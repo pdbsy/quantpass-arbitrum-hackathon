@@ -1,0 +1,5 @@
+
+> alphaforge-robinhood-chain-hackathon@0.1.0 privacy:check
+> node tools/check-public-metadata.mjs
+
+Public metadata baseline passed: 551 bounded repository files; no prohibited operational profile.
