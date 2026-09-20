@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { buildPrototypeMap } from '../tools/coverage/prototype-map.mjs';
-import { normalizeStyles } from '../tools/import-user-ui.mjs';
+import { normalizeStyles, importUserUI } from '../tools/import-user-ui.mjs';
 
 test('prototype mapping preserves extraction and insertion positions including UTF-16 columns', () => {
   const html = '<h1>Intro 😀</h1>\n<script>\nconst x = "😀 style=color";\nconst y = 1;\n</script>\n';
@@ -28,11 +30,14 @@ test('missing, ambiguous and malformed script sources cannot produce a mapping',
     assert.throws(() => buildPrototypeMap(src));
 });
 
-test('actual tracked prototype maps exactly to the served bytes across all seventeen substitutions', () => {
+test('actual tracked prototype maps exactly to the served bytes across all seventeen substitutions', async (t) => {
   const html = readFileSync('apps/web/prototype/AlphaForge_v3_EN.html', 'utf8');
   const result = buildPrototypeMap(html);
   assert.ok(result, 'mapping must exist');
-  const served = readFileSync('build/ui-import/user-ui.js', 'utf8');
+  const output = mkdtempSync(join(tmpdir(), 'alphaforge-prototype-map-'));
+  t.after(() => rmSync(output, { recursive: true, force: true }));
+  await importUserUI(html, output);
+  const served = readFileSync(join(output, 'public/user-ui.js'), 'utf8');
   assert.equal(result.generated, served);
   assert.equal(result.generated, normalizeStyles(result.original));
   assert.equal(result.insertions.length, 17);

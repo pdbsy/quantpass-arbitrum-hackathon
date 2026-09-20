@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { verifyPrepared } from './prepare.mjs';
 import { verifyNodeWorkflow } from './collect.mjs';
+import { replayBrowserCoverage } from './browser-evidence.mjs';
 import { mergeObserved } from './evidence.mjs';
 
 export function summarizeCoverage(coverage, library) {
@@ -48,6 +49,24 @@ export async function reportCoverage(root, preparedDirectory, options) {
       args: workflow.args,
     });
     observations.push(...result.observations);
+    if (workflow.browser) {
+      assert.ok(
+        result.artifacts.some((record) => record.file === 'browser-receipt.json'),
+        'browser receipt not bound to workflow',
+      );
+      const receipt = JSON.parse(readFileSync(resolve(workflow.directory, 'browser-receipt.json')));
+      assert.equal(receipt.schemaVersion, 1);
+      assert.equal(receipt.provider, 'LOCAL');
+      assert.equal(receipt.candidateCommit, manifest.candidateCommit);
+      assert.equal(receipt.candidateTree, manifest.candidateTree);
+      if (result.state === 'PASS') assert.equal(receipt.state, 'PASS');
+      const browser = replayBrowserCoverage({
+        manifest,
+        outputDirectory: receipt.directory,
+        index: receipt.index,
+      });
+      observations.push(...browser.observations);
+    }
     workflows.push({ id: workflow.id, directory: workflow.directory, state: result.state });
   }
   const merged = mergeObserved(manifest, observations);

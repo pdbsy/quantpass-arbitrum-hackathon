@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, readdirSync, lstatSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -10,6 +10,25 @@ import { mergeObserved } from './evidence.mjs';
 const json = (value) => JSON.stringify(value, null, 2) + '\n';
 function bootstrapSource(environment, hook, launch) {
   return `Object.assign(process.env, ${JSON.stringify(environment)});\nawait import(${JSON.stringify(pathToFileURL(hook).href)});\nawait import(${JSON.stringify(pathToFileURL(launch).href)});\n`;
+}
+function artifactRecord(directory, file) {
+  assert.match(file, /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/);
+  const path = join(directory, file);
+  const stat = lstatSync(path);
+  assert.ok(stat.isFile() && !stat.isSymbolicLink(), 'artifact must be a regular file');
+  const bytes = readFileSync(path);
+  return { file, bytes: bytes.length, sha256: sha256(bytes) };
+}
+function rawInventory(directory) {
+  return readdirSync(directory)
+    .sort()
+    .map((file) => {
+      const path = join(directory, file);
+      const stat = lstatSync(path);
+      assert.ok(stat.isFile() && !stat.isSymbolicLink(), 'raw artifact must be a regular file');
+      const bytes = readFileSync(path);
+      return { file, bytes: bytes.length, sha256: sha256(bytes) };
+    });
 }
 export async function collectNodeWorkflow(root, preparedDirectory, options) {
   const { runLocal } = await import('../local-ci/runner.mjs');
@@ -69,6 +88,8 @@ export async function collectNodeWorkflow(root, preparedDirectory, options) {
     bootstrapSha256: sha256(bootstrapBytes),
     hookSha256: sha256(readFileSync(hook)),
     jobs,
+    rawArtifacts: rawInventory(raw),
+    artifacts: (options.artifactFiles || []).map((file) => artifactRecord(directory, file)),
     state: run.state,
   };
   writeFileSync(join(directory, 'workflow.json'), json(receipt), { flag: 'wx' });
@@ -118,11 +139,16 @@ export async function verifyNodeWorkflow(directory, manifest, manifestSha256, co
   const verified = verifyRun(r.executionDirectory, expected);
   assert.ok(['PASS', 'FAIL', 'NOT_RUN'].includes(verified.state), 'workflow evidence blocked');
   assert.equal(verified.state, r.state);
+  assert.ok(Array.isArray(r.artifacts));
+  assert.equal(new Set(r.artifacts.map((record) => record.file)).size, r.artifacts.length);
+  for (const record of r.artifacts)
+    assert.deepEqual(artifactRecord(directory, record.file), record, 'workflow artifact changed');
+  assert.deepEqual(rawInventory(join(directory, 'raw')), r.rawArtifacts, 'raw coverage artifact changed');
   const observations = loadLifecycleArtifacts(join(directory, 'raw'), manifest, manifestSha256, r.id);
   if (verified.state === 'PASS') {
     const root = observations.find((row) => row.pid === run.jobs[0].pid && row.threadId === 0);
     assert.ok(root?.complete && root.exitCode === 0, 'root workflow lifecycle incomplete');
   }
   mergeObserved(manifest, observations);
-  return { state: verified.state, observations };
+  return { state: verified.state, observations, artifacts: r.artifacts };
 }

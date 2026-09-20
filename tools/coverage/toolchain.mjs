@@ -50,6 +50,35 @@ export function verifyInstallation(directory, expected) {
   return { files, symlinks };
 }
 
+export function loadInstalledFileRecords(root, chunks) {
+  assert.ok(Array.isArray(chunks) && chunks.length > 0 && chunks.length <= 16);
+  const records = {};
+  const seen = new Set();
+  for (const chunk of chunks) {
+    assert.ok(
+      typeof chunk.path === 'string' &&
+        !chunk.path.includes('\\') &&
+        !chunk.path.includes(':') &&
+        chunk.path.split('/').every((part) => part && part !== '.' && part !== '..'),
+    );
+    assert.ok(!seen.has(chunk.path), 'duplicate tool chunk');
+    seen.add(chunk.path);
+    const path = resolve(root, chunk.path);
+    const stat = lstatSync(path);
+    assert.ok(stat.isFile() && !stat.isSymbolicLink());
+    const bytes = readFileSync(path);
+    assert.equal(sha256(bytes), chunk.sha256, 'tool chunk changed');
+    const data = JSON.parse(bytes);
+    assert.ok(data && typeof data === 'object' && !Array.isArray(data));
+    assert.equal(Object.keys(data).length, chunk.records);
+    for (const [name, record] of Object.entries(data)) {
+      assert.ok(!Object.hasOwn(records, name), 'overlapping tool inventory');
+      records[name] = record;
+    }
+  }
+  return records;
+}
+
 export async function loadCoverageTools(root, { instrumentationDirectory, browserDirectory } = {}) {
   assert.equal(process.versions.node, '24.21.0', 'coverage runtime not qualified');
   const { createRequire } = await import('node:module');
@@ -62,7 +91,10 @@ export async function loadCoverageTools(root, { instrumentationDirectory, browse
   const directory = resolve(
     instrumentationDirectory || resolve(root, '.checks/coverage-tools/instrumentation/node_modules'),
   );
-  verifyInstallation(directory, descriptor.instrumentation.installedFiles);
+  verifyInstallation(
+    directory,
+    loadInstalledFileRecords(root, descriptor.instrumentation.installedFileChunks),
+  );
   const require = createRequire(resolve(directory, '__qualified_entry__.cjs'));
   const modules = {
     instrument: require('istanbul-lib-instrument'),

@@ -13,6 +13,8 @@ for (let i = 0; i < args.length; i += 2) {
     '--tools': 'instrumentationDirectory',
     '--base': 'sourceBase',
     '--prepared': 'preparedDirectory',
+    '--browser-tools': 'browserDirectory',
+    '--chrome': 'executablePath',
   }[args[i]];
   assert.ok(key && args[i + 1] && !Object.hasOwn(options, key), 'invalid coverage run arguments');
   options[key] = args[i + 1];
@@ -27,15 +29,40 @@ const collected = await collectNodeWorkflow(root, prepared.directory, {
   ...configuration,
   timeoutMs: 1200000,
 });
+const workflows = [{ ...configuration, directory: collected.directory }];
+if (options.browserDirectory) {
+  assert.ok(options.executablePath, 'explicit browser executable required');
+  const browserConfiguration = {
+    id: 'm3-browser',
+    args: [
+      'tools/coverage/run-browser.mjs',
+      '--tools',
+      options.instrumentationDirectory,
+      '--browser-tools',
+      options.browserDirectory,
+      '--chrome',
+      options.executablePath,
+      '--base',
+      options.sourceBase,
+    ],
+  };
+  const browserRun = await collectNodeWorkflow(root, prepared.directory, {
+    ...options,
+    ...browserConfiguration,
+    artifactFiles: ['browser-receipt.json'],
+    timeoutMs: 300000,
+  });
+  workflows.push({ ...browserConfiguration, directory: browserRun.directory, browser: true });
+}
 const result = await reportCoverage(root, prepared.directory, {
   ...options,
-  workflows: [{ ...configuration, directory: collected.directory }],
+  workflows,
 });
 const receipt = {
   ...collected,
   reportPath: result.path,
   preparedDirectory: prepared.directory,
-  scope: 'NODE_WORKFLOW_ONLY',
+  scope: options.browserDirectory ? 'NODE_AND_M3_BROWSER' : 'NODE_WORKFLOW_ONLY',
   functionalState: result.report.functionalState,
   thresholdMet: result.report.thresholdMet,
   summary: result.report.summary,

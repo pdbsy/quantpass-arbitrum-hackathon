@@ -49,7 +49,8 @@
     "coverage:qualify": "node --test test/coverage-preparation.qualified.test.mjs test/coverage-node-hook.qualified.test.mjs",
     "m3:recovery": "node tools/chain-recovery.ts",
     "verify:local-agent-integration": "node tools/check-local-agent-integration.mjs",
-    "coverage:node": "node tools/coverage/run.mjs"
+    "coverage:node": "node tools/coverage/run.mjs",
+    "coverage:qualify:browser": "node --test test/coverage-browser.qualified.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

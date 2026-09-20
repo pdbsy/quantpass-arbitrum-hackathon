@@ -24,14 +24,14 @@
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
       "branch": "macbeth04/m3-phase1-product-race",
-      "head": "f26e919a3fea4117318f153ce781c725764f6a92",
+      "head": "1845447a0e0d817f42327cb81309b472f60c1da2",
       "local_ref": "refs/remotes/local-macbeth04/m3-phase1-product-race"
     },
     {
       "agent": "Macbeth05",
       "task": "M3-05-PHASE1-ACCEPTANCE",
       "branch": "macbeth05/m3-phase1-acceptance",
-      "head": "aca48044e382dab805344f02ae5e9aaa06328672",
+      "head": "d77849b2ae672210e7765cf43c0050adde5ded17",
       "local_ref": "refs/remotes/local-macbeth05/m3-phase1-acceptance"
     },
     {

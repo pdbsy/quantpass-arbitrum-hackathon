@@ -46,3 +46,14 @@ test('reviewed internal executable symlinks validate, altered targets reject', (
   f.files.entry.target = 'elsewhere';
   assert.throws(() => verifyInstallation(f.root, f.files));
 });
+test('split tool inventories retain exact file sets and reject altered or overlapping chunks', async (t) => {
+  const { loadInstalledFileRecords } = await import('../tools/coverage/toolchain.mjs');
+  const f = fixture(t);
+  const a = JSON.stringify(f.files);
+  writeFileSync(join(f.root, 'part.json'), a);
+  const index = [{ path: 'part.json', sha256: hash(a), records: 1 }];
+  assert.deepEqual(loadInstalledFileRecords(f.root, index), f.files);
+  assert.throws(() => loadInstalledFileRecords(f.root, [...index, ...index]));
+  writeFileSync(join(f.root, 'part.json'), JSON.stringify({}));
+  assert.throws(() => loadInstalledFileRecords(f.root, index));
+});

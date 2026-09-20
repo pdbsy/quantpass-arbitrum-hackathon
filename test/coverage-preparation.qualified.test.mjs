@@ -32,6 +32,9 @@ function fixture(t) {
   mkdirSync(join(root, 'planning'));
   for (const name of ['coverage-toolchain.lock.json', 'coverage-instrumentation.package-lock.json'])
     copyFileSync(join(repository, 'planning', name), join(root, 'planning', name));
+  for (const chunk of JSON.parse(readFileSync(join(repository, 'planning/coverage-toolchain.lock.json')))
+    .instrumentation.installedFileChunks)
+    copyFileSync(join(repository, chunk.path), join(root, chunk.path));
   writeFileSync(join(root, '.gitattributes'), '* text=auto eol=lf\n');
   writeFileSync(join(root, '.gitignore'), 'outputs/\n');
   writeFileSync(join(root, 'example.ts'), 'export function choose(x: boolean) { return x ? 7 : 9; }\n');

@@ -404,7 +404,7 @@
       "task_id": "PH1-23",
       "source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md",
       "goal": "确认中Vault A→B与A→B→A失效；Vault action/Pass transfer/deposit approval",
-      "status": "CONFIRM_INFLIGHT_VAULT_SELECTION_RACE",
+      "status": "PASS_AT_WORKER_RETEST_INTEGRATED_QA_PENDING",
       "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
       "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
       "owner": "04",
@@ -412,7 +412,7 @@
       "dependencies": "本地准确候选及既有工具链",
       "deliverables": "版本化本地实现/报告与原始执行证据",
       "acceptance": "05定向独立复测；真正钱包发送前失效，已发送操作按原身份跟踪",
-      "evidence": "本轮待实际交付，不预写PASS",
+      "evidence": "04 aa6c764 guard; 05 independent717/717; f26 driver independent9 mock sends; integrated9aefa70 810 tests PASS; final source QA pending",
       "blocker_type": "ENGINEERING_VALIDATION",
       "requires_user_decision": false,
       "budget_limited": false
@@ -421,7 +421,7 @@
       "task_id": "PH1-24",
       "source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md",
       "goal": "九job本地映射、Woodpecker/Jenkins/act比较、PoC与接回方案",
-      "status": "LOCAL_CI_ALTERNATIVE_IN_PROGRESS",
+      "status": "PASS_AT_WORKER_RETEST_INTEGRATED_QA_PENDING",
       "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
       "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
       "owner": "06",
@@ -429,7 +429,7 @@
       "dependencies": "本地准确候选及既有工具链",
       "deliverables": "版本化本地实现/报告与原始执行证据",
       "acceptance": "真实失败/超时/日志缺失负例；无新服务/凭据；未运行平台NOT_RUN",
-      "evidence": "本轮待实际交付，不预写PASS",
+      "evidence": "06 c817 runner19/19 plus05 independent22 probes;62444c8 identity58/58 independently reviewed; no new services installed",
       "blocker_type": "LOCAL_VALIDATION",
       "requires_user_decision": false,
       "budget_limited": false
@@ -438,7 +438,7 @@
       "task_id": "PH1-25",
       "source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md",
       "goal": "使用保存日志调查Windows文件级进程失败",
-      "status": "WINDOWS_ROOT_CAUSE_UNDETERMINED",
+      "status": "WINDOWS_RETEST_PENDING_FINAL_CANDIDATE",
       "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
       "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
       "owner": "05",
@@ -446,18 +446,21 @@
       "dependencies": "本地准确候选及既有工具链",
       "deliverables": "版本化本地实现/报告与原始执行证据",
       "acceptance": "06协作；无合格原生Windows则NOT_RUN，不用macOS证明Windows通过",
-      "evidence": "本轮待实际交付，不预写PASS",
+      "evidence": "Saved-log root cause UNDETERMINED; user restored hosted validation on2026-09-21; new candidate native Windows run still pending",
       "blocker_type": "PLATFORM_AND_EVIDENCE",
       "requires_user_decision": false,
-      "budget_limited": true
+      "budget_limited": false
     }
   ],
   "local_closeout": {
     "source_base": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
     "source_tree": "6f1a21845a99e16a0ba171612cd97e9bf3439294",
-    "hosted_status": "GITHUB_CHECKS_PAUSED",
+    "hosted_status": "AUTHORIZED_FINAL_CANDIDATE_PENDING",
     "billing_cause": "UNKNOWN",
-    "remote_write": "NOT_AUTHORIZED_THIS_ROUND",
-    "spec": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
+    "remote_write": "NORMAL_PR_VALIDATION_AUTHORIZED_PENDING_PUBLICATION_REVIEW",
+    "spec": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md",
+    "visibility": "PUBLIC_USER_CHANGED",
+    "last_tested_candidate": "9aefa70c7af30f5710500d128c7aa49e20fda7e4",
+    "last_local_result": "810_TESTS_PASS_FULL_CHECK_PRIVACY_FAILURE_REMEDIATED_PENDING_RERUN"
   }
 }

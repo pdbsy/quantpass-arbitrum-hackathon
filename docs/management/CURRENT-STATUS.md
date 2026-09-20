@@ -1,3 +1,13 @@
+# PR22 当前收口 — 2026-09-21
+
+用户已将唯一正式仓库设为Public，并明确恢复正常PR验证。实际远程核验：master仍18f5352070910a867b9729b031aa2e3951785e01，PR22仍Draft/3a78e34，旧头9项检查成功；这不是新候选验收。01统一安排后续hosted验证，merge、规则变更、部署和真实钱包交易未获本轮授权。
+
+经理已本地整合02合约入口修复、03只读且验证schema的恢复、04确认前Vault选择保护/真实浏览器driver、06修复后的受控执行器/严格LOCAL及hosted来源校验，以及05独立复验。9aefa70真实完整测试810/810通过，后续privacy检查发现QA本机路径和工具清单结构预算，两项已修正且公开元数据检查662文件通过；准确新头完整重跑仍待执行。覆盖率Node/浏览器版本化方法持续准入与补缺，不能把单一功能PASS视为90%目标达成。
+
+当前仍NOT_READY_TO_MERGE。原始失败与历史记录保留。未推送的新QA历史中存在本机路径，已公开文档脱敏不等于历史已清除；发布前仍须按保留历史约束处理。详情见phase1/CI-BUDGET-PAUSE.md、COVERAGE-QUALIFICATION.md和最新独立QA记录。
+
+## 以下为恢复托管验证前的历史记录
+
 # PR22 本地收尾 — 托管执行暂停
 
 本轮按 [用户规范](specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md) 推进；准确起点 `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8`。当前 `NOT_READY_TO_MERGE`。GitHub Checks/Actions 执行和状态查询暂停；不推送、不更改 Draft 或保护规则。实际账单原因 UNKNOWN，详见 [暂停记录](phase1/CI-BUDGET-PAUSE.md)。

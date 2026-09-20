@@ -38,6 +38,9 @@ async function fixture(t) {
   for (const f of ['coverage-toolchain.lock.json', 'coverage-instrumentation.package-lock.json'])
     copyFileSync(join(repository, 'planning', f), join(root, 'planning', f));
   copyFileSync(join(repository, 'tools/coverage/node-hook.mjs'), join(root, 'tools/coverage/node-hook.mjs'));
+  for (const chunk of JSON.parse(readFileSync(join(repository, 'planning/coverage-toolchain.lock.json')))
+    .instrumentation.installedFileChunks)
+    copyFileSync(join(repository, chunk.path), join(root, chunk.path));
   writeFileSync(join(root, '.gitattributes'), '* text=auto eol=lf\n');
   writeFileSync(join(root, '.gitignore'), 'outputs/\n');
   writeFileSync(join(root, 'choice.ts'), 'export function choose(x: boolean) { return x ? 7 : 9; }\n');
@@ -121,9 +124,10 @@ test('bounded real workflow preserves pass/failure and rejects missing execution
     args: [
       '--input-type=module',
       '-e',
-      "import {choose} from './choice.ts'; if(choose(true)!==7) process.exit(9);",
+      "import {choose} from './choice.ts'; import {writeFileSync} from 'node:fs'; import {resolve} from 'node:path'; if(choose(true)!==7) process.exit(9); writeFileSync(resolve(process.env.AF_COVERAGE_RAW, '../proof.json'), '{}');",
     ],
     timeoutMs: 10000,
+    artifactFiles: ['proof.json'],
   };
   const passed = await collectNodeWorkflow(f.root, f.prepared.directory, options);
   assert.equal(passed.state, 'PASS');
@@ -135,6 +139,7 @@ test('bounded real workflow preserves pass/failure and rejects missing execution
   assert.ok(replay.observations.length >= 2);
   const failed = await collectNodeWorkflow(f.root, f.prepared.directory, {
     ...options,
+    artifactFiles: [],
     id: 'qualified-failure',
     args: ['-e', 'process.exit(7)'],
   });
@@ -152,6 +157,30 @@ test('bounded real workflow preserves pass/failure and rejects missing execution
   assert.equal(measured.report.thresholdMet, false);
   assert.equal(measured.report.files.find((x) => x.path === 'unused.mjs').summary.functions.pct, 0);
   assert.equal(measured.report.files.find((x) => x.path === 'choice.ts').summary.branches.pct, 50);
+  const proof = join(passed.directory, 'proof.json');
+  writeFileSync(proof, '{"altered":true}');
+  await assert.rejects(
+    verifyNodeWorkflow(passed.directory, f.manifest, f.prepared.manifestSha256, {
+      id: options.id,
+      args: options.args,
+    }),
+  );
+  writeFileSync(proof, '{}');
+  const rawDirectory = join(passed.directory, 'raw');
+  const artifact = readdirSync(rawDirectory).find((name) => name.startsWith('complete-'));
+  const artifactPath = join(rawDirectory, artifact);
+  const originalArtifact = readFileSync(artifactPath);
+  const alteredArtifact = JSON.parse(originalArtifact);
+  const firstSource = Object.values(alteredArtifact.sources)[0].coverage;
+  firstSource.s[Object.keys(firstSource.s)[0]] += 1;
+  writeFileSync(artifactPath, JSON.stringify(alteredArtifact));
+  await assert.rejects(
+    verifyNodeWorkflow(passed.directory, f.manifest, f.prepared.manifestSha256, {
+      id: options.id,
+      args: options.args,
+    }),
+  );
+  writeFileSync(artifactPath, originalArtifact);
   rmSync(join(passed.executionDirectory, 'qualified-check.stdout.log'));
   await assert.rejects(
     verifyNodeWorkflow(passed.directory, f.manifest, f.prepared.manifestSha256, {
