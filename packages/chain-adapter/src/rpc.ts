@@ -91,6 +91,7 @@ export type ChainCallBlock = bigint | 'latest' | CanonicalBlockReference;
 export interface ReadonlyRpc {
   chainId(): Promise<number>;
   block(number: bigint | 'latest'): Promise<ChainBlock | null>;
+  code(address: Address, block: bigint | 'latest'): Promise<HexData>;
   receipt(hash: TransactionHash): Promise<ChainReceipt | null>;
   logs(filter: ChainLogFilter): Promise<readonly ChainLog[]>;
   call(request: ChainCall, block: ChainCallBlock): Promise<HexData>;
@@ -342,6 +343,18 @@ export class JsonRpcClient implements ReadonlyRpc {
 
   async receipt(hash: TransactionHash): Promise<ChainReceipt | null> {
     return parseReceipt(await this.#request('eth_getTransactionReceipt', [hash]));
+  }
+
+  async code(address: Address, block: bigint | 'latest'): Promise<HexData> {
+    const raw = await this.#request('eth_getCode', [
+      address,
+      block === 'latest' ? block : hexQuantity(block),
+    ]);
+    try {
+      return asHexData(String(raw));
+    } catch {
+      throw new RpcFailure('RPC_INVALID_RESPONSE');
+    }
   }
 
   async logs(filter: ChainLogFilter): Promise<readonly ChainLog[]> {

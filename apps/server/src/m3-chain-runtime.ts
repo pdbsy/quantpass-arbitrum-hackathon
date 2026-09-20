@@ -2,6 +2,7 @@ import { ChainStore } from './chain-store.ts';
 import { ChainSynchronizer } from './chain-sync.ts';
 import type { ChainSyncResult } from './chain-sync.ts';
 import { M3_VAULT_PROJECTION_KEY, M3VaultContractIntegration } from './m3-vault-integration.ts';
+import { M3_PASS_PROJECTION_KEY, M3StrategyPassContractIntegration } from './m3-pass-integration.ts';
 import {
   createOperation,
   transitionOperation,
@@ -11,8 +12,14 @@ import type { DeploymentManifest } from '../../../packages/chain-adapter/src/man
 import { validateDeploymentManifest } from '../../../packages/chain-adapter/src/manifest.ts';
 import { m3ChainSyncPolicy, type ChainSyncPolicy } from '../../../packages/chain-adapter/src/policy.ts';
 import { JsonRpcClient, type ReadonlyRpc } from '../../../packages/chain-adapter/src/rpc.ts';
+import { keccak256 } from '../../../packages/chain-adapter/src/keccak.ts';
+import {
+  decodeM3StrategyPassCalldata,
+  M3_STRATEGY_PASS_ABI_HASH,
+} from '../../../packages/chain-adapter/src/pass-abi.ts';
 import {
   decodeM3VaultCalldata,
+  M3_VAULT_ABI_HASH,
   M3_VAULT_ABI_VERSION,
 } from '../../../packages/chain-adapter/src/vault-abi.ts';
 import {
@@ -60,7 +67,9 @@ function assertM3VaultManifest(manifest: DeploymentManifest): void {
   if (
     manifest.contractName !== 'AlphaForgeVault' ||
     manifest.contractType !== 'vault' ||
-    manifest.abiVersion !== M3_VAULT_ABI_VERSION
+    manifest.abiVersion !== M3_VAULT_ABI_VERSION ||
+    manifest.abiHash.toLowerCase() !== M3_VAULT_ABI_HASH.toLowerCase() ||
+    manifest.strategyPassAbiHash.toLowerCase() !== M3_STRATEGY_PASS_ABI_HASH.toLowerCase()
   )
     throw new Error('M3_VAULT_ABI_MISMATCH');
 }
@@ -68,13 +77,17 @@ function assertM3VaultManifest(manifest: DeploymentManifest): void {
 export class M3ChainRuntime {
   readonly store: ChainStore;
   readonly synchronizer: ChainSynchronizer;
+  readonly passSynchronizer: ChainSynchronizer;
   readonly manifest: DeploymentManifest;
   readonly chainEvidence: ChainEvidenceRoutesOptions;
   #closed = false;
   #lastSyncAttempt: 'NOT_RUN' | 'SUCCEEDED' | 'FAILED' = 'NOT_RUN';
   readonly #now: () => string;
   readonly #maxBlocksPerSync: number;
-  #operationCursor: string | null = null;
+  readonly #rpc: ReadonlyRpc;
+  #deploymentVerified = false;
+  #vaultOperationCursor: string | null = null;
+  #passOperationCursor: string | null = null;
 
   constructor(options: {
     readonly dbPath: string;
@@ -87,6 +100,7 @@ export class M3ChainRuntime {
     assertM3VaultManifest(options.manifest);
     const policy = m3ChainSyncPolicy(options.policy);
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#rpc = options.rpc;
     this.#maxBlocksPerSync = options.maxBlocksPerSync ?? 2_000;
     this.manifest = options.manifest;
     this.store = new ChainStore(options.dbPath);
@@ -100,6 +114,25 @@ export class M3ChainRuntime {
         ...(options.maxBlocksPerSync === undefined ? {} : { maxBlocksPerSync: options.maxBlocksPerSync }),
         ...(options.now === undefined ? {} : { now: options.now }),
       });
+      const passManifest = Object.freeze({
+        ...options.manifest,
+        contractName: 'StrategyPass',
+        contractType: 'strategy-pass',
+        contractAddress: options.manifest.strategyPassAddress,
+        deploymentBlock: options.manifest.strategyPassDeploymentBlock,
+        abiVersion: 'm3-strategy-pass-2ad8162',
+        abiHash: options.manifest.strategyPassAbiHash,
+        runtimeBytecodeHash: options.manifest.strategyPassRuntimeBytecodeHash,
+      }) as DeploymentManifest;
+      this.passSynchronizer = new ChainSynchronizer({
+        rpc: options.rpc,
+        store: this.store,
+        manifest: passManifest,
+        integration: new M3StrategyPassContractIntegration(),
+        policy,
+        ...(options.maxBlocksPerSync === undefined ? {} : { maxBlocksPerSync: options.maxBlocksPerSync }),
+        ...(options.now === undefined ? {} : { now: options.now }),
+      });
     } catch (error) {
       this.store.close();
       throw error;
@@ -109,9 +142,22 @@ export class M3ChainRuntime {
       chainId: options.manifest.chainId,
       contract: options.manifest.contractAddress,
       projectionKey: M3_VAULT_PROJECTION_KEY,
+      passContract: options.manifest.strategyPassAddress,
+      passProjectionKey: M3_PASS_PROJECTION_KEY,
       syncStatus: () => ({
         lastAttempt: this.#lastSyncAttempt,
         errorCode: this.#lastSyncAttempt === 'FAILED' ? ('M3_INDEXER_SYNC_FAILED' as const) : null,
+        database: this.store.health(),
+        deployment: {
+          chainId: this.manifest.chainId,
+          contract: this.manifest.contractAddress,
+          manifestDigest: this.manifest.manifestDigest,
+          abiHash: this.manifest.abiHash,
+          runtimeBytecodeHash: this.manifest.runtimeBytecodeHash,
+          strategyPassAddress: this.manifest.strategyPassAddress,
+          strategyPassAbiHash: this.manifest.strategyPassAbiHash,
+          strategyPassRuntimeBytecodeHash: this.manifest.strategyPassRuntimeBytecodeHash,
+        },
       }),
       recordSubmission: (input: ObservedWalletSubmission) => this.recordSubmission(input),
     });
@@ -120,8 +166,11 @@ export class M3ChainRuntime {
   recordSubmission(input: ObservedWalletSubmission): ChainOperation {
     if (
       input.chainId !== this.manifest.chainId ||
-      !sameAddress(input.target, this.manifest.contractAddress) ||
-      !decodeM3VaultCalldata(input.calldata)
+      !(
+        (sameAddress(input.target, this.manifest.contractAddress) && decodeM3VaultCalldata(input.calldata)) ||
+        (sameAddress(input.target, this.manifest.strategyPassAddress) &&
+          decodeM3StrategyPassCalldata(input.calldata))
+      )
     )
       throw new Error('INVALID_M3_WALLET_SUBMISSION');
     const existing = this.store.operation(input.operationId);
@@ -165,33 +214,103 @@ export class M3ChainRuntime {
   }
 
   async #syncToHead(): Promise<M3RuntimeSyncResult> {
+    if (!this.#deploymentVerified) {
+      if ((await this.#rpc.chainId()) !== this.manifest.chainId)
+        throw new Error('M3_DEPLOYMENT_CHAIN_MISMATCH');
+      const code = await this.#rpc.code(this.manifest.contractAddress, 'latest');
+      if (code === '0x' || keccak256(code).toLowerCase() !== this.manifest.runtimeBytecodeHash.toLowerCase())
+        throw new Error('M3_DEPLOYMENT_CODE_MISMATCH');
+      const passCode = await this.#rpc.code(this.manifest.strategyPassAddress, 'latest');
+      if (
+        passCode === '0x' ||
+        keccak256(passCode).toLowerCase() !== this.manifest.strategyPassRuntimeBytecodeHash.toLowerCase()
+      )
+        throw new Error('M3_STRATEGY_PASS_CODE_MISMATCH');
+      this.#deploymentVerified = true;
+    }
     const head = await this.synchronizer.head();
-    const checkpoint = this.store.checkpoint(this.manifest.chainId, this.manifest.contractAddress);
-    const start = checkpoint ? checkpoint.blockNumber + 1n : this.manifest.deploymentBlock;
-    const boundedHead =
-      start <= head.number
-        ? start + BigInt(this.#maxBlocksPerSync) - 1n < head.number
-          ? start + BigInt(this.#maxBlocksPerSync) - 1n
-          : head.number
-        : head.number;
-    const result = await this.synchronizer.syncTo(boundedHead, head.number);
-    if (boundedHead < head.number)
+    const syncContract = async (
+      synchronizer: ChainSynchronizer,
+      contract: Address,
+      deploymentBlock: bigint,
+    ) => {
+      const checkpoint = this.store.checkpoint(this.manifest.chainId, contract);
+      const start = checkpoint ? checkpoint.blockNumber + 1n : deploymentBlock;
+      const boundedHead =
+        start <= head.number
+          ? start + BigInt(this.#maxBlocksPerSync) - 1n < head.number
+            ? start + BigInt(this.#maxBlocksPerSync) - 1n
+            : head.number
+          : head.number;
+      return Object.freeze({
+        result: await synchronizer.syncTo(boundedHead, head.number),
+        caughtUp: boundedHead >= head.number,
+      });
+    };
+    const vaultSync = await syncContract(
+      this.synchronizer,
+      this.manifest.contractAddress,
+      this.manifest.deploymentBlock,
+    );
+    const passSync = await syncContract(
+      this.passSynchronizer,
+      this.manifest.strategyPassAddress,
+      this.manifest.strategyPassDeploymentBlock,
+    );
+    const result: ChainSyncResult = Object.freeze({
+      scannedBlocks: Math.max(vaultSync.result.scannedBlocks, passSync.result.scannedBlocks),
+      insertedEvents: vaultSync.result.insertedEvents + passSync.result.insertedEvents,
+      reorgedBlocks: vaultSync.result.reorgedBlocks + passSync.result.reorgedBlocks,
+    });
+    if (!vaultSync.caughtUp || !passSync.caughtUp)
       return Object.freeze({ ...result, trackedOperations: 0, trackingFailures: 0 });
-    const operations = this.store.trackableOperationIds(
+    const vaultOperations = this.store.trackableOperationIds(
       this.manifest.chainId,
       this.manifest.contractAddress,
       100,
-      this.#operationCursor,
+      this.#vaultOperationCursor,
     );
+    const passOperations = this.store.trackableOperationIds(
+      this.manifest.chainId,
+      this.manifest.strategyPassAddress,
+      100,
+      this.#passOperationCursor,
+    );
+    const operations: Array<
+      Readonly<{ operationId: string; synchronizer: ChainSynchronizer; target: Address }>
+    > = [];
+    for (let index = 0; operations.length < 100; index++) {
+      const vaultOperation = vaultOperations[index];
+      const passOperation = passOperations[index];
+      if (vaultOperation)
+        operations.push({
+          operationId: vaultOperation,
+          synchronizer: this.synchronizer,
+          target: this.manifest.contractAddress,
+        });
+      if (operations.length < 100 && passOperation)
+        operations.push({
+          operationId: passOperation,
+          synchronizer: this.passSynchronizer,
+          target: this.manifest.strategyPassAddress,
+        });
+      if (!vaultOperation && !passOperation) break;
+    }
     let trackingFailures = 0;
-    for (const operationId of operations) {
+    let lastVaultOperation: string | null = null;
+    let lastPassOperation: string | null = null;
+    for (const operation of operations) {
       try {
-        await this.synchronizer.trackOperation(operationId, head);
+        await operation.synchronizer.trackOperation(operation.operationId, head);
       } catch {
         trackingFailures++;
       }
+      if (sameAddress(operation.target, this.manifest.contractAddress))
+        lastVaultOperation = operation.operationId;
+      else lastPassOperation = operation.operationId;
     }
-    if (operations.length > 0) this.#operationCursor = operations.at(-1)!;
+    if (lastVaultOperation) this.#vaultOperationCursor = lastVaultOperation;
+    if (lastPassOperation) this.#passOperationCursor = lastPassOperation;
     return Object.freeze({ ...result, trackedOperations: operations.length, trackingFailures });
   }
 

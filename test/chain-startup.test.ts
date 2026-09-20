@@ -16,7 +16,17 @@ import type {
   ChainReceipt,
   ReadonlyRpc,
 } from '../packages/chain-adapter/src/rpc.ts';
-import { M3_VAULT_REVIEW_ABI, encodeM3VaultCall } from '../packages/chain-adapter/src/vault-abi.ts';
+import { keccak256 } from '../packages/chain-adapter/src/keccak.ts';
+import {
+  encodeM3StrategyPassTransfer,
+  M3_STRATEGY_PASS_ABI_HASH,
+  M3_STRATEGY_PASS_TRANSFER_TOPIC,
+} from '../packages/chain-adapter/src/pass-abi.ts';
+import {
+  M3_VAULT_ABI_HASH,
+  M3_VAULT_REVIEW_ABI,
+  encodeM3VaultCall,
+} from '../packages/chain-adapter/src/vault-abi.ts';
 import { transitionOperation } from '../packages/chain-adapter/src/lifecycle.ts';
 import {
   asAddress,
@@ -38,8 +48,11 @@ const BTC = asAddress('0x7777777777777777777777777777777777777777');
 const LOCKER = asAddress('0x8888888888888888888888888888888888888888');
 const TX = asTransactionHash(`0x${'aa'.repeat(32)}`);
 const BAD_TX = asTransactionHash(`0x${'bb'.repeat(32)}`);
+const PASS_TX = asTransactionHash(`0x${'cc'.repeat(32)}`);
+const RECIPIENT = asAddress('0x9999999999999999999999999999999999999999');
 const STRATEGY_ID = asHexData(`0x${'11'.repeat(32)}`);
 const STRATEGY_REF = asHexData(`0x${'22'.repeat(32)}`);
+const RUNTIME_CODE = asHexData('0x6000');
 const blocks = new Map<bigint, ChainBlock>(
   [1n, 2n, 3n].map((number) => [
     number,
@@ -65,7 +78,12 @@ const manifestBody: DeploymentManifestDocument = {
   contractAddress: CONTRACT,
   deploymentBlock: '1',
   abiVersion: 'm3-vault-db620d6',
-  runtimeBytecodeHash: asBlockHash(`0x${'99'.repeat(32)}`),
+  abiHash: M3_VAULT_ABI_HASH,
+  runtimeBytecodeHash: keccak256(RUNTIME_CODE),
+  strategyPassAddress: PASS,
+  strategyPassDeploymentBlock: '1',
+  strategyPassAbiHash: M3_STRATEGY_PASS_ABI_HASH,
+  strategyPassRuntimeBytecodeHash: keccak256(RUNTIME_CODE),
 };
 const manifestDigest = deploymentManifestDigest(manifestBody);
 
@@ -87,6 +105,9 @@ class StartupRpc implements ReadonlyRpc {
   readonly receiptHashes: string[] = [];
   async chainId() {
     return CHAIN_ID;
+  }
+  async code() {
+    return RUNTIME_CODE;
   }
   async block(number: bigint | 'latest') {
     return blocks.get(number === 'latest' ? this.latest : number) ?? null;
@@ -121,7 +142,9 @@ class StartupRpc implements ReadonlyRpc {
     };
   }
   async logs(filter: ChainLogFilter): Promise<readonly ChainLog[]> {
-    return filter.fromBlock === 1n && filter.toBlock === 1n ? [this.depositLog()] : [];
+    return filter.address === CONTRACT && filter.fromBlock === 1n && filter.toBlock === 1n
+      ? [this.depositLog()]
+      : [];
   }
   depositLog(): ChainLog {
     const block = blocks.get(1n)!;
@@ -148,6 +171,7 @@ class StartupRpc implements ReadonlyRpc {
     assert.equal(reference.requireCanonical, true);
     const selector = request.data.slice(0, 10);
     if (request.to === PASS && selector === '0x492f4e18') return STRATEGY_ID;
+    if (request.to === PASS && selector === '0x313ce567') return asHexData(`0x${word(18n)}`);
     assert.equal(request.to, CONTRACT);
     const addresses: Record<string, Address> = {
       '0x8da5cb5b': OWNER,
@@ -172,6 +196,58 @@ class StartupRpc implements ReadonlyRpc {
     };
     if (values[selector] !== undefined) return asHexData(`0x${word(values[selector])}`);
     throw new Error('unexpected call');
+  }
+}
+
+class StrategyPassStartupRpc extends StartupRpc {
+  override async receipt(hash: typeof TX): Promise<ChainReceipt | null> {
+    if (hash !== PASS_TX) return super.receipt(hash);
+    const block = blocks.get(1n)!;
+    return {
+      transactionHash: PASS_TX,
+      blockNumber: 1n,
+      blockHash: block.hash,
+      transactionIndex: 2,
+      from: OWNER,
+      to: PASS,
+      status: 'SUCCESS',
+      logs: [this.transferLog()],
+    };
+  }
+
+  override async logs(filter: ChainLogFilter): Promise<readonly ChainLog[]> {
+    if (filter.address === PASS && filter.fromBlock === 1n && filter.toBlock === 1n)
+      return [this.transferLog()];
+    return super.logs(filter);
+  }
+
+  transferLog(): ChainLog {
+    const block = blocks.get(1n)!;
+    return {
+      address: PASS,
+      blockNumber: 1n,
+      blockHash: block.hash,
+      transactionHash: PASS_TX,
+      transactionIndex: 2,
+      logIndex: 0,
+      data: asHexData(`0x${word(1n)}`),
+      topics: [M3_STRATEGY_PASS_TRANSFER_TOPIC, addressWord(OWNER), addressWord(RECIPIENT)],
+      removed: false,
+    };
+  }
+
+  override async call(request: ChainCall, reference: ChainCallBlock): Promise<HexData> {
+    if (request.to !== PASS) return super.call(request, reference);
+    if (typeof reference !== 'object') assert.fail('expected canonical block reference');
+    assert.equal(reference.requireCanonical, true);
+    const selector = request.data.slice(0, 10);
+    if (selector === '0x313ce567') return asHexData(`0x${word(18n)}`);
+    if (selector === '0x492f4e18') return STRATEGY_ID;
+    if (selector === '0x70a08231') {
+      const owner = asAddress(`0x${request.data.slice(-40)}`);
+      return asHexData(`0x${word(owner === OWNER ? 999n : owner === RECIPIENT ? 1n : 0n)}`);
+    }
+    throw new Error('unexpected pass call');
   }
 }
 
@@ -253,6 +329,68 @@ test('deployed startup composes runtime, app, bounded sync and canonical API pro
   assert.equal(evidence.json().lifecycle, 'CONFIRMED');
   assert.equal(evidence.json().productReady, true);
   assert.ok(rpc.calls >= 72);
+  await server.close();
+});
+
+test('StrategyPass transfer reaches canonical evidence and exact holder balance projections', async () => {
+  const root = await directory();
+  const server = await startM3Server(
+    {
+      deployment: {
+        deploymentStatus: 'DEPLOYED',
+        dbPath: resolve(root, 'chain.sqlite'),
+        rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com'],
+        manifestDocument: { ...manifestBody, manifestDigest },
+        expectedManifestDigest: manifestDigest,
+        expectedContractAddress: CONTRACT,
+        maxBlocksPerSync: 3,
+        now: () => '2026-09-20T00:00:00.000Z',
+      },
+      app: {
+        dbPath: resolve(root, 'ledger.sqlite'),
+        env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+        origin: 'http://127.0.0.1:4180',
+      },
+      syncIntervalMs: null,
+    },
+    { createRpc: () => new StrategyPassStartupRpc() },
+  );
+  const submitted = await server.app.inject({
+    method: 'POST',
+    url: '/api/v1/chain/operations',
+    headers: { host: '127.0.0.1:4180', origin: 'http://127.0.0.1:4180', 'x-quantpass-demo': '1' },
+    payload: {
+      operationId: 'startup-pass-transfer',
+      chainId: CHAIN_ID,
+      owner: OWNER,
+      target: PASS,
+      calldata: encodeM3StrategyPassTransfer(RECIPIENT, 1n),
+      txHash: PASS_TX,
+    },
+  });
+  assert.equal(submitted.statusCode, 202, submitted.body);
+  await server.syncNow();
+
+  const evidence = await server.app.inject({
+    url: `/api/v1/chain/operations/startup-pass-transfer/evidence?owner=${OWNER}`,
+    headers: { host: '127.0.0.1:4180' },
+  });
+  assert.equal(evidence.statusCode, 200, evidence.body);
+  assert.equal(evidence.json().lifecycle, 'CONFIRMED');
+  assert.equal(evidence.json().productReady, true);
+
+  const recipient = await server.app.inject({
+    url: `/api/v1/chain/passes/${PASS}/${RECIPIENT}`,
+    headers: { host: '127.0.0.1:4180' },
+  });
+  assert.equal(recipient.statusCode, 200, recipient.body);
+  assert.deepEqual(recipient.json().state, {
+    owner: RECIPIENT,
+    pass: PASS,
+    strategyId: STRATEGY_ID,
+    decimals: 18,
+    balanceRaw: '1',
+  });
   await server.close();
 });
 
@@ -494,7 +632,21 @@ test('indexer connectivity failure does not prevent the product server starting 
     const headers = { host: '127.0.0.1:4180' };
     assert.equal((await server.app.inject({ url: '/api/health', headers })).statusCode, 200);
     const status = await server.app.inject({ url: '/api/v1/chain/runtime-status', headers });
-    assert.deepEqual(status.json(), { lastAttempt: 'FAILED', errorCode: 'M3_INDEXER_SYNC_FAILED' });
+    assert.deepEqual(status.json(), {
+      lastAttempt: 'FAILED',
+      errorCode: 'M3_INDEXER_SYNC_FAILED',
+      database: { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' },
+      deployment: {
+        chainId: CHAIN_ID,
+        contract: CONTRACT,
+        manifestDigest,
+        abiHash: M3_VAULT_ABI_HASH,
+        runtimeBytecodeHash: manifestBody.runtimeBytecodeHash,
+        strategyPassAddress: PASS,
+        strategyPassAbiHash: M3_STRATEGY_PASS_ABI_HASH,
+        strategyPassRuntimeBytecodeHash: manifestBody.strategyPassRuntimeBytecodeHash,
+      },
+    });
     assert.doesNotMatch(status.body, /private RPC error/);
     assert.equal(
       (await server.app.inject({ url: `/api/v1/chain/vaults/${OWNER}`, headers })).statusCode,
@@ -509,6 +661,17 @@ test('indexer connectivity failure does not prevent the product server starting 
     assert.deepEqual((await server.app.inject({ url: '/api/v1/chain/runtime-status', headers })).json(), {
       lastAttempt: 'SUCCEEDED',
       errorCode: null,
+      database: { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' },
+      deployment: {
+        chainId: CHAIN_ID,
+        contract: CONTRACT,
+        manifestDigest,
+        abiHash: M3_VAULT_ABI_HASH,
+        runtimeBytecodeHash: manifestBody.runtimeBytecodeHash,
+        strategyPassAddress: PASS,
+        strategyPassAbiHash: M3_STRATEGY_PASS_ABI_HASH,
+        strategyPassRuntimeBytecodeHash: manifestBody.strategyPassRuntimeBytecodeHash,
+      },
     });
     unavailable = true;
     await assert.rejects(server.syncNow());

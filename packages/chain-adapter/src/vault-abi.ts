@@ -1,10 +1,13 @@
-import { asAddress, asHexData, type Address, type HexData } from './types.ts';
+import { asAddress, asBlockHash, asHexData, type Address, type HexData } from './types.ts';
 import type { ChainLog } from './rpc.ts';
 import type { DecodedContractEvent } from './reconciliation.ts';
 
 type AbiArgument = 'address' | 'uint256';
 
 export const M3_VAULT_ABI_VERSION = 'm3-vault-db620d6';
+export const M3_VAULT_ABI_HASH = asBlockHash(
+  '0x264b4498cf396008e4619664c59bf8d8eac0a04f04b80e760df3cfbc00846977',
+);
 
 const functionDefinitions = Object.freeze({
   'afBtc()': { selector: '0xa8d937e9', arguments: [] },

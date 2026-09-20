@@ -1,5 +1,6 @@
-import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { DatabaseSync, backup } from 'node:sqlite';
+import { closeSync, openSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   asAddress,
   asBlockHash,
@@ -36,6 +37,12 @@ export interface ChainSyncHealth {
   readonly healthy: boolean;
   readonly error:
     'CHAIN_REORG_DEPTH_EXCEEDED' | 'CHAIN_REORG_NO_COMMON_ANCESTOR' | 'CHAIN_SYNC_INCOMPLETE' | null;
+}
+
+export interface ChainDatabaseHealth {
+  readonly status: 'HEALTHY' | 'UNHEALTHY';
+  readonly schemaVersion: number | null;
+  readonly integrity: 'OK' | 'FAILED';
 }
 
 export interface ProductProjection {
@@ -517,6 +524,34 @@ export class ChainStore {
 
   close(): void {
     this.db.close();
+  }
+
+  health(): ChainDatabaseHealth {
+    try {
+      const schemaVersion = Number(this.db.prepare('PRAGMA user_version').get()?.user_version);
+      const result = this.db.prepare('PRAGMA quick_check').get() as { quick_check: string } | undefined;
+      const healthy = schemaVersion === 6 && result?.quick_check === 'ok';
+      return Object.freeze({
+        status: healthy ? 'HEALTHY' : 'UNHEALTHY',
+        schemaVersion: Number.isSafeInteger(schemaVersion) ? schemaVersion : null,
+        integrity: healthy ? 'OK' : 'FAILED',
+      });
+    } catch {
+      return Object.freeze({ status: 'UNHEALTHY', schemaVersion: null, integrity: 'FAILED' });
+    }
+  }
+
+  async backupTo(target: string): Promise<string> {
+    const path = resolve(target);
+    try {
+      closeSync(openSync(path, 'wx', 0o600));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST')
+        throw new Error('BACKUP_TARGET_EXISTS', { cause: error });
+      throw error;
+    }
+    await backup(this.db, path);
+    return path;
   }
 
   #assertSyncOwner(id: number, address: string, ownerToken: string | null): void {

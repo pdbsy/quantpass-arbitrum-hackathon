@@ -763,3 +763,154 @@ test('version-three incomplete targets remain authoritative after sync-lease mig
   assert.equal(store.syncTarget(CHAIN_ID, CONTRACT), 101n);
   store.close();
 });
+
+test('chain projection online backup reopens independently and never overwrites a destination', async () => {
+  const path = await databasePath();
+  const target = `${path}.backup`;
+  const store = new ChainStore(path);
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [event()]);
+  store.commitProjections(CHAIN_ID, CONTRACT, block, [
+    {
+      chainId: CHAIN_ID,
+      owner: OWNER_A,
+      contract: CONTRACT,
+      projectionKey: 'm3-vault',
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+      state: { strategyId: 'trend', principalBasis: '1000000' },
+    },
+  ]);
+
+  const recovery = store as ChainStore & {
+    backupTo(targetPath: string): Promise<string>;
+    health(): { status: string; schemaVersion: number | null; integrity: string };
+  };
+  assert.deepEqual(recovery.health(), { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' });
+  assert.equal(await recovery.backupTo(target), target);
+  await assert.rejects(recovery.backupTo(target), /BACKUP_TARGET_EXISTS/);
+
+  const restored = new ChainStore(target);
+  try {
+    assert.deepEqual(restored.health(), { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' });
+    assert.deepEqual(restored.checkpoint(CHAIN_ID, CONTRACT), {
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+    });
+    assert.equal(
+      restored.projection(CHAIN_ID, OWNER_A, CONTRACT, 'm3-vault')?.state.principalBasis,
+      '1000000',
+    );
+    assert.equal(restored.canonicalEvents(CHAIN_ID, CONTRACT).length, 1);
+  } finally {
+    restored.close();
+    store.close();
+  }
+});
+
+test('chain store rejects malformed recovery, operation and projection identities', async () => {
+  const store = new ChainStore(await databasePath());
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  assert.throws(
+    () => store.commitProjections(CHAIN_ID, CONTRACT, block, []),
+    /PROJECTION_BLOCK_NOT_CANONICAL/,
+  );
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [event()]);
+  const projection = {
+    chainId: CHAIN_ID,
+    owner: OWNER_A,
+    contract: CONTRACT,
+    projectionKey: 'm3-vault',
+    blockNumber: 100n,
+    blockHash: BLOCK_100,
+    state: { principalBasis: '1' },
+  };
+  for (const malformed of [
+    { ...projection, chainId: 1 },
+    { ...projection, contract: OWNER_B },
+    { ...projection, blockNumber: 101n },
+    { ...projection, projectionKey: '../unsafe' },
+  ])
+    assert.throws(
+      () => store.commitProjections(CHAIN_ID, CONTRACT, block, [malformed]),
+      /INVALID_PROJECTION/,
+    );
+  assert.throws(
+    () => store.commitProjections(CHAIN_ID, CONTRACT, block, [projection, projection]),
+    /DUPLICATE_PROJECTION/,
+  );
+  assert.throws(
+    () =>
+      store.commitProjections(CHAIN_ID, CONTRACT, block, [
+        { ...projection, blockNumber: 99n, blockHash: BLOCK_99 },
+      ]),
+    /PROJECTION_BLOCK_NOT_CANONICAL/,
+  );
+  store.commitProjections(CHAIN_ID, CONTRACT, block, [projection]);
+  assert.throws(() => store.trackableOperationIds(CHAIN_ID, CONTRACT, 0), /INVALID_OPERATION_QUERY_LIMIT/);
+  assert.throws(
+    () => store.trackableOperationIds(CHAIN_ID, CONTRACT, 1, '../unsafe'),
+    /INVALID_OPERATION_ID/,
+  );
+  const unsigned = createOperation({
+    operationId: 'valid-operation',
+    chainId: CHAIN_ID,
+    owner: OWNER_A,
+    target: CONTRACT,
+    state: 'AWAITING_SIGNATURE',
+  });
+  assert.throws(() => store.saveOperation({ ...unsigned, operationId: '../unsafe' }), /INVALID_OPERATION_ID/);
+  store.saveOperation(unsigned);
+  assert.throws(
+    () =>
+      store.saveOperationAtCheckpoint({ ...unsigned, operationId: 'other-operation' }, unsigned, {
+        blockNumber: 100n,
+        blockHash: BLOCK_100,
+      }),
+    /OPERATION_IDENTITY_CONFLICT/,
+  );
+  const submittedOperation = transitionOperation(
+    createOperation({
+      operationId: 'stale-operation',
+      chainId: CHAIN_ID,
+      owner: OWNER_A,
+      target: CONTRACT,
+      state: 'AWAITING_SIGNATURE',
+    }),
+    { state: 'SUBMITTED', txHash: TX_B, submittedAt: '2026-09-20T00:00:00.000Z' },
+  );
+  store.saveOperation(submittedOperation);
+  assert.throws(
+    () =>
+      store.saveOperationAtCheckpoint(
+        submittedOperation,
+        { ...submittedOperation, submittedAt: '2026-09-20T00:00:01.000Z' },
+        { blockNumber: 100n, blockHash: BLOCK_100 },
+      ),
+    /CHAIN_SYNC_SUPERSEDED/,
+  );
+  store.close();
+});
+
+test('chain store fails closed on corrupted persisted event and projection JSON', async () => {
+  const store = new ChainStore(await databasePath());
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [event()]);
+  store.commitProjections(CHAIN_ID, CONTRACT, block, [
+    {
+      chainId: CHAIN_ID,
+      owner: OWNER_A,
+      contract: CONTRACT,
+      projectionKey: 'm3-vault',
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+      state: { principalBasis: '1' },
+    },
+  ]);
+  store.db.prepare('UPDATE chain_events SET topics_json = ?').run('{');
+  assert.throws(() => store.canonicalEvents(CHAIN_ID, CONTRACT), /CORRUPT_CHAIN_DATABASE/);
+  store.db.prepare('UPDATE chain_events SET topics_json = ?').run(JSON.stringify([SIGNATURE]));
+  store.db.prepare('UPDATE product_projections SET state_json = ?').run('[]');
+  assert.throws(() => store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'm3-vault'), /CORRUPT_CHAIN_DATABASE/);
+  store.close();
+});

@@ -31,6 +31,7 @@ import {
   validateDeploymentManifest,
 } from '../packages/chain-adapter/src/manifest.ts';
 import { m3ChainSyncPolicy } from '../packages/chain-adapter/src/policy.ts';
+import { M3_STRATEGY_PASS_ABI_HASH } from '../packages/chain-adapter/src/pass-abi.ts';
 
 const CHAIN_ID = 46_630;
 const CONTRACT = asAddress('0x2222222222222222222222222222222222222222');
@@ -45,6 +46,8 @@ const HASH_100_ALT = asBlockHash(`0x${'15'.repeat(32)}`);
 const HASH_101 = asBlockHash(`0x${'11'.repeat(32)}`);
 const HASH_101_ALT = asBlockHash(`0x${'12'.repeat(32)}`);
 const HASH_102 = asBlockHash(`0x${'13'.repeat(32)}`);
+const ABI_HASH = asBlockHash(`0x${'66'.repeat(32)}`);
+const PASS = asAddress('0x8888888888888888888888888888888888888888');
 
 const manifestBody = {
   schemaVersion: 1,
@@ -55,7 +58,12 @@ const manifestBody = {
   contractAddress: CONTRACT,
   deploymentBlock: '100',
   abiVersion: 'm3-owner-v1',
+  abiHash: ABI_HASH,
   runtimeBytecodeHash: asBlockHash(`0x${'77'.repeat(32)}`),
+  strategyPassAddress: PASS,
+  strategyPassDeploymentBlock: '90',
+  strategyPassAbiHash: M3_STRATEGY_PASS_ABI_HASH,
+  strategyPassRuntimeBytecodeHash: asBlockHash(`0x${'88'.repeat(32)}`),
 } as const;
 const manifestDigest = deploymentManifestDigest(manifestBody);
 const manifest = validateDeploymentManifest(
@@ -122,6 +130,9 @@ class FixtureRpc implements ReadonlyRpc {
 
   async chainId() {
     return this.networkChainId;
+  }
+  async code() {
+    return asHexData('0x6000');
   }
   async block(number: bigint | 'latest') {
     return this.blocks.get(number === 'latest' ? this.head : number) ?? null;
@@ -225,6 +236,88 @@ test('indexer requires an explicit validated chain policy', async () => {
       } as unknown as ChainSynchronizerOptions),
     /INVALID_CHAIN_SYNC_POLICY/,
   );
+  store.close();
+});
+
+test('indexer rejects invalid ranges, unavailable heads and untrackable operation identities', async () => {
+  const invalidPolicyStore = new ChainStore(await databasePath());
+  assert.throws(
+    () =>
+      createSynchronizer({
+        rpc: new FixtureRpc(),
+        store: invalidPolicyStore,
+        manifest,
+        integration,
+        maxBlocksPerSync: 0,
+      }),
+    /INVALID_CHAIN_SYNC_POLICY/,
+  );
+  invalidPolicyStore.close();
+
+  const unavailableStore = new ChainStore(await databasePath());
+  const unavailable = createSynchronizer({
+    rpc: new FixtureRpc(),
+    store: unavailableStore,
+    manifest,
+    integration,
+  });
+  await assert.rejects(() => unavailable.head(), { code: 'CHAIN_HEAD_UNAVAILABLE' });
+  await assert.rejects(() => unavailable.syncTo(99n), { code: 'CHAIN_HEAD_BEFORE_DEPLOYMENT' });
+  await assert.rejects(() => unavailable.syncTo(101n, 100n), { code: 'CHAIN_SYNC_TARGET_BEHIND' });
+  await assert.rejects(() => unavailable.syncTo(100n), { code: 'CHAIN_HEAD_UNAVAILABLE' });
+  await assert.rejects(() => unavailable.trackOperation('absent'), { code: 'OPERATION_NOT_FOUND' });
+  unavailableStore.saveOperation(
+    createOperation({
+      operationId: 'unsigned',
+      chainId: CHAIN_ID,
+      owner: OWNER,
+      target: CONTRACT,
+      state: 'AWAITING_SIGNATURE',
+    }),
+  );
+  await assert.rejects(() => unavailable.trackOperation('unsigned'), { code: 'OPERATION_NOT_TRACKABLE' });
+  unavailableStore.saveOperation(submitted('receipt-pending', TX_A));
+  await assert.rejects(() => unavailable.trackOperation('receipt-pending'), {
+    code: 'CHAIN_HEAD_UNAVAILABLE',
+  });
+  assert.throws(() => unavailable.recordReplacement('absent', TX_B), { code: 'OPERATION_NOT_FOUND' });
+  assert.throws(() => unavailable.recordDropped('absent'), { code: 'OPERATION_NOT_FOUND' });
+  unavailableStore.close();
+
+  const rangeRpc = new FixtureRpc();
+  rangeRpc.blocks.set(100n, block(100n, HASH_100, HASH_99));
+  rangeRpc.blocks.set(101n, block(101n, HASH_101, HASH_100));
+  const rangeStore = new ChainStore(await databasePath());
+  const range = createSynchronizer({
+    rpc: rangeRpc,
+    store: rangeStore,
+    manifest,
+    integration,
+    maxBlocksPerSync: 1,
+  });
+  await assert.rejects(() => range.syncTo(101n), { code: 'CHAIN_SYNC_RANGE_EXCEEDED' });
+  rangeStore.close();
+
+  const mismatchRpc = new FixtureRpc();
+  mismatchRpc.blocks.set(100n, block(101n, HASH_100, HASH_99));
+  const mismatchStore = new ChainStore(await databasePath());
+  const mismatch = createSynchronizer({ rpc: mismatchRpc, store: mismatchStore, manifest, integration });
+  await assert.rejects(() => mismatch.syncTo(100n), { code: 'CHAIN_BLOCK_MISMATCH' });
+  mismatchStore.close();
+});
+
+test('indexer ignores unknown logs without granting a projection', async () => {
+  const rpc = new FixtureRpc();
+  rpc.blocks.set(100n, block(100n, HASH_100, HASH_99));
+  rpc.receipts.set(
+    TX_A,
+    receipt(TX_A, 100n, HASH_100, 'SUCCESS', [{ ...log(TX_A, 100n, HASH_100), topics: [] }]),
+  );
+  const store = new ChainStore(await databasePath());
+  const sync = createSynchronizer({ rpc, store, manifest, integration });
+  assert.deepEqual(await sync.syncTo(100n), { scannedBlocks: 1, insertedEvents: 0, reorgedBlocks: 0 });
+  assert.equal(store.canonicalEvents(CHAIN_ID, CONTRACT).length, 0);
+  assert.equal(store.projection(CHAIN_ID, OWNER, CONTRACT, 'trend-vault'), null);
   store.close();
 });
 

@@ -19,11 +19,20 @@ export interface DeploymentManifestDocument {
   readonly contractAddress: Address;
   readonly deploymentBlock: string;
   readonly abiVersion: string;
+  readonly abiHash: BlockHash;
   readonly runtimeBytecodeHash: BlockHash;
+  readonly strategyPassAddress: Address;
+  readonly strategyPassDeploymentBlock: string;
+  readonly strategyPassAbiHash: BlockHash;
+  readonly strategyPassRuntimeBytecodeHash: BlockHash;
 }
 
-export interface DeploymentManifest extends Omit<DeploymentManifestDocument, 'deploymentBlock'> {
+export interface DeploymentManifest extends Omit<
+  DeploymentManifestDocument,
+  'deploymentBlock' | 'strategyPassDeploymentBlock'
+> {
   readonly deploymentBlock: bigint;
+  readonly strategyPassDeploymentBlock: bigint;
   readonly manifestDigest: BlockHash;
   readonly [validatedDeploymentManifest]: true;
 }
@@ -37,8 +46,13 @@ const fields = new Set([
   'contractAddress',
   'deploymentBlock',
   'abiVersion',
+  'abiHash',
   'manifestDigest',
   'runtimeBytecodeHash',
+  'strategyPassAddress',
+  'strategyPassDeploymentBlock',
+  'strategyPassAbiHash',
+  'strategyPassRuntimeBytecodeHash',
 ]);
 const identifier = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/;
 
@@ -56,7 +70,12 @@ function canonicalDocument(input: DeploymentManifestDocument): DeploymentManifes
     contractAddress: input.contractAddress,
     deploymentBlock: input.deploymentBlock,
     abiVersion: input.abiVersion,
+    abiHash: input.abiHash,
     runtimeBytecodeHash: input.runtimeBytecodeHash,
+    strategyPassAddress: input.strategyPassAddress,
+    strategyPassDeploymentBlock: input.strategyPassDeploymentBlock,
+    strategyPassAbiHash: input.strategyPassAbiHash,
+    strategyPassRuntimeBytecodeHash: input.strategyPassRuntimeBytecodeHash,
   };
 }
 
@@ -86,13 +105,25 @@ export function validateDeploymentManifest(
     typeof value.abiVersion !== 'string' ||
     !identifier.test(value.abiVersion) ||
     typeof value.deploymentBlock !== 'string' ||
-    !/^(0|[1-9][0-9]*)$/.test(value.deploymentBlock)
+    !/^(0|[1-9][0-9]*)$/.test(value.deploymentBlock) ||
+    typeof value.strategyPassDeploymentBlock !== 'string' ||
+    !/^(0|[1-9][0-9]*)$/.test(value.strategyPassDeploymentBlock)
   )
     return invalid();
   try {
     const contractAddress = asAddress(String(value.contractAddress));
     const manifestDigest = asBlockHash(String(value.manifestDigest));
+    const abiHash = asBlockHash(String(value.abiHash));
     const runtimeBytecodeHash = asBlockHash(String(value.runtimeBytecodeHash));
+    const strategyPassAddress = asAddress(String(value.strategyPassAddress));
+    const strategyPassAbiHash = asBlockHash(String(value.strategyPassAbiHash));
+    const strategyPassRuntimeBytecodeHash = asBlockHash(String(value.strategyPassRuntimeBytecodeHash));
+    if (/^0x0{40}$/i.test(contractAddress)) return invalid();
+    if (
+      /^0x0{40}$/i.test(strategyPassAddress) ||
+      strategyPassAddress.toLowerCase() === contractAddress.toLowerCase()
+    )
+      return invalid();
     const computedDigest = deploymentManifestDigest({
       schemaVersion: 1,
       environment: expected.environment,
@@ -102,7 +133,12 @@ export function validateDeploymentManifest(
       contractAddress,
       deploymentBlock: value.deploymentBlock,
       abiVersion: value.abiVersion,
+      abiHash,
       runtimeBytecodeHash,
+      strategyPassAddress,
+      strategyPassDeploymentBlock: value.strategyPassDeploymentBlock,
+      strategyPassAbiHash,
+      strategyPassRuntimeBytecodeHash,
     });
     if (manifestDigest.toLowerCase() !== computedDigest.toLowerCase()) return invalid();
     if (manifestDigest.toLowerCase() !== expected.manifestDigest.toLowerCase()) return invalid();
@@ -117,8 +153,13 @@ export function validateDeploymentManifest(
       contractAddress,
       deploymentBlock: BigInt(value.deploymentBlock),
       abiVersion: value.abiVersion,
+      abiHash,
       manifestDigest,
       runtimeBytecodeHash,
+      strategyPassAddress,
+      strategyPassDeploymentBlock: BigInt(value.strategyPassDeploymentBlock),
+      strategyPassAbiHash,
+      strategyPassRuntimeBytecodeHash,
     }) as DeploymentManifest;
   } catch {
     return invalid();

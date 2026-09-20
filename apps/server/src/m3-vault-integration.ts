@@ -92,6 +92,7 @@ async function readVault(
   ]);
   if (passStrategyId.toLowerCase() !== strategyId.toLowerCase())
     throw new Error('M3_VAULT_STRATEGY_PASS_MISMATCH');
+  if (!sameAddress(pass, manifest.strategyPassAddress)) throw new Error('M3_VAULT_STRATEGY_PASS_MISMATCH');
   return Object.freeze({
     owner,
     strategyCreator,
@@ -130,21 +131,13 @@ function expectedEvent(
 function eventOwnerMatches(event: CanonicalContractEvent, owner: Address): boolean {
   const value = field(event, 'owner');
   if (!value) return false;
-  try {
-    return sameAddress(value as Address, owner);
-  } catch {
-    return false;
-  }
+  return sameAddress(value as Address, owner);
 }
 
 function eventUint(event: CanonicalContractEvent, name: string): bigint | null {
   const value = field(event, name);
   if (value === null || !/^(0|[1-9][0-9]*)$/.test(value)) return null;
-  try {
-    return BigInt(value);
-  } catch {
-    return null;
-  }
+  return BigInt(value);
 }
 
 export class M3VaultContractIntegration implements ContractIntegration {
