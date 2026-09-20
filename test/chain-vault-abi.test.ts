@@ -2,10 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   M3_VAULT_REVIEW_ABI,
+  decodeM3VaultAddressResult,
+  decodeM3VaultBoolResult,
+  decodeM3VaultBytes32Result,
   decodeM3VaultCalldata,
   decodeM3VaultEvent,
+  decodeM3VaultUintResult,
   encodeM3VaultCall,
 } from '../packages/chain-adapter/src/vault-abi.ts';
+import {
+  decodeM3StrategyPassEvent,
+  M3_STRATEGY_PASS_TRANSFER_TOPIC,
+} from '../packages/chain-adapter/src/pass-abi.ts';
 import {
   asAddress,
   asBlockHash,
@@ -104,6 +112,24 @@ test('core owner calldata uses exact selectors and roundtrips without accepting 
   assert.equal(decodeM3VaultCalldata(asHexData('0x12345678')), null);
 });
 
+test('Vault ABI rejects invalid amounts, addresses, result words and malformed rescue calldata', () => {
+  const overflow = 1n << 256n;
+  for (const amount of [-1n, overflow, 1, '1'])
+    assert.throws(() => encodeM3VaultCall('deposit(uint256)', [amount]), /INVALID_M3_VAULT_CALL/);
+  assert.throws(() => encodeM3VaultCall('close()', [1n]), /INVALID_M3_VAULT_CALL/);
+  assert.throws(() => encodeM3VaultCall('rescueUntrackedToken(address)', [1n]), /INVALID_M3_VAULT_CALL/);
+  assert.equal(decodeM3VaultCalldata(asHexData(`0x45f5030f${'01'.padEnd(64, '0')}`)), null);
+  for (const decode of [decodeM3VaultUintResult, decodeM3VaultAddressResult, decodeM3VaultBytes32Result])
+    assert.throws(() => decode(asHexData('0x00') as never), /INVALID_M3_VAULT_CALL_RESULT/);
+  assert.throws(
+    () => decodeM3VaultAddressResult(asHexData(`0x${'01'.repeat(32)}`)),
+    /INVALID_M3_VAULT_CALL_RESULT/,
+  );
+  assert.equal(decodeM3VaultBoolResult(asHexData(`0x${word(0n)}`)), false);
+  assert.equal(decodeM3VaultBoolResult(asHexData(`0x${word(1n)}`)), true);
+  assert.throws(() => decodeM3VaultBoolResult(asHexData(`0x${word(2n)}`)), /INVALID_M3_VAULT_CALL_RESULT/);
+});
+
 test('all seven compiled Vault events decode indexed addresses and uint256 values exactly', () => {
   const topics = M3_VAULT_REVIEW_ABI.eventTopics;
   const cases = [
@@ -186,4 +212,93 @@ test('known event topics fail closed on malformed indexed or data words while un
     /INVALID_M3_VAULT_EVENT/,
   );
   assert.equal(decodeM3VaultEvent({ ...valid, topics: [asHexData(`0x${'ff'.repeat(32)}`)] }), null);
+  assert.equal(decodeM3VaultEvent({ ...valid, topics: [] }), null);
+  assert.equal(decodeM3VaultCalldata(`0xb6b55f25${'g'.repeat(64)}` as HexData), null);
+  const sparseTopics = [deposited] as Array<HexData>;
+  sparseTopics.length = 2;
+  assert.throws(() => decodeM3VaultEvent({ ...valid, topics: sparseTopics }), /INVALID_M3_VAULT_EVENT/);
+});
+
+test('every known Vault event rejects missing or surplus indexed topics', () => {
+  const topics = M3_VAULT_REVIEW_ABI.eventTopics;
+  const validLogs = [
+    event(
+      topics['Deposited(address,uint256,uint256,uint256,uint256)'],
+      [addressTopic(OWNER)],
+      [1n, 2n, 3n, 4n],
+    ),
+    event(
+      topics['Withdrawn(address,uint256,uint256,uint256,uint256,uint256,uint256)'],
+      [addressTopic(OWNER)],
+      [1n, 2n, 3n, 4n, 5n, 6n],
+    ),
+    event(topics['Closed(address,uint256,uint256)'], [addressTopic(OWNER)], [1n, 2n]),
+    event(topics['TrackedUsdcBalanceChanged(uint256,uint256)'], [], [1n, 2n]),
+    event(topics['TrackedPositionChanged(address,uint256,uint256)'], [addressTopic(TOKEN)], [1n, 2n]),
+    event(
+      topics['UntrackedTokenRescued(address,address,uint256)'],
+      [addressTopic(TOKEN), addressTopic(OWNER)],
+      [1n],
+    ),
+    event(topics['NativeRescued(address,uint256)'], [addressTopic(OWNER)], [1n]),
+  ];
+  for (const log of validLogs) {
+    const malformedTopics =
+      log.topics.length === 1
+        ? [...log.topics, addressTopic(OWNER)]
+        : log.topics.slice(0, log.topics.length - 1);
+    assert.throws(
+      () => decodeM3VaultEvent({ ...log, topics: malformedTopics }),
+      /INVALID_M3_VAULT_EVENT/,
+      String(log.topics[0]),
+    );
+  }
+});
+
+test('StrategyPass transfer codec preserves every 18-decimal raw unit and rejects unsafe targets', async () => {
+  const adapter = (await import('../packages/chain-adapter/src/index.ts')) as Record<string, unknown>;
+  assert.equal(typeof adapter.encodeM3StrategyPassTransfer, 'function');
+  assert.equal(typeof adapter.decodeM3StrategyPassCalldata, 'function');
+  const encode = adapter.encodeM3StrategyPassTransfer as (recipient: string, amountRaw: bigint) => string;
+  const decode = adapter.decodeM3StrategyPassCalldata as (
+    data: string,
+  ) => { kind: string; recipient: string; amountRaw: bigint } | null;
+  const recipient = asAddress('0x9999999999999999999999999999999999999999');
+  const calldata = encode(recipient, 1n);
+  assert.equal(calldata.slice(0, 10), '0xa9059cbb');
+  assert.deepEqual(decode(calldata), { kind: 'TRANSFER', recipient, amountRaw: 1n });
+  assert.throws(() => encode(asAddress(`0x${'00'.repeat(20)}`), 1n), /INVALID_M3_PASS_TRANSFER/);
+  assert.throws(() => encode(recipient, 0n), /INVALID_M3_PASS_TRANSFER/);
+  assert.throws(() => encode(recipient, 1n << 256n), /INVALID_M3_PASS_TRANSFER/);
+  assert.throws(() => encode(recipient, 1 as never), /INVALID_M3_PASS_TRANSFER/);
+  assert.equal(decode(`${calldata}00`), null);
+  assert.equal(decode(`0xa9059cbb${'01'.padEnd(64, '0')}${word(1n)}`), null);
+  assert.equal(decode(`0xa9059cbb${'0'.repeat(64)}${word(1n)}`), null);
+  assert.equal(decode(`0xa9059cbb${recipient.slice(2).padStart(64, '0')}${word(0n)}`), null);
+});
+
+test('StrategyPass event decoder accepts one exact Transfer and rejects malformed evidence', () => {
+  const valid = event(M3_STRATEGY_PASS_TRANSFER_TOPIC, [addressTopic(OWNER), addressTopic(TOKEN)], [1n]);
+  assert.deepEqual(decodeM3StrategyPassEvent(valid), {
+    eventSignature: M3_STRATEGY_PASS_TRANSFER_TOPIC,
+    eventName: 'Transfer',
+    normalizedData: { from: OWNER, to: TOKEN, amountRaw: '1' },
+  });
+  assert.equal(decodeM3StrategyPassEvent({ ...valid, topics: [asHexData(`0x${'ff'.repeat(32)}`)] }), null);
+  assert.throws(
+    () => decodeM3StrategyPassEvent({ ...valid, topics: [M3_STRATEGY_PASS_TRANSFER_TOPIC] }),
+    /INVALID_M3_PASS_EVENT/,
+  );
+  assert.throws(
+    () =>
+      decodeM3StrategyPassEvent({
+        ...valid,
+        topics: [M3_STRATEGY_PASS_TRANSFER_TOPIC, asHexData(`0x${'11'.repeat(32)}`), addressTopic(TOKEN)],
+      }),
+    /INVALID_M3_PASS_EVENT/,
+  );
+  assert.throws(
+    () => decodeM3StrategyPassEvent({ ...valid, data: asHexData('0x00') }),
+    /INVALID_M3_PASS_EVENT/,
+  );
 });

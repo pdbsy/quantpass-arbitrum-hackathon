@@ -4,6 +4,10 @@ import {
   M3_VAULT_PROJECTION_KEY,
   M3VaultContractIntegration,
 } from '../apps/server/src/m3-vault-integration.ts';
+import {
+  M3_PASS_PROJECTION_KEY,
+  M3StrategyPassContractIntegration,
+} from '../apps/server/src/m3-pass-integration.ts';
 import { createOperation, transitionOperation } from '../packages/chain-adapter/src/lifecycle.ts';
 import {
   deploymentManifestDigest,
@@ -18,6 +22,11 @@ import type {
 } from '../packages/chain-adapter/src/rpc.ts';
 import type { CanonicalContractEvent } from '../packages/chain-adapter/src/reconciliation.ts';
 import {
+  encodeM3StrategyPassTransfer,
+  M3_STRATEGY_PASS_ABI_HASH,
+} from '../packages/chain-adapter/src/pass-abi.ts';
+import {
+  M3_VAULT_ABI_HASH,
   M3_VAULT_REVIEW_ABI,
   decodeM3VaultEvent,
   encodeM3VaultCall,
@@ -40,6 +49,7 @@ const USDC = asAddress('0x5555555555555555555555555555555555555555');
 const ETH = asAddress('0x6666666666666666666666666666666666666666');
 const BTC = asAddress('0x7777777777777777777777777777777777777777');
 const LOCKER = asAddress('0x8888888888888888888888888888888888888888');
+const RECIPIENT = asAddress('0x9999999999999999999999999999999999999999');
 const TX = asTransactionHash(`0x${'aa'.repeat(32)}`);
 const BLOCK_HASH = asBlockHash(`0x${'bb'.repeat(32)}`);
 const PARENT_HASH = asBlockHash(`0x${'cc'.repeat(32)}`);
@@ -56,7 +66,12 @@ const manifestBody = {
   contractAddress: CONTRACT,
   deploymentBlock: '100',
   abiVersion: 'm3-vault-db620d6',
+  abiHash: M3_VAULT_ABI_HASH,
   runtimeBytecodeHash: asBlockHash(`0x${'99'.repeat(32)}`),
+  strategyPassAddress: PASS,
+  strategyPassDeploymentBlock: '90',
+  strategyPassAbiHash: M3_STRATEGY_PASS_ABI_HASH,
+  strategyPassRuntimeBytecodeHash: asBlockHash(`0x${'88'.repeat(32)}`),
 } as const;
 const manifestDigest = deploymentManifestDigest(manifestBody);
 const manifest = validateDeploymentManifest(
@@ -78,7 +93,10 @@ class ViewRpc implements ReadonlyRpc {
   trackedUsdcBalance = 1_000_000n;
   principalBasis = 1_000_000n;
   closed = false;
+  owner: Address = OWNER;
+  openTrackedPositionCount = 0n;
   passStrategyId: HexData = STRATEGY_ID;
+  passAddress: Address = PASS;
 
   async chainId() {
     return CHAIN_ID;
@@ -92,16 +110,19 @@ class ViewRpc implements ReadonlyRpc {
   async logs() {
     return [];
   }
+  async code() {
+    return asHexData('0x6000');
+  }
   async call(request: ChainCall, blockReference: ChainCallBlock): Promise<HexData> {
     this.calls.push(request);
     this.callBlocks.push(blockReference);
     const selector = request.data.slice(0, 10);
-    if (request.to === PASS && selector === '0x492f4e18') return this.passStrategyId;
+    if (request.to === this.passAddress && selector === '0x492f4e18') return this.passStrategyId;
     assert.equal(request.to, CONTRACT);
     const addresses: Record<string, Address> = {
-      '0x8da5cb5b': OWNER,
+      '0x8da5cb5b': this.owner,
       '0x499bb2ab': CREATOR,
-      '0xa7a1ed72': PASS,
+      '0xa7a1ed72': this.passAddress,
       '0x8b5a851f': USDC,
       '0xf20173bc': ETH,
       '0xa8d937e9': BTC,
@@ -115,7 +136,7 @@ class ViewRpc implements ReadonlyRpc {
       '0x0510ca51': this.trackedUsdcBalance,
       '0x738b74f0': 0n,
       '0x442ad6a0': this.trackedUsdcBalance,
-      '0x34dda870': 0n,
+      '0x34dda870': this.openTrackedPositionCount,
       '0xb31ede63': 0n,
       '0x597e1fb5': this.closed ? 1n : 0n,
     };
@@ -227,6 +248,200 @@ test('Vault integration rejects a Pass whose onchain strategy identity differs f
   await assert.rejects(
     () => new M3VaultContractIntegration().rebuildProjections({ rpc, manifest, events: [], block }),
     /M3_VAULT_STRATEGY_PASS_MISMATCH/,
+  );
+  const wrongAddress = new ViewRpc();
+  wrongAddress.passAddress = CREATOR;
+  await assert.rejects(
+    () =>
+      new M3VaultContractIntegration().rebuildProjections({ rpc: wrongAddress, manifest, events: [], block }),
+    /M3_VAULT_STRATEGY_PASS_MISMATCH/,
+  );
+});
+
+test('StrategyPass integration projects exact raw balances and reconciles one exact Transfer event', async () => {
+  const passManifest = {
+    ...manifest,
+    contractName: 'StrategyPass',
+    contractType: 'strategy-pass',
+    contractAddress: PASS,
+    deploymentBlock: manifest.strategyPassDeploymentBlock,
+    abiVersion: 'm3-strategy-pass-2ad8162',
+    abiHash: manifest.strategyPassAbiHash,
+    runtimeBytecodeHash: manifest.strategyPassRuntimeBytecodeHash,
+  } as typeof manifest;
+  const balances = new Map<string, bigint>([
+    [OWNER.toLowerCase(), 999n],
+    [RECIPIENT.toLowerCase(), 1n],
+  ]);
+  const rpc: ReadonlyRpc = {
+    chainId: async () => CHAIN_ID,
+    block: async () => block,
+    receipt: async () => null,
+    logs: async () => [],
+    code: async () => asHexData('0x6000'),
+    call: async (request, reference) => {
+      assert.deepEqual(reference, { blockHash: BLOCK_HASH, requireCanonical: true });
+      assert.equal(request.to, PASS);
+      const selector = request.data.slice(0, 10);
+      if (selector === '0x492f4e18') return STRATEGY_ID;
+      if (selector === '0x313ce567') return asHexData(`0x${word(18n)}`);
+      if (selector === '0x70a08231')
+        return asHexData(
+          `0x${word(balances.get(asAddress(`0x${request.data.slice(-40)}`).toLowerCase()) ?? 0n)}`,
+        );
+      throw new Error('unexpected call');
+    },
+  };
+  const transfer = event('Transfer', {
+    from: OWNER,
+    to: RECIPIENT,
+    amountRaw: '1',
+  });
+  const passTransfer = { ...transfer, address: PASS };
+  const integration = new M3StrategyPassContractIntegration();
+  const projections = await integration.rebuildProjections({
+    rpc,
+    manifest: passManifest,
+    events: [passTransfer],
+    block,
+  });
+  assert.deepEqual(
+    projections.map((projection) => projection.state),
+    [
+      { owner: OWNER, pass: PASS, strategyId: STRATEGY_ID, decimals: 18, balanceRaw: '999' },
+      { owner: RECIPIENT, pass: PASS, strategyId: STRATEGY_ID, decimals: 18, balanceRaw: '1' },
+    ],
+  );
+  assert.ok(projections.every((projection) => projection.projectionKey === M3_PASS_PROJECTION_KEY));
+  const mint = {
+    ...passTransfer,
+    normalizedData: {
+      from: asAddress('0x0000000000000000000000000000000000000000'),
+      to: RECIPIENT,
+      amountRaw: '1000',
+    },
+  };
+  const mintProjections = await integration.rebuildProjections({
+    rpc,
+    manifest: passManifest,
+    events: [event('Approval', {}), mint],
+    block,
+  });
+  assert.deepEqual(
+    mintProjections.map((projection) => projection.owner),
+    [RECIPIENT],
+  );
+
+  const operation = transitionOperation(
+    createOperation({
+      operationId: 'pass-transfer-1',
+      chainId: CHAIN_ID,
+      owner: OWNER,
+      target: PASS,
+      calldata: encodeM3StrategyPassTransfer(RECIPIENT, 1n),
+      state: 'AWAITING_SIGNATURE',
+    }),
+    { state: 'SUBMITTED', txHash: TX, submittedAt: '2026-09-20T00:00:00.000Z' },
+  );
+  const passReceipt = { ...receipt(), to: PASS };
+  assert.deepEqual(
+    await integration.reconcileOperation({
+      rpc,
+      manifest: passManifest,
+      operation,
+      receipt: passReceipt,
+      events: [passTransfer],
+      block,
+    }),
+    { status: 'MATCH' },
+  );
+  assert.deepEqual(
+    await integration.reconcileOperation({
+      rpc,
+      manifest: passManifest,
+      operation,
+      receipt: passReceipt,
+      events: [{ ...passTransfer, normalizedData: { ...passTransfer.normalizedData, amountRaw: '2' } }],
+      block,
+    }),
+    { status: 'MISMATCH', errorCode: 'EVENT_EVIDENCE_MISMATCH' },
+  );
+  for (const normalizedData of [
+    { ...passTransfer.normalizedData, from: 1 },
+    { ...passTransfer.normalizedData, from: 'invalid' },
+    { ...passTransfer.normalizedData, to: 'invalid' },
+    { ...passTransfer.normalizedData, amountRaw: 1 },
+  ])
+    assert.deepEqual(
+      await integration.reconcileOperation({
+        rpc,
+        manifest: passManifest,
+        operation,
+        receipt: passReceipt,
+        events: [{ ...passTransfer, normalizedData }],
+        block,
+      }),
+      { status: 'MISMATCH', errorCode: 'EVENT_EVIDENCE_MISMATCH' },
+    );
+  assert.deepEqual(
+    await integration.reconcileOperation({
+      rpc,
+      manifest: passManifest,
+      operation: { ...operation, calldata: null },
+      receipt: passReceipt,
+      events: [passTransfer],
+      block,
+    }),
+    { status: 'MISMATCH', errorCode: 'EVENT_EVIDENCE_MISMATCH' },
+  );
+  assert.deepEqual(
+    await integration.reconcileOperation({
+      rpc,
+      manifest: passManifest,
+      operation,
+      receipt: passReceipt,
+      events: [passTransfer, { ...passTransfer, logIndex: 1 }],
+      block,
+    }),
+    { status: 'MISMATCH', errorCode: 'EVENT_EVIDENCE_MISMATCH' },
+  );
+  assert.deepEqual(
+    await integration.reconcileOperation({
+      rpc,
+      manifest: passManifest,
+      operation,
+      receipt: passReceipt,
+      events: [{ ...passTransfer, normalizedData: { ...passTransfer.normalizedData, from: CREATOR } }],
+      block,
+    }),
+    { status: 'MISMATCH', errorCode: 'EVENT_EVIDENCE_MISMATCH' },
+  );
+
+  const invalidMetadataRpc: ReadonlyRpc = {
+    ...rpc,
+    call: async (request, reference) =>
+      request.data.slice(0, 10) === '0x313ce567' ? asHexData(`0x${word(6n)}`) : rpc.call(request, reference),
+  };
+  await assert.rejects(
+    () =>
+      integration.rebuildProjections({
+        rpc: invalidMetadataRpc,
+        manifest: passManifest,
+        events: [passTransfer],
+        block,
+      }),
+    /M3_STRATEGY_PASS_STATE_MISMATCH/,
+  );
+  assert.deepEqual(
+    await integration.reconcileOperation({
+      rpc: invalidMetadataRpc,
+      manifest: passManifest,
+      operation,
+      receipt: passReceipt,
+      events: [passTransfer],
+      block,
+    }),
+    { status: 'MISMATCH', errorCode: 'CONTRACT_STATE_MISMATCH' },
   );
 });
 
@@ -382,6 +597,8 @@ test('withdraw reconciliation enforces principal, profit and Pass accounting ide
   for (const malformed of [
     { ...base, profitAmount: '99' },
     { ...base, passRawUnlocked: '499999999999999' },
+    { ...base, profitAmount: -1 },
+    { ...base, principalAmount: '01' },
   ])
     assert.deepEqual(
       await integration.reconcileOperation({
@@ -392,6 +609,22 @@ test('withdraw reconciliation enforces principal, profit and Pass accounting ide
         events: [event('Withdrawn', malformed)],
         block,
       }),
+      { status: 'MISMATCH', errorCode: 'EVENT_EVIDENCE_MISMATCH' },
+    );
+});
+
+test('Vault reconciliation rejects missing, duplicate and malformed owner event fields', async () => {
+  const rpc = new ViewRpc();
+  const integration = new M3VaultContractIntegration();
+  const operation = submitted(encodeM3VaultCall('deposit(uint256)', [1_000_000n]));
+  for (const events of [
+    [],
+    [depositedEvent(), { ...depositedEvent(), logIndex: 1 }],
+    [event('Deposited', { owner: 1, usdcAmount: '1000000', passRaw: '1000000000000000000' })],
+    [event('Deposited', { owner: 'invalid', usdcAmount: '1000000', passRaw: '1000000000000000000' })],
+  ])
+    assert.deepEqual(
+      await integration.reconcileOperation({ rpc, manifest, operation, receipt: receipt(), events, block }),
       { status: 'MISMATCH', errorCode: 'EVENT_EVIDENCE_MISMATCH' },
     );
 });
@@ -421,4 +654,53 @@ test('close and rescue reconciliation require exact owner events and closed cont
       }),
       { status: 'MATCH' },
     );
+});
+
+test('Vault reconciliation fails closed on owner, close-accounting and active-rescue state', async () => {
+  const integration = new M3VaultContractIntegration();
+  const reconcile = (rpc: ViewRpc, calldata: HexData, canonicalEvent: CanonicalContractEvent) =>
+    integration.reconcileOperation({
+      rpc,
+      manifest,
+      operation: submitted(calldata),
+      receipt: receipt(),
+      events: [canonicalEvent],
+      block,
+    });
+
+  const wrongOwner = new ViewRpc();
+  wrongOwner.owner = CREATOR;
+  assert.deepEqual(
+    await reconcile(wrongOwner, encodeM3VaultCall('deposit(uint256)', [1_000_000n]), depositedEvent()),
+    { status: 'MISMATCH', errorCode: 'CONTRACT_STATE_MISMATCH' },
+  );
+
+  for (const change of [
+    (rpc: ViewRpc) => (rpc.closed = false),
+    (rpc: ViewRpc) => (rpc.principalBasis = 1n),
+    (rpc: ViewRpc) => (rpc.trackedUsdcBalance = 1n),
+    (rpc: ViewRpc) => (rpc.openTrackedPositionCount = 1n),
+  ]) {
+    const rpc = new ViewRpc();
+    rpc.closed = true;
+    rpc.principalBasis = 0n;
+    rpc.trackedUsdcBalance = 0n;
+    change(rpc);
+    assert.deepEqual(
+      await reconcile(rpc, encodeM3VaultCall('close()', []), event('Closed', { owner: OWNER })),
+      { status: 'MISMATCH', errorCode: 'CONTRACT_STATE_MISMATCH' },
+    );
+  }
+
+  for (const [calldata, canonicalEvent] of [
+    [encodeM3VaultCall('rescueNative()', []), event('NativeRescued', { owner: OWNER })],
+    [
+      encodeM3VaultCall('rescueUntrackedToken(address)', [USDC]),
+      event('UntrackedTokenRescued', { owner: OWNER, token: USDC }),
+    ],
+  ] as const)
+    assert.deepEqual(await reconcile(new ViewRpc(), calldata, canonicalEvent), {
+      status: 'MISMATCH',
+      errorCode: 'CONTRACT_STATE_MISMATCH',
+    });
 });

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { startM3Server } from '../apps/server/src/m3-startup.ts';
+import { startM3Server, type M3ServerStartupOptions } from '../apps/server/src/m3-startup.ts';
 import {
   deploymentManifestDigest,
   type DeploymentManifestDocument,
@@ -16,7 +16,17 @@ import type {
   ChainReceipt,
   ReadonlyRpc,
 } from '../packages/chain-adapter/src/rpc.ts';
-import { M3_VAULT_REVIEW_ABI, encodeM3VaultCall } from '../packages/chain-adapter/src/vault-abi.ts';
+import { keccak256 } from '../packages/chain-adapter/src/keccak.ts';
+import {
+  encodeM3StrategyPassTransfer,
+  M3_STRATEGY_PASS_ABI_HASH,
+  M3_STRATEGY_PASS_TRANSFER_TOPIC,
+} from '../packages/chain-adapter/src/pass-abi.ts';
+import {
+  M3_VAULT_ABI_HASH,
+  M3_VAULT_REVIEW_ABI,
+  encodeM3VaultCall,
+} from '../packages/chain-adapter/src/vault-abi.ts';
 import { transitionOperation } from '../packages/chain-adapter/src/lifecycle.ts';
 import {
   asAddress,
@@ -38,8 +48,15 @@ const BTC = asAddress('0x7777777777777777777777777777777777777777');
 const LOCKER = asAddress('0x8888888888888888888888888888888888888888');
 const TX = asTransactionHash(`0x${'aa'.repeat(32)}`);
 const BAD_TX = asTransactionHash(`0x${'bb'.repeat(32)}`);
+const PASS_TX = asTransactionHash(`0x${'cc'.repeat(32)}`);
+const RECIPIENT = asAddress('0x9999999999999999999999999999999999999999');
+const SECOND_OWNER = asAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+const SECOND_CONTRACT = asAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+const SECOND_PASS = asAddress('0xcccccccccccccccccccccccccccccccccccccccc');
 const STRATEGY_ID = asHexData(`0x${'11'.repeat(32)}`);
+const SECOND_STRATEGY_ID = asHexData(`0x${'33'.repeat(32)}`);
 const STRATEGY_REF = asHexData(`0x${'22'.repeat(32)}`);
+const RUNTIME_CODE = asHexData('0x6000');
 const blocks = new Map<bigint, ChainBlock>(
   [1n, 2n, 3n].map((number) => [
     number,
@@ -65,7 +82,12 @@ const manifestBody: DeploymentManifestDocument = {
   contractAddress: CONTRACT,
   deploymentBlock: '1',
   abiVersion: 'm3-vault-db620d6',
-  runtimeBytecodeHash: asBlockHash(`0x${'99'.repeat(32)}`),
+  abiHash: M3_VAULT_ABI_HASH,
+  runtimeBytecodeHash: keccak256(RUNTIME_CODE),
+  strategyPassAddress: PASS,
+  strategyPassDeploymentBlock: '1',
+  strategyPassAbiHash: M3_STRATEGY_PASS_ABI_HASH,
+  strategyPassRuntimeBytecodeHash: keccak256(RUNTIME_CODE),
 };
 const manifestDigest = deploymentManifestDigest(manifestBody);
 
@@ -87,6 +109,9 @@ class StartupRpc implements ReadonlyRpc {
   readonly receiptHashes: string[] = [];
   async chainId() {
     return CHAIN_ID;
+  }
+  async code() {
+    return RUNTIME_CODE;
   }
   async block(number: bigint | 'latest') {
     return blocks.get(number === 'latest' ? this.latest : number) ?? null;
@@ -121,7 +146,9 @@ class StartupRpc implements ReadonlyRpc {
     };
   }
   async logs(filter: ChainLogFilter): Promise<readonly ChainLog[]> {
-    return filter.fromBlock === 1n && filter.toBlock === 1n ? [this.depositLog()] : [];
+    return filter.address === CONTRACT && filter.fromBlock === 1n && filter.toBlock === 1n
+      ? [this.depositLog()]
+      : [];
   }
   depositLog(): ChainLog {
     const block = blocks.get(1n)!;
@@ -148,6 +175,7 @@ class StartupRpc implements ReadonlyRpc {
     assert.equal(reference.requireCanonical, true);
     const selector = request.data.slice(0, 10);
     if (request.to === PASS && selector === '0x492f4e18') return STRATEGY_ID;
+    if (request.to === PASS && selector === '0x313ce567') return asHexData(`0x${word(18n)}`);
     assert.equal(request.to, CONTRACT);
     const addresses: Record<string, Address> = {
       '0x8da5cb5b': OWNER,
@@ -172,6 +200,179 @@ class StartupRpc implements ReadonlyRpc {
     };
     if (values[selector] !== undefined) return asHexData(`0x${word(values[selector])}`);
     throw new Error('unexpected call');
+  }
+}
+
+class StrategyPassStartupRpc extends StartupRpc {
+  override async receipt(hash: typeof TX): Promise<ChainReceipt | null> {
+    if (hash !== PASS_TX) return super.receipt(hash);
+    const block = blocks.get(1n)!;
+    return {
+      transactionHash: PASS_TX,
+      blockNumber: 1n,
+      blockHash: block.hash,
+      transactionIndex: 2,
+      from: OWNER,
+      to: PASS,
+      status: 'SUCCESS',
+      logs: [this.transferLog()],
+    };
+  }
+
+  override async logs(filter: ChainLogFilter): Promise<readonly ChainLog[]> {
+    if (filter.address === PASS && filter.fromBlock === 1n && filter.toBlock === 1n)
+      return [this.transferLog()];
+    return super.logs(filter);
+  }
+
+  transferLog(): ChainLog {
+    const block = blocks.get(1n)!;
+    return {
+      address: PASS,
+      blockNumber: 1n,
+      blockHash: block.hash,
+      transactionHash: PASS_TX,
+      transactionIndex: 2,
+      logIndex: 0,
+      data: asHexData(`0x${word(1n)}`),
+      topics: [M3_STRATEGY_PASS_TRANSFER_TOPIC, addressWord(OWNER), addressWord(RECIPIENT)],
+      removed: false,
+    };
+  }
+
+  override async call(request: ChainCall, reference: ChainCallBlock): Promise<HexData> {
+    if (request.to !== PASS) return super.call(request, reference);
+    if (typeof reference !== 'object') assert.fail('expected canonical block reference');
+    assert.equal(reference.requireCanonical, true);
+    const selector = request.data.slice(0, 10);
+    if (selector === '0x313ce567') return asHexData(`0x${word(18n)}`);
+    if (selector === '0x492f4e18') return STRATEGY_ID;
+    if (selector === '0x70a08231') {
+      const owner = asAddress(`0x${request.data.slice(-40)}`);
+      return asHexData(`0x${word(owner === OWNER ? 999n : owner === RECIPIENT ? 1n : 0n)}`);
+    }
+    throw new Error('unexpected pass call');
+  }
+}
+
+class IsolatedStartupRpc implements ReadonlyRpc {
+  readonly contract: Address;
+  readonly pass: Address;
+  readonly owner: Address;
+  readonly strategyId: HexData;
+  readonly locker: Address;
+
+  constructor(contract: Address, pass: Address, owner: Address, strategyId: HexData, locker = LOCKER) {
+    this.contract = contract;
+    this.pass = pass;
+    this.owner = owner;
+    this.strategyId = strategyId;
+    this.locker = locker;
+  }
+  async chainId() {
+    return CHAIN_ID;
+  }
+  async code() {
+    return RUNTIME_CODE;
+  }
+  async block(number: bigint | 'latest') {
+    return blocks.get(number === 'latest' ? 3n : number) ?? null;
+  }
+  async receipt(): Promise<ChainReceipt | null> {
+    return null;
+  }
+  async logs(filter: ChainLogFilter): Promise<readonly ChainLog[]> {
+    void filter;
+    return [];
+  }
+  async call(request: ChainCall, reference: ChainCallBlock): Promise<HexData> {
+    if (typeof reference !== 'object') assert.fail('expected canonical block reference');
+    const selector = request.data.slice(0, 10);
+    if (request.to === this.pass) {
+      if (selector === '0x492f4e18') return this.strategyId;
+      if (selector === '0x313ce567') return asHexData(`0x${word(18n)}`);
+      if (selector === '0x70a08231') return asHexData(`0x${word(0n)}`);
+      throw new Error('unexpected pass call');
+    }
+    assert.equal(request.to, this.contract);
+    const addresses: Record<string, Address> = {
+      '0x8da5cb5b': this.owner,
+      '0x499bb2ab': CREATOR,
+      '0xa7a1ed72': this.pass,
+      '0x8b5a851f': USDC,
+      '0xf20173bc': ETH,
+      '0xa8d937e9': BTC,
+      '0xab88dc4b': this.locker,
+    };
+    if (addresses[selector]) return addressWord(addresses[selector]);
+    if (selector === '0x492f4e18') return this.strategyId;
+    if (selector === '0xc288f3de') return STRATEGY_REF;
+    if (
+      [
+        '0xad587035',
+        '0x0510ca51',
+        '0x738b74f0',
+        '0x442ad6a0',
+        '0x34dda870',
+        '0xb31ede63',
+        '0x597e1fb5',
+      ].includes(selector)
+    )
+      return asHexData(`0x${word(0n)}`);
+    throw new Error('unexpected Vault call');
+  }
+}
+
+class SharedPassStartupRpc extends IsolatedStartupRpc {
+  failSync = false;
+  passLogCalls = 0;
+
+  override async block(number: bigint | 'latest') {
+    if (this.failSync && number === 'latest') throw new Error('shared pass owner unavailable');
+    return super.block(number);
+  }
+
+  override async logs(filter: ChainLogFilter): Promise<readonly ChainLog[]> {
+    if (filter.address !== PASS) return [];
+    this.passLogCalls++;
+    if (filter.fromBlock > 1n || filter.toBlock < 1n) return [];
+    const block = blocks.get(1n)!;
+    return [
+      {
+        address: PASS,
+        blockNumber: 1n,
+        blockHash: block.hash,
+        transactionHash: TX,
+        transactionIndex: 0,
+        logIndex: 0,
+        data: asHexData(`0x${word(1_000n)}`),
+        topics: [
+          M3_STRATEGY_PASS_TRANSFER_TOPIC,
+          addressWord(asAddress('0x0000000000000000000000000000000000000000')),
+          addressWord(OWNER),
+        ],
+        removed: false,
+      },
+      {
+        address: PASS,
+        blockNumber: 1n,
+        blockHash: block.hash,
+        transactionHash: PASS_TX,
+        transactionIndex: 1,
+        logIndex: 0,
+        data: asHexData(`0x${word(400n)}`),
+        topics: [M3_STRATEGY_PASS_TRANSFER_TOPIC, addressWord(OWNER), addressWord(SECOND_OWNER)],
+        removed: false,
+      },
+    ];
+  }
+
+  override async call(request: ChainCall, reference: ChainCallBlock): Promise<HexData> {
+    if (request.to === PASS && request.data.slice(0, 10) === '0x70a08231') {
+      const owner = asAddress(`0x${request.data.slice(-40)}`);
+      return asHexData(`0x${word(owner === OWNER ? 600n : owner === SECOND_OWNER ? 400n : 0n)}`);
+    }
+    return super.call(request, reference);
   }
 }
 
@@ -202,6 +403,7 @@ test('default M3 server startup is executable and inert while deployment is NOT_
   );
   await server.close();
   await server.close();
+  await assert.rejects(server.syncNow(), /M3_SERVER_CLOSED/);
 });
 
 test('deployed startup composes runtime, app, bounded sync and canonical API progression with injected RPC', async () => {
@@ -253,6 +455,407 @@ test('deployed startup composes runtime, app, bounded sync and canonical API pro
   assert.equal(evidence.json().lifecycle, 'CONFIRMED');
   assert.equal(evidence.json().productReady, true);
   assert.ok(rpc.calls >= 72);
+  await server.close();
+});
+
+test('deployed startup composes and synchronizes two isolated Vault runtimes', async () => {
+  const root = await directory();
+  const secondManifestBody: DeploymentManifestDocument = {
+    ...manifestBody,
+    contractAddress: SECOND_CONTRACT,
+    strategyPassAddress: SECOND_PASS,
+  };
+  const secondManifestDigest = deploymentManifestDigest(secondManifestBody);
+  const servers = new Map<string, ReadonlyRpc>([
+    [
+      'https://rpc.testnet.chain.robinhood.com/first',
+      new IsolatedStartupRpc(CONTRACT, PASS, OWNER, STRATEGY_ID),
+    ],
+    [
+      'https://rpc.testnet.chain.robinhood.com/second',
+      new IsolatedStartupRpc(SECOND_CONTRACT, SECOND_PASS, SECOND_OWNER, SECOND_STRATEGY_ID),
+    ],
+  ]);
+  const server = await startM3Server(
+    {
+      deployments: [
+        {
+          deploymentStatus: 'DEPLOYED',
+          dbPath: resolve(root, 'first-chain.sqlite'),
+          rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com/first'],
+          manifestDocument: { ...manifestBody, manifestDigest },
+          expectedManifestDigest: manifestDigest,
+          expectedContractAddress: CONTRACT,
+        },
+        {
+          deploymentStatus: 'DEPLOYED',
+          dbPath: resolve(root, 'second-chain.sqlite'),
+          rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com/second'],
+          manifestDocument: { ...secondManifestBody, manifestDigest: secondManifestDigest },
+          expectedManifestDigest: secondManifestDigest,
+          expectedContractAddress: SECOND_CONTRACT,
+        },
+      ],
+      app: {
+        dbPath: resolve(root, 'ledger.sqlite'),
+        env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+        origin: 'http://127.0.0.1:4180',
+      },
+      syncIntervalMs: null,
+    },
+    {
+      createRpc: (endpoints) => servers.get(endpoints[0]!) ?? assert.fail('unexpected RPC endpoint'),
+    },
+  );
+  try {
+    assert.equal(server.runtime, null);
+    assert.equal(server.runtimes.length, 2);
+    assert.deepEqual(await server.syncNow(), {
+      scannedBlocks: 0,
+      insertedEvents: 0,
+      reorgedBlocks: 0,
+      trackedOperations: 0,
+      trackingFailures: 0,
+    });
+    const headers = { host: '127.0.0.1:4180' };
+    const status = await server.app.inject({ url: '/api/v1/chain/runtime-status', headers });
+    assert.equal(status.statusCode, 200, status.body);
+    assert.equal(status.json().runtimes.length, 2);
+    for (const [contract, owner] of [
+      [CONTRACT, OWNER],
+      [SECOND_CONTRACT, SECOND_OWNER],
+    ] as const) {
+      const projection = await server.app.inject({
+        url: `/api/v1/chain/vaults/${contract}/${owner}`,
+        headers,
+      });
+      assert.equal(projection.statusCode, 200, projection.body);
+      assert.equal(projection.json().state.owner, owner);
+    }
+    assert.equal(
+      (await server.app.inject({ url: `/api/v1/chain/vaults/${OWNER}`, headers })).statusCode,
+      400,
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test('two Vault owners share one Pass sync owner while Vault state and operations stay isolated', async () => {
+  const root = await directory();
+  const secondLocker = asAddress('0xdddddddddddddddddddddddddddddddddddddddd');
+  const secondManifestBody: DeploymentManifestDocument = {
+    ...manifestBody,
+    contractAddress: SECOND_CONTRACT,
+  };
+  const secondManifestDigest = deploymentManifestDigest(secondManifestBody);
+  const primaryRpc = new SharedPassStartupRpc(CONTRACT, PASS, OWNER, STRATEGY_ID);
+  const followerRpc = new SharedPassStartupRpc(
+    SECOND_CONTRACT,
+    PASS,
+    SECOND_OWNER,
+    STRATEGY_ID,
+    secondLocker,
+  );
+  const servers = new Map<string, ReadonlyRpc>([
+    ['https://rpc.testnet.chain.robinhood.com/first', primaryRpc],
+    ['https://rpc.testnet.chain.robinhood.com/second', followerRpc],
+  ]);
+  const server = await startM3Server(
+    {
+      deployments: [
+        {
+          deploymentStatus: 'DEPLOYED',
+          dbPath: resolve(root, 'second-chain.sqlite'),
+          rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com/second'],
+          manifestDocument: { ...secondManifestBody, manifestDigest: secondManifestDigest },
+          expectedManifestDigest: secondManifestDigest,
+          expectedContractAddress: SECOND_CONTRACT,
+          now: () => '2026-09-20T00:00:00.000Z',
+        },
+        {
+          deploymentStatus: 'DEPLOYED',
+          dbPath: resolve(root, 'first-chain.sqlite'),
+          rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com/first'],
+          manifestDocument: { ...manifestBody, manifestDigest },
+          expectedManifestDigest: manifestDigest,
+          expectedContractAddress: CONTRACT,
+          now: () => '2026-09-20T00:00:00.000Z',
+        },
+      ],
+      app: {
+        dbPath: resolve(root, 'ledger.sqlite'),
+        env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+        origin: 'http://127.0.0.1:4180',
+      },
+      syncIntervalMs: null,
+    },
+    {
+      createRpc: (endpoints) => servers.get(endpoints[0]!) ?? assert.fail('unexpected RPC endpoint'),
+    },
+  );
+  try {
+    const primary = server.runtimes.find((runtime) => runtime.manifest.contractAddress === CONTRACT);
+    const follower = server.runtimes.find((runtime) => runtime.manifest.contractAddress === SECOND_CONTRACT);
+    assert.ok(primary);
+    assert.ok(follower);
+    assert.ok(primary.store.checkpoint(CHAIN_ID, PASS));
+    assert.equal(follower.store.checkpoint(CHAIN_ID, PASS), null);
+    assert.ok(primaryRpc.passLogCalls > 0);
+    assert.equal(followerRpc.passLogCalls, 0);
+
+    const headers = { host: '127.0.0.1:4180' };
+    for (const [contract, owner, locker] of [
+      [CONTRACT, OWNER, LOCKER],
+      [SECOND_CONTRACT, SECOND_OWNER, secondLocker],
+    ] as const) {
+      const projection = await server.app.inject({
+        url: `/api/v1/chain/vaults/${contract}/${owner}`,
+        headers,
+      });
+      assert.equal(projection.statusCode, 200, projection.body);
+      assert.equal(projection.json().state.owner, owner);
+      assert.equal(projection.json().state.pass, PASS);
+      assert.equal(projection.json().state.passLocker, locker);
+    }
+    for (const [owner, balanceRaw] of [
+      [OWNER, '600'],
+      [SECOND_OWNER, '400'],
+    ] as const) {
+      const balance = await server.app.inject({
+        url: `/api/v1/chain/passes/${PASS}/${owner}`,
+        headers,
+      });
+      assert.equal(balance.statusCode, 200, balance.body);
+      assert.equal(balance.json().state.owner, owner);
+      assert.equal(balance.json().state.balanceRaw, balanceRaw);
+    }
+
+    for (const [operationId, owner, target, txHash] of [
+      ['first-owner-close', OWNER, CONTRACT, TX],
+      ['second-owner-close', SECOND_OWNER, SECOND_CONTRACT, BAD_TX],
+    ] as const) {
+      const response = await server.app.inject({
+        method: 'POST',
+        url: '/api/v1/chain/operations',
+        headers: { ...headers, origin: 'http://127.0.0.1:4180', 'x-quantpass-demo': '1' },
+        payload: {
+          operationId,
+          chainId: CHAIN_ID,
+          owner,
+          target,
+          calldata: encodeM3VaultCall('close()', []),
+          txHash,
+        },
+      });
+      assert.equal(response.statusCode, 202, response.body);
+    }
+    assert.ok(primary.store.operation('first-owner-close'));
+    assert.equal(follower.store.operation('first-owner-close'), null);
+    assert.ok(follower.store.operation('second-owner-close'));
+    assert.equal(primary.store.operation('second-owner-close'), null);
+
+    const passSubmission = await server.app.inject({
+      method: 'POST',
+      url: '/api/v1/chain/operations',
+      headers: { ...headers, origin: 'http://127.0.0.1:4180', 'x-quantpass-demo': '1' },
+      payload: {
+        operationId: 'second-owner-pass-transfer',
+        chainId: CHAIN_ID,
+        owner: SECOND_OWNER,
+        target: PASS,
+        calldata: encodeM3StrategyPassTransfer(RECIPIENT, 1n),
+        txHash: PASS_TX,
+      },
+    });
+    assert.equal(passSubmission.statusCode, 202, passSubmission.body);
+    assert.ok(primary.store.operation('second-owner-pass-transfer'));
+    assert.equal(follower.store.operation('second-owner-pass-transfer'), null);
+    assert.equal(
+      (
+        await server.app.inject({
+          url: `/api/v1/chain/operations/second-owner-pass-transfer/evidence?owner=${SECOND_OWNER}`,
+          headers,
+        })
+      ).statusCode,
+      200,
+    );
+
+    primaryRpc.failSync = true;
+    await assert.rejects(server.syncNow(), /M3_RUNTIME_SYNC_FAILED/);
+    const stalePass = await server.app.inject({
+      url: `/api/v1/chain/passes/${PASS}/${OWNER}`,
+      headers,
+    });
+    assert.equal(stalePass.statusCode, 503, stalePass.body);
+    assert.equal(stalePass.json().error, 'CHAIN_PROJECTION_UNAVAILABLE');
+  } finally {
+    await server.close();
+  }
+});
+
+test('shared Pass startup rejects conflicting deployment identity', async () => {
+  const root = await directory();
+  const conflictingManifestBody: DeploymentManifestDocument = {
+    ...manifestBody,
+    contractAddress: SECOND_CONTRACT,
+    strategyPassDeploymentBlock: '2',
+  };
+  const conflictingManifestDigest = deploymentManifestDigest(conflictingManifestBody);
+  await assert.rejects(
+    startM3Server(
+      {
+        deployments: [
+          {
+            deploymentStatus: 'DEPLOYED',
+            dbPath: resolve(root, 'first-chain.sqlite'),
+            rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com/first'],
+            manifestDocument: { ...manifestBody, manifestDigest },
+            expectedManifestDigest: manifestDigest,
+            expectedContractAddress: CONTRACT,
+          },
+          {
+            deploymentStatus: 'DEPLOYED',
+            dbPath: resolve(root, 'second-chain.sqlite'),
+            rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com/second'],
+            manifestDocument: {
+              ...conflictingManifestBody,
+              manifestDigest: conflictingManifestDigest,
+            },
+            expectedManifestDigest: conflictingManifestDigest,
+            expectedContractAddress: SECOND_CONTRACT,
+          },
+        ],
+        app: {
+          dbPath: resolve(root, 'ledger.sqlite'),
+          env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+          origin: 'http://127.0.0.1:4180',
+        },
+        syncIntervalMs: null,
+      },
+      { createRpc: () => new IsolatedStartupRpc(CONTRACT, PASS, OWNER, STRATEGY_ID) },
+    ),
+    /M3_SHARED_STRATEGY_PASS_IDENTITY_CONFLICT/,
+  );
+});
+
+test('multi-runtime startup rejects empty, inactive and shared database sets', async () => {
+  const root = await directory();
+  const app = {
+    dbPath: resolve(root, 'ledger.sqlite'),
+    env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+    origin: 'http://127.0.0.1:4180',
+  };
+  const deployment = {
+    deploymentStatus: 'DEPLOYED' as const,
+    dbPath: resolve(root, 'shared-chain.sqlite'),
+    rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com'],
+    manifestDocument: { ...manifestBody, manifestDigest },
+    expectedManifestDigest: manifestDigest,
+    expectedContractAddress: CONTRACT,
+  };
+  for (const deployments of [
+    [],
+    [{ deploymentStatus: 'NOT_DEPLOYED' as const }, deployment],
+    [deployment, deployment],
+  ])
+    await assert.rejects(
+      startM3Server(
+        { deployments, app, syncIntervalMs: null },
+        { createRpc: () => assert.fail('invalid deployment set must fail before RPC creation') },
+      ),
+      /INVALID_M3_DEPLOYMENT_SET/,
+    );
+});
+
+test('startup requires exactly one deployment form and a bounded sync interval', async () => {
+  const root = await directory();
+  const app = {
+    dbPath: resolve(root, 'ledger.sqlite'),
+    env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+    origin: 'http://127.0.0.1:4180',
+  };
+  for (const options of [
+    { app, syncIntervalMs: null },
+    {
+      app,
+      deployment: { deploymentStatus: 'NOT_DEPLOYED' as const },
+      deployments: [],
+      syncIntervalMs: null,
+    },
+  ])
+    await assert.rejects(startM3Server(options as M3ServerStartupOptions), /INVALID_M3_DEPLOYMENT_SET/);
+
+  for (const syncIntervalMs of [999, 300_001, 1.5])
+    await assert.rejects(
+      startM3Server({
+        app,
+        deployment: { deploymentStatus: 'NOT_DEPLOYED' },
+        syncIntervalMs,
+      }),
+      /INVALID_M3_SYNC_INTERVAL/,
+    );
+});
+
+test('StrategyPass transfer reaches canonical evidence and exact holder balance projections', async () => {
+  const root = await directory();
+  const server = await startM3Server(
+    {
+      deployment: {
+        deploymentStatus: 'DEPLOYED',
+        dbPath: resolve(root, 'chain.sqlite'),
+        rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com'],
+        manifestDocument: { ...manifestBody, manifestDigest },
+        expectedManifestDigest: manifestDigest,
+        expectedContractAddress: CONTRACT,
+        maxBlocksPerSync: 3,
+        now: () => '2026-09-20T00:00:00.000Z',
+      },
+      app: {
+        dbPath: resolve(root, 'ledger.sqlite'),
+        env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+        origin: 'http://127.0.0.1:4180',
+      },
+      syncIntervalMs: null,
+    },
+    { createRpc: () => new StrategyPassStartupRpc() },
+  );
+  const submitted = await server.app.inject({
+    method: 'POST',
+    url: '/api/v1/chain/operations',
+    headers: { host: '127.0.0.1:4180', origin: 'http://127.0.0.1:4180', 'x-quantpass-demo': '1' },
+    payload: {
+      operationId: 'startup-pass-transfer',
+      chainId: CHAIN_ID,
+      owner: OWNER,
+      target: PASS,
+      calldata: encodeM3StrategyPassTransfer(RECIPIENT, 1n),
+      txHash: PASS_TX,
+    },
+  });
+  assert.equal(submitted.statusCode, 202, submitted.body);
+  await server.syncNow();
+
+  const evidence = await server.app.inject({
+    url: `/api/v1/chain/operations/startup-pass-transfer/evidence?owner=${OWNER}`,
+    headers: { host: '127.0.0.1:4180' },
+  });
+  assert.equal(evidence.statusCode, 200, evidence.body);
+  assert.equal(evidence.json().lifecycle, 'CONFIRMED');
+  assert.equal(evidence.json().productReady, true);
+
+  const recipient = await server.app.inject({
+    url: `/api/v1/chain/passes/${PASS}/${RECIPIENT}`,
+    headers: { host: '127.0.0.1:4180' },
+  });
+  assert.equal(recipient.statusCode, 200, recipient.body);
+  assert.deepEqual(recipient.json().state, {
+    owner: RECIPIENT,
+    pass: PASS,
+    strategyId: STRATEGY_ID,
+    decimals: 18,
+    balanceRaw: '1',
+  });
   await server.close();
 });
 
@@ -464,6 +1067,24 @@ test('startup rejects non-loopback listen hosts at runtime', async () => {
   );
 });
 
+test('startup rejects invalid loopback ports before building the application', async () => {
+  const root = await directory();
+  for (const port of [-1, 65_536, 1.5])
+    await assert.rejects(
+      startM3Server({
+        deployment: { deploymentStatus: 'NOT_DEPLOYED' },
+        app: {
+          dbPath: resolve(root, `ledger-${port}.sqlite`),
+          env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+          origin: 'http://127.0.0.1:4180',
+        },
+        listen: { host: '127.0.0.1', port },
+        syncIntervalMs: null,
+      }),
+      /INVALID_M3_LISTEN_ADDRESS/,
+    );
+});
+
 test('indexer connectivity failure does not prevent the product server starting or later recovering', async () => {
   const root = await directory();
   const rpc = new StartupRpc();
@@ -494,7 +1115,21 @@ test('indexer connectivity failure does not prevent the product server starting 
     const headers = { host: '127.0.0.1:4180' };
     assert.equal((await server.app.inject({ url: '/api/health', headers })).statusCode, 200);
     const status = await server.app.inject({ url: '/api/v1/chain/runtime-status', headers });
-    assert.deepEqual(status.json(), { lastAttempt: 'FAILED', errorCode: 'M3_INDEXER_SYNC_FAILED' });
+    assert.deepEqual(status.json(), {
+      lastAttempt: 'FAILED',
+      errorCode: 'M3_INDEXER_SYNC_FAILED',
+      database: { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' },
+      deployment: {
+        chainId: CHAIN_ID,
+        contract: CONTRACT,
+        manifestDigest,
+        abiHash: M3_VAULT_ABI_HASH,
+        runtimeBytecodeHash: manifestBody.runtimeBytecodeHash,
+        strategyPassAddress: PASS,
+        strategyPassAbiHash: M3_STRATEGY_PASS_ABI_HASH,
+        strategyPassRuntimeBytecodeHash: manifestBody.strategyPassRuntimeBytecodeHash,
+      },
+    });
     assert.doesNotMatch(status.body, /private RPC error/);
     assert.equal(
       (await server.app.inject({ url: `/api/v1/chain/vaults/${OWNER}`, headers })).statusCode,
@@ -509,6 +1144,17 @@ test('indexer connectivity failure does not prevent the product server starting 
     assert.deepEqual((await server.app.inject({ url: '/api/v1/chain/runtime-status', headers })).json(), {
       lastAttempt: 'SUCCEEDED',
       errorCode: null,
+      database: { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' },
+      deployment: {
+        chainId: CHAIN_ID,
+        contract: CONTRACT,
+        manifestDigest,
+        abiHash: M3_VAULT_ABI_HASH,
+        runtimeBytecodeHash: manifestBody.runtimeBytecodeHash,
+        strategyPassAddress: PASS,
+        strategyPassAbiHash: M3_STRATEGY_PASS_ABI_HASH,
+        strategyPassRuntimeBytecodeHash: manifestBody.strategyPassRuntimeBytecodeHash,
+      },
     });
     unavailable = true;
     await assert.rejects(server.syncNow());
