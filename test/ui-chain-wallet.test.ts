@@ -254,6 +254,30 @@ test('wallet verifies account and chain again immediately before submission', as
   assert.equal('demoIdentity' in result, false);
 });
 
+test('wallet runs the final guard after preflight checks and aborts before submission when it rejects', async () => {
+  const provider = new ProviderFixture();
+  const wallet = new Eip1193Wallet(provider, {
+    chainId: CHAIN_ID,
+    target: CONTRACT,
+    actionAuthority: factory.authority,
+  });
+  let guardCalls = 0;
+
+  await assert.rejects(
+    wallet.submit(factory.prepare({ amount: '08' }, OWNER), () => {
+      guardCalls += 1;
+      assert.equal(provider.methods.at(-1), 'eth_chainId');
+      assert.equal(provider.methods.includes('eth_call'), true);
+      assert.equal(provider.methods.includes('eth_sendTransaction'), false);
+      throw new Error('M3_VAULT_SELECTION_CHANGED');
+    }),
+    /M3_VAULT_SELECTION_CHANGED/,
+  );
+
+  assert.equal(guardCalls, 1);
+  assert.equal(provider.methods.includes('eth_sendTransaction'), false);
+});
+
 test('wallet fails closed when preflight simulation rejects or returns malformed data', async () => {
   const provider = new ProviderFixture();
   const wallet = new Eip1193Wallet(provider, {

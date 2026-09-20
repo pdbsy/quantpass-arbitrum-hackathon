@@ -137,6 +137,19 @@ const uintResult = (value: bigint) => `0x${value.toString(16).padStart(64, '0')}
 class Provider implements Eip1193Provider {
   account = OWNER_A;
   readonly sentTargets: Address[] = [];
+  codeGate:
+    | {
+        readonly target: Address;
+        readonly entered: () => void;
+        readonly wait: Promise<void>;
+      }
+    | undefined;
+  sendGate:
+    | {
+        readonly entered: () => void;
+        readonly wait: Promise<void>;
+      }
+    | undefined;
 
   on(): void {}
   removeListener(): void {}
@@ -145,11 +158,25 @@ class Provider implements Eip1193Provider {
     if (input.method === 'eth_requestAccounts' || input.method === 'eth_accounts') return [this.account];
     if (input.method === 'eth_chainId') return '0xb626';
     if (input.method === 'eth_getBlockByNumber') return { number: '0x64', hash: BLOCK_HASH };
-    if (input.method === 'eth_getCode')
-      return sameAddress(asAddress(String(input.params?.[0])), PASS) ? PASS_CODE : VAULT_CODE;
+    if (input.method === 'eth_getCode') {
+      const target = asAddress(String(input.params?.[0]));
+      const gate = this.codeGate;
+      if (gate && sameAddress(gate.target, target)) {
+        this.codeGate = undefined;
+        gate.entered();
+        await gate.wait;
+      }
+      return sameAddress(target, PASS) ? PASS_CODE : VAULT_CODE;
+    }
     if (input.method === 'eth_sendTransaction') {
       const call = input.params?.[0] as { readonly to?: unknown } | undefined;
       this.sentTargets.push(asAddress(String(call?.to)));
+      const gate = this.sendGate;
+      this.sendGate = undefined;
+      if (gate) {
+        gate.entered();
+        await gate.wait;
+      }
       return TX_HASH;
     }
     if (input.method === 'eth_call') {
@@ -169,7 +196,7 @@ class Provider implements Eip1193Provider {
   }
 }
 
-function runtimeSet() {
+function runtimeSet(options: { readonly sharedOwner?: boolean } = {}) {
   const provider = new Provider();
   const readers = new Map<Address, Reader>([
     [
@@ -178,7 +205,13 @@ function runtimeSet() {
     ],
     [
       VAULT_B,
-      new Reader(snapshot(VAULT_B, OWNER_B, asAddress('0x9999999999999999999999999999999999999999'))),
+      new Reader(
+        snapshot(
+          VAULT_B,
+          options.sharedOwner ? OWNER_A : OWNER_B,
+          asAddress('0x9999999999999999999999999999999999999999'),
+        ),
+      ),
     ],
   ]);
   const runtime = createM3BrowserRuntimeSet({
@@ -189,6 +222,18 @@ function runtimeSet() {
     now: () => '2026-09-20T00:00:00.000Z',
   });
   return { provider, readers, runtime };
+}
+
+function deferredGate() {
+  let entered!: () => void;
+  let release!: () => void;
+  const enteredPromise = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const wait = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { entered, enteredPromise, release, wait };
 }
 
 test('allowlisted runtime set accepts a shared StrategyPass and rejects unknown Vault selection', async () => {
@@ -280,4 +325,97 @@ test('Vault selection rejects a review whose simulation completes after the sele
 
   await assert.rejects(reviewing, /M3_VAULT_SELECTION_CHANGED/);
   assert.deepEqual(provider.sentTargets, []);
+});
+
+test('Vault action confirmation is invalidated before wallet send when selection changes during runtime checks', async () => {
+  const { provider, runtime } = runtimeSet({ sharedOwner: true });
+  await runtime.connect();
+  const review = await runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' });
+  const gate = deferredGate();
+  provider.codeGate = { target: VAULT_A, entered: gate.entered, wait: gate.wait };
+
+  const confirming = runtime.confirmAction(review);
+  await gate.enteredPromise;
+  await runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT_B });
+  await runtime.refresh();
+  gate.release();
+
+  await assert.rejects(confirming, /M3_VAULT_SELECTION_CHANGED/);
+  assert.deepEqual(provider.sentTargets, []);
+  assert.notEqual(runtime.snapshot.transaction.status, 'WALLET_PENDING');
+});
+
+test('Pass transfer confirmation is invalidated before wallet send when selection changes during runtime checks', async () => {
+  const { provider, runtime } = runtimeSet({ sharedOwner: true });
+  await runtime.connect();
+  const review = await runtime.reviewPassTransfer!({
+    recipient: asAddress('0x9999999999999999999999999999999999999999'),
+    passBaseUnits: '1',
+  });
+  const gate = deferredGate();
+  provider.codeGate = { target: PASS, entered: gate.entered, wait: gate.wait };
+
+  const confirming = runtime.confirmPassTransfer!(review);
+  await gate.enteredPromise;
+  await runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT_B });
+  gate.release();
+
+  await assert.rejects(confirming, /M3_VAULT_SELECTION_CHANGED/);
+  assert.deepEqual(provider.sentTargets, []);
+});
+
+test('deposit approval confirmation is invalidated before wallet send when selection changes during runtime checks', async () => {
+  const { provider, runtime } = runtimeSet({ sharedOwner: true });
+  await runtime.connect();
+  const review = await runtime.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '100' });
+  const gate = deferredGate();
+  provider.codeGate = { target: VAULT_A, entered: gate.entered, wait: gate.wait };
+
+  const confirming = runtime.confirmDepositApproval!(review, 'af-usdc');
+  await gate.enteredPromise;
+  await runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT_B });
+  gate.release();
+
+  await assert.rejects(confirming, /M3_VAULT_SELECTION_CHANGED/);
+  assert.deepEqual(provider.sentTargets, []);
+});
+
+test('A to B to A selection still invalidates the original review and duplicate confirmation', async () => {
+  const { provider, runtime } = runtimeSet({ sharedOwner: true });
+  await runtime.connect();
+  const review = await runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' });
+  const gate = deferredGate();
+  provider.codeGate = { target: VAULT_A, entered: gate.entered, wait: gate.wait };
+
+  const confirming = runtime.confirmAction(review);
+  await gate.enteredPromise;
+  await assert.rejects(runtime.confirmAction(review), /INVALID_PRODUCT_REVIEW/);
+  await runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT_B });
+  await runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT_A });
+  gate.release();
+
+  await assert.rejects(confirming, /M3_VAULT_SELECTION_CHANGED/);
+  assert.deepEqual(provider.sentTargets, []);
+});
+
+test('selection changes after wallet send starts preserve the original Vault submission and tracking', async () => {
+  const { provider, readers, runtime } = runtimeSet({ sharedOwner: true });
+  await runtime.connect();
+  const review = await runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' });
+  const gate = deferredGate();
+  provider.sendGate = { entered: gate.entered, wait: gate.wait };
+
+  const confirming = runtime.confirmAction(review);
+  await gate.enteredPromise;
+  assert.deepEqual(provider.sentTargets, [VAULT_A]);
+  await runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT_B });
+  gate.release();
+
+  const submission = await confirming;
+  assert.equal(submission.state, 'SUBMITTED');
+  assert.equal(submission.target, VAULT_A);
+  assert.equal(readers.get(VAULT_A)!.operationId, review.operationId);
+  assert.equal(readers.get(VAULT_B)!.operationId, null);
+  await runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT_A });
+  assert.equal(runtime.snapshot.transaction.status, 'SUBMITTED');
 });

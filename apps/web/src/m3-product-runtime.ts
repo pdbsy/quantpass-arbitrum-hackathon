@@ -1,6 +1,6 @@
 import { parseUnits } from '../../../packages/domain/src/money.ts';
 import { asAddress, type Address } from '../../../packages/chain-adapter/src/types.ts';
-import type { WalletSubmission } from './chain-wallet.ts';
+import type { BeforeWalletSend, WalletSubmission } from './chain-wallet.ts';
 import type {
   M3ProductChainPresentation,
   M3VaultSelection,
@@ -63,15 +63,19 @@ export interface M3ProductRuntime {
   refresh(): Promise<void>;
   selectVault?(selection: M3VaultSelection): Promise<void>;
   reviewAction(request: M3ProductActionRequest): Promise<M3ProductActionReview>;
-  confirmAction(review: M3ProductActionReview): Promise<WalletSubmission>;
+  confirmAction(review: M3ProductActionReview, beforeSend?: BeforeWalletSend): Promise<WalletSubmission>;
   reviewPassTransfer?(request: M3PassTransferRequest): Promise<M3PassTransferReview>;
-  confirmPassTransfer?(review: M3PassTransferReview): Promise<WalletSubmission>;
+  confirmPassTransfer?(
+    review: M3PassTransferReview,
+    beforeSend?: BeforeWalletSend,
+  ): Promise<WalletSubmission>;
   reviewDepositApprovals?(
     request: Extract<M3ProductActionRequest, { readonly kind: 'deposit' }>,
   ): Promise<M3DepositApprovalReview>;
   confirmDepositApproval?(
     review: M3DepositApprovalReview,
     kind: M3DepositApprovalKind,
+    beforeSend?: BeforeWalletSend,
   ): Promise<WalletSubmission>;
   subscribe(listener: () => void): () => void;
 }
