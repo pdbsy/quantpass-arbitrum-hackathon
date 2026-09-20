@@ -317,15 +317,22 @@ Then run the explicitly marked local fixture on the actual product route with ch
 Any later real Testnet journey remains `NOT_RUN` until separately authorized deployment addresses,
 manifest, RPC, wallet and signing/broadcast scope exist.
 
-## Inputs still missing
+## Current inputs and evidence still missing
 
-- final candidate with the source-hygiene defect fixed and regenerated C/R/S bound to its exact
-  SHA, tree, branch and CI context;
-- an admitted production-browser source coverage mapper and source maps; Playwright and mapping
-  packages are absent and Macbeth05 will not install unreviewed dependencies;
+Candidate `3a78e34...` now has a clean source-hygiene result and candidate-bound C/R/S; the earlier
+missing-candidate and missing-C/R/S prerequisites are resolved. Remaining inputs are:
+
+- a tracked, reproducible and admitted overall Istanbul coverage entry satisfying
+  [Coverage Method Admission Review](COVERAGE-METHOD-ADMISSION-REVIEW.md), followed by gap
+  remediation and Macbeth05's exact-candidate replay;
+- Macbeth04's exact fix SHA and focused regression for the delayed wallet-operation/Vault-selection
+  race, followed by an independent Macbeth05 local retest;
+- native Windows diagnostic and stable rerun evidence for the unexplained test-file process failure;
 - Testnet deployment, addresses, manifest, RPC and explicit write authorization;
-- the restricted final security-review service result, which ordinary QA does not replace;
-- hosted required-check and independent-review results for the exact candidate.
+- the final independent security disposition, which the bounded `639ffd8...3a78e34...` scan and
+  ordinary functional QA do not replace;
+- hosted required-check results after the user explicitly resumes hosted execution/status reads,
+  plus an eligible independent review and applicable merge authorization.
 
 ## Decision rules
 

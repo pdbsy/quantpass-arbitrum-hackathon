@@ -213,3 +213,9 @@ and produces a candidate-bound report, overall JS/TS coverage remains `NOT_MEASU
 | `integration-3a78e34-critical-coverage.lcov`    | `d3227b94ed7ae3d07ea3ca03847ba5db149e67b0497b0b367aa7ad524664f3d3` |
 | `summarize-integration-3a78e34-branches.mjs`    | `c0dfc8da70b861c90a821d790cfd1fbcb095c1750584b002c26403d677a13998` |
 | `integration-3a78e34-critical-branch-gaps.json` | `e1bb666812d4c031679185a633e99f9002d12e5f35fcfe4e16d9d82bf6745a34` |
+
+## Current canonical-counter gap signal
+
+The manager's 175-observation exploratory run retains both forum copies and includes two incomplete Node lifecycles as zero contribution. It reports 78.76% lines, 73.27% statements, 77.29% functions and 70.34% standard Istanbul branches. Because the package is not admitted, these values do not replace `NOT_MEASURED`, but they show that method qualification alone cannot close the target: every disclosed dimension is presently below 90%.
+
+The principal reported populations needing real workflow coverage or an explicit scope decision are the prototype UI, management dashboard/browser tooling, the unused React entry and tool lifecycles. Remediation must map each zero counter to a real business, error, recovery or management scenario. Direct imports and assertion-free execution are not accepted. Optional-chain, logical/nullish, default-parameter, switch/fallthrough and implicit-constructor semantics remain in the separate critical-case list because standard Istanbul counters do not enumerate all outcomes.

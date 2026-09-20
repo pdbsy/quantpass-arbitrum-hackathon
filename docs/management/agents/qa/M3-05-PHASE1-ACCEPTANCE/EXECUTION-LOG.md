@@ -452,3 +452,13 @@ The refreshed local conclusion is
 C/R/S and source hygiene are resolved. Overall JS/TS coverage, exact-candidate hosted checks,
 eligible independent approval, the historical restricted-service disposition and separately
 authorized Testnet evidence remain open.
+
+## Local closeout review under hosted-execution pause
+
+Macbeth05 reviewed the manager coverage package at exact source `3a78e34...`/tree `6f1a218...`, independently recomputed all 58 hashes in its checkpoint manifest, and reviewed the Macbeth03 lifecycle and Macbeth04 syntax reports. No large test suite was rerun because the engineering result is unchanged and the present question is method admission. The decision is `METHOD_NOT_ADMITTED / OVERALL_COVERAGE_NOT_MEASURED`; details and remaining conditions are in [Coverage Method Admission Review](COVERAGE-METHOD-ADMISSION-REVIEW.md).
+
+The saved Windows log was reviewed without querying the provider. It records 711 named passes and one `m3-injected-runtime.test.ts` file-process failure with no assertion, stack or child exit diagnostic. A later unchanged-source run reportedly passed once. Root cause therefore remains `UNDETERMINED`, and native Windows retest is `NOT_RUN`; see [Windows Saved-Log Review](WINDOWS-SAVED-LOG-REVIEW.md). Macbeth06 was asked to cross-check only this saved evidence and not to query or trigger hosted checks.
+
+At the time of this record, the Macbeth04 task branch still points to `ffe7d08...`; the newly required delayed wallet-operation/Vault-selection race fix has not arrived. Macbeth05 therefore has not claimed a retest. The earlier multi-Vault browser journey remains valid for its recorded review-invalidation behavior but is not a substitute for the new focused race case.
+
+This closeout round made no hosted status read, workflow trigger/rerun, push, remote PR change, security-service call, deployment, signing, broadcast or Testnet write. The actual billing/quota cause remains `UNKNOWN`.

@@ -155,3 +155,9 @@ decision excludes their runtime class. The HTML prototype's inline script is als
 despite having no JavaScript extension. Inventory construction must therefore start from all tracked
 source and explicit embedded-code extraction, then classify declarations and proven generated
 duplicates; a path-glob union alone is not complete.
+
+## Independent admission decision for the manager Istanbul package
+
+Macbeth05 reviewed the manager's candidate-bound package, the Macbeth03 lifecycle report and the Macbeth04 syntax report. The single canonical graph, zero-count static denominator and strict observation merger address the earlier V8 branch-identity problem. The method remains `NOT_ADMITTED` because its executable entry and raw evidence are only in ignored `.checks` paths, there is no complete expected-process/worker/page lifecycle manifest, browser capture completeness is not independently established, the forum alias policy remains provisional, and a final candidate replay from persistent versioned inputs has not occurred.
+
+The complete decision, evidence hashes and ten closure conditions are in [Coverage Method Admission Review](COVERAGE-METHOD-ADMISSION-REVIEW.md). Until they are satisfied, the exploratory 78.76% lines, 73.27% statements, 77.29% functions and 70.34% branches remain gap diagnostics rather than a formal result, and overall coverage remains `NOT_MEASURED`.
