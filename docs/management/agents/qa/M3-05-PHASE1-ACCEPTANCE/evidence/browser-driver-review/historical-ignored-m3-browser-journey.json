@@ -1,0 +1,7 @@
+{
+  "artifact": "m3-browser-journey.png",
+  "bytes": 1297040,
+  "sha256": "5d88fac489e5901a2b755ef6766bf4fbf9f0a3810be25dc36a78840cc48c31f8",
+  "storage": "ignored local evidence / not tracked",
+  "reason": "PNG contains NUL bytes and is rejected by the public metadata scanner"
+}

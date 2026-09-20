@@ -19,12 +19,12 @@
     "bytes": 112,
     "sha256": "2a6a2c0222a96232b5dd3dea2c3e4411abfc22401c3a741d0a8e3f88ad508016"
   },
-  "m3-browser-journey.png": {
-    "bytes": 1297040,
-    "sha256": "5d88fac489e5901a2b755ef6766bf4fbf9f0a3810be25dc36a78840cc48c31f8"
-  },
   "result.json": {
     "bytes": 3724,
     "sha256": "0110494eb972ee4d6310167a04119301e5e9fbbec7c685c9c9b1c9e06b2bf6f2"
+  },
+  "historical-ignored-m3-browser-journey.json": {
+    "bytes": 281,
+    "sha256": "633b98595fb0147eccc9abc7a9dd882ee023415eecaf085e17e4797e15fdc4d9"
   }
 }

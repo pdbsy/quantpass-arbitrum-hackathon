@@ -23,7 +23,7 @@
 | 改动格式完整性         | `git diff --check HEAD^ HEAD`                                                                                              | PASS，空输出                   |
 | 真实浏览器             | `node tools/verify-m3-browser.mjs`，显式隔离 AF_PLAYWRIGHT_PATH、AF_M3_BROWSER_PORT=4287、独立 AF_M3_BROWSER_EVIDENCE_ROOT | PASS；8 组路径 / 9 笔精确请求  |
 
-首次浏览器执行因沙箱拒绝 `127.0.0.1:4287` 监听报 EPERM，原失败日志保留。按已授权 local/mock 范围允许本地监听后重跑成功，没有改变源码或断言。原始文本日志、结果 JSON、截图摘要与工具复制回执见 [证据清单](evidence/browser-driver-review/SHA256SUMS.json)。
+首次浏览器执行因沙箱拒绝 `127.0.0.1:4287` 监听报 EPERM，原失败日志保留。按已授权 local/mock 范围允许本地监听后重跑成功，没有改变源码或断言。原始文本日志、结果 JSON、截图处置摘要与工具复制回执见 [证据清单](evidence/browser-driver-review/SHA256SUMS.json)。
 
 ## 已核对行为与实现
 
@@ -39,4 +39,4 @@
 
 将此准确交付保留历史地集成到01统一候选，注册新增专项测试，并在最终候选重跑适用验证。04后续 coverage adapter 如另有提交，应按新 SHA 审查；本结论不提前覆盖它。托管门禁、独立批准、正式覆盖率和真实 Testnet 验收各自独立。
 
-当前公开扫描器拒绝非文本 NUL 字节，因此 PNG 截图保留在 ignored `.checks/macbeth05-private-review-originals/m3-browser-journey.png`，不放入公开 tracked 树；原 SHA256SUMS 中的截图摘要和字节数保持不变，可对应核验本地原件。此存储调整不修改图片或浏览器结果 JSON，也不清除先前提交里的图片。
+当前公开扫描器拒绝非文本 NUL 字节，因此 PNG 截图保留在 ignored `.checks/macbeth05-private-review-originals/m3-browser-journey.png`，不放入公开 tracked 树；截图原件的字节数和 SHA-256 单列在 `historical-ignored-m3-browser-journey.json`，当前清单只收录可在公开树中逐字节复核的文件；本地原件仍可按该摘要核验。此存储调整不修改图片或浏览器结果 JSON，也不清除先前提交里的图片。
