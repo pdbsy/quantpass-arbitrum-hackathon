@@ -64,3 +64,11 @@ test('type-only proof does not mistake runtime imports and re-exports for erased
   assert.equal(isTypeOnly({ type: 'ExportAllDeclaration', exportKind: 'value' }), false);
   assert.equal(isTypeOnly({ type: 'ExportDefaultDeclaration' }), false);
 });
+test('hidden index flags cannot make modified configuration inherit a source identity', (t) => {
+  const { root, git } = fixture(t);
+  for (const flag of ['assume-unchanged', 'skip-worktree']) {
+    git('update-index', `--${flag}`, '.gitattributes');
+    assert.throws(() => readSourceSnapshot(root), /hidden index flag/);
+    git('update-index', `--no-${flag}`, '.gitattributes');
+  }
+});

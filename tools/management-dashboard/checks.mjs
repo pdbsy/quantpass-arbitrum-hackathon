@@ -12,6 +12,7 @@ const unitTests = [
   'test/coverage-prototype-map.test.mjs',
   'test/coverage-toolchain.test.mjs',
   'test/coverage-inventory.test.mjs',
+  'test/coverage-artifacts.test.mjs',
 
   'test/m3-browser-runtime-set.test.ts',
   'test/ui-evm-keccak.test.ts',

@@ -34,6 +34,18 @@ export function readSourceSnapshot(root) {
       timeout: 15000,
       maxBuffer: 16 * 1024 * 1024,
     });
+  assert.equal(git('rev-parse', '--is-shallow-repository').trim(), 'false', 'complete Git history required');
+  assert.equal(
+    git('for-each-ref', '--format=%(refname)', 'refs/replace/'),
+    '',
+    'replacement refs not admitted',
+  );
+  assert.ok(
+    !git('ls-files', '-v', '-z')
+      .split('\0')
+      .some((row) => /^[a-zS] /.test(row)),
+    'hidden index flag not admitted',
+  );
   assert.equal(
     git('status', '--porcelain', '--untracked-files=normal'),
     '',

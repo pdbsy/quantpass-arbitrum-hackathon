@@ -1,0 +1,104 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  realpathSync,
+  readdirSync,
+  copyFileSync,
+} from 'node:fs';
+import { resolve, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+import { prepareCoverage } from '../tools/coverage/prepare.mjs';
+import { mergeObserved } from '../tools/coverage/evidence.mjs';
+const repository = resolve(import.meta.dirname, '..');
+const instrumentationDirectory = process.env.AF_QUALIFIED_COVERAGE_TOOLS;
+assert.ok(instrumentationDirectory);
+async function fixture(t) {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-node-hook-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' },
+    });
+  git('init', '-q');
+  git('config', 'user.name', 'Coverage fixture');
+  git('config', 'user.email', 'fixture@example.invalid');
+  mkdirSync(join(root, 'planning'));
+  mkdirSync(join(root, 'tools/coverage'), { recursive: true });
+  for (const f of ['coverage-toolchain.lock.json', 'coverage-instrumentation.package-lock.json'])
+    copyFileSync(join(repository, 'planning', f), join(root, 'planning', f));
+  copyFileSync(join(repository, 'tools/coverage/node-hook.mjs'), join(root, 'tools/coverage/node-hook.mjs'));
+  writeFileSync(join(root, '.gitattributes'), '* text=auto eol=lf\n');
+  writeFileSync(join(root, '.gitignore'), 'outputs/\n');
+  writeFileSync(join(root, 'choice.ts'), 'export function choose(x: boolean) { return x ? 7 : 9; }\n');
+  writeFileSync(join(root, 'unused.mjs'), 'export function unused() { return 10; }\n');
+  git('add', '.');
+  git('commit', '-qm', 'fixture');
+  const prepared = await prepareCoverage(root, {
+    instrumentationDirectory,
+    sourceBase: git('rev-parse', 'HEAD').trim(),
+  });
+  const generated = JSON.parse(readFileSync(join(prepared.directory, 'generated.json')));
+  const hook = join(prepared.directory, 'hook.mjs');
+  writeFileSync(hook, generated['tools/coverage/node-hook.mjs'].code);
+  const raw = join(prepared.directory, 'raw');
+  mkdirSync(raw);
+  const env = {
+    ...process.env,
+    NODE_OPTIONS: '',
+    NODE_DISABLE_COMPILE_CACHE: '1',
+    AF_COVERAGE_ROOT: root,
+    AF_COVERAGE_PREPARED: prepared.directory,
+    AF_COVERAGE_MANIFEST_SHA: prepared.manifestSha256,
+    AF_COVERAGE_GENERATED_SHA: prepared.generatedSha256,
+    AF_COVERAGE_RAW: raw,
+    AF_COVERAGE_WORKFLOW: 'fixture',
+  };
+  const run = (code) =>
+    spawnSync(process.execPath, ['--import', pathToFileURL(hook).href, '--input-type=module', '-e', code], {
+      cwd: root,
+      env,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+  return { root, raw, run, manifest: JSON.parse(readFileSync(join(prepared.directory, 'manifest.json'))) };
+}
+test('real Node hook unions original TypeScript branches and retains never-loaded zero graph', async (t) => {
+  const f = await fixture(t);
+  for (const x of ['true', 'false']) {
+    const r = f.run(
+      `import {choose} from './choice.ts';if(choose(${x})!==${x === 'true' ? 7 : 9})process.exit(4);`,
+    );
+    assert.equal(r.status, 0, r.stderr);
+  }
+  const rows = readdirSync(f.raw)
+    .filter((n) => n.startsWith('complete-'))
+    .map((n) => JSON.parse(readFileSync(join(f.raw, n))));
+  assert.equal(rows.length, 2);
+  const merged = mergeObserved(f.manifest, rows);
+  assert.deepEqual(Object.values(merged.coverage['choice.ts'].b), [[1, 1]]);
+  assert.deepEqual(Object.values(merged.coverage['unused.mjs'].f), [0]);
+  assert.ok(rows.every((r) => r.sources['tools/coverage/node-hook.mjs']));
+});
+test('changed source fails and killed lifecycle keeps its start without inventing complete hits', async (t) => {
+  const f = await fixture(t);
+  writeFileSync(join(f.root, 'choice.ts'), 'export const changed=1;');
+  const failed = f.run("await import('./choice.ts')");
+  assert.notEqual(failed.status, 0);
+  const killed = f.run("process.kill(process.pid,'SIGKILL')");
+  assert.equal(killed.signal, 'SIGKILL');
+  const starts = readdirSync(f.raw).filter((n) => n.startsWith('started-'));
+  const completes = readdirSync(f.raw).filter((n) => n.startsWith('complete-'));
+  assert.equal(starts.length, 2);
+  assert.equal(completes.length, 1);
+  const completed = JSON.parse(readFileSync(join(f.raw, completes[0])));
+  assert.notEqual(completed.exitCode, 0);
+});
