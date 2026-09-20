@@ -27,3 +27,5 @@ Acceptance: record exact source/head/base/checkout/tree/event, actual jobs and s
 Frozen scope: initial Pass distribution and transfer are included; paid sales and real Buy/Sell are excluded; strategy execution remains deferred. Existing precision, Owner, settlement, close/rescue and confirmation/reorg semantics remain unchanged. No external Testnet deployment, signing, broadcast, rule changes, paid service, secrets or expanded permissions are authorized.
 
 Status: ACTIVE — intake prepared; baseline hosted execution and gate verification pending detailed log inspection. Final unified candidate not yet assigned. Questions and blockers go to Macbeth01 under current coordination instructions; this report never substitutes for approval.
+
+Startup update: intake was committed locally as `9e6667fe78cc` and its identity check passed. Normal push was rejected by automatic approval review; own Draft PR and public ACK were not created. On the manager's subsequent instruction, publication remains paused while local read-only verification and reviewable documents are completed. See [handoff](Macbeth06-HANDOFF.md).
