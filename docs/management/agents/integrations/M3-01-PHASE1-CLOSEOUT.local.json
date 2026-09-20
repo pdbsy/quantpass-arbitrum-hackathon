@@ -38,7 +38,7 @@
       "agent": "Macbeth06",
       "task": "M3-06-CI-GATES",
       "branch": "macbeth06/m3-phase1-gates",
-      "head": "62444c86c35c9af4c1a76a49c9a7c231f5a47f90",
+      "head": "553fbc3172b1e4202e8b693ec1c5fb904333b70b",
       "local_ref": "refs/remotes/local-macbeth06/m3-phase1-gates"
     },
     {
