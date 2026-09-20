@@ -240,3 +240,31 @@ test('a foreign runtime graph retains its raw failure and rejects the flush with
   });
   assert.deepEqual(replay.observations, result.observations);
 });
+
+test('snapshot transport loss records zero and still lets the real navigation run', async (t) => {
+  const f = fixture(t);
+  const tracker = createBrowserCoverageLifecycle({
+    manifest: f.manifest,
+    outputDirectory: join(f.root, 'raw'),
+    loaded: new Set([sourcePath]),
+  });
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH, headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  tracker.registerPage(page);
+  const evaluate = page.evaluate.bind(page);
+  let lost = true;
+  page.evaluate = async (...args) => {
+    if (lost) {
+      lost = false;
+      throw new Error('Execution context was destroyed during navigation');
+    }
+    return evaluate(...args);
+  };
+  await page.goto('data:text/html,<title>continued</title>');
+  assert.equal(await page.title(), 'continued');
+  const result = await tracker.finish();
+  assert.equal(result.observations[0].complete, false);
+  assert.match(result.observations[0].error.message, /Execution context was destroyed/);
+  assert.doesNotThrow(() => result.index);
+});

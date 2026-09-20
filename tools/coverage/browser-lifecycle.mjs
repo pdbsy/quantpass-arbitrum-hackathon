@@ -68,15 +68,29 @@ export function createBrowserCoverageLifecycle({
   async function capture(page, reason) {
     const state = pages.get(page);
     if (!state?.active) return;
-    let raw;
+    let serialized;
     try {
       assert.ok(!page.isClosed(), 'browser page closed before flush');
-      const serialized = await page.evaluate(snapshotExpression);
+      serialized = await page.evaluate(snapshotExpression);
+    } catch (error) {
+      // A navigation can destroy the document before the old realm answers. This is
+      // an incomplete lower-bound interval; the caller must still perform its real
+      // navigation or close operation.
+      incomplete(state, reason, error);
+      return { captured: false, transportError: error };
+    }
+    let raw;
+    try {
       raw = save('raw', serialized);
       const value = JSON.parse(serialized);
       const sources = browserCoverageSources(manifest, value, loaded);
       // The retained raw bytes precede mutation of the real counter objects.
-      await page.evaluate(resetExpression);
+      try {
+        await page.evaluate(resetExpression);
+      } catch (error) {
+        incomplete(state, reason, error, raw);
+        return { captured: false, transportError: error, raw };
+      }
       complete(state, {
         complete: true,
         empty: Object.keys(value).length === 0,
@@ -85,7 +99,10 @@ export function createBrowserCoverageLifecycle({
         raw,
         loadedSources: [...loaded].sort(),
       });
+      return { captured: true, raw };
     } catch (error) {
+      // Once raw bytes exist, parse/graph/map failures are evidence failures and
+      // must stop the workflow rather than being reclassified as transport loss.
       incomplete(state, reason, error, raw);
       throw error;
     }
