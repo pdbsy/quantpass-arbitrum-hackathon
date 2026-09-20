@@ -86,3 +86,131 @@ export function readSourceSnapshot(root) {
     prototype,
   };
 }
+
+export async function instrumentSnapshot(root, snapshot, tools) {
+  const { buildPrototypeMap } = await import('./prototype-map.mjs');
+  const sources = {};
+  const aliases = {};
+  const classifications = {};
+  const generated = {};
+  const alias = 'docs/management/dashboard/agent-forum-app.js';
+  const original = 'tools/agent-forum-app.js';
+  if (Object.hasOwn(snapshot.sources, alias)) {
+    assert.ok(Object.hasOwn(snapshot.sources, original));
+    assert.equal(
+      snapshot.sources[alias].sha256,
+      snapshot.sources[original].sha256,
+      'forum alias bytes differ',
+    );
+    const result = execFileSync(process.execPath, ['tools/build-agent-forum.mjs', '--check'], {
+      cwd: root,
+      timeout: 15000,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const aliasProof = {
+      generator: 'tools/build-agent-forum.mjs',
+      generatorSha256: snapshot.sources['tools/build-agent-forum.mjs'].sha256,
+      staleCheck: {
+        command: ['node', 'tools/build-agent-forum.mjs', '--check'],
+        exitCode: 0,
+        outputSha256: sha256(result),
+      },
+    };
+    aliases[alias] = {
+      canonical: original,
+      sha256: snapshot.sources[alias].sha256,
+      blob: snapshot.sources[alias].blob,
+      proof: aliasProof,
+    };
+  }
+  for (const [path, entry] of Object.entries(snapshot.sources)) {
+    if (Object.hasOwn(aliases, path)) {
+      classifications[path] = { kind: 'GENERATED_ALIAS', canonical: original };
+      continue;
+    }
+    const options = {
+      esModules: true,
+      produceSourceMap: true,
+      parserPlugins: path.endsWith('.tsx')
+        ? ['typescript', 'jsx']
+        : path.endsWith('.ts')
+          ? ['typescript']
+          : [],
+      coverageGlobalScope: 'globalThis',
+      coverageGlobalScopeFunc: false,
+    };
+    const ast = tools.parser.parse(entry.text, { sourceType: 'module', plugins: options.parserPlugins });
+    assert.ok(
+      !ast.comments.some((comment) => /istanbul\s+ignore/.test(comment.value)),
+      'coverage ignore directive not admitted',
+    );
+    const mapper = tools.instrument.createInstrumenter(options);
+    const code = mapper.instrumentSync(entry.text, path);
+    const zero = JSON.parse(JSON.stringify(mapper.lastFileCoverage()));
+    const noExecutable = ast.program.body.every(isTypeOnly);
+    const count =
+      Object.keys(zero.s).length + Object.keys(zero.f).length + Object.values(zero.b).flat().length;
+    if (noExecutable) assert.equal(count, 0);
+    classifications[path] = {
+      kind: noExecutable ? 'NO_EXECUTABLE_CODE' : count ? 'EXECUTABLE' : 'EXECUTABLE_ZERO_COUNTER_GRAPH',
+    };
+    const map = JSON.parse(JSON.stringify(mapper.lastSourceMap()));
+    sources[path] = {
+      sha256: entry.sha256,
+      blob: entry.blob,
+      coverage: zero,
+      options,
+      optionsSha256: sha256(JSON.stringify(options)),
+      generatedSha256: sha256(code),
+      sourceMapSha256: sha256(JSON.stringify(map)),
+    };
+    generated[path] = { code, map };
+  }
+  if (snapshot.prototype) {
+    const entry = snapshot.prototype;
+    const mapping = buildPrototypeMap(entry.text);
+    const options = { esModules: false, coverageGlobalScope: 'globalThis', coverageGlobalScopeFunc: false };
+    const mapper = tools.instrument.createInstrumenter(options);
+    const code = mapper.instrumentSync(mapping.generated, entry.path);
+    const runtimeCoverage = JSON.parse(JSON.stringify(mapper.lastFileCoverage()));
+    const canonicalCoverage = structuredClone(runtimeCoverage);
+    function translate(value) {
+      if (!value || typeof value !== 'object') return;
+      if (Number.isInteger(value.line) && Number.isInteger(value.column)) {
+        Object.assign(value, mapping.originalPosition(value));
+        return;
+      }
+      for (const member of Object.values(value)) translate(member);
+      if (value.loc?.start?.line && Object.hasOwn(value, 'line')) value.line = value.loc.start.line;
+    }
+    for (const key of ['statementMap', 'fnMap', 'branchMap']) translate(canonicalCoverage[key]);
+    sources[entry.path] = {
+      sha256: entry.sha256,
+      blob: entry.blob,
+      coverage: canonicalCoverage,
+      runtimeCoverage,
+      options,
+      optionsSha256: sha256(JSON.stringify(options)),
+      normalizedSha256: sha256(mapping.generated),
+      generatedSha256: sha256(code),
+      substitutions: mapping.insertions.length,
+    };
+    generated[entry.path] = { code };
+    classifications[entry.path] = { kind: 'EXECUTABLE_INLINE_SCRIPT' };
+  }
+  const manifest = {
+    schemaVersion: 1,
+    provider: 'LOCAL',
+    candidateCommit: snapshot.candidateCommit,
+    candidateTree: snapshot.candidateTree,
+    toolDigest: tools.descriptorSha256,
+    trackedPaths: snapshot.trackedPaths,
+    sources,
+    aliases,
+    classifications,
+    semantics: tools.descriptor.semantics,
+    collection: 'VERIFIED_HIT_LOWER_BOUND',
+  };
+  return { manifest, generated };
+}
