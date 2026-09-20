@@ -14,6 +14,7 @@ import {
   Eip1193Wallet,
   Eip1193WalletConnection,
   WalletFailure,
+  type BeforeWalletSend,
   type Eip1193Provider,
   type PreparedAction,
   type WalletSession,
@@ -783,6 +784,7 @@ class M3BrowserRuntime implements M3ProductRuntime {
   async confirmDepositApproval(
     review: M3DepositApprovalReview,
     kind: M3DepositApprovalKind,
+    beforeSend?: BeforeWalletSend,
   ): Promise<WalletSubmission> {
     const authorization = this.#approvalReviews.get(review);
     if (!authorization || !this.#provider || !this.#deployment)
@@ -806,8 +808,10 @@ class M3BrowserRuntime implements M3ProductRuntime {
       { operationId: operationId(`approve-${kind}`) },
       review.owner,
     );
-    this.#publish({ ...this.#snapshot, transaction: { status: 'WALLET_PENDING' } });
-    const submission = await wallet.submit(prepared);
+    const submission = await wallet.submit(prepared, () => {
+      beforeSend?.();
+      this.#publish({ ...this.#snapshot, transaction: { status: 'WALLET_PENDING' } });
+    });
     this.#publish({
       ...this.#snapshot,
       transaction:
@@ -849,14 +853,19 @@ class M3BrowserRuntime implements M3ProductRuntime {
     return review;
   }
 
-  async confirmAction(review: M3ProductActionReview): Promise<WalletSubmission> {
+  async confirmAction(
+    review: M3ProductActionReview,
+    beforeSend?: BeforeWalletSend,
+  ): Promise<WalletSubmission> {
     if (!this.#flow) throw new Error('M3_DEPLOYMENT_NOT_CONFIGURED');
     const internal = this.#actionReviews.get(review);
     if (!internal) throw new Error('INVALID_PRODUCT_REVIEW');
     this.#actionReviews.delete(review);
     await this.#assertRuntimeCode(this.#deployment!.vaultAddress, this.#deployment!.runtimeBytecodeHash);
-    this.#publish({ ...this.#snapshot, transaction: { status: 'WALLET_PENDING' } });
-    const submission = await this.#flow.confirm(internal);
+    const submission = await this.#flow.confirm(internal, () => {
+      beforeSend?.();
+      this.#publish({ ...this.#snapshot, transaction: { status: 'WALLET_PENDING' } });
+    });
     this.#publish({
       ...this.#snapshot,
       transaction:
@@ -941,7 +950,10 @@ class M3BrowserRuntime implements M3ProductRuntime {
     return review;
   }
 
-  async confirmPassTransfer(review: M3PassTransferReview): Promise<WalletSubmission> {
+  async confirmPassTransfer(
+    review: M3PassTransferReview,
+    beforeSend?: BeforeWalletSend,
+  ): Promise<WalletSubmission> {
     const pending = this.#passTransferReviews.get(review);
     if (!pending) throw new Error('INVALID_PASS_TRANSFER_REVIEW');
     this.#passTransferReviews.delete(review);
@@ -949,8 +961,10 @@ class M3BrowserRuntime implements M3ProductRuntime {
       this.#deployment!.strategyPassAddress,
       this.#deployment!.strategyPassRuntimeBytecodeHash,
     );
-    this.#publish({ ...this.#snapshot, transaction: { status: 'WALLET_PENDING' } });
-    let submission = await pending.wallet.submit(pending.prepared);
+    let submission = await pending.wallet.submit(pending.prepared, () => {
+      beforeSend?.();
+      this.#publish({ ...this.#snapshot, transaction: { status: 'WALLET_PENDING' } });
+    });
     if (submission.state === 'SUBMITTED') {
       try {
         if (!this.#reader?.registerSubmission) throw new Error('M3_SUBMISSION_REGISTRATION_UNAVAILABLE');

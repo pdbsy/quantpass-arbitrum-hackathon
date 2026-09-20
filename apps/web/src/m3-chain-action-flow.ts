@@ -1,5 +1,11 @@
 import { sameAddress, type Address } from '../../../packages/chain-adapter/src/types.ts';
-import type { BrowserWalletPort, PreparedAction, WalletSession, WalletSubmission } from './chain-wallet.ts';
+import type {
+  BeforeWalletSend,
+  BrowserWalletPort,
+  PreparedAction,
+  WalletSession,
+  WalletSubmission,
+} from './chain-wallet.ts';
 import type { SimulatingRobinhoodTestnetStrategyAdapter } from './strategy-adapter.ts';
 
 export interface M3ActionReview {
@@ -70,11 +76,17 @@ export class M3ChainActionFlow<Snapshot, Action, Observation> {
     return review;
   }
 
-  async confirm(review: M3ActionReview): Promise<WalletSubmission> {
+  async confirm(review: M3ActionReview, beforeSend?: BeforeWalletSend): Promise<WalletSubmission> {
     const prepared = this.#reviews.get(review);
     if (!prepared) throw new Error('INVALID_ACTION_REVIEW');
     this.#reviews.delete(review);
     await this.#readAndSimulate(prepared);
-    return this.#adapter.submitAction(prepared, this.#wallet);
+    const wallet = beforeSend
+      ? Object.freeze({
+          connect: () => this.#wallet.connect(),
+          submit: (action: PreparedAction) => this.#wallet.submit(action, beforeSend),
+        })
+      : this.#wallet;
+    return this.#adapter.submitAction(prepared, wallet);
   }
 }

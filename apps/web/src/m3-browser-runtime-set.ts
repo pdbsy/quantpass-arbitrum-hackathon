@@ -100,13 +100,17 @@ class M3BrowserRuntimeSet implements M3SelectableProductRuntime {
     return review;
   }
 
-  #consume<T extends object>(review: T, invalidCode: string): M3ProductRuntime {
+  #consume<T extends object>(review: T, invalidCode: string): ReviewBinding {
     const binding = this.#reviews.get(review);
     this.#reviews.delete(review);
     if (!binding) throw new Error(invalidCode);
+    this.#assertCurrent(binding);
+    return binding;
+  }
+
+  #assertCurrent(binding: ReviewBinding): void {
     if (binding.generation !== this.#generation || binding.runtime !== this.#selected.runtime)
       throw new Error('M3_VAULT_SELECTION_CHANGED');
-    return binding.runtime;
   }
 
   async selectVault(selection: M3VaultSelection): Promise<void> {
@@ -139,7 +143,8 @@ class M3BrowserRuntimeSet implements M3SelectableProductRuntime {
   }
 
   async confirmAction(review: M3ProductActionReview): Promise<WalletSubmission> {
-    return this.#consume(review, 'INVALID_PRODUCT_REVIEW').confirmAction(review);
+    const binding = this.#consume(review, 'INVALID_PRODUCT_REVIEW');
+    return binding.runtime.confirmAction(review, () => this.#assertCurrent(binding));
   }
 
   async reviewPassTransfer(request: M3PassTransferRequest): Promise<M3PassTransferReview> {
@@ -149,9 +154,9 @@ class M3BrowserRuntimeSet implements M3SelectableProductRuntime {
   }
 
   async confirmPassTransfer(review: M3PassTransferReview): Promise<WalletSubmission> {
-    const runtime = this.#consume(review, 'INVALID_PASS_TRANSFER_REVIEW');
-    if (!runtime.confirmPassTransfer) throw new Error('PASS_TRANSFER_UNAVAILABLE');
-    return runtime.confirmPassTransfer(review);
+    const binding = this.#consume(review, 'INVALID_PASS_TRANSFER_REVIEW');
+    if (!binding.runtime.confirmPassTransfer) throw new Error('PASS_TRANSFER_UNAVAILABLE');
+    return binding.runtime.confirmPassTransfer(review, () => this.#assertCurrent(binding));
   }
 
   async reviewDepositApprovals(
@@ -166,9 +171,9 @@ class M3BrowserRuntimeSet implements M3SelectableProductRuntime {
     review: M3DepositApprovalReview,
     kind: M3DepositApprovalKind,
   ): Promise<WalletSubmission> {
-    const runtime = this.#consume(review, 'INVALID_DEPOSIT_APPROVAL_REVIEW');
-    if (!runtime.confirmDepositApproval) throw new Error('DEPOSIT_APPROVAL_UNAVAILABLE');
-    return runtime.confirmDepositApproval(review, kind);
+    const binding = this.#consume(review, 'INVALID_DEPOSIT_APPROVAL_REVIEW');
+    if (!binding.runtime.confirmDepositApproval) throw new Error('DEPOSIT_APPROVAL_UNAVAILABLE');
+    return binding.runtime.confirmDepositApproval(review, kind, () => this.#assertCurrent(binding));
   }
 
   subscribe(listener: () => void): () => void {

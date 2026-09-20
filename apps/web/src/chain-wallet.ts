@@ -147,10 +147,11 @@ export interface AmbiguousSubmission {
 }
 
 export type WalletSubmission = SubmittedOperation | AmbiguousSubmission;
+export type BeforeWalletSend = () => void;
 
 export interface BrowserWalletPort {
   connect(): Promise<WalletSession>;
-  submit(prepared: PreparedAction): Promise<WalletSubmission>;
+  submit(prepared: PreparedAction, beforeSend?: BeforeWalletSend): Promise<WalletSubmission>;
 }
 
 export interface BrowserWalletConnectionPort {
@@ -294,7 +295,7 @@ export class Eip1193Wallet implements BrowserWalletPort {
     }
   }
 
-  async submit(prepared: PreparedAction): Promise<WalletSubmission> {
+  async submit(prepared: PreparedAction, beforeSend?: BeforeWalletSend): Promise<WalletSubmission> {
     if (!prepared || typeof prepared !== 'object' || trustedActions.get(prepared) !== this.#actionAuthority)
       throw new WalletFailure('UNTRUSTED_PREPARED_ACTION');
     if (prepared.chainId !== this.#chainId || !sameAddress(prepared.target, this.#target))
@@ -342,6 +343,7 @@ export class Eip1193Wallet implements BrowserWalletPort {
       if (preSubmit.chainId !== this.#chainId) throw new WalletFailure('WALLET_WRONG_CHAIN');
       if (session.changed) throw new WalletFailure('WALLET_SESSION_CHANGED');
 
+      beforeSend?.();
       let result: unknown;
       try {
         result = await this.#provider.request({
