@@ -7,6 +7,7 @@ if [ "$#" -ne 0 ]; then
 fi
 
 CONTRACT_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$CONTRACT_ROOT"
 TASK_PYTHON="$CONTRACT_ROOT/../.checks/af-chain01/toolchain/slither-venv/bin/python"
 TOOLCHAIN_BIN="$CONTRACT_ROOT/../.checks/af-chain01/toolchain/bin"
 ARTIFACT_ROOT="$CONTRACT_ROOT/../.checks/af-chain01/out"

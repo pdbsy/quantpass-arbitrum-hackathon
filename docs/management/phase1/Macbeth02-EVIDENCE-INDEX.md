@@ -7,6 +7,11 @@
 - Contract tree: `0fa7e3e471f32a6d6b742e42540add6e047b536a`
 - Evidence boundary: `LOCAL / MOCK / NOT_DEPLOYED`
 
+Additive entrypoint correction after `bbf54cc`: see `Macbeth02-ENTRYPOINT-CLOSURE.md`.
+Production, Solidity tests, deployment artifacts and compiler inputs remain equivalent; the gate
+shell script and its new Python regression are a separate, explicitly verified delta. The previous
+complete-tree binding above applies to the historical source checkpoints, not this additive fix.
+
 ## Requirement-to-evidence map
 
 | Requirement | Authority / implementation | Focused tests or verifier | Evidence status |
@@ -57,6 +62,7 @@ No address, transaction, block, receipt or deployed runtime is inferred from the
 | `evidence/Macbeth02-3a78e34-compiler-equality.log` | Offline forced compile plus published ABI and schema-2 manifest equality | `afb841d1a008b16d0e8d97fc6256d9ac60d8c8225cd4f69d4a060610671e86a3` |
 | `evidence/Macbeth02-a130-coverage-scope.log` | File-level classification of the retained independent LCOV without rerunning coverage | `6d323c24090fc86f0291f6862fc0f7d4473cf19da438ee112bd1e7a594401f62` |
 | `evidence/Macbeth02-final-validation.log` | Staged scope, metadata/privacy, evidence-index and final equivalence checks | `1de1af6ea593a447d2e9d2ed8e6128c058d0f9c051886e3001fe766bef43a2b2` |
+| `evidence/Macbeth02-entrypoint-cwd-regression.log` | Additive entrypoint red/green regression and real pinned 2/2 deployment rehearsal; task-root paths redacted, raw hashes retained | `25b200f8219c655352cb390fbde9ffc2ca2fcfdf20c418e20f3025a887f112f0` |
 
 The hashes above bind the final reviewed evidence bytes before the local commit.
 

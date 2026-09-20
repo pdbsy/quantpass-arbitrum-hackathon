@@ -1,5 +1,15 @@
 # Macbeth02 Phase One Contracts Worklog
 
+## Additive acceptance-entry closure after bbf54cc
+
+Final integration preparation identified that the final standalone rehearsal in
+`check-phase1-contracts.sh` inherited the caller directory. The entry now explicitly selects its
+contract project. A new regression failed first for two caller locations and then passed for all
+three; the real pinned, offline targeted rehearsal subsequently passed 2/2 with unchanged Solidity
+and skipped compilation. Full unchanged contract suites were not repeated. See
+`Macbeth02-ENTRYPOINT-CLOSURE.md` for source-equivalence limits, the historical standalone-stage
+evidence correction and preserved original failure-log hashes. No remote operation was performed.
+
 - Task: `M3-02-PHASE1-CONTRACTS`
 - Base: `18f5352070910a867b9729b031aa2e3951785e01`
 - Branch: `macbeth02/m3-phase1-contracts`
