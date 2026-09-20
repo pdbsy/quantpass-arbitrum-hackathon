@@ -1,0 +1,374 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+
+const module = await import('../tools/local-ci/runner.mjs').catch(() => ({}));
+const { runLocal, verifyRun } = module;
+test('local evidence runner is available before commands can be accepted', () => {
+  assert.equal(typeof runLocal, 'function');
+  assert.equal(typeof verifyRun, 'function');
+});
+const available = typeof runLocal === 'function' && process.platform !== 'win32';
+for (const channel of ['stdout', 'stderr']) {
+  test(
+    `${channel} short writes are completed and zero writes fail closed`,
+    { skip: !available },
+    async (t) => {
+      const { config, job } = fixture(t);
+      const original = fs.writeSync;
+      try {
+        fs.writeSync = (...args) => {
+          const [fd, buffer, offset = 0, length = buffer.length, position] = args;
+          return Buffer.isBuffer(buffer) && buffer.toString() === 'abcdefghijklmnop'
+            ? original(fd, buffer, offset, Math.min(1, length), position)
+            : original(...args);
+        };
+        syncBuiltinESMExports();
+        const r = await runLocal({ ...config, jobs: [job(`process.${channel}.write('abcdefghijklmnop')`)] });
+        assert.equal(r.state, 'PASS');
+        assert.equal(readFileSync(join(r.directory, r.jobs[0][channel].file), 'utf8'), 'abcdefghijklmnop');
+        fs.writeSync = (...args) =>
+          Buffer.isBuffer(args[1]) && args[1].toString() === 'must be captured' ? 0 : original(...args);
+        syncBuiltinESMExports();
+        const blocked = await runLocal({
+          ...config,
+          jobs: [job(`process.${channel}.write('must be captured')`)],
+        });
+        assert.equal(blocked.state, 'BLOCKED');
+      } finally {
+        fs.writeSync = original;
+        syncBuiltinESMExports();
+      }
+    },
+  );
+}
+function fixture(t) {
+  const directory = mkdtempSync(join(tmpdir(), 'af-local-ci-test-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const cwd = join(directory, 'source');
+  mkdirSync(cwd);
+  const git = (...args) =>
+    execFileSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        PATH: process.env.PATH,
+        HOME: directory,
+        GIT_CONFIG_GLOBAL: '/dev/null',
+        GIT_CONFIG_NOSYSTEM: '1',
+      },
+    }).trim();
+  git('init', '-b', 'fixture');
+  writeFileSync(join(cwd, '.gitattributes'), '* text=auto eol=lf\n');
+  writeFileSync(join(cwd, 'source.txt'), 'trusted fixture\n');
+  git('add', '.');
+  git(
+    '-c',
+    'user.name=Fixture',
+    '-c',
+    'user.email=fixture@example.test',
+    '-c',
+    'commit.gpgsign=false',
+    'commit',
+    '-m',
+    'fixture',
+  );
+  const expected = {
+    base: git('rev-parse', 'HEAD'),
+    head: git('rev-parse', 'HEAD'),
+    tree: git('rev-parse', 'HEAD^{tree}'),
+    node: '24.21.0',
+  };
+  const config = { cwd, outputRoot: join(directory, 'evidence'), expected };
+  const job = (code, extra = {}) => ({
+    id: 'probe',
+    executable: process.execPath,
+    args: ['-e', code],
+    platform: process.platform,
+    arch: process.arch,
+    timeoutMs: 2500,
+    ...extra,
+  });
+  return { config, job, git };
+}
+test(
+  'success binds the source, tool bytes and actual output without inherited credentials',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const old = process.env.ALPHAFORGE_TEST_SECRET;
+    process.env.ALPHAFORGE_TEST_SECRET = 'synthetic-do-not-inherit';
+    t.after(() =>
+      old === undefined
+        ? delete process.env.ALPHAFORGE_TEST_SECRET
+        : (process.env.ALPHAFORGE_TEST_SECRET = old),
+    );
+    const r = await runLocal({
+      ...config,
+      jobs: [
+        job(
+          "if(process.env.ALPHAFORGE_TEST_SECRET || process.env.GITHUB_ACTIONS || process.env.SSH_AUTH_SOCK)process.exit(8); console.log('checked')",
+        ),
+      ],
+    });
+    assert.equal(r.state, 'PASS');
+    assert.equal(r.source.head, config.expected.head);
+    assert.equal(r.source.tree, config.expected.tree);
+    assert.match(r.jobs[0].executableSha256, /^[a-f0-9]{64}$/);
+    assert.equal(r.jobs[0].exitCode, 0);
+    assert.equal(r.jobs[0].cleanup, 'PASS');
+    assert.equal(verifyRun(r.directory, config.expected).state, 'PASS');
+    assert.match(readFileSync(join(r.directory, r.jobs[0].stdout.file), 'utf8'), /checked/);
+  },
+);
+test(
+  'a command failure remains failed after a separate successful rerun',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const failed = await runLocal({ ...config, jobs: [job('process.exit(7)')] });
+    assert.equal(failed.state, 'FAIL');
+    assert.equal(failed.jobs[0].exitCode, 7);
+    const bytes = readFileSync(join(failed.directory, 'report.json'));
+    const passed = await runLocal({ ...config, jobs: [job('console.log("ok")')] });
+    assert.equal(passed.state, 'PASS');
+    assert.notEqual(failed.directory, passed.directory);
+    assert.deepEqual(readFileSync(join(failed.directory, 'report.json')), bytes);
+    assert.equal(verifyRun(failed.directory, config.expected).state, 'FAIL');
+  },
+);
+test(
+  'timeouts terminate stubborn process groups rather than leave background work',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const code = "process.on('SIGTERM',()=>{}); console.log(process.pid);setInterval(()=>{},50)";
+    const r = await runLocal({ ...config, jobs: [job(code, { timeoutMs: 200 })] });
+    assert.equal(r.state, 'FAIL');
+    assert.equal(r.jobs[0].timedOut, true);
+    assert.equal(r.jobs[0].cleanup, 'PASS');
+    assert.throws(() => process.kill(r.jobs[0].pid, 0), { code: 'ESRCH' });
+  },
+);
+test('abnormal signal termination cannot become PASS', { skip: !available }, async (t) => {
+  const { config, job } = fixture(t);
+  const r = await runLocal({ ...config, jobs: [job("process.kill(process.pid,'SIGTERM')")] });
+  assert.equal(r.state, 'FAIL');
+  assert.equal(r.jobs[0].signal, 'SIGTERM');
+});
+test(
+  'a parent exiting successfully with a live child is blocked and cleaned up',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const code =
+      "const {spawn}=require('node:child_process');const c=spawn(process.execPath,['-e','setInterval(()=>{},50)'],{stdio:'ignore'});console.log(c.pid);c.unref();";
+    const r = await runLocal({ ...config, jobs: [job(code)] });
+    assert.equal(r.jobs.length, 1, JSON.stringify(r));
+    assert.equal(r.state, 'BLOCKED');
+    assert.equal(r.jobs[0].leftChildren, true);
+    assert.equal(r.jobs[0].cleanup, 'PASS');
+    const pid = Number(readFileSync(join(r.directory, r.jobs[0].stdout.file), 'utf8').trim());
+    assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+  },
+);
+test(
+  'missing and tampered logs invalidate previously successful evidence',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    for (const mode of ['missing', 'changed']) {
+      const r = await runLocal({ ...config, jobs: [job('console.log("evidence")')] });
+      const path = join(r.directory, r.jobs[0].stdout.file);
+      if (mode === 'missing') rmSync(path);
+      else writeFileSync(path, 'replacement');
+      assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED');
+    }
+  },
+);
+test(
+  'stale source and wrong tool requirements cannot launch a passing command',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    for (const patch of [{ head: 'a'.repeat(40) }, { tree: 'b'.repeat(40) }, { node: '0.0.0' }]) {
+      const r = await runLocal({
+        ...config,
+        expected: { ...config.expected, ...patch },
+        jobs: [job('console.log("must not run")')],
+      });
+      assert.equal(r.state, 'BLOCKED');
+      assert.equal(r.jobs.length, 0);
+    }
+  },
+);
+test('unsupported native platforms are NOT_RUN, not simulated successes', { skip: !available }, async (t) => {
+  const { config, job } = fixture(t);
+  const r = await runLocal({ ...config, jobs: [job('process.exit(9)', { platform: 'win32', arch: 'x64' })] });
+  assert.equal(r.state, 'NOT_RUN');
+  assert.equal(r.jobs[0].state, 'NOT_RUN');
+  assert.equal(r.jobs[0].pid, undefined);
+});
+test('source mutation during execution invalidates the run', { skip: !available }, async (t) => {
+  const { config, job } = fixture(t);
+  const r = await runLocal({
+    ...config,
+    jobs: [job("require('node:fs').writeFileSync('source.txt','changed')")],
+  });
+  assert.equal(r.state, 'BLOCKED');
+});
+test(
+  'temporary non-repositories cannot inherit the enclosing checkout history',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const r = await runLocal({
+      ...config,
+      outputRoot: join(config.cwd, 'evidence'),
+      jobs: [
+        job(
+          "const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),cp=require('node:child_process');const cwd=fs.mkdtempSync(path.join(os.tmpdir(),'no-repository-'));const r=cp.spawnSync('/usr/bin/git',['rev-parse','HEAD'],{cwd,env:{PATH:process.env.PATH}});process.exit(r.status===128?0:9)",
+        ),
+      ],
+    });
+    assert.equal(r.state, 'PASS');
+  },
+);
+test('invalid jobs and absent executables do not silently pass', { skip: !available }, async (t) => {
+  const { config, job } = fixture(t);
+  assert.equal((await runLocal({ ...config, jobs: [] })).state, 'BLOCKED');
+  assert.equal(
+    (await runLocal({ ...config, jobs: [job('', { executable: '/missing/af-program' })] })).state,
+    'BLOCKED',
+  );
+  assert.equal((await runLocal({ ...config, jobs: [job('', { timeoutMs: 0 })] })).state, 'BLOCKED');
+});
+test(
+  'readback rejects stale candidate and report tampering; no private runtime directories remain',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const r = await runLocal({ ...config, jobs: [job('process.exit(0)')] });
+    assert.equal(verifyRun(r.directory, { ...config.expected, head: 'a'.repeat(40) }).state, 'BLOCKED');
+    assert.ok(!readdirSync(r.directory).includes('private'));
+    const path = join(r.directory, 'report.json');
+    const data = JSON.parse(readFileSync(path, 'utf8'));
+    data.jobs[0].exitCode = 1;
+    writeFileSync(path, JSON.stringify(data));
+    assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED');
+  },
+);
+test(
+  'readback rejects unknown job states even with a recomputed transport checksum',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const r = await runLocal({ ...config, jobs: [job('process.exit(0)')] });
+    const data = JSON.parse(readFileSync(join(r.directory, 'report.json'), 'utf8'));
+    data.jobs[0].state = 'UNRECOGNIZED';
+    const bytes = JSON.stringify(data, null, 2) + '\n';
+    writeFileSync(join(r.directory, 'report.json'), bytes);
+    writeFileSync(
+      join(r.directory, 'report.sha256'),
+      createHash('sha256').update(bytes).digest('hex') + '\n',
+    );
+    assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED');
+  },
+);
+test(
+  'hidden index flags cannot bind changed executable bytes to an old tree',
+  { skip: !available },
+  async (t) => {
+    for (const flag of ['--assume-unchanged', '--skip-worktree']) {
+      const { config, job, git } = fixture(t);
+      writeFileSync(join(config.cwd, 'check.mjs'), 'process.exit(7);\n');
+      git('add', 'check.mjs');
+      git(
+        '-c',
+        'user.name=Fixture',
+        '-c',
+        'user.email=fixture@example.test',
+        '-c',
+        'commit.gpgsign=false',
+        'commit',
+        '-m',
+        'Failing source',
+      );
+      config.expected.head = git('rev-parse', 'HEAD');
+      config.expected.tree = git('rev-parse', 'HEAD^{tree}');
+      git('update-index', flag, 'check.mjs');
+      writeFileSync(join(config.cwd, 'check.mjs'), 'process.exit(0);\n');
+      assert.equal(git('status', '--porcelain', '--untracked-files=no'), '');
+      const r = await runLocal({ ...config, jobs: [job('', { args: ['check.mjs'] })] });
+      assert.equal(r.state, 'BLOCKED');
+      assert.equal(r.jobs.length, 0);
+    }
+  },
+);
+test(
+  'a reason cannot excuse PASS over a real failed command after checksum recomputation',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const r = await runLocal({ ...config, jobs: [job('process.exit(7)')] });
+    assert.equal(r.state, 'FAIL');
+    const data = JSON.parse(readFileSync(join(r.directory, 'report.json'), 'utf8'));
+    data.state = 'PASS';
+    data.reason = 'synthetic bypass attempt';
+    const bytes = JSON.stringify(data, null, 2) + '\n';
+    writeFileSync(join(r.directory, 'report.json'), bytes);
+    writeFileSync(
+      join(r.directory, 'report.sha256'),
+      createHash('sha256').update(bytes).digest('hex') + '\n',
+    );
+    assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED');
+  },
+);
+test(
+  'readback rejects missing or mistyped mandatory process evidence fields',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const r = await runLocal({ ...config, jobs: [job('process.exit(0)')] });
+    for (const key of [
+      'signal',
+      'timedOut',
+      'leftChildren',
+      'processFailure',
+      'logFailure',
+      'pid',
+      'startedAt',
+      'finishedAt',
+      'exitCode',
+    ]) {
+      for (const mode of ['missing', 'wrong-type']) {
+        const data = structuredClone(r);
+        if (mode === 'missing') delete data.jobs[0][key];
+        else data.jobs[0][key] = {};
+        const bytes = JSON.stringify(data, null, 2) + '\n';
+        writeFileSync(join(r.directory, 'report.json'), bytes);
+        writeFileSync(
+          join(r.directory, 'report.sha256'),
+          createHash('sha256').update(bytes).digest('hex') + '\n',
+        );
+        assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED', `${key}: ${mode}`);
+      }
+    }
+    const data = structuredClone(r);
+    delete data.source.trackedSnapshotSha256;
+    const bytes = JSON.stringify(data, null, 2) + '\n';
+    writeFileSync(join(r.directory, 'report.json'), bytes);
+    writeFileSync(
+      join(r.directory, 'report.sha256'),
+      createHash('sha256').update(bytes).digest('hex') + '\n',
+    );
+    assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED');
+  },
+);
