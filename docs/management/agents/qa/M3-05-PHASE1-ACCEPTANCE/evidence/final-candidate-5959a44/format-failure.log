@@ -1,0 +1,5 @@
+5959a44 exact candidate local run
+Stage: npm run check / format:check
+Failure: docs/management/agents/qa/M3-05-PHASE1-ACCEPTANCE/evidence/browser-driver-review/result.json
+Expected: clean format gate before accepting Node or browser workflow
+Actual: Prettier reported this file and npm check exited 1

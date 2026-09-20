@@ -1,0 +1,50 @@
+{
+  "9aefa70-import-ui.log": {
+    "bytes": 89,
+    "sha256": "ee41a1b3625196169dcf82e6ee2b468ac9ee670818377418423a0640c4cca4d3"
+  },
+  "9aefa70-method-clean-tests.log": {
+    "bytes": 4350,
+    "sha256": "72fc43d81934e01794841779cd248cfca9211df53c94396ee42a525a64b4f4f6"
+  },
+  "9aefa70-method-prepared-tests.log": {
+    "bytes": 3426,
+    "sha256": "b649ae41f2235259fdc0fa69cbedb560fe88b877c58531d97e65ee955d0ad0c4"
+  },
+  "9aefa70-prepare.json": {
+    "bytes": 804,
+    "sha256": "b8f42f9c70faad7c1b92e36518b4b173299f6b34c1d61343b72bd58fc6b8039a"
+  },
+  "browser-capture-loss.json": {
+    "bytes": 347,
+    "sha256": "7a0cc42f5485d37c484c832116f2980b84635ac731d3de463709b65c1491e834"
+  },
+  "c358035-browser-coverage-tests.log": {
+    "bytes": 785,
+    "sha256": "28aba5d872da566e8189a1b0ef2e003abf84035d6b5753a818abb2ada66a8923"
+  },
+  "coverage-versioned-probe.json": {
+    "bytes": 1100,
+    "sha256": "b36432cfdeece92d6135568d4a3de8e8391ebf47a14897ab59d806f8f31efecb"
+  },
+  "ignored-raw-SHA256SUMS.json": {
+    "bytes": 7373,
+    "sha256": "6fa6c8071a8ec3ba5ee06e9b0adf9698656ee7f629e1de2bad008fa947390a9d"
+  },
+  "probe-browser-capture-loss.mjs.txt": {
+    "bytes": 1786,
+    "sha256": "6b9d6c7eeafffb60f9fa4add15656350d45e2e3bf81b2facfe5d715c377a3c3c"
+  },
+  "probe-coverage-versioned.mjs.txt": {
+    "bytes": 1613,
+    "sha256": "59608ac3d30be1e13b3095be2ddeb38fdf0b46687cc46f6ce77e43103224ec70"
+  },
+  "tool-copy-receipt.json": {
+    "bytes": 247,
+    "sha256": "a6fef500233d0426eae116779580f007e1ebb0e3935fe9a600488028cfc2ed83"
+  },
+  "1845447-browser-coverage-7.log": {
+    "bytes": 881,
+    "sha256": "87e4ee9e88a99de46e04b7341aca91734136407f563b0a9e81c7166dcc70651c"
+  }
+}

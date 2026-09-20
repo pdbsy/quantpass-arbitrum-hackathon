@@ -97,3 +97,7 @@ Overall worker review is `CHANGES_REQUIRED`; this supplement does not replace ex
 06 actual-source binding, strict readback and complete logs now pass at `c817e94` (19/19 and 22 extra cases). 04 reusable browser driver independently passes at `f26e919` (43/43, typecheck, real DEV_MOCK browser 8 groups / 9 exact sends). Both remain `FINAL_INTEGRATION_PENDING`; see [Browser Driver Review](BROWSER-DRIVER-REVIEW.md).
 
 LOCAL identity tool at exact `62444c86c35c9af4c1a76a49c9a7c231f5a47f90` passes 58/58 independent tests and source review (`PASS_AT_62444C8 / REAL_CANDIDATE_VALIDATION_PENDING`); [Local Identity Review](LOCAL-IDENTITY-REVIEW.md) separates fixture qualification from real candidate provenance.
+
+Coverage method retest: 9aefa70 clean candidate 7 suites 41/41 after explicit `import:ui` prerequisite; versioned Node workflows PASS/FAIL readback preserved; 04 browser fix 1845447 7/7 qualified. Overall method admission remains `PENDING` until exact 5959a44 candidate replay and manager browser/node union. See [Coverage Method Retest](COVERAGE-METHOD-RETEST.md).
+
+Exact `5959a44` combined Node+browser coverage run: `FAIL / NOT_ADMITTED`; `npm run check` stopped at format:check on the old public browser result. Partial dimension counters are retained only as failed-run diagnostics. Follow-up candidate required.

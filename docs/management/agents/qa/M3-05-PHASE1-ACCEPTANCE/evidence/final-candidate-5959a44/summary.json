@@ -1,0 +1,19 @@
+{
+  "candidate": "5959a441f9e199ec325bbbf86bce94511a90e210",
+  "tree": "4b2b51f3cc39ab086e850b8616cd509fb604a43f",
+  "base": "18f5352070910a867b9729b031aa2e3951785e01",
+  "nodeQualification": "PASS 5/5",
+  "browserQualification": "PASS 7/7",
+  "unifiedRun": "FAIL",
+  "failureStage": "npm run check / format:check",
+  "failureFile": "docs/management/agents/qa/M3-05-PHASE1-ACCEPTANCE/evidence/browser-driver-review/result.json",
+  "functionalState": "FAIL",
+  "thresholdMet": false,
+  "reportedDimensions": {
+    "lines": 19.29,
+    "statements": 19.16,
+    "functions": 21.71,
+    "branches": 14.32
+  },
+  "interpretation": "Not a final coverage result; run stopped by exact-candidate functional gate before browser workflow completion."
+}

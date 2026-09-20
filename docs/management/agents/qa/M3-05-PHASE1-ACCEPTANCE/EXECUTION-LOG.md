@@ -498,3 +498,7 @@ The manager's integrated privacy check detected personal filesystem paths in the
 The first current-tree privacy rerun rejected the retained PNG as `file-contains-nul`. Its identical bytes were preserved in the ignored private evidence directory and removed from the public tracked tree; the original published hash entry remains unchanged with its local storage location documented. The scanner and its budget were not relaxed.
 
 Corrected current-tree `npm run privacy:check` passed over 551 bounded files before archiving this log. Evidence `evidence/public-report-privacy-pass.log`, SHA-256 `eb20bdd57df7c620c990f6dc7a7ddc0effe18709b0b18dfc426d1b9e7aa9fa80`. Historical personal paths remain a separate manager publication decision.
+
+Macbeth05 independently reviewed versioned coverage at 9aefa70 and 04 browser capture fix 1845447; exact details and evidence are in [Coverage Method Retest](COVERAGE-METHOD-RETEST.md). This does not admit the method or close overall coverage.
+
+Exact candidate `5959a44` replay: 5/5 Node qualified and 7/7 browser qualified; combined run stopped at npm check format failure on the old browser result JSON. Full raw outputs are ignored; public summary and hash are in [Final Candidate Retest](FINAL-CANDIDATE-RETEST.md). No coverage percentage or method admission was inferred.

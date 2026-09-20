@@ -1,0 +1,24 @@
+import { EventEmitter } from 'node:events';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createBrowserCoverageLifecycle } from '/private/tmp/AlphaForge-M3-05-BROWSER-F26E919/tools/coverage/browser-lifecycle.mjs';
+const manifest={candidateCommit:'1'.repeat(40),candidateTree:'2'.repeat(40),toolDigest:'3'.repeat(64),sources:{}};
+class Page extends EventEmitter {
+  originalGotoCalled=false;
+  isClosed(){return false;}
+  mainFrame(){return this;}
+  async evaluate(){throw new Error('Execution context was destroyed during navigation');}
+  async goto(){this.originalGotoCalled=true;return 'navigation-success';}
+  async reload(){return 'reload-success';}
+  async close(){return 'closed';}
+}
+const page=new Page();const directory=mkdtempSync(join(tmpdir(),'af-qa-capture-loss-'));
+const tracker=createBrowserCoverageLifecycle({manifest,outputDirectory:directory,loaded:new Set()});tracker.registerPage(page);
+let error;
+try {await page.goto('http://127.0.0.1/');} catch(e){error=e.message;}
+const result=await tracker.finish();
+const page2=new Page();const tracker2=createBrowserCoverageLifecycle({manifest,outputDirectory:mkdtempSync(join(tmpdir(),'af-qa-capture-final-loss-')),loaded:new Set()});tracker2.registerPage(page2);
+let finishError,zero;
+try{await tracker2.finish();}catch(e){finishError=e.message;zero=e.browserCoverage.observations.every(r=>r.complete===false&&Object.keys(r.sources).length===0);}
+console.log(JSON.stringify({sourceCommit:'c35803523b4219059826fd7fd5b26af96f397e4e',captureFailure:error,navigationActuallyAttempted:page.originalGotoCalled,incomplete:result.observations.map(r=>({complete:r.complete,sources:r.sources})),finalCaptureError:finishError,finalIncompleteIsZero:zero},null,2));

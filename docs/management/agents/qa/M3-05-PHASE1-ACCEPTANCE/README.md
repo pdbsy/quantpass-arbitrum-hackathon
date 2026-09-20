@@ -27,6 +27,9 @@ Current status: `WORKER_FIXES_VERIFIED / FINAL_INTEGRATION_PENDING`. The latest 
 - [Worker Delivery Review](WORKER-DELIVERY-REVIEW.md)
 - [Browser Driver Review](BROWSER-DRIVER-REVIEW.md)
 - [Local Identity Review](LOCAL-IDENTITY-REVIEW.md)
+- [Coverage Method Retest](COVERAGE-METHOD-RETEST.md)
 - [Final Candidate Acceptance Preparation](FINAL-CANDIDATE-ACCEPTANCE-PREP.md)
 
 Generated or temporary evidence remains isolated from source records and is referenced by exact path and hash. Base results are not an approval of a later candidate; every applicable item will be rerun or explicitly inherited against the exact final candidate supplied by Macbeth01.
+
+`5959a44` exact-candidate replay is recorded in [Final Candidate Retest](FINAL-CANDIDATE-RETEST.md): Node coverage qualified 5/5 and browser qualified 7/7, but combined coverage stopped with `npm run check` format failure on the old `result.json`; no threshold or method admission is claimed.

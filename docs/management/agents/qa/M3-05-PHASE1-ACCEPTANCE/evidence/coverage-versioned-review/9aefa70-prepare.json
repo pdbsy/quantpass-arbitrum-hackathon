@@ -1,0 +1,15 @@
+{
+  "directory": "/private/tmp/AlphaForge-M3-05-COVERAGE-9AEFA70/outputs/phase1-local-closeout/coverage/2026-09-20T16-29-55.236Z-ed197472-7dda-4619-b67f-cebb7b86277a",
+  "schemaVersion": 1,
+  "provider": "LOCAL",
+  "status": "PREPARED_NOT_MEASURED",
+  "runId": "2026-09-20T16-29-55.236Z-ed197472-7dda-4619-b67f-cebb7b86277a",
+  "sourceCommit": "9aefa70c7af30f5710500d128c7aa49e20fda7e4",
+  "sourceTree": "ab0d9c084c1d384e6a299f849586eb789a82830d",
+  "baseCommit": "18f5352070910a867b9729b031aa2e3951785e01",
+  "manifestSha256": "bac8be802db437da0efaedd4e9049b80c4099eb86acf70aba1faf523f51f69c4",
+  "generatedSha256": "0a37860f9c4b31d946b37dffc9b6c594d86951b98cd847e9ed34302cc2db9949",
+  "toolDigest": "9c7cfe03cb7dd97d5313a61d4e70d85ccb38c3b9a97ab287c950c27bbffaa39a",
+  "sources": 128,
+  "aliases": 1
+}
