@@ -103,7 +103,7 @@ const uintResult = (value: bigint) => `0x${value.toString(16).padStart(64, '0')}
 class DevProvider implements Eip1193Provider {
   readonly requests: Eip1193Request[] = [];
   chainId = 1;
-  account = OWNER;
+  account: Address | null = OWNER;
   readonly usdcAllowances = new Map<string, bigint>([
     [VAULT.toLowerCase(), 0n],
     [SECOND_VAULT.toLowerCase(), 0n],
@@ -123,7 +123,8 @@ class DevProvider implements Eip1193Provider {
 
   async request(input: Eip1193Request): Promise<unknown> {
     this.requests.push(input);
-    if (input.method === 'eth_requestAccounts' || input.method === 'eth_accounts') return [this.account];
+    if (input.method === 'eth_requestAccounts' || input.method === 'eth_accounts')
+      return this.account ? [this.account] : [];
     if (input.method === 'eth_chainId') return `0x${this.chainId.toString(16)}`;
     if (input.method === 'eth_getBlockByNumber') return { number: '0x64', hash: BLOCK_HASH };
     if (input.method === 'eth_getCode')
@@ -145,6 +146,7 @@ class DevProvider implements Eip1193Provider {
         data.length === 138
       ) {
         const transferAmount = BigInt(`0x${data.slice(74)}`);
+        if (!this.account) throw new Error('DEV_FIXTURE_WALLET_DISCONNECTED');
         const key = this.account.toLowerCase();
         const balance = this.passBalances.get(key) ?? 0n;
         if (transferAmount > balance) throw new Error('DEV_FIXTURE_INSUFFICIENT_PASS_BALANCE');
@@ -259,6 +261,7 @@ export interface M3InjectedRuntimeFixture {
   setOwner(): Promise<void>;
   setSecondOwner(): Promise<void>;
   setNonOwner(): Promise<void>;
+  setDisconnected(): Promise<void>;
   selectFirstVault(): Promise<void>;
   selectSecondVault(): Promise<void>;
   setSoftReady(): Promise<void>;
@@ -303,6 +306,10 @@ export function createM3InjectedRuntimeFixture(): M3InjectedRuntimeFixture {
     },
     setNonOwner: async () => {
       provider.account = NON_OWNER;
+      await runtime.refresh();
+    },
+    setDisconnected: async () => {
+      provider.account = null;
       await runtime.refresh();
     },
     selectFirstVault: () => runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT }),
@@ -364,6 +371,20 @@ export function createM3InjectedRuntimeFixture(): M3InjectedRuntimeFixture {
   });
 }
 
+export function m3InjectedRuntimeEvidence(fixture: M3InjectedRuntimeFixture) {
+  return Object.freeze({
+    snapshot: fixture.runtime.snapshot,
+    providerRequests: Object.freeze(
+      fixture.providerRequests.map((request) =>
+        Object.freeze({
+          method: request.method,
+          ...(request.params ? { params: request.params } : {}),
+        }),
+      ),
+    ),
+  });
+}
+
 export function installM3InjectedRuntimeControls(fixture: M3InjectedRuntimeFixture): void {
   const main = document.querySelector('main');
   if (!main || document.querySelector('[data-m3-fixture-controls]')) return;
@@ -371,21 +392,29 @@ export function installM3InjectedRuntimeControls(fixture: M3InjectedRuntimeFixtu
   controls.className = 'wrap dialog-notice';
   controls.setAttribute('data-m3-fixture-controls', '');
   controls.innerHTML =
-    '<strong>DEV TRANSPORT MOCK / PRODUCTION RUNTIME / NO REAL RIGHTS OR FUNDS / NO BROADCAST</strong><div class="inline-actions"><button data-m3-fixture="network">Use correct network</button><button data-m3-fixture="wrong-network">Use wrong network</button><button data-m3-fixture="vault-a">Select Vault A</button><button data-m3-fixture="vault-b">Select Vault B</button><button data-m3-fixture="owner">Use owner A wallet</button><button data-m3-fixture="owner-b">Use owner B wallet</button><button data-m3-fixture="non-owner">Use non-owner wallet</button><button data-m3-fixture="soft-ready">Soft ready</button><button data-m3-fixture="reorg">Reorg</button><button data-m3-fixture="degraded">Indexer degraded</button><button data-m3-fixture="closed">Close Vault state</button></div>';
+    '<strong>DEV TRANSPORT MOCK / PRODUCTION RUNTIME / NO REAL RIGHTS OR FUNDS / NO BROADCAST</strong><div class="inline-actions"><button data-m3-fixture="network">Use correct network</button><button data-m3-fixture="wrong-network">Use wrong network</button><button data-m3-fixture="vault-a">Select Vault A</button><button data-m3-fixture="vault-b">Select Vault B</button><button data-m3-fixture="owner">Use owner A wallet</button><button data-m3-fixture="owner-b">Use owner B wallet</button><button data-m3-fixture="non-owner">Use non-owner wallet</button><button data-m3-fixture="disconnected">Disconnect wallet</button><button data-m3-fixture="soft-ready">Soft ready</button><button data-m3-fixture="reorg">Reorg</button><button data-m3-fixture="degraded">Indexer degraded</button><button data-m3-fixture="closed">Close Vault state</button></div>';
+  const publishEvidence = () => {
+    controls.setAttribute('data-m3-fixture-evidence', JSON.stringify(m3InjectedRuntimeEvidence(fixture)));
+  };
+  fixture.runtime.subscribe(publishEvidence);
   controls.addEventListener('click', (event) => {
     const button = (event.target as Element).closest<HTMLButtonElement>('[data-m3-fixture]');
     if (!button) return;
-    if (button.dataset.m3Fixture === 'network') fixture.setCorrectNetwork();
-    else if (button.dataset.m3Fixture === 'wrong-network') void fixture.setWrongNetwork();
-    else if (button.dataset.m3Fixture === 'vault-a') void fixture.selectFirstVault();
-    else if (button.dataset.m3Fixture === 'vault-b') void fixture.selectSecondVault();
-    else if (button.dataset.m3Fixture === 'owner') void fixture.setOwner();
-    else if (button.dataset.m3Fixture === 'owner-b') void fixture.setSecondOwner();
-    else if (button.dataset.m3Fixture === 'non-owner') void fixture.setNonOwner();
-    else if (button.dataset.m3Fixture === 'soft-ready') void fixture.setSoftReady();
-    else if (button.dataset.m3Fixture === 'reorg') void fixture.setReorged();
-    else if (button.dataset.m3Fixture === 'degraded') void fixture.setDegraded();
-    else if (button.dataset.m3Fixture === 'closed') void fixture.setClosed();
+    let action: void | Promise<void> = undefined;
+    if (button.dataset.m3Fixture === 'network') action = fixture.setCorrectNetwork();
+    else if (button.dataset.m3Fixture === 'wrong-network') action = fixture.setWrongNetwork();
+    else if (button.dataset.m3Fixture === 'vault-a') action = fixture.selectFirstVault();
+    else if (button.dataset.m3Fixture === 'vault-b') action = fixture.selectSecondVault();
+    else if (button.dataset.m3Fixture === 'owner') action = fixture.setOwner();
+    else if (button.dataset.m3Fixture === 'owner-b') action = fixture.setSecondOwner();
+    else if (button.dataset.m3Fixture === 'non-owner') action = fixture.setNonOwner();
+    else if (button.dataset.m3Fixture === 'disconnected') action = fixture.setDisconnected();
+    else if (button.dataset.m3Fixture === 'soft-ready') action = fixture.setSoftReady();
+    else if (button.dataset.m3Fixture === 'reorg') action = fixture.setReorged();
+    else if (button.dataset.m3Fixture === 'degraded') action = fixture.setDegraded();
+    else if (button.dataset.m3Fixture === 'closed') action = fixture.setClosed();
+    void Promise.resolve(action).finally(publishEvidence);
   });
   main.before(controls);
+  publishEvidence();
 }
