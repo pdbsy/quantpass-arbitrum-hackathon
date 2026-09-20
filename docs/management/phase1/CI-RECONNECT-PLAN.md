@@ -60,3 +60,43 @@ GitHub 允许将必需状态限定为具体 App 来源；同名 context 的任�
 5. 回滚到已审核配置/镜像和匹配数据库备份，重新验证准确候选；若不能恢复，门禁保持阻塞。只有明确授权才能退回旧来源规则，并需真实旧来源新验证、规则差异和回读记录。
 
 本轮状态：L1 方案已有实际证据；L2/L3 未部署，GITHUB_CHECKS_PAUSED，EXTERNAL_SECURITY_BLOCKED、GOVERNANCE_BLOCKED、REVIEW_BLOCKED、MERGE_NOT_AUTHORIZED、TESTNET_NOT_DEPLOYED 不由06本地结果解除。仓库整体状态由01汇总准确最终候选后裁决。
+
+## 可交付接回参数包（全部禁用，仅供批准前核对）
+
+以下值将来由01/独立验证控制者确认；UNKNOWN/UNASSIGNED不是可以自动补全的默认值。
+
+| 参数 | 当前值/提案 | 启用所需证据 |
+| --- | --- | --- |
+| enabled / publishStatus / mutateRuleset | `false / false / false` | 用户明确恢复及选定路径；本轮不执行 |
+| repository | `pdbsy/quantpass-arbitrum-hackathon` | 后续只读核验实际数字repository ID及组织/所有者范围，当前ID未重新查询 |
+| billingAccount / SKU / remainingBudget | `UNKNOWN / UNKNOWN / UNKNOWN` | 实际账户账单与预算确认；公共文档不足 |
+| candidateH / baseB / checkoutQ / checkoutTreeM | `UNASSIGNED`（3a78e34仅历史PoC源） | 最终集成后冻结准确SHA及关系，不使用移动branch作为身份 |
+| verifierAppName / appId / installationId | 拟名`alphaforge-verifier` / `UNASSIGNED` / `UNASSIGNED` | 经批准创建及实际平台回读；绝不填旧15368 |
+| expectedSource | 上述真实新App ID，未创建 | 每一新required context绑定该ID；错误来源负例不能通过 |
+| policyOwner / policyRepository / policyCommit | `UNASSIGNED` | 独立控制主体、受保护仓库及不可变政策版本；受检PR不能覆盖 |
+| policyInputs | 命令矩阵、工具/镜像摘要、锁清单、coverage方法/阈值、来源/日志/清理要求 | 与迁移前准确政策逐条对照，审批记录及摘要 |
+| resultMaxAge | 拟议24小时，尚未批准 | 用户选定时效；H/B/Q/M/政策变化均立即失效，与年龄无关 |
+| executionTargets | Linux x64 / 原生Windows x64 / 原生macOS arm64 | 每类实际独立隔离节点准入；当前Windows/Linux缺口未解决 |
+| node/npm/Python | 24.21.0 / 11.19.1 / 3.12.9（Python按相应job） | 精确资产摘要/架构及版本准入，不自动升级 |
+| controlPlane | L1本轮；L2产品`UNSELECTED` | 选择服务后另审固定发行资产/JDK/plugins/存储/维护责任 |
+| credentials/network | 本轮无；拟议权限见上表 | 密钥控制者、TTL/轮换、受控出站/TLS及按需webhook；不交给构建 |
+| migrationMode | `shadow-only`提案，尚未启用 | 独立验收后另批required规则变更，旧规则保留 |
+| rollbackOwner / backupRef | `UNASSIGNED` | 实際备份、可恢复版本和演练记录；故障保持阻塞 |
+
+九个job的拟议新context精确表如下；命名仍是未注册提案，只有真实新App签发才能参与后续资格验证。
+
+| 原job | 拟议新context | 不降低语义的比较基准 |
+| --- | --- | --- |
+| verify | `alphaforge-external/linux-engineering/v1` | 同完整工程链、原生Linux x64、identity/governance及在线依赖audit |
+| verify-macos | `alphaforge-external/macos-engineering/v1` | 原生arm64、完整工程链和工具准入 |
+| verify-windows | `alphaforge-external/windows-engineering/v1` | 原生Windows x64、完整工程链；保留文件级失败，不以单次重跑消除根因未定 |
+| contracts-m3-macos | `alphaforge-external/contracts/v1` | 原生macOS arm64、同锁定合约工具/全测试与产物验证 |
+| semgrep-ce | `alphaforge-external/semgrep/v1` | 相同完整源清单、规则/fixtures/版本、错误与缺报告阻塞 |
+| osv-scanner | `alphaforge-external/osv/v1` | 相同全部包身份与新鲜完整响应，不漏包/网络失败放行 |
+| gitleaks | `alphaforge-external/gitleaks/v1` | 同完整refs/历史/文件清单/canary，准确且有效的历史例外，不扩容例外 |
+| source-policy-js | `alphaforge-external/source-policy/v1` | 相同受控文件清单与规则，仍披露非CodeQL等价 |
+| dependency-delta-audit | `alphaforge-external/dependency-delta/v1` | 同准确候选依赖差异/元数据与在线audit；缺base或响应阻塞 |
+
+绑定须明确区分四个对象：PR源head H、target base B、实际执行checkout Q、Q对应tree M。若仅执行H，必须标`Q=H`而不能宣称验证合并树；若保护流程要求merge commit或merge-group，则可信控制面获取并复核Q的父提交/合并队列关系，源码与报告同时绑定B/H/Q/M。签发对象使用平台对该事件真正要求的commit；在试点证明语义前不启用。即使两次H的tree相同，commit或base变化也重新裁决。
+
+迁移验收需生成一张由独立reviewer确认的“旧政策摘要→新政策摘要”对照表：覆盖文件/包/历史refs分母、命令和所有步骤、原生平台、工具版本、超时/取消与非零退出、缺日志/缺网络、覆盖率四维指标及冻结阈值、历史例外范围/期限、来源App、准确候选和有效review。每条都要有真实正例/负例；任何缺失标BLOCKED。旧绿灯与新编排器能启动只能证明局部可用性，不能替代这张语义验收表。至今该迁移验收NOT_RUN。

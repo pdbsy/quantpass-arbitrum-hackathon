@@ -96,3 +96,24 @@ Windows supervisor尚未实现资格验证；Linux supervisor未做本机实测�
 ## 执行计划完成记录
 
 先写真实Git/进程负向测试并保留RED，再实现runLocal/verifyRun/CLI，随后在独立准确源码上验收并保留失败，最后交付五份文档和本地commit/证据包。上述实现与限定验证已完成；不选择push/PR/merge路径，不新建worker。package脚本注册、完整最终候选独立复验及所有外部准入仍由01在相应授权下处理。
+
+## 交付包与重放说明
+
+首份代码交付为 `d1c52e32510f2efee5e2896a246f749b19cc22f1`，8个新增文件。只增补的交付/参数说明可能有后续06提交，需按最新回执选取；不改写这个已交付提交。`.checks/macbeth06-ci-delivery/DELIVERY.json`记录以下首份包的长度/摘要：
+
+- `macbeth06-local-ci.bundle`：06分支完整历史，SHA-256 `002768d3c80916b54fbf11d23a6ac8ad36c6c62a9d3ce7abaf580ff10a99fb4b`。
+- `alphaforge-source-3a78e34.bundle`：被测源完整历史，SHA-256 `bb0f2a65dfd36569486f27e3e0adf206e18d31fa7b3ed9af73951e92dad4a760`。
+- `local-ci-evidence.tar.gz`：配置、接受脚本、全部PoC成功/失败日志、报告、公开研究原件和`EVIDENCE-INDEX.json`；不含node_modules/钱包/凭据，SHA-256 `7d60d0101aaebbe07b91beaa820365f12345857a6bf73c3fbe0ffcce27e1b899`。
+
+两个bundle均经`git bundle verify`确认完整历史。证据索引自身SHA-256 `119f677ce23c985256e17a6db7ed86c75c2db9a258161ac99922dd50ffd86e50`；最终接受汇总SHA-256 `94a1074f008be543e566f33ec6030fd795763e69fb2e9e14e19f03d51b6599c1`。包外摘要经已授权01交付，仍不等于独立可信签名。
+
+重放分为“只读核验旧产物”和“重新执行产生新产物”，不能把路径改写后的JSON叫作原始证据：
+
+1. 从回执取得准确包和摘要，先SHA-256核对，再`git bundle verify`。在新的独立临时目录恢复两个仓库，分别checkout准确06代码commit和3a78e34；不得复用可写node_modules/SQLite。保留bundle中的完整历史，不浅克隆、不replace refs。
+2. 解压证据包到独立目录，逐文件核对EVIDENCE-INDEX中的bytes/sha256；`run-Uh12ww`缺stdout是预先声明的负例，不补造该日志。初始失败、各版接受汇总和最终运行目录都保留。索引只覆盖文件一致性，不能推导run成功。
+3. 原位置可以用精确Node24.21.0加载同版runner，向`verifyRun(originalRunDirectory, expected)`传入上述base/head/tree/node；期望按最终表返回PASS/FAIL/NOT_RUN/BLOCKED。回读会检查原manifest中的绝对可执行路径及摘要。另一台机器缺少该路径/二进制时，旧报告回读BLOCKED是正确的；仍可离线核对归档字节，但不能把它伪装成本机执行证明。
+4. 重新执行时，先验证本机原生OS/arch和精确Node/npm。只为独立3a78e34源码安装自己的锁定依赖；可用`npm ci --offline --ignore-scripts --no-audit --no-fund`，缺合格缓存就BLOCKED，不能自动联网/升级补齐。执行器测试仅用Node内置模块；新增14项的准确命令在上文。
+5. 复制`configs/*.json`为**新配置**，只修改`cwd`、新`outputRoot`及已核验Node的`executable`；expected保留准确被测源与版本。可信任务平台仍保留darwin/arm64：不同平台先NOT_RUN，不为追求PASS修改目标。用CLI执行每份配置，逐项保留退出0/1/2；不要用shell吞掉失败后只记录最后一个成功。
+6. 按接受脚本同样的8类场景复验。缺日志负例仅删除新建合成run的stdout；不破坏原归档。新run应产生新的随机目录/时间/摘要，不要求与旧日志逐字相同。检查失败report未变、所有子进程/组已退出、私有temp已清理，保存新接受汇总，并明确本机源码与环境。
+
+当前worker工作区无tracked改动。01集成时应以已审核06 commit及其8文件变更为来源记录，保留作者/Agent-ID/Task-ID；不要把真实源bundle的经理混合历史合并进普通worker分支。05的执行器审查及01集成复验独立记录，不能由本页预先赋予PASS。
