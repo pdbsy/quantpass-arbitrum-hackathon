@@ -1,5 +1,7 @@
 # AlphaForge：Windows 文件级失败调查
 
+> 2026-09-21 状态更新：用户已自行将仓库公开，并授权恢复GitHub只读核查与正常PR验证；由01统一调度，06不自行push/rerun。下文预算暂停阶段的记录保留为历史，不再表示当前全面禁止查询。merge、部署、规则变更、新服务/larger runner仍未授权。执行器初版证据已被05提出P1/P2；当前修复证据见CI-LOCAL-POC末尾追加，不以初版PASS代替复核。
+
 Macbeth06 / M3-06-CI-GATES；2026-09-20。结论：**UNDETERMINED / NON-REPRODUCED_ON_ONE_RERUN**。没有证明 flaky，也没有代码修复可归因。本轮原生 Windows 验证 **NOT_RUN**；Actions/Checks 的触发和状态查询持续暂停。
 
 ## 已保存事实

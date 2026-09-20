@@ -5,6 +5,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 
 const module = await import('../tools/local-ci/runner.mjs').catch(() => ({}));
 const { runLocal, verifyRun } = module;
@@ -13,6 +15,39 @@ test('local evidence runner is available before commands can be accepted', () =>
   assert.equal(typeof verifyRun, 'function');
 });
 const available = typeof runLocal === 'function' && process.platform !== 'win32';
+for (const channel of ['stdout', 'stderr']) {
+  test(
+    `${channel} short writes are completed and zero writes fail closed`,
+    { skip: !available },
+    async (t) => {
+      const { config, job } = fixture(t);
+      const original = fs.writeSync;
+      try {
+        fs.writeSync = (...args) => {
+          const [fd, buffer, offset = 0, length = buffer.length, position] = args;
+          return Buffer.isBuffer(buffer) && buffer.toString() === 'abcdefghijklmnop'
+            ? original(fd, buffer, offset, Math.min(1, length), position)
+            : original(...args);
+        };
+        syncBuiltinESMExports();
+        const r = await runLocal({ ...config, jobs: [job(`process.${channel}.write('abcdefghijklmnop')`)] });
+        assert.equal(r.state, 'PASS');
+        assert.equal(readFileSync(join(r.directory, r.jobs[0][channel].file), 'utf8'), 'abcdefghijklmnop');
+        fs.writeSync = (...args) =>
+          Buffer.isBuffer(args[1]) && args[1].toString() === 'must be captured' ? 0 : original(...args);
+        syncBuiltinESMExports();
+        const blocked = await runLocal({
+          ...config,
+          jobs: [job(`process.${channel}.write('must be captured')`)],
+        });
+        assert.equal(blocked.state, 'BLOCKED');
+      } finally {
+        fs.writeSync = original;
+        syncBuiltinESMExports();
+      }
+    },
+  );
+}
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'af-local-ci-test-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
@@ -238,6 +273,96 @@ test(
     const r = await runLocal({ ...config, jobs: [job('process.exit(0)')] });
     const data = JSON.parse(readFileSync(join(r.directory, 'report.json'), 'utf8'));
     data.jobs[0].state = 'UNRECOGNIZED';
+    const bytes = JSON.stringify(data, null, 2) + '\n';
+    writeFileSync(join(r.directory, 'report.json'), bytes);
+    writeFileSync(
+      join(r.directory, 'report.sha256'),
+      createHash('sha256').update(bytes).digest('hex') + '\n',
+    );
+    assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED');
+  },
+);
+test(
+  'hidden index flags cannot bind changed executable bytes to an old tree',
+  { skip: !available },
+  async (t) => {
+    for (const flag of ['--assume-unchanged', '--skip-worktree']) {
+      const { config, job, git } = fixture(t);
+      writeFileSync(join(config.cwd, 'check.mjs'), 'process.exit(7);\n');
+      git('add', 'check.mjs');
+      git(
+        '-c',
+        'user.name=Fixture',
+        '-c',
+        'user.email=fixture@example.test',
+        '-c',
+        'commit.gpgsign=false',
+        'commit',
+        '-m',
+        'Failing source',
+      );
+      config.expected.head = git('rev-parse', 'HEAD');
+      config.expected.tree = git('rev-parse', 'HEAD^{tree}');
+      git('update-index', flag, 'check.mjs');
+      writeFileSync(join(config.cwd, 'check.mjs'), 'process.exit(0);\n');
+      assert.equal(git('status', '--porcelain', '--untracked-files=no'), '');
+      const r = await runLocal({ ...config, jobs: [job('', { args: ['check.mjs'] })] });
+      assert.equal(r.state, 'BLOCKED');
+      assert.equal(r.jobs.length, 0);
+    }
+  },
+);
+test(
+  'a reason cannot excuse PASS over a real failed command after checksum recomputation',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const r = await runLocal({ ...config, jobs: [job('process.exit(7)')] });
+    assert.equal(r.state, 'FAIL');
+    const data = JSON.parse(readFileSync(join(r.directory, 'report.json'), 'utf8'));
+    data.state = 'PASS';
+    data.reason = 'synthetic bypass attempt';
+    const bytes = JSON.stringify(data, null, 2) + '\n';
+    writeFileSync(join(r.directory, 'report.json'), bytes);
+    writeFileSync(
+      join(r.directory, 'report.sha256'),
+      createHash('sha256').update(bytes).digest('hex') + '\n',
+    );
+    assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED');
+  },
+);
+test(
+  'readback rejects missing or mistyped mandatory process evidence fields',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const r = await runLocal({ ...config, jobs: [job('process.exit(0)')] });
+    for (const key of [
+      'signal',
+      'timedOut',
+      'leftChildren',
+      'processFailure',
+      'logFailure',
+      'pid',
+      'startedAt',
+      'finishedAt',
+      'exitCode',
+    ]) {
+      for (const mode of ['missing', 'wrong-type']) {
+        const data = structuredClone(r);
+        if (mode === 'missing') delete data.jobs[0][key];
+        else data.jobs[0][key] = {};
+        const bytes = JSON.stringify(data, null, 2) + '\n';
+        writeFileSync(join(r.directory, 'report.json'), bytes);
+        writeFileSync(
+          join(r.directory, 'report.sha256'),
+          createHash('sha256').update(bytes).digest('hex') + '\n',
+        );
+        assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED', `${key}: ${mode}`);
+      }
+    }
+    const data = structuredClone(r);
+    delete data.source.trackedSnapshotSha256;
     const bytes = JSON.stringify(data, null, 2) + '\n';
     writeFileSync(join(r.directory, 'report.json'), bytes);
     writeFileSync(

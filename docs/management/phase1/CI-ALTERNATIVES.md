@@ -1,5 +1,7 @@
 # AlphaForge：预算暂停期间的 CI 替代方案
 
+> 2026-09-21 状态更新：用户已自行将仓库公开，并授权恢复GitHub只读核查与正常PR验证；由01统一调度，06不自行push/rerun。下文预算暂停阶段的记录保留为历史，不再表示当前全面禁止查询。merge、部署、规则变更、新服务/larger runner仍未授权。执行器初版证据已被05提出P1/P2；当前修复证据见CI-LOCAL-POC末尾追加，不以初版PASS代替复核。
+
 Macbeth06 / M3-06-CI-GATES；资料核验日期 2026-09-20。结论是本轮采用 **L1：现有锁定脚本 + 一次性本地执行及证据入口**。已有实际 PoC；不安装 Woodpecker/Jenkins/act，不注册 runner，不申请 GitHub 凭据。L2 编排和 L3 独立门禁分别是未来方案，均未实施。
 
 本轮账单来源、额度归属、实际 SKU、计费周期和扣费原因仍为 UNKNOWN。公开文档不能证明账户实际账单。当前 GitHub 文档区分私有仓库标准 runner 配额、存储等费用，并说明 larger runner 即使公共仓库或有剩余额度也收费；self-hosted 的硬件运维仍由使用者承担。即使后来核实免费，也须用户明确恢复授权，不能据此自动重启 Actions。[GitHub 计费说明](https://docs.github.com/en/billing/concepts/product-billing/github-actions)

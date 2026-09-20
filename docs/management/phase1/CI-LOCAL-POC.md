@@ -1,5 +1,7 @@
 # AlphaForge：本地 CI PoC 及实际证据
 
+> 2026-09-21 状态更新：用户已自行将仓库公开，并授权恢复GitHub只读核查与正常PR验证；由01统一调度，06不自行push/rerun。下文预算暂停阶段的记录保留为历史，不再表示当前全面禁止查询。merge、部署、规则变更、新服务/larger runner仍未授权。执行器初版证据已被05提出P1/P2；当前修复证据见CI-LOCAL-POC末尾追加，不以初版PASS代替复核。
+
 Macbeth06 / M3-06-CI-GATES；2026-09-20。已完成限定范围的一次性本地执行器与真实验收。**14/14 新回归通过；固定项目源码31/31回归和三个现有检查脚本通过；负向场景全部按预期拒绝。** 不等于完整工程/覆盖率验收，更不等于 GitHub required checks、独立安全批准或 READY_TO_MERGE。
 
 本轮方案是 L1。没有安装编排服务、开放端口、注册 App/runner、注入状态凭据、触发或查询 Actions/Checks、push、PR/ruleset写入或链上操作。仅有官方公共资料研究和本地工作；不声称关闭了账户上其他自动任务。账单实际原因 UNKNOWN。
@@ -117,3 +119,19 @@ Windows supervisor尚未实现资格验证；Linux supervisor未做本机实测�
 6. 按接受脚本同样的8类场景复验。缺日志负例仅删除新建合成run的stdout；不破坏原归档。新run应产生新的随机目录/时间/摘要，不要求与旧日志逐字相同。检查失败report未变、所有子进程/组已退出、私有temp已清理，保存新接受汇总，并明确本机源码与环境。
 
 当前worker工作区无tracked改动。01集成时应以已审核06 commit及其8文件变更为来源记录，保留作者/Agent-ID/Task-ID；不要把真实源bundle的经理混合历史合并进普通worker分支。05的执行器审查及01集成复验独立记录，不能由本页预先赋予PASS。
+
+## 2026-09-21 独立审查问题修复追加
+
+05经01回传初版两个P1及一个P2，初版不能据14项PASS放行。此次修复使用追加提交，原d1c52e3及原报告不改写；05的最终复核结论仍须独立记录。
+
+- P1：拒绝所有assume-unchanged/skip-worktree等非普通index标记；执行前后逐个tracked普通文件计算Git blob摘要并与准确HEAD tree比较，同时核对执行位，拒绝symlink路径/不支持的tree类型。记录trackedSnapshotSha256；不依赖status隐藏规则。原始字节比较要求checkout实际字节与tree一致，CRLF转换/过滤器生成副本不能冒充原始源验收。
+- P1：报告回读要求pid、起止时间、退出码/信号、所有timeout/process/log/children布尔字段和cleanup等存在且类型合法，重新推导每job状态。顶层reason只能描述合法BLOCKED条件，无法令FAIL聚合变PASS；缺少tracked snapshot摘要也阻塞。摘要校验仍不具备独立签名效力。
+- P2：stdout/stderr逐次检查writeSync返回长度并循环补写；零/负/无效返回、写入错误或日志上限导致BLOCKED，不能以部分字节日志PASS。
+
+新增真实负例先RED，保存在 `review-p1-red.log`、`review-fields-red.log`、`review-snapshot-red.log`、`review-short-write-red.log`。短写故障注入初稿误拦截报告写入，测试卡住；已精确终止该测试进程并保留 `review-final-green.log`（失败，不能作GREEN）及 `review-zero-write-fixture/`。故障注入已限定为合成stdout/stderr载荷，不再干扰Git/报告文件；该修正未改变生产逻辑。
+
+当前最终 `review-final-delivery.log`：**19/19 PASS，0跳过/失败，37.659秒**；含assume-unchanged和skip-worktree的tracked `exit7→exit0`复现、reason改PASS、逐字段缺失/错类型、两个日志通道的短写/零写。Prettier/ESLint通过。
+
+同版执行器的真实源码及负向接受序列重新执行：`acceptance-review-final.json`，观察2026-09-20T16:04:04.598Z（北京时间09-21）。真实源仍是3a78e34/tree6f1a218；31项子集及3检查脚本通过。当前真实源run=`run-BgRpqX`，report SHA-256 `126fbb69f0f8add19c9eb9be95c0cdd7c231f7326d7cf1e2ee7fffddc18214f7`。命令失败`run-AMK9m5`仍FAIL，后续成功`run-Y31iAJ`未改写它；超时`run-CZZ6Cn`/信号`run-gCtlit`为FAIL；平台`run-9Ceqhk`为NOT_RUN；缺日志`run-hQXxlH`为BLOCKED。新序列14.237秒、执行器自身maxRSS665440KiB，不能外推九job容量。
+
+交付来源声明：d1c52e3及16d7868的实际Git author/committer均为工作区原有`Macbeth01 <Macbeth01@users.noreply.github.com>`配置；subject/Agent-ID/Task-ID标注的是执行本任务的Macbeth06。两者不一致已披露，历史原样保留，不伪称原Git作者是06。此后06自己新增提交采用命令级`Macbeth06 <Macbeth06@users.noreply.github.com>`，不修改全局配置或重写历史。旧bundle与索引继续保留；修复后交付使用新增版本包/清单。

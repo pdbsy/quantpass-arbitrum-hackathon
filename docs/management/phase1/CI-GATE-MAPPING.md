@@ -1,5 +1,7 @@
 # AlphaForge：九个 CI job 与本地验证映射
 
+> 2026-09-21 状态更新：用户已自行将仓库公开，并授权恢复GitHub只读核查与正常PR验证；由01统一调度，06不自行push/rerun。下文预算暂停阶段的记录保留为历史，不再表示当前全面禁止查询。merge、部署、规则变更、新服务/larger runner仍未授权。执行器初版证据已被05提出P1/P2；当前修复证据见CI-LOCAL-POC末尾追加，不以初版PASS代替复核。
+
 Macbeth06 / M3-06-CI-GATES；2026-09-20。映射固定于源码 `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8`、tree `6f1a21845a99e16a0ba171612cd97e9bf3439294` 的 `.github/workflows/ci.yml` 与 package.json。当前 GitHub 状态未查询。本轮 **GITHUB_CHECKS_PAUSED**。
 
 历史 required contexts 是 verify、verify-macos、verify-windows、semgrep-ce、osv-scanner、gitleaks、contracts-m3-macos，来源 integration 15368；另外保留 source-policy-js、dependency-delta-audit。这里引用保存的配置快照，不声称远端当前规则已经重新核验。本地结果使用 `local-*` ID，不回写这些 context。
@@ -34,3 +36,9 @@ Macbeth06 / M3-06-CI-GATES；2026-09-20。映射固定于源码 `3a78e34ba933f1e
 2. 新执行器本地 schemaVersion1 明确 `scope=trusted-local-only`、`independentAttestation=false`，保存 base/head/tree、manifest 与执行器/Node/可执行文件摘要、exit/signal/timeout、日志摘要和 cleanup。报告详情与实际路径见 [CI-LOCAL-POC.md](CI-LOCAL-POC.md)。这是子集工程证据，不是 hosted job 或 L3 认证。
 3. 本轮真实子集准确源码为上述 3a78e34，31项为 security-scanners16 + ci-gates10 + m3-injected-runtime5；另有三个现有脚本 PASS。独立新执行器14项测试在06工作区运行，不能混称源码3a78已有这些新增测试。
 4. 每个平台仍须自身实际 OS/arch/tool准入、独立工作目录及完整命令；缺 OS/工具/网络/权限只记 NOT_RUN/BLOCKED。L2 编排可排队同样命令，但不会补足缺失平台。未来 Gate来源接回方案见 [CI-RECONNECT-PLAN.md](CI-RECONNECT-PLAN.md)。
+
+## 公开后的配置只读核查
+
+用户自行公开仓库后，06重新读取经理当前已提交的三份workflow；Engineering九job仍为6个ubuntu-24.04 x64、1个windows-2025 x64、2个macos-15 arm64，均为GitHub标准hosted标签。push仅排除gh-readonly-queue/**，另有pull_request、merge_group、workflow_dispatch；同workflow/ref取消旧任务。CodeQL及Dependency Review当前仅workflow_dispatch，ubuntu-latest，超时15/10分钟，不因公开或普通push自动启动。未修改workflow/触发运行。官方公共runner标签及公开仓库标准runner规则见[GitHub官方矩阵](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)；不由此推导larger runner/存储等费用均免除。
+
+发布固定SHA的普通source分支仍会触发push CI；固定ref不能改变04从经理3a78e34派生后的混合作者历史。不能通过改成未登记前缀、伪造origin、跳过CI或改写04历史获取绿灯。最小方案保留真实来源分支结果，并由准确经理候选的登记集成manifest证明全部源范围和实际PR门禁；如果另要求每个来源分支都获得完整身份绿灯，需要独立受限checkpoint模式设计，非仅发布refs能够解决。01统一决定发布/运行顺序，06未执行任何发布。

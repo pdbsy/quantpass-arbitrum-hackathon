@@ -54,10 +54,29 @@ function source(cwd, home) {
   if (git('rev-parse', '--is-shallow-repository') !== 'false' || git('for-each-ref', 'refs/replace'))
     throw new Error('Incomplete or replaced source history');
   if (git('status', '--porcelain', '--untracked-files=no')) throw new Error('Tracked source is dirty');
+  const flags = git('ls-files', '-v', '-z').split('\0').filter(Boolean);
+  if (flags.some((entry) => !entry.startsWith('H '))) throw new Error('Hidden or nonstandard index flags');
+  const tracked = git('ls-tree', '-r', '-z', 'HEAD').split('\0').filter(Boolean);
+  const snapshot = [];
+  for (const entry of tracked) {
+    const match = entry.match(/^(100644|100755) blob ([a-f0-9]{40})\t([\s\S]+)$/);
+    if (!match) throw new Error('Unsupported tracked source entry');
+    const [, mode, object, path] = match;
+    const absolute = join(cwd, path);
+    const stat = lstatSync(absolute);
+    if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(absolute) !== absolute)
+      throw new Error('Tracked source must be a regular file without symlink parents');
+    if (Boolean(stat.mode & 0o111) !== (mode === '100755')) throw new Error('Tracked mode mismatch');
+    const bytes = readFileSync(absolute);
+    const actual = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+    if (actual !== object) throw new Error('Tracked bytes differ from pinned tree');
+    snapshot.push({ path, mode, object });
+  }
   return {
     head: git('rev-parse', 'HEAD'),
     tree: git('rev-parse', 'HEAD^{tree}'),
     git: git('--version'),
+    trackedSnapshotSha256: sha(json(snapshot)),
     baseExists: (base) => {
       if (git('rev-parse', '--verify', `${base}^{commit}`) !== base) throw new Error('Missing base');
       git('merge-base', '--is-ancestor', base, 'HEAD');
@@ -139,7 +158,13 @@ async function execute(job, cwd, directory, home) {
         return;
       }
       try {
-        writeSync(fd, data);
+        let offset = 0;
+        while (offset < data.length) {
+          const written = writeSync(fd, data, offset, data.length - offset);
+          if (!Number.isInteger(written) || written <= 0 || written > data.length - offset)
+            throw new Error('Incomplete log write');
+          offset += written;
+        }
       } catch {
         logFailure = true;
         terminate();
@@ -266,12 +291,22 @@ export async function runLocal({ cwd, outputRoot, expected, jobs }) {
     before.baseExists(expected.base);
     if (before.head !== expected.head || before.tree !== expected.tree)
       throw new Error('Stale source identity');
-    report.source = { base: expected.base, head: before.head, tree: before.tree, git: before.git };
+    report.source = {
+      base: expected.base,
+      head: before.head,
+      tree: before.tree,
+      git: before.git,
+      trackedSnapshotSha256: before.trackedSnapshotSha256,
+    };
     report.manifest = jobs;
     report.manifestSha256 = sha(json(jobs));
     for (const job of jobs) report.jobs.push(await execute(job, cwd, directory, home));
     const after = source(cwd, home);
-    if (before.head !== after.head || before.tree !== after.tree)
+    if (
+      before.head !== after.head ||
+      before.tree !== after.tree ||
+      before.trackedSnapshotSha256 !== after.trackedSnapshotSha256
+    )
       throw new Error('Source changed during execution');
     report.state = aggregate(report.jobs);
   } catch (error) {
@@ -302,6 +337,7 @@ export function verifyRun(directory, expected) {
       r.source?.head !== expected.head ||
       r.source?.tree !== expected.tree ||
       r.source?.base !== expected.base ||
+      !/^[a-f0-9]{64}$/.test(r.source?.trackedSnapshotSha256) ||
       r.executorSha256 !== sha(readFileSync(self)) ||
       r.nodeSha256 !== sha(readFileSync(process.execPath)) ||
       r.manifestSha256 !== sha(json(r.manifest)) ||
@@ -317,6 +353,22 @@ export function verifyRun(directory, expected) {
       )
         throw new Error();
       if (j.state === 'NOT_RUN') continue;
+      const isDate = (value) => typeof value === 'string' && Number.isFinite(Date.parse(value));
+      if (
+        !Number.isInteger(j.pid) ||
+        j.pid <= 0 ||
+        !isDate(j.startedAt) ||
+        !isDate(j.finishedAt) ||
+        Date.parse(j.startedAt) > Date.parse(j.finishedAt) ||
+        !['PASS', 'BLOCKED'].includes(j.cleanup) ||
+        !['timedOut', 'leftChildren', 'processFailure', 'logFailure'].every(
+          (key) => typeof j[key] === 'boolean',
+        ) ||
+        !(j.exitCode === null || (Number.isInteger(j.exitCode) && j.exitCode >= 0 && j.exitCode <= 255)) ||
+        !(j.signal === null || (typeof j.signal === 'string' && /^SIG[A-Z0-9]+$/.test(j.signal))) ||
+        (j.signal !== null && j.exitCode !== null)
+      )
+        throw new Error();
       if (
         j.executableSha256 !== sha(readFileSync(realpathSync(r.manifest[index].executable))) ||
         r.manifest[index].platform !== r.platform ||
@@ -331,19 +383,22 @@ export function verifyRun(directory, expected) {
         )
           throw new Error();
       }
-      if (
-        j.state === 'PASS' &&
-        (j.exitCode !== 0 ||
-          j.signal ||
-          j.timedOut ||
-          j.leftChildren ||
-          j.processFailure ||
-          j.logFailure ||
-          j.cleanup !== 'PASS')
-      )
-        throw new Error();
+      const actualState =
+        j.processFailure || j.logFailure || j.leftChildren || j.cleanup !== 'PASS'
+          ? 'BLOCKED'
+          : j.timedOut || j.signal || j.exitCode !== 0
+            ? 'FAIL'
+            : 'PASS';
+      if (j.state !== actualState) throw new Error();
     }
-    if (!r.reason && aggregate(r.jobs) !== r.state) throw new Error();
+    const prerequisiteBlock =
+      r.state === 'BLOCKED' &&
+      typeof r.reason === 'string' &&
+      r.reason.length > 0 &&
+      typeof r.errorCode === 'string' &&
+      r.errorCode.length > 0;
+    if (r.reason !== undefined && !prerequisiteBlock) throw new Error();
+    if (aggregate(r.jobs) !== r.state && !prerequisiteBlock) throw new Error();
     return { state: r.state, independentAttestation: false };
   } catch {
     return { state: 'BLOCKED', reason: 'Evidence missing, modified, stale or incomplete' };
