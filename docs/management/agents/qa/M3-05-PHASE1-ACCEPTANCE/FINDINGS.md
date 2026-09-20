@@ -164,11 +164,15 @@ These blockers are intentionally separate. Local functional success, local scann
 
 The independent review of 03 `7335386` and 06 `d1c52e3` is `CHANGES_REQUIRED`. Full reproduction, exact source positions, owner, impact and retest requirements are in [Worker Delivery Review](WORKER-DELIVERY-REVIEW.md).
 
-| Finding                     | Severity | State                                                             | Owner     |
-| --------------------------- | -------- | ----------------------------------------------------------------- | --------- |
-| M3-05-P1-LOCAL-SOURCE-01    | P1       | OPEN: hidden tracked-source changes bind to an old commit         | Macbeth06 |
-| M3-05-P1-LOCAL-READBACK-01  | P1       | OPEN: contradictory or incomplete report reads back PASS          | Macbeth06 |
-| M3-05-P1-RECOVERY-SCHEMA-01 | P2       | OPEN: invalid current-version table structure recovers as HEALTHY | Macbeth03 |
-| M3-05-P1-LOCAL-LOG-01       | P2       | OPEN: successful short write loses logs but remains PASS          | Macbeth06 |
+| Finding                     | Severity | State                                       | Owner     |
+| --------------------------- | -------- | ------------------------------------------- | --------- |
+| M3-05-P1-LOCAL-SOURCE-01    | P1       | PASS_AT_C817E94 / FINAL_INTEGRATION_PENDING | Macbeth06 |
+| M3-05-P1-LOCAL-READBACK-01  | P1       | PASS_AT_C817E94 / FINAL_INTEGRATION_PENDING | Macbeth06 |
+| M3-05-P1-RECOVERY-SCHEMA-01 | P2       | PASS_AT_AC266CA / FINAL_INTEGRATION_PENDING | Macbeth03 |
+| M3-05-P1-LOCAL-LOG-01       | P2       | PASS_AT_C817E94 / FINAL_INTEGRATION_PENDING | Macbeth06 |
 
 Each is an `OFFLINE_ACCEPTANCE_BLOCKER` for its affected recovery or local-evidence capability; none relabels previously passing unrelated paths. Repairs and exact-SHA retests remain pending. Findings have been returned through Macbeth01.
+
+03 schema finding `M3-05-P1-RECOVERY-SCHEMA-01` is `PASS_AT_AC266CA / FINAL_INTEGRATION_PENDING`: independent 79/79 recovery tests, typecheck and original malformed-schema probe pass at `ac266cac8aaf5f2c045f4cc96b3a2145c2fa1a43`. See the appended exact-source retest in [Worker Delivery Review](WORKER-DELIVERY-REVIEW.md). The three 06 findings remain open.
+
+The three local-runner findings now pass at exact fix `c817e94163c14b882b67cfa53400cae032a9a4f4`: 19/19 regressions and 22 independent negative/control cases. Status: `PASS_AT_C817E94 / FINAL_INTEGRATION_PENDING`. All four original worker findings are fixed at their recorded worker SHAs; unified integration remains pending.

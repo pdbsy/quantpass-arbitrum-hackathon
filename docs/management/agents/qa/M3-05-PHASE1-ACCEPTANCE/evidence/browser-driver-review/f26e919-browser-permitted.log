@@ -1,0 +1,115 @@
+{
+  "state": "PASS",
+  "origin": "http://127.0.0.1:4287",
+  "checks": [
+    "Connected owner A to the exact local chain through the real product controls",
+    "Transferred exactly one raw Pass unit and observed the refreshed provider balance",
+    "Vault A/B selection preserved owner, spender, allowance and Pass-balance isolation",
+    "Account change, non-owner disablement, disconnect, reconnect, wrong-chain disablement and explicit refresh recovery",
+    "Exact finite two-token approvals, deposit and withdraw reached wallet submission",
+    "Indexer degradation preserved owner withdrawal submission, reorg and refresh recovery",
+    "Close disabled ordinary actions and preserved both owner-only post-close rescue paths",
+    "Existing prototype chart controls, bookmark state and separate demo Pass trade changed only their local ledgers"
+  ],
+  "walletSends": [
+    {
+      "kind": "TRANSFER_PASS",
+      "target": "0x4444444444444444444444444444444444444444",
+      "recipient": "0x9999999999999999999999999999999999999999",
+      "amount": "1"
+    },
+    {
+      "kind": "APPROVE_AF_USDC",
+      "target": "0x3333333333333333333333333333333333333333",
+      "spender": "0x2222222222222222222222222222222222222222",
+      "amount": "1000001"
+    },
+    {
+      "kind": "APPROVE_PASS",
+      "target": "0x4444444444444444444444444444444444444444",
+      "spender": "0x2222222222222222222222222222222222222222",
+      "amount": "1000001000000000000"
+    },
+    {
+      "kind": "DEPOSIT",
+      "target": "0x2222222222222222222222222222222222222222",
+      "amount": "1000001"
+    },
+    {
+      "kind": "WITHDRAW",
+      "target": "0x2222222222222222222222222222222222222222",
+      "amount": "1"
+    },
+    {
+      "kind": "WITHDRAW",
+      "target": "0x2222222222222222222222222222222222222222",
+      "amount": "1"
+    },
+    {
+      "kind": "CLOSE",
+      "target": "0x2222222222222222222222222222222222222222"
+    },
+    {
+      "kind": "RESCUE_UNTRACKED_TOKEN",
+      "target": "0x2222222222222222222222222222222222222222",
+      "token": "0x1212121212121212121212121212121212121212"
+    },
+    {
+      "kind": "RESCUE_NATIVE",
+      "target": "0x2222222222222222222222222222222222222222"
+    }
+  ],
+  "finalSnapshot": {
+    "wallet": {
+      "status": "CONNECTED",
+      "address": "0x1111111111111111111111111111111111111111"
+    },
+    "network": {
+      "status": "CORRECT",
+      "chainId": 46630
+    },
+    "transaction": {
+      "status": "SUBMITTED",
+      "txHash": "0xabababababababababababababababababababababababababababababababab"
+    },
+    "onchain": {
+      "deployment": "CONFIGURED",
+      "health": "LIVE",
+      "readiness": "FINALITY_UNKNOWN",
+      "owner": "OWNER",
+      "vaultClosed": true,
+      "passAddress": "0x4444444444444444444444444444444444444444",
+      "passInitialSupplyBaseUnits": "2000000000000000000",
+      "passInitialRecipient": "0x1111111111111111111111111111111111111111",
+      "passBalanceBaseUnits": "1999999999999999999",
+      "passTransferMode": "INJECTED_MOCK",
+      "writeMode": "INJECTED_MOCK",
+      "exitPath": "SIMULATION",
+      "supportedActions": [
+        "rescue-token",
+        "rescue-native"
+      ],
+      "vaultAddress": "0x2222222222222222222222222222222222222222"
+    },
+    "vaultSelection": {
+      "selected": {
+        "chainId": 46630,
+        "vaultAddress": "0x2222222222222222222222222222222222222222"
+      },
+      "options": [
+        {
+          "chainId": 46630,
+          "vaultAddress": "0x2222222222222222222222222222222222222222"
+        },
+        {
+          "chainId": 46630,
+          "vaultAddress": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ]
+    }
+  },
+  "pageErrors": [],
+  "cspErrors": [],
+  "blockedRequests": [],
+  "evidenceDirectory": "/private/tmp/AlphaForge-M3-05-DELIVERY-REVIEW/browser-f26e919/browser-b8S9sf"
+}

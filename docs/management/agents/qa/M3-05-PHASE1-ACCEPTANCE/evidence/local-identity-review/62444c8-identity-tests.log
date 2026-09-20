@@ -1,0 +1,75 @@
+✔ worker-labelled PRs and commits cannot bypass checks on a non-worker branch (1.026209ms)
+✔ PR event validates source head/ref even while checkout is a synthetic merge commit (234.973125ms)
+✔ push event macbeth01/AF-MIGRATION-work enforces source identity or protected provenance (180.451209ms)
+✔ push event macbeth02/AF-MIGRATION-work enforces source identity or protected provenance (175.692458ms)
+✔ push event feature/ordinary enforces source identity or protected provenance (174.160375ms)
+✔ push event master enforces source identity or protected provenance (173.767875ms)
+✔ master fails closed for incomplete or contradictory provenance: [Macbeth99] invalid / Agent-ID: Macbeth99
+Task-ID: AF-MIGRATION (177.06675ms)
+✔ master fails closed for incomplete or contradictory provenance: [Macbeth01][AF-MIGRATION] Consolidate migration / Agent-ID: Macbeth01 (176.13475ms)
+✔ master fails closed for incomplete or contradictory provenance: [Macbeth01][AF-MIGRATION] Consolidate migration /  (175.280042ms)
+✔ master fails closed for incomplete or contradictory provenance: [Macbeth01][AF-MIGRATION] Consolidate migration / Agent-ID: Macbeth02
+Task-ID: AF-MIGRATION (181.233167ms)
+✔ master fails closed for incomplete or contradictory provenance: [Macbeth0x] malformed / Agent-ID: Macbeth01
+Task-ID: AF-MIGRATION (177.805583ms)
+✔ rebase result validates every worker-attributed commit on master (204.451375ms)
+✔ squash result validates single complete worker provenance on master (183.712375ms)
+✔ merge_group validates worker provenance using explicit protected base and group SHAs (210.79675ms)
+✔ merge_group does not turn a non-protected target into a provenance bypass (160.358542ms)
+✔ workflow_dispatch master explicitly validates current commit/range (186.472375ms)
+✔ workflow_dispatch macbeth01/AF-MIGRATION-work explicitly validates current commit/range (189.093667ms)
+✔ workflow_dispatch master does not skip malformed current provenance (201.608209ms)
+✔ numbered M3 PR and master squash validate exact worker provenance (246.086541ms)
+✔ numbered M3 workflow_dispatch checks entire branch history, not just the last commit (223.280375ms)
+✔ numbered M3 push checks entire branch history, not just the last commit (220.634334ms)
+✔ numbered worker branch never skips an unattributed commit (188.223625ms)
+✔ M3 merge_group retains worker task ownership: valid=true (216.634584ms)
+✔ M3 merge_group retains worker task ownership: valid=false (210.833042ms)
+Switched to branch 'macbeth04/fixture'
+Switched to branch 'macbeth01/AF-M3-CLOSEOUT'
+Switched to branch 'macbeth02/fixture'
+Switched to branch 'macbeth01/AF-M3-CLOSEOUT'
+Switched to branch 'master'
+✔ registered integration accepts preserved mixed worker history and manager merge commits (919.006334ms)
+✔ integration rejects an omitted imported worker source (669.576833ms)
+✔ integration rejects source-head substitution and wrong declared agent/task (740.314167ms)
+✔ integration rejects a pinned source not reachable from its official source ref (685.917958ms)
+✔ integration validates full pinned-base range even when push.before skips a bad addition (1018.677875ms)
+✔ integration rejects a manager addition labelled with another task (963.430667ms)
+✔ integration pins master base and never enables stacked target admission (747.657875ms)
+✔ integration reads pinned head manifest rather than an uncommitted working copy (961.757125ms)
+✔ ordinary worker branches do not inherit manager integration privileges (580.337458ms)
+✔ stacked worker history requires and accepts its independently pinned parent source (1202.974667ms)
+✔ worker source cannot launder foreign unregistered task provenance (1112.313875ms)
+✔ integration rejects head missing repository identity (599.322667ms)
+✔ integration rejects head foreign repository identity (574.116333ms)
+✔ integration rejects base missing repository identity (607.354959ms)
+✔ integration rejects base foreign repository identity (668.58425ms)
+✔ closeout merge queue fails closed with fixed base (700.994375ms)
+✔ closeout merge queue fails closed with advanced base (792.156125ms)
+✔ removing integration manifest cannot launder closeout history through merge queue (721.406083ms)
+✔ ordinary queued change after an already integrated base remains admissible (726.581458ms)
+✔ new designated integration preserves registered prior manager and worker histories (1151.894375ms)
+✔ new integration keeps canonical repository and strict manager-task boundaries (1280.050917ms)
+✔ new integration queue remains blocked when its base already contains old closeout (750.493583ms)
+fatal: Needed a single revision
+✔ explicit local integration provider exists separately from hosted verification (0.47725ms)
+✔ hosted phase-one accepts only assigned 06 from real origin source pins (2409.999875ms)
+✔ local pinned refs accept preserved worker and manager history without origin source refs (1163.296291ms)
+✔ missing, wrong namespace, mismatched and symbolic local refs are rejected (1460.340375ms)
+✔ advanced local ref cannot stand in for its pinned source head (996.427541ms)
+✔ local verifier requires explicit exact base and rejects provider substitution (927.465792ms)
+✔ hosted provider never falls back to local source refs or accepts LOCAL arguments (889.319042ms)
+✔ 06 admission is confined to the assigned source task and phase-one target (1114.682041ms)
+✔ local source cannot launder unregistered foreign commits (1407.452959ms)
+✔ stacked worker accepts independently pinned manager checkpoint and rejects its omission (2949.322875ms)
+✔ LOCAL reads committed manifest and rejects replacement history (1391.177416ms)
+✔ CLI requires explicit pins, emits only LOCAL and refuses hosted context (1360.992417ms)
+ℹ tests 58
+ℹ suites 0
+ℹ pass 58
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18225.545417

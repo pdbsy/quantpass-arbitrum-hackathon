@@ -1,0 +1,103 @@
+{
+  "sourceCommit": "c817e94163c14b882b67cfa53400cae032a9a4f4",
+  "status": "PASS",
+  "negativeAndControlCases": 22,
+  "records": [
+    {
+      "case": "real exit 7 remains FAIL",
+      "state": "FAIL"
+    },
+    {
+      "case": "FAIL job plus PASS top state and reason",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "assume-unchanged",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "skip-worktree",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing signal",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing timedOut",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing leftChildren",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing processFailure",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing logFailure",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing startedAt",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing finishedAt",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing pid",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing exitCode",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "missing cleanup",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "wrong type timedOut",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "wrong type leftChildren",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "wrong type processFailure",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "wrong type logFailure",
+      "state": "BLOCKED"
+    },
+    {
+      "case": "stdout partial write",
+      "state": "PASS",
+      "bytes": 16,
+      "logFailure": false
+    },
+    {
+      "case": "stdout zero write",
+      "state": "BLOCKED",
+      "bytes": 0,
+      "logFailure": true
+    },
+    {
+      "case": "stderr partial write",
+      "state": "PASS",
+      "bytes": 16,
+      "logFailure": false
+    },
+    {
+      "case": "stderr zero write",
+      "state": "BLOCKED",
+      "bytes": 0,
+      "logFailure": true
+    }
+  ]
+}

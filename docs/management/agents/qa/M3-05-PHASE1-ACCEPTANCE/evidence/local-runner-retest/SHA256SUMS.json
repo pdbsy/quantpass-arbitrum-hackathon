@@ -1,0 +1,18 @@
+{
+  "c817e94-runner-tests.log": {
+    "bytes": 1820,
+    "sha256": "e228a07bbd0204a7d95b72a1a67c2da63a346aed5cc89e1fcc82c6dd99a93de3"
+  },
+  "local-ci-fixed.json": {
+    "bytes": 1961,
+    "sha256": "bd9042c619a5497f339ada01859cae8871e3a57ad50bdab4d8a7489a4bd03e04"
+  },
+  "local-ci-fixed.stderr.log": {
+    "bytes": 1908,
+    "sha256": "9bbbbc680c19e9ce4d37eb9a324b7ba8015d50b91ae5fcff85831cfdd863bc27"
+  },
+  "probe-local-ci-fixed.mjs.txt": {
+    "bytes": 4833,
+    "sha256": "cdb3da984cae5f4ac2fdd83542421e58350eba2908c40f8f54a3056bd5626fc6"
+  }
+}

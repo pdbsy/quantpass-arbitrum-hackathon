@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { runLocal, verifyRun } from '/private/tmp/AlphaForge-M3-05-LOCAL-CI-D1C52E3/tools/local-ci/runner.mjs';
+const directory=fs.mkdtempSync(join(tmpdir(),'af-qa-runner-fixed-'));
+const cwd=join(directory,'source');fs.mkdirSync(cwd);
+const git=(...args)=>execFileSync('/usr/bin/git',args,{cwd,encoding:'utf8',env:{PATH:process.env.PATH,HOME:directory,GIT_CONFIG_GLOBAL:'/dev/null',GIT_CONFIG_NOSYSTEM:'1'}}).trim();
+git('init','-b','qa-fixture');fs.writeFileSync(join(cwd,'check.mjs'),'process.exit(7);\n');git('add','.');git('-c','user.name=QA Fixture','-c','user.email=fixture@example.test','-c','commit.gpgsign=false','commit','-m','failure fixture');
+const expected={base:git('rev-parse','HEAD'),head:git('rev-parse','HEAD'),tree:git('rev-parse','HEAD^{tree}'),node:process.versions.node};
+const config={cwd,outputRoot:join(directory,'runs'),expected,jobs:[{id:'source-check',executable:process.execPath,args:['check.mjs'],platform:process.platform,arch:process.arch,timeoutMs:3000}]};
+const records=[];
+const original=await runLocal(config);assert.equal(original.state,'FAIL');assert.equal(original.jobs[0].exitCode,7);assert.equal(verifyRun(original.directory,expected).state,'FAIL');
+records.push({case:'real exit 7 remains FAIL',state:original.state});
+function negativeCopy(report, change,label) {
+ const copied=fs.mkdtempSync(join(directory,'negative-'));
+ for(const name of fs.readdirSync(report.directory))if(fs.statSync(join(report.directory,name)).isFile())fs.copyFileSync(join(report.directory,name),join(copied,name));
+ const r=JSON.parse(fs.readFileSync(join(copied,'report.json'),'utf8'));change(r);
+ const bytes=JSON.stringify(r,null,2)+'\n';fs.writeFileSync(join(copied,'report.json'),bytes);fs.writeFileSync(join(copied,'report.sha256'),createHash('sha256').update(bytes).digest('hex')+'\n');
+ const state=verifyRun(copied,expected).state;assert.equal(state,'BLOCKED',label);records.push({case:label,state});
+}
+negativeCopy(original,r=>{r.state='PASS';r.reason='retained prerequisite reason';},'FAIL job plus PASS top state and reason');
+for(const flag of ['assume-unchanged','skip-worktree']) {
+ git('update-index',`--${flag}`,'check.mjs');fs.writeFileSync(join(cwd,'check.mjs'),'process.exit(0);\n');
+ assert.equal(git('status','--porcelain','--untracked-files=no'),'');
+ const r=await runLocal(config);assert.equal(r.state,'BLOCKED');assert.equal(verifyRun(r.directory,expected).state,'BLOCKED');records.push({case:flag,state:r.state});
+ git('update-index',`--no-${flag}`,'check.mjs');git('checkout','--','check.mjs');
+ fs.writeFileSync(join(cwd,'check.mjs'),git('show','HEAD:check.mjs')+'\n');git('update-index','--refresh');
+}
+const goodConfig={...config,jobs:[{...config.jobs[0],args:['-e','console.log("complete-output")']}]};
+const good=await runLocal(goodConfig);assert.equal(good.state,'PASS');assert.equal(verifyRun(good.directory,expected).state,'PASS');
+for(const field of ['signal','timedOut','leftChildren','processFailure','logFailure','startedAt','finishedAt','pid','exitCode','cleanup'])negativeCopy(good,r=>{delete r.jobs[0][field];},`missing ${field}`);
+for(const field of ['timedOut','leftChildren','processFailure','logFailure'])negativeCopy(good,r=>{r.jobs[0][field]='false';},`wrong type ${field}`);
+for(const channel of ['stdout','stderr']) {
+ for(const fault of ['partial','zero']) {
+  const real=fs.writeSync;let injected=0;
+  fs.writeSync=function(fd,data,...args){
+   if(!injected && Buffer.isBuffer(data) && data.toString()==='complete-output\n') {
+    injected++;
+    if(fault==='zero')return 0;
+    return real(fd,data,args[0]??0,1);
+   }
+   return real(fd,data,...args);
+  };
+  syncBuiltinESMExports();let r;
+  try{r=await runLocal({...goodConfig,jobs:[{...goodConfig.jobs[0],args:['-e',`process.${channel}.write("complete-output\\n")`]}]});}
+  finally{fs.writeSync=real;syncBuiltinESMExports();}
+  assert.equal(injected,1);const state=verifyRun(r.directory,expected).state;
+  if(fault==='partial'){
+   assert.equal(r.state,'PASS');assert.equal(state,'PASS');assert.equal(fs.readFileSync(join(r.directory,r.jobs[0][channel].file),'utf8'),'complete-output\n');assert.equal(r.jobs[0][channel].bytes,16);
+  }else{assert.equal(r.state,'BLOCKED');assert.equal(state,'BLOCKED');assert.equal(r.jobs[0].logFailure,true);}
+  records.push({case:`${channel} ${fault} write`,state,bytes:r.jobs[0][channel].bytes,logFailure:r.jobs[0].logFailure});
+ }
+}
+console.log(JSON.stringify({sourceCommit:'c817e94163c14b882b67cfa53400cae032a9a4f4',status:'PASS',negativeAndControlCases:records.length,records},null,2));
