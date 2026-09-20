@@ -15,6 +15,8 @@ import { tmpdir } from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { prepareCoverage } from '../tools/coverage/prepare.mjs';
+import { collectNodeWorkflow, verifyNodeWorkflow } from '../tools/coverage/collect.mjs';
+import { reportCoverage } from '../tools/coverage/report.mjs';
 import { mergeObserved } from '../tools/coverage/evidence.mjs';
 const repository = resolve(import.meta.dirname, '..');
 const instrumentationDirectory = process.env.AF_QUALIFIED_COVERAGE_TOOLS;
@@ -40,6 +42,7 @@ async function fixture(t) {
   writeFileSync(join(root, '.gitignore'), 'outputs/\n');
   writeFileSync(join(root, 'choice.ts'), 'export function choose(x: boolean) { return x ? 7 : 9; }\n');
   writeFileSync(join(root, 'unused.mjs'), 'export function unused() { return 10; }\n');
+  copyFileSync(join(repository, 'tools/coverage/launch.mjs'), join(root, 'tools/coverage/launch.mjs'));
   git('add', '.');
   git('commit', '-qm', 'fixture');
   const prepared = await prepareCoverage(root, {
@@ -69,7 +72,13 @@ async function fixture(t) {
       encoding: 'utf8',
       timeout: 10000,
     });
-  return { root, raw, run, manifest: JSON.parse(readFileSync(join(prepared.directory, 'manifest.json'))) };
+  return {
+    root,
+    prepared,
+    raw,
+    run,
+    manifest: JSON.parse(readFileSync(join(prepared.directory, 'manifest.json'))),
+  };
 }
 test('real Node hook unions original TypeScript branches and retains never-loaded zero graph', async (t) => {
   const f = await fixture(t);
@@ -101,4 +110,53 @@ test('changed source fails and killed lifecycle keeps its start without inventin
   assert.equal(completes.length, 1);
   const completed = JSON.parse(readFileSync(join(f.raw, completes[0])));
   assert.notEqual(completed.exitCode, 0);
+});
+
+test('bounded real workflow preserves pass/failure and rejects missing execution logs', async (t) => {
+  const f = await fixture(t);
+  const options = {
+    instrumentationDirectory,
+    sourceBase: f.manifest.baseCommit,
+    id: 'qualified-check',
+    args: [
+      '--input-type=module',
+      '-e',
+      "import {choose} from './choice.ts'; if(choose(true)!==7) process.exit(9);",
+    ],
+    timeoutMs: 10000,
+  };
+  const passed = await collectNodeWorkflow(f.root, f.prepared.directory, options);
+  assert.equal(passed.state, 'PASS');
+  const replay = await verifyNodeWorkflow(passed.directory, f.manifest, f.prepared.manifestSha256, {
+    id: options.id,
+    args: options.args,
+  });
+  assert.equal(replay.state, 'PASS');
+  assert.ok(replay.observations.length >= 2);
+  const failed = await collectNodeWorkflow(f.root, f.prepared.directory, {
+    ...options,
+    id: 'qualified-failure',
+    args: ['-e', 'process.exit(7)'],
+  });
+  assert.equal(failed.state, 'FAIL');
+  const failedReplay = await verifyNodeWorkflow(failed.directory, f.manifest, f.prepared.manifestSha256, {
+    id: 'qualified-failure',
+    args: ['-e', 'process.exit(7)'],
+  });
+  assert.equal(failedReplay.state, 'FAIL');
+  const measured = await reportCoverage(f.root, f.prepared.directory, {
+    ...options,
+    workflows: [{ id: options.id, args: options.args, directory: passed.directory }],
+  });
+  assert.equal(measured.report.functionalState, 'PASS');
+  assert.equal(measured.report.thresholdMet, false);
+  assert.equal(measured.report.files.find((x) => x.path === 'unused.mjs').summary.functions.pct, 0);
+  assert.equal(measured.report.files.find((x) => x.path === 'choice.ts').summary.branches.pct, 50);
+  rmSync(join(passed.executionDirectory, 'qualified-check.stdout.log'));
+  await assert.rejects(
+    verifyNodeWorkflow(passed.directory, f.manifest, f.prepared.manifestSha256, {
+      id: options.id,
+      args: options.args,
+    }),
+  );
 });

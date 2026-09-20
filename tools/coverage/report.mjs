@@ -1,0 +1,83 @@
+import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { verifyPrepared } from './prepare.mjs';
+import { verifyNodeWorkflow } from './collect.mjs';
+import { mergeObserved } from './evidence.mjs';
+
+export function summarizeCoverage(coverage, library) {
+  const map = library.createCoverageMap(coverage);
+  const files = map
+    .files()
+    .sort()
+    .map((path) => {
+      const file = map.fileCoverageFor(path);
+      const missingBranches = [];
+      for (const [id, counts] of Object.entries(file.b))
+        for (let index = 0; index < counts.length; index++)
+          if (counts[index] === 0)
+            missingBranches.push({
+              id,
+              index,
+              type: file.branchMap[id].type,
+              location: file.branchMap[id].locations[index],
+            });
+      return {
+        path,
+        summary: file.toSummary().toJSON(),
+        uncoveredLines: file.getUncoveredLines(),
+        missingBranches,
+      };
+    });
+  return { summary: map.getCoverageSummary().toJSON(), files };
+}
+export async function reportCoverage(root, preparedDirectory, options) {
+  const { manifest, preparation, tools } = await verifyPrepared(root, preparedDirectory, options);
+  assert.ok(Array.isArray(options.workflows) && options.workflows.length > 0, 'required workflows absent');
+  assert.equal(
+    new Set(options.workflows.map((x) => x.id)).size,
+    options.workflows.length,
+    'duplicate workflow',
+  );
+  const observations = [];
+  const workflows = [];
+  for (const workflow of options.workflows) {
+    const result = await verifyNodeWorkflow(workflow.directory, manifest, preparation.manifestSha256, {
+      id: workflow.id,
+      args: workflow.args,
+    });
+    observations.push(...result.observations);
+    workflows.push({ id: workflow.id, directory: workflow.directory, state: result.state });
+  }
+  const merged = mergeObserved(manifest, observations);
+  const metrics = summarizeCoverage(merged.coverage, tools.coverage);
+  const threshold = 90;
+  const thresholdMet = ['lines', 'statements', 'functions', 'branches'].every(
+    (k) => typeof metrics.summary[k].pct === 'number' && metrics.summary[k].pct >= threshold,
+  );
+  const report = {
+    schemaVersion: 1,
+    provider: 'LOCAL',
+    independentAttestation: false,
+    candidateCommit: manifest.candidateCommit,
+    candidateTree: manifest.candidateTree,
+    baseCommit: manifest.baseCommit,
+    manifestSha256: preparation.manifestSha256,
+    toolDigest: manifest.toolDigest,
+    collection: 'VERIFIED_HIT_LOWER_BOUND',
+    functionalState: workflows.every((x) => x.state === 'PASS') ? 'PASS' : 'FAIL',
+    threshold,
+    thresholdDimensions: ['lines', 'statements', 'functions', 'branches'],
+    thresholdMet,
+    methodAdmission: 'PENDING_INDEPENDENT_REVIEW',
+    criticalSemanticAcceptance: 'NOT_EVALUATED',
+    workflows,
+    incomplete: merged.incomplete,
+    observations: observations.map((x) => ({ id: x.id, complete: x.complete, workflow: x.workflow })),
+    ...metrics,
+  };
+  const path = resolve(preparedDirectory, `report-${randomUUID()}.json`);
+  writeFileSync(path, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
+  return { path, report };
+}

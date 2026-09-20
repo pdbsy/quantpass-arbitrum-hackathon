@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "provider": "LOCAL",
+  "repository": "pdbsy/quantpass-arbitrum-hackathon",
+  "branch": "macbeth01/m3-phase1-closeout",
+  "task": "M3-01-PHASE1-CLOSEOUT",
+  "base": "18f5352070910a867b9729b031aa2e3951785e01",
+  "sources": [
+    {
+      "agent": "Macbeth02",
+      "task": "M3-02-PHASE1-CONTRACTS",
+      "branch": "macbeth02/m3-phase1-contracts",
+      "head": "f91391d8369a931ee58bd0844847f38d99635845",
+      "local_ref": "refs/remotes/local-macbeth02/m3-phase1-contracts"
+    },
+    {
+      "agent": "Macbeth03",
+      "task": "M3-03-PHASE1-RECOVERY",
+      "branch": "macbeth03/m3-phase1-recovery-final",
+      "head": "ac266cac8aaf5f2c045f4cc96b3a2145c2fa1a43",
+      "local_ref": "refs/remotes/local-macbeth03/m3-phase1-recovery-final"
+    },
+    {
+      "agent": "Macbeth04",
+      "task": "M3-04-PHASE1-PRODUCT",
+      "branch": "macbeth04/m3-phase1-product-race",
+      "head": "f26e919a3fea4117318f153ce781c725764f6a92",
+      "local_ref": "refs/remotes/local-macbeth04/m3-phase1-product-race"
+    },
+    {
+      "agent": "Macbeth05",
+      "task": "M3-05-PHASE1-ACCEPTANCE",
+      "branch": "macbeth05/m3-phase1-acceptance",
+      "head": "aca48044e382dab805344f02ae5e9aaa06328672",
+      "local_ref": "refs/remotes/local-macbeth05/m3-phase1-acceptance"
+    },
+    {
+      "agent": "Macbeth06",
+      "task": "M3-06-CI-GATES",
+      "branch": "macbeth06/m3-phase1-gates",
+      "head": "62444c86c35c9af4c1a76a49c9a7c231f5a47f90",
+      "local_ref": "refs/remotes/local-macbeth06/m3-phase1-gates"
+    },
+    {
+      "agent": "Macbeth01",
+      "task": "M3-01-PHASE1-CLOSEOUT",
+      "branch": "macbeth01/pr22-source-checkpoint",
+      "head": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "local_ref": "refs/remotes/local-macbeth01/pr22-source-checkpoint"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Use executing-plans with the existing user-owned Macbeth02–06 tasks. Do not create workers. Checkboxes reflect completed work only.
 
-**Goal:** Finish authorized local engineering and reproducible acceptance while GitHub execution and status queries remain paused.
+**Goal:** Finish engineering and reproducible acceptance. On 2026-09-21 the user made the repository public and explicitly restored normal PR validation; 01 coordinates hosted execution on the accurate final candidate. Merge/deployment remain unauthorized.
 
 **Architecture:** Preserve the current candidate and original worker histories. A versioned source-coverage entrypoint consumes a fixed isolated tool graph, complete source inventory and real local workflow artifacts, then rejects inconsistent evidence before counter union. Separate local CI evidence from hosted context and independent governance.
 

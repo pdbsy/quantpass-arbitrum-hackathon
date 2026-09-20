@@ -1,6 +1,10 @@
 # PR22 本地收尾与托管执行暂停
 
-状态：GITHUB_CHECKS_PAUSED / NOT_READY_TO_MERGE。用户最新指令见 [完整规范](../specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md)。
+当前状态：HOSTED_VALIDATION_AUTHORIZED / NOT_READY_TO_MERGE。
+
+2026-09-21 用户明确更新：“我仓库开public了，可以正常验证pr了”。经理随后实际只读核验 repository visibility=PUBLIC、Actions enabled=true、默认分支master；用户完成可见性变更，agent未改设置。PR #22 仍 Draft，准确远程头3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8，旧头9项检查成功。真实fetch后master仍18f5352070910a867b9729b031aa2e3951785e01。恢复正常PR查询与验证，由01统一调度；不会重复用旧头绿灯签收新候选。现有runner为标准GitHub托管ubuntu-24.04、windows-2025、macos-15，没有新增服务、larger runner、费用承诺、规则变更或merge授权。历史账单原因仍UNKNOWN。
+
+下面保留恢复前的暂停范围与历史事实；其中“禁止托管查询/执行”和“公开仅未来选项”已由上述用户新指令更新。原完整规范见 [完整规范](../specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md)。
 
 本轮本地 SOURCE_BASE / 起始候选为 `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8`，tree `6f1a21845a99e16a0ba171612cd97e9bf3439294`；已存在的本地 master 为 `18f5352070910a867b9729b031aa2e3951785e01`。启动时经理分支 `macbeth01/m3-phase1-closeout` 干净，origin 为唯一正式仓库 pdbsy/quantpass-arbitrum-hackathon。以上来自本地 Git；本轮未重新核验远程 Checks。
 
