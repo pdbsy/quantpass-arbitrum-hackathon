@@ -478,3 +478,9 @@ passes 717/717. This is an environment correction, not a changed test or lowered
 The independent result is `PASS_AT_04_WORKER_FIX / FINAL_CANDIDATE_INTEGRATION_PENDING`. Exact
 commands, behavior analysis and persistent raw logs are recorded in
 [Vault-Selection Race Retest](VAULT-SELECTION-RACE-RETEST.md).
+
+## 03 / 06 independent worker review (2026-09-20 to 2026-09-21)
+
+At the manager's explicit request, Macbeth05 reviewed 03 `733538600fb2c643afbfe5e13e3c9de9b7dbbd67` including parent `276aa041...`, and 06 `d1c52e32510f2efee5e2896a246f749b19cc22f1`. Both ran in isolated local clones with the approved Node/npm. Recovery tests pass 66/66 plus typecheck; runner tests pass 14/14; both diff checks pass. Four extra negative probes reproduce two P1 and two P2 findings. No worker implementation or original PASS artifact was modified.
+
+[Worker Delivery Review](WORKER-DELIVERY-REVIEW.md) records exact commands, scope, all source trees, the 06 author/trailer discrepancy, limitations and raw evidence hashes. Probe scripts and output bytes are retained under `evidence/worker-delivery-review/`. Findings were returned to Macbeth01 for owner fixes; independent review remains `CHANGES_REQUIRED`. No hosted check/status, remote mutation, new security service, live wallet or chain action occurred.

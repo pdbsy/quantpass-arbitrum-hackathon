@@ -1,0 +1,40 @@
+{
+  "runnerCommit": "d1c52e32510f2efee5e2896a246f749b19cc22f1",
+  "original": {
+    "state": "FAIL",
+    "jobState": "FAIL",
+    "exit": 7
+  },
+  "contradictoryReport": {
+    "state": "PASS",
+    "jobState": "FAIL",
+    "exit": 7,
+    "readback": {
+      "state": "PASS",
+      "independentAttestation": false
+    }
+  },
+  "skipWorktree": {
+    "state": "PASS",
+    "readback": {
+      "state": "PASS",
+      "independentAttestation": false
+    }
+  },
+  "missingRequiredOutcomeFields": {
+    "readback": {
+      "state": "PASS",
+      "independentAttestation": false
+    }
+  },
+  "hiddenSource": {
+    "gitStatus": "",
+    "headSource": "process.exit(7);",
+    "executedSource": "process.exit(0);",
+    "state": "PASS",
+    "readback": {
+      "state": "PASS",
+      "independentAttestation": false
+    }
+  }
+}

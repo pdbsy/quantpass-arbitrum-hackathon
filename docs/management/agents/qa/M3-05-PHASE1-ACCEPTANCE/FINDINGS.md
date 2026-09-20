@@ -159,3 +159,16 @@ The current state supersedes older statements that the candidate was unavailable
 | M3-05-P1-TESTNET  | `BLOCKED`                               | Deployment, signing, broadcast and live-chain writes remain unauthorized.                                                                                                        | Separate explicit authorization and candidate-bound transaction/readback evidence.                                                                                     |
 
 These blockers are intentionally separate. Local functional success, local scanner evidence, alternative CI, security review, GitHub approval and Testnet authorization are not interchangeable.
+
+## Latest worker delivery findings (2026-09-21)
+
+The independent review of 03 `7335386` and 06 `d1c52e3` is `CHANGES_REQUIRED`. Full reproduction, exact source positions, owner, impact and retest requirements are in [Worker Delivery Review](WORKER-DELIVERY-REVIEW.md).
+
+| Finding                     | Severity | State                                                             | Owner     |
+| --------------------------- | -------- | ----------------------------------------------------------------- | --------- |
+| M3-05-P1-LOCAL-SOURCE-01    | P1       | OPEN: hidden tracked-source changes bind to an old commit         | Macbeth06 |
+| M3-05-P1-LOCAL-READBACK-01  | P1       | OPEN: contradictory or incomplete report reads back PASS          | Macbeth06 |
+| M3-05-P1-RECOVERY-SCHEMA-01 | P2       | OPEN: invalid current-version table structure recovers as HEALTHY | Macbeth03 |
+| M3-05-P1-LOCAL-LOG-01       | P2       | OPEN: successful short write loses logs but remains PASS          | Macbeth06 |
+
+Each is an `OFFLINE_ACCEPTANCE_BLOCKER` for its affected recovery or local-evidence capability; none relabels previously passing unrelated paths. Repairs and exact-SHA retests remain pending. Findings have been returned through Macbeth01.

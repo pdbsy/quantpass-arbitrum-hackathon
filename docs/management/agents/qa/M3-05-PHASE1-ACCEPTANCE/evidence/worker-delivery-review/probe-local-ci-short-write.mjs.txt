@@ -1,0 +1,25 @@
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { runLocal, verifyRun } from '/private/tmp/AlphaForge-M3-05-LOCAL-CI-D1C52E3/tools/local-ci/runner.mjs';
+const directory=fs.mkdtempSync(join(tmpdir(),'af-qa-short-write-'));
+const cwd=join(directory,'source');fs.mkdirSync(cwd);
+const git=(...args)=>execFileSync('/usr/bin/git',args,{cwd,encoding:'utf8',env:{PATH:process.env.PATH,HOME:directory,GIT_CONFIG_GLOBAL:'/dev/null',GIT_CONFIG_NOSYSTEM:'1'}}).trim();
+git('init','-b','qa-fixture');fs.writeFileSync(join(cwd,'source.txt'),'fixture\n');git('add','.');git('-c','user.name=QA Fixture','-c','user.email=fixture@example.test','-c','commit.gpgsign=false','commit','-m','fixture');
+const expected={base:git('rev-parse','HEAD'),head:git('rev-parse','HEAD'),tree:git('rev-parse','HEAD^{tree}'),node:process.versions.node};
+const original=fs.writeSync;
+let injected=0;
+fs.writeSync=function(fd,data,...args) {
+ if(Buffer.isBuffer(data) && data.toString()==='complete-output\n') {
+  injected++; return original(fd,data.subarray(0,1));
+ }
+ return original(fd,data,...args);
+};
+syncBuiltinESMExports();
+let r;
+try {
+ r=await runLocal({cwd,outputRoot:join(directory,'runs'),expected,jobs:[{id:'output',executable:process.execPath,args:['-e','console.log("complete-output")'],platform:process.platform,arch:process.arch,timeoutMs:3000}]});
+}finally {fs.writeSync=original;syncBuiltinESMExports();}
+console.log(JSON.stringify({failureInjection:'One successful but partial fs.writeSync for a 16-byte stdout chunk',injected,state:r.state,stdoutBytes:r.jobs[0].stdout.bytes,stdout:fs.readFileSync(join(r.directory,r.jobs[0].stdout.file),'utf8'),logFailure:r.jobs[0].logFailure,readback:verifyRun(r.directory,expected)},null,2));

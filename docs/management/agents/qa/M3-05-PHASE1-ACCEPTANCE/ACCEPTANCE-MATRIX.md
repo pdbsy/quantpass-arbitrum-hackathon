@@ -76,3 +76,18 @@ overlay for the latest local acceptance conclusion; the historical base matrix r
 | Independent security, governance, approval | `BLOCKED / NOT_RUN`                    | These conditions remain separate from functional QA and local scanner evidence                                                      |
 | Testnet                                    | `BLOCKED`                              | Deployment, signing, broadcast and real-chain writes remain unauthorized                                                            |
 | Final decision                             | `LOCAL_GATE_PASS / NOT_READY_TO_MERGE` | Overall coverage, race-fix integration, Windows diagnosis and external acceptance conditions remain open                            |
+
+## Worker-source review supplement (2026-09-21)
+
+| Requirement                                                                 | Exact source      | Independent result                                | Evidence / remaining condition                                            |
+| --------------------------------------------------------------------------- | ----------------- | ------------------------------------------------- | ------------------------------------------------------------------------- |
+| Recovery source immutability, concurrent snapshot, cleanup                  | 03 `7335386`      | PASS for 66 existing recovery tests and typecheck | Preserved raw logs in [Worker Delivery Review](WORKER-DELIVERY-REVIEW.md) |
+| Recovery schema validity                                                    | 03 `7335386`      | FAIL                                              | Invalid columns admitted as HEALTHY; fix and retest pending               |
+| Local process failure / timeout / signal / missing-log / NOT_RUN regression | 06 `d1c52e3`      | PASS for 14 existing tests                        | Scope is worker runner only                                               |
+| Actual source binding                                                       | 06 `d1c52e3`      | FAIL                                              | assume-unchanged and skip-worktree negative fixtures                      |
+| Strict report readback                                                      | 06 `d1c52e3`      | FAIL                                              | reason bypass and missing outcome fields                                  |
+| Complete local stdout/stderr evidence                                       | 06 `d1c52e3`      | FAIL                                              | Partial successful write silently drops bytes                             |
+| Future strict LOCAL identity entry                                          | Not yet delivered | NOT_RUN                                           | Await exact source and approved manager handoff                           |
+| New reusable browser driver                                                 | 04 `f26e919`      | NOT_RUN                                           | Received; not independently executed in this record                       |
+
+Overall worker review is `CHANGES_REQUIRED`; this supplement does not replace exact unified-candidate acceptance.
