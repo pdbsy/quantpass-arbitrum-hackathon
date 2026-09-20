@@ -1,0 +1,14 @@
+{
+  "name": "alphaforge-canonical-instrumentation-qualification",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.21.0",
+    "npm": "11.19.1"
+  },
+  "dependencies": {
+    "istanbul-lib-instrument": "6.0.3",
+    "istanbul-lib-source-maps": "5.0.6"
+  }
+}
