@@ -4,6 +4,7 @@ import { asAddress, asBlockHash, asHexData } from '../packages/chain-adapter/src
 import type { ProductOperationEvidence } from '../packages/chain-adapter/src/reconciliation.ts';
 import { encodeM3VaultCall } from '../packages/chain-adapter/src/vault-abi.ts';
 import { createM3BrowserRuntime } from '../apps/web/src/m3-browser-runtime.ts';
+import { keccak256Evm } from '../apps/web/src/evm-keccak.ts';
 import type { Eip1193Provider, Eip1193Request } from '../apps/web/src/chain-wallet.ts';
 import { onchainActionEnabled, renderM3StrategyShell } from '../apps/web/src/m3-product-shell.ts';
 import type { M3VaultSnapshot } from '../apps/web/src/m3-vault-client.ts';
@@ -13,6 +14,8 @@ const VAULT = asAddress('0x2222222222222222222222222222222222222222');
 const AF_USDC = asAddress('0x3333333333333333333333333333333333333333');
 const PASS = asAddress('0x4444444444444444444444444444444444444444');
 const TX_HASH = `0x${'ab'.repeat(32)}`;
+const VAULT_CODE = asHexData('0x6000');
+const PASS_CODE = asHexData('0x6001');
 
 const addressResult = (address: string) => `0x${address.slice(2).padStart(64, '0')}`;
 const uintResult = (value: bigint) => `0x${value.toString(16).padStart(64, '0')}`;
@@ -35,15 +38,24 @@ class ProviderFixture implements Eip1193Provider {
 
 class ConfiguredProviderFixture extends ProviderFixture {
   override chainId = 46_630;
+  account: string | null = OWNER;
   usdcAllowance = 0n;
   passAllowance = 0n;
+  passBalance = 0n;
   closed = false;
+  vaultCode = VAULT_CODE;
+  passCode = PASS_CODE;
 
   override async request(input: Eip1193Request): Promise<unknown> {
     this.requests.push(input);
-    if (input.method === 'eth_requestAccounts' || input.method === 'eth_accounts') return [OWNER];
+    if (input.method === 'eth_requestAccounts' || input.method === 'eth_accounts')
+      return this.account ? [this.account] : [];
     if (input.method === 'eth_chainId') return `0x${this.chainId.toString(16)}`;
     if (input.method === 'eth_getBlockByNumber') return { number: '0x64', hash: vaultSnapshot.blockHash };
+    if (input.method === 'eth_getCode') {
+      const target = String(input.params?.[0]).toLowerCase();
+      return target === PASS.toLowerCase() ? this.passCode : this.vaultCode;
+    }
     if (input.method === 'eth_sendTransaction') return TX_HASH;
     if (input.method === 'eth_call') {
       const call = input.params?.[0] as { readonly data?: unknown; readonly to?: unknown } | undefined;
@@ -70,6 +82,8 @@ class ConfiguredProviderFixture extends ProviderFixture {
         return uintResult(0n);
       if (String(call?.data).startsWith('0xdd62ed3e'))
         return uintResult(call?.to === AF_USDC ? this.usdcAllowance : this.passAllowance);
+      if (String(call?.data).startsWith('0x70a08231') && call?.to === PASS)
+        return uintResult(this.passBalance);
       return '0x';
     }
     throw new Error('UNEXPECTED_PROVIDER_METHOD');
@@ -110,9 +124,14 @@ const deployment = {
   chainId: 46_630 as const,
   vaultAddress: VAULT,
   deploymentBlock: '1',
-  abiVersion: 'm3-v1',
+  abiVersion: 'm3-vault-db620d6',
+  abiHash: asBlockHash('0x264b4498cf396008e4619664c59bf8d8eac0a04f04b80e760df3cfbc00846977'),
   manifestDigest: asBlockHash(`0x${'12'.repeat(32)}`),
-  runtimeBytecodeHash: asBlockHash(`0x${'34'.repeat(32)}`),
+  runtimeBytecodeHash: keccak256Evm(VAULT_CODE),
+  strategyPassAddress: PASS,
+  strategyPassDeploymentBlock: '2',
+  strategyPassAbiHash: asBlockHash('0xdd989644feeb7798baca69f7391ba75b6f9d09f47fb05bd90184f6072912923f'),
+  strategyPassRuntimeBytecodeHash: keccak256Evm(PASS_CODE),
 };
 
 test('production browser runtime is inert before connect and reports wrong chain without a deployment', async () => {
@@ -294,12 +313,28 @@ test('configured runtime disables writes when the connected provider changes to 
   await runtime.refresh();
   assert.deepEqual(runtime.snapshot.network, { status: 'WRONG', chainId: 1 });
   assert.equal(runtime.snapshot.onchain.writeMode, 'DISABLED');
+  assert.equal(runtime.snapshot.onchain.passTransferMode, 'DISABLED');
   assert.equal(onchainActionEnabled(runtime.snapshot.onchain, 'withdraw'), false);
 
   provider.chainId = 46_630;
   await runtime.refresh();
   assert.deepEqual(runtime.snapshot.network, { status: 'CORRECT', chainId: 46_630 });
   assert.equal(runtime.snapshot.onchain.writeMode, 'LIVE_AUTHORIZED');
+});
+
+test('configured runtime disables Pass transfer after wallet disconnect', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.onchain.passTransferMode, 'LIVE_AUTHORIZED');
+  provider.account = null;
+  await runtime.refresh();
+  assert.equal(runtime.snapshot.wallet.status, 'DISCONNECTED');
+  assert.equal(runtime.snapshot.onchain.passTransferMode, 'DISABLED');
 });
 
 test('configured runtimes create collision-resistant operation ids across browser reloads', async () => {
@@ -416,8 +451,9 @@ test('degraded registered evidence keeps owner exit actions while marking the in
 });
 
 for (const source of ['canonical', 'live-exit'] as const) {
-  test(`a closed Vault disables product actions after ${source} refresh`, async () => {
+  test(`a closed Vault preserves exact owner rescue actions after ${source} refresh`, async () => {
     const provider = new ConfiguredProviderFixture();
+    const registrations: Array<Record<string, unknown>> = [];
     const runtime = createM3BrowserRuntime({
       provider,
       deployment,
@@ -425,6 +461,10 @@ for (const source of ['canonical', 'live-exit'] as const) {
         readSnapshot: async () => {
           if (source === 'live-exit') throw new Error('INDEXER_UNAVAILABLE');
           return { ...vaultSnapshot, state: { ...vaultSnapshot.state, closed: provider.closed } };
+        },
+        registerSubmission: async (input) => {
+          registrations.push(input);
+          return { state: 'SUBMITTED' };
         },
       },
     });
@@ -434,17 +474,795 @@ for (const source of ['canonical', 'live-exit'] as const) {
     await runtime.refresh();
     for (const action of ['deposit', 'withdraw', 'close'] as const)
       assert.equal(onchainActionEnabled(runtime.snapshot.onchain, action), false, action);
-    assert.equal(runtime.snapshot.onchain.writeMode, 'DISABLED');
+    assert.equal(onchainActionEnabled(runtime.snapshot.onchain, 'rescue-token'), true);
+    assert.equal(onchainActionEnabled(runtime.snapshot.onchain, 'rescue-native'), true);
+    assert.equal(runtime.snapshot.onchain.writeMode, 'LIVE_AUTHORIZED');
     const html = renderM3StrategyShell({
       strategyId: 'trend',
       contentProvenance: 'FIXTURE',
       ...runtime.snapshot,
     });
     assert.match(html, /VAULT CLOSED/);
-    assert.doesNotMatch(html, /Owner exit remains available/);
-    assert.equal(
-      provider.requests.some((request) => request.method === 'eth_sendTransaction'),
-      false,
+    assert.match(html, /Owner-only post-close rescue remains available/);
+
+    const nativeReview = await runtime.reviewAction({ kind: 'rescue-native' });
+    await runtime.confirmAction(nativeReview);
+    const tokenReview = await runtime.reviewAction({ kind: 'rescue-token', token: AF_USDC });
+    await runtime.confirmAction(tokenReview);
+    const sent = provider.requests
+      .filter((request) => request.method === 'eth_sendTransaction')
+      .map((request) => request.params?.[0] as { readonly to: string; readonly data: string });
+    assert.deepEqual(
+      sent.map(({ to, data }) => ({ to, data })),
+      [
+        { to: VAULT, data: encodeM3VaultCall('rescueNative()', []) },
+        { to: VAULT, data: encodeM3VaultCall('rescueUntrackedToken(address)', [AF_USDC]) },
+      ],
     );
+    assert.equal(registrations.length, 2);
+    assert.equal(registrations[0]?.calldata, encodeM3VaultCall('rescueNative()', []));
+    assert.equal(registrations[1]?.calldata, encodeM3VaultCall('rescueUntrackedToken(address)', [AF_USDC]));
+    await assert.rejects(runtime.confirmAction(tokenReview), /INVALID_PRODUCT_REVIEW/);
   });
 }
+
+test('open Vault rejects rescue review without asking the wallet to send', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await runtime.connect();
+  await assert.rejects(runtime.reviewAction({ kind: 'rescue-native' }), /M3_RESCUE_REQUIRES_CLOSED_VAULT/);
+  assert.equal(
+    provider.requests.some((request) => request.method === 'eth_sendTransaction'),
+    false,
+  );
+});
+
+test('configured runtime transfers one raw Pass unit to the reviewed recipient exactly once', async () => {
+  const provider = new ConfiguredProviderFixture();
+  provider.passBalance = 1n;
+  const registrations: Array<Record<string, unknown>> = [];
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => vaultSnapshot,
+      registerSubmission: async (input) => {
+        registrations.push(input);
+        return { state: 'SUBMITTED' };
+      },
+    },
+    now: () => '2026-09-20T00:00:00.000Z',
+  });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.onchain.passAddress, PASS);
+  assert.equal(runtime.snapshot.onchain.passBalanceBaseUnits, '1');
+  assert.equal(typeof runtime.reviewPassTransfer, 'function');
+  assert.equal(typeof runtime.confirmPassTransfer, 'function');
+
+  const request = {
+    recipient: asAddress('0x9999999999999999999999999999999999999999'),
+    passBaseUnits: '1',
+  };
+  const review = await runtime.reviewPassTransfer!(request);
+  assert.deepEqual(review.request, request);
+  assert.equal(review.token, PASS);
+  await runtime.confirmPassTransfer!(review);
+
+  const transfer = provider.requests.filter((item) => item.method === 'eth_sendTransaction').at(-1)
+    ?.params?.[0] as { readonly to: string; readonly data: string };
+  assert.equal(transfer.to, PASS);
+  assert.equal(
+    transfer.data,
+    `0xa9059cbb${request.recipient.slice(2).padStart(64, '0')}${'1'.padStart(64, '0')}`,
+  );
+  assert.deepEqual(registrations, [
+    {
+      operationId: review.operationId,
+      chainId: 46_630,
+      owner: OWNER,
+      target: PASS,
+      calldata: transfer.data,
+      txHash: TX_HASH,
+    },
+  ]);
+  await assert.rejects(runtime.confirmPassTransfer!(review), /INVALID_PASS_TRANSFER_REVIEW/);
+});
+
+test('reviewed deployment metadata exposes initial Pass allocation without inventing a sale', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment: {
+      ...deployment,
+      passInitialSupplyBaseUnits: '10000000000000000000',
+      passInitialRecipient: OWNER,
+    },
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.onchain.passInitialSupplyBaseUnits, '10000000000000000000');
+  assert.equal(runtime.snapshot.onchain.passInitialRecipient, OWNER);
+  assert.throws(() =>
+    createM3BrowserRuntime({
+      provider,
+      deployment: { ...deployment, passInitialSupplyBaseUnits: '1' },
+    }),
+  );
+});
+
+test('deployment validation rejects malformed identity and supply boundaries', () => {
+  const missingStrategyPass = { ...deployment } as Record<string, unknown>;
+  delete missingStrategyPass.strategyPassAddress;
+  const invalidDeployments = [
+    { ...deployment, source: 'unreviewed' },
+    { ...deployment, chainId: 1 },
+    { ...deployment, deploymentBlock: '0' },
+    { ...deployment, deploymentBlock: '01' },
+    { ...deployment, strategyPassDeploymentBlock: '0' },
+    { ...deployment, abiVersion: 'm3-vault-other' },
+    { ...deployment, abiHash: asBlockHash(`0x${'aa'.repeat(32)}`) },
+    { ...deployment, strategyPassAbiHash: asBlockHash(`0x${'bb'.repeat(32)}`) },
+    { ...deployment, strategyPassRuntimeBytecodeHash: 'invalid' },
+    { ...deployment, passInitialSupplyBaseUnits: '0', passInitialRecipient: OWNER },
+    { ...deployment, passInitialSupplyBaseUnits: `${1n << 256n}`, passInitialRecipient: OWNER },
+    {
+      ...deployment,
+      passInitialSupplyBaseUnits: '1',
+      passInitialRecipient: asAddress('0x0000000000000000000000000000000000000000'),
+    },
+    missingStrategyPass,
+  ];
+  for (const invalid of invalidDeployments)
+    assert.throws(
+      () => createM3BrowserRuntime({ deployment: invalid as typeof deployment }),
+      /INVALID_M3_DEPLOYMENT_CONFIG/,
+    );
+
+  const defaultReaderRuntime = createM3BrowserRuntime({
+    provider: new ConfiguredProviderFixture(),
+    deployment,
+  });
+  assert.equal(defaultReaderRuntime.snapshot.onchain.deployment, 'CONFIGURED');
+});
+
+test('runtime status identity mismatch fails closed before canonical deposit approval', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: {
+      readRuntimeStatus: async () => ({
+        lastAttempt: 'SUCCEEDED' as const,
+        errorCode: null,
+        database: { status: 'HEALTHY' as const, schemaVersion: 6, integrity: 'OK' as const },
+        deployment: {
+          chainId: 46_630 as const,
+          contract: asAddress('0x9999999999999999999999999999999999999999'),
+          manifestDigest: deployment.manifestDigest,
+          abiHash: deployment.abiHash,
+          runtimeBytecodeHash: deployment.runtimeBytecodeHash,
+          strategyPassAddress: deployment.strategyPassAddress,
+          strategyPassAbiHash: deployment.strategyPassAbiHash,
+          strategyPassRuntimeBytecodeHash: deployment.strategyPassRuntimeBytecodeHash,
+        },
+      }),
+      readSnapshot: async () => vaultSnapshot,
+    },
+  });
+  await runtime.connect();
+
+  await assert.rejects(
+    runtime.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '1' }),
+    /M3_RUNTIME_STATUS_MISMATCH/,
+  );
+});
+
+test('operation ids fail closed when browser randomness is absent or malformed', async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  const runtime = createM3BrowserRuntime({
+    provider: new ConfiguredProviderFixture(),
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await runtime.connect();
+  try {
+    Object.defineProperty(globalThis, 'crypto', { value: {}, configurable: true });
+    await assert.rejects(
+      runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' }),
+      /M3_OPERATION_ID_UNAVAILABLE/,
+    );
+    Object.defineProperty(globalThis, 'crypto', {
+      value: { randomUUID: () => '?' },
+      configurable: true,
+    });
+    await assert.rejects(
+      runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' }),
+      /INVALID_OPERATION_ID/,
+    );
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+    else delete (globalThis as { crypto?: Crypto }).crypto;
+  }
+});
+
+test('mock mode publishes state changes, supports close review and unsubscribes listeners', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+    transportProvenance: 'DEV_MOCK',
+  });
+  let publications = 0;
+  const unsubscribe = runtime.subscribe(() => {
+    publications += 1;
+  });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.onchain.writeMode, 'INJECTED_MOCK');
+  assert.equal(runtime.snapshot.onchain.passTransferMode, 'INJECTED_MOCK');
+  assert.ok(publications > 0);
+  const close = await runtime.reviewAction({ kind: 'close' });
+  assert.equal(close.request.kind, 'close');
+  unsubscribe();
+  const before = publications;
+  await runtime.refresh();
+  assert.equal(publications, before);
+});
+
+test('runtime treats a connected non-owner as read-only and rejects owner actions', async () => {
+  const provider = new ConfiguredProviderFixture();
+  provider.account = asAddress('0x9999999999999999999999999999999999999999');
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.onchain.owner, 'NON_OWNER');
+  assert.equal(runtime.snapshot.onchain.writeMode, 'DISABLED');
+  assert.equal(runtime.snapshot.onchain.exitPath, 'UNAVAILABLE');
+  await assert.rejects(
+    runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' }),
+    /M3_VAULT_OWNER_REQUIRED/,
+  );
+});
+
+test('closed state and live simulation failures block ordinary Vault actions', async () => {
+  const closedProvider = new ConfiguredProviderFixture();
+  closedProvider.closed = true;
+  const closedRuntime = createM3BrowserRuntime({
+    provider: closedProvider,
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => ({ ...vaultSnapshot, state: { ...vaultSnapshot.state, closed: true } }),
+    },
+  });
+  await closedRuntime.connect();
+  await assert.rejects(
+    closedRuntime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' }),
+    /M3_VAULT_CLOSED/,
+  );
+
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await runtime.connect();
+  const request = provider.request.bind(provider);
+  provider.request = (input) => {
+    const call = input.params?.[0] as { data?: string } | undefined;
+    if (input.method === 'eth_call' && call?.data === encodeM3VaultCall('withdraw(uint256)', [1n]))
+      return Promise.reject(new Error('simulation detail'));
+    return request(input);
+  };
+  await assert.rejects(
+    runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' }),
+    /M3_LIVE_SIMULATION_FAILED/,
+  );
+});
+
+test('action submission fails closed when registration or provider result is unavailable', async () => {
+  const unregisteredProvider = new ConfiguredProviderFixture();
+  const unregistered = createM3BrowserRuntime({
+    provider: unregisteredProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+    now: () => '2026-09-20T00:00:00.000Z',
+  });
+  await unregistered.connect();
+  const unregisteredReview = await unregistered.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' });
+  const unregisteredResult = await unregistered.confirmAction(unregisteredReview);
+  assert.equal(unregisteredResult.state, 'SUBMISSION_AMBIGUOUS');
+  assert.equal(unregistered.snapshot.transaction.status, 'SUBMISSION_AMBIGUOUS');
+
+  const provider = new ConfiguredProviderFixture();
+  const request = provider.request.bind(provider);
+  provider.request = (input) =>
+    input.method === 'eth_sendTransaction' ? Promise.resolve('invalid-hash') : request(input);
+  const ambiguous = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => vaultSnapshot,
+      registerSubmission: async () => ({ state: 'SUBMITTED' }),
+    },
+    now: () => '2026-09-20T00:00:00.000Z',
+  });
+  await ambiguous.connect();
+  const review = await ambiguous.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' });
+  const result = await ambiguous.confirmAction(review);
+  assert.equal(result.state, 'SUBMISSION_AMBIGUOUS');
+  assert.equal(ambiguous.snapshot.transaction.status, 'SUBMISSION_AMBIGUOUS');
+});
+
+test('connected presentation omits malformed Pass balance and failed allowance reads', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const request = provider.request.bind(provider);
+  provider.request = (input) => {
+    const call = input.params?.[0] as { data?: string; to?: string } | undefined;
+    if (input.method === 'eth_call' && String(call?.data).startsWith('0x70a08231'))
+      return Promise.resolve('0x01');
+    if (input.method === 'eth_call' && String(call?.data).startsWith('0xdd62ed3e'))
+      return Promise.reject(new Error('allowance detail'));
+    return request(input);
+  };
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.onchain.passBalanceBaseUnits, undefined);
+  assert.equal(runtime.snapshot.onchain.depositAuthorization, undefined);
+});
+
+test('approval review enforces connection, canonical identity, finite need and single-use authority', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await assert.rejects(
+    runtime.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '1' }),
+    /WALLET_CONNECTION_REQUIRED/,
+  );
+  await assert.rejects(
+    runtime.confirmDepositApproval!({} as never, 'af-usdc'),
+    /INVALID_DEPOSIT_APPROVAL_REVIEW/,
+  );
+  await runtime.connect();
+  provider.usdcAllowance = 1n;
+  provider.passAllowance = 1_000_000_000_000n;
+  const sufficient = await runtime.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '1' });
+  await assert.rejects(
+    runtime.confirmDepositApproval!(sufficient, 'af-usdc'),
+    /DEPOSIT_APPROVAL_ALREADY_SUFFICIENT/,
+  );
+
+  provider.usdcAllowance = 0n;
+  const action = await runtime.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '1' });
+  const request = provider.request.bind(provider);
+  provider.request = (input) =>
+    input.method === 'eth_sendTransaction' ? Promise.resolve('invalid-hash') : request(input);
+  const ambiguous = await runtime.confirmDepositApproval!(action, 'af-usdc');
+  assert.equal(ambiguous.state, 'SUBMISSION_AMBIGUOUS');
+
+  await assert.rejects(
+    runtime.reviewAction({ kind: 'deposit', usdcBaseUnits: '2' }),
+    /DEPOSIT_APPROVAL_REQUIRED/,
+  );
+
+  const mismatch = createM3BrowserRuntime({
+    provider: new ConfiguredProviderFixture(),
+    deployment,
+    vaultReader: { readSnapshot: async () => ({ ...vaultSnapshot, contract: AF_USDC }) },
+  });
+  await mismatch.connect();
+  await assert.rejects(
+    mismatch.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '1' }),
+    /M3_VAULT_SNAPSHOT_MISMATCH/,
+  );
+});
+
+test('connect failure presentation distinguishes rejection, disconnection and canonical read failure', async () => {
+  const rejectedProvider = new ProviderFixture();
+  rejectedProvider.chainId = 46_630;
+  const rejectedRequest = rejectedProvider.request.bind(rejectedProvider);
+  rejectedProvider.request = (input) =>
+    input.method === 'eth_requestAccounts' ? Promise.reject({ code: 4001 }) : rejectedRequest(input);
+  const rejected = createM3BrowserRuntime({ provider: rejectedProvider });
+  await assert.rejects(rejected.connect(), /WALLET_REJECTED/);
+  assert.equal(rejected.snapshot.wallet.status, 'CONNECTION_REJECTED');
+  assert.equal(rejected.snapshot.network.status, 'CORRECT');
+
+  const disconnectedProvider = new ProviderFixture();
+  disconnectedProvider.chainId = 46_630;
+  disconnectedProvider.request = async (input) => (input.method === 'eth_chainId' ? '0xb626' : []);
+  const disconnected = createM3BrowserRuntime({ provider: disconnectedProvider });
+  await assert.rejects(disconnected.connect(), /WALLET_DISCONNECTED/);
+  assert.equal(disconnected.snapshot.network.status, 'UNAVAILABLE');
+
+  const wrongProvider = new ProviderFixture();
+  const wrongRequest = wrongProvider.request.bind(wrongProvider);
+  wrongProvider.request = (input) =>
+    input.method === 'eth_accounts' ? Promise.reject(new Error('observe detail')) : wrongRequest(input);
+  const wrong = createM3BrowserRuntime({ provider: wrongProvider });
+  await assert.rejects(wrong.connect(), /WALLET_WRONG_CHAIN/);
+  assert.equal(wrong.snapshot.network.status, 'WRONG');
+
+  const failedProvider = new ConfiguredProviderFixture();
+  const failedRequest = failedProvider.request.bind(failedProvider);
+  failedProvider.request = (input) =>
+    input.method === 'eth_getBlockByNumber' ? Promise.reject(new Error('rpc detail')) : failedRequest(input);
+  const failed = createM3BrowserRuntime({
+    provider: failedProvider,
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => {
+        throw new Error('index detail');
+      },
+    },
+  });
+  await assert.rejects(failed.connect(), /M3_LIVE_READ_FAILED/);
+  assert.equal(failed.snapshot.network.status, 'CORRECT');
+  assert.equal(failed.snapshot.wallet.status, 'DISCONNECTED');
+});
+
+test('refresh handles absent connection, account change and the no-deployment presentation', async () => {
+  const absent = createM3BrowserRuntime({});
+  await absent.refresh();
+  assert.equal(absent.snapshot.wallet.status, 'DISCONNECTED');
+
+  const provider = new ProviderFixture();
+  provider.chainId = 46_630;
+  const noDeployment = createM3BrowserRuntime({ provider });
+  await noDeployment.connect();
+  await noDeployment.refresh();
+  assert.equal(noDeployment.snapshot.onchain.deployment, 'UNAVAILABLE');
+
+  const configuredProvider = new ConfiguredProviderFixture();
+  const configured = createM3BrowserRuntime({
+    provider: configuredProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await configured.connect();
+  configuredProvider.account = asAddress('0x9999999999999999999999999999999999999999');
+  await configured.refresh();
+  assert.equal(configured.snapshot.wallet.status, 'ACCOUNT_CHANGED');
+  assert.equal(configured.snapshot.onchain.writeMode, 'DISABLED');
+});
+
+test('evidence read failures use live exit and degrade safely if live exit also fails', async () => {
+  for (const liveFails of [false, true]) {
+    const provider = new ConfiguredProviderFixture();
+    const runtime = createM3BrowserRuntime({
+      provider,
+      deployment,
+      vaultReader: {
+        readSnapshot: async () => vaultSnapshot,
+        registerSubmission: async () => ({ state: 'SUBMITTED' }),
+        readOperationEvidence: async () => {
+          throw new Error('evidence detail');
+        },
+      },
+    });
+    await runtime.connect();
+    const review = await runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' });
+    await runtime.confirmAction(review);
+    if (liveFails) {
+      const request = provider.request.bind(provider);
+      provider.request = (input) =>
+        input.method === 'eth_getBlockByNumber' ? Promise.reject(new Error('live detail')) : request(input);
+    }
+    await runtime.refresh();
+    assert.equal(runtime.snapshot.onchain.health, 'DEGRADED');
+    assert.equal(runtime.snapshot.transaction.status, 'SUBMITTED');
+  }
+});
+
+test('Pass transfer rejects stale sessions, simulation failure and ambiguous submission', async () => {
+  const unconfigured = createM3BrowserRuntime({ provider: new ConfiguredProviderFixture() });
+  await assert.rejects(
+    unconfigured.reviewPassTransfer!({ recipient: VAULT, passBaseUnits: '1' }),
+    /M3_DEPLOYMENT_NOT_CONFIGURED/,
+  );
+
+  const staleProvider = new ConfiguredProviderFixture();
+  const stale = createM3BrowserRuntime({
+    provider: staleProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await stale.connect();
+  staleProvider.account = asAddress('0x9999999999999999999999999999999999999999');
+  await assert.rejects(
+    stale.reviewPassTransfer!({ recipient: VAULT, passBaseUnits: '1' }),
+    /WALLET_SESSION_CHANGED/,
+  );
+
+  const simulationProvider = new ConfiguredProviderFixture();
+  const simulation = createM3BrowserRuntime({
+    provider: simulationProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await simulation.connect();
+  const simulationRequest = simulationProvider.request.bind(simulationProvider);
+  simulationProvider.request = (input) => {
+    const call = input.params?.[0] as { data?: string } | undefined;
+    if (input.method === 'eth_call' && String(call?.data).startsWith('0xa9059cbb'))
+      return Promise.reject(new Error('simulation detail'));
+    return simulationRequest(input);
+  };
+  await assert.rejects(
+    simulation.reviewPassTransfer!({ recipient: VAULT, passBaseUnits: '1' }),
+    /M3_PASS_TRANSFER_SIMULATION_FAILED/,
+  );
+
+  const changedProvider = new ConfiguredProviderFixture();
+  const changed = createM3BrowserRuntime({
+    provider: changedProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await changed.connect();
+  const changedRequest = changedProvider.request.bind(changedProvider);
+  changedProvider.request = async (input) => {
+    const result = await changedRequest(input);
+    const call = input.params?.[0] as { data?: string } | undefined;
+    if (input.method === 'eth_call' && String(call?.data).startsWith('0xa9059cbb'))
+      changedProvider.account = asAddress('0x9999999999999999999999999999999999999999');
+    return result;
+  };
+  await assert.rejects(
+    changed.reviewPassTransfer!({ recipient: VAULT, passBaseUnits: '1' }),
+    /WALLET_SESSION_CHANGED/,
+  );
+
+  const ambiguousProvider = new ConfiguredProviderFixture();
+  const ambiguous = createM3BrowserRuntime({
+    provider: ambiguousProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+    now: () => '2026-09-20T00:00:00.000Z',
+  });
+  await ambiguous.connect();
+  const transfer = await ambiguous.reviewPassTransfer!({ recipient: VAULT, passBaseUnits: '1' });
+  const ambiguousRequest = ambiguousProvider.request.bind(ambiguousProvider);
+  ambiguousProvider.request = (input) =>
+    input.method === 'eth_sendTransaction' ? Promise.resolve('invalid-hash') : ambiguousRequest(input);
+  const result = await ambiguous.confirmPassTransfer!(transfer);
+  assert.equal(result.state, 'SUBMISSION_AMBIGUOUS');
+  assert.equal(ambiguous.snapshot.transaction.status, 'SUBMISSION_AMBIGUOUS');
+});
+
+test('live-exit state rejects a request whose kind mutates into deposit before preparation', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => {
+        throw new Error('index detail');
+      },
+    },
+  });
+  await runtime.connect();
+  let kindReads = 0;
+  const request = new Proxy(
+    { kind: 'deposit' as const, usdcBaseUnits: '1' },
+    {
+      get(target, property, receiver) {
+        if (property === 'kind') return kindReads++ === 0 ? 'withdraw' : 'deposit';
+        return Reflect.get(target, property, receiver);
+      },
+    },
+  );
+  await assert.rejects(runtime.reviewAction(request), /M3_CANONICAL_PROJECTION_REQUIRED/);
+});
+
+test('account change records the simultaneously wrong network and confirm requires a configured flow', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await runtime.connect();
+  provider.account = asAddress('0x9999999999999999999999999999999999999999');
+  provider.chainId = 1;
+  await runtime.refresh();
+  assert.equal(runtime.snapshot.wallet.status, 'ACCOUNT_CHANGED');
+  assert.equal(runtime.snapshot.network.status, 'WRONG');
+
+  await assert.rejects(createM3BrowserRuntime({}).confirmAction({} as never), /M3_DEPLOYMENT_NOT_CONFIGURED/);
+});
+
+test('approval and Pass ambiguity retain a returned transaction hash', async () => {
+  const approvalProvider = new ConfiguredProviderFixture();
+  const approvalRuntime = createM3BrowserRuntime({
+    provider: approvalProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+    now: () => '2026-09-20T00:00:00.000Z',
+  });
+  await approvalRuntime.connect();
+  const approval = await approvalRuntime.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '1' });
+  const approvalRequest = approvalProvider.request.bind(approvalProvider);
+  approvalProvider.request = async (input) => {
+    const result = await approvalRequest(input);
+    if (input.method === 'eth_sendTransaction')
+      approvalProvider.account = asAddress('0x9999999999999999999999999999999999999999');
+    return result;
+  };
+  const approvalResult = await approvalRuntime.confirmDepositApproval!(approval, 'af-usdc');
+  assert.equal(approvalResult.state, 'SUBMISSION_AMBIGUOUS');
+  assert.deepEqual(approvalRuntime.snapshot.transaction, {
+    status: 'SUBMISSION_AMBIGUOUS',
+    txHash: TX_HASH,
+    errorCode: 'POST_SUBMISSION_CHECK_FAILED',
+  });
+
+  const passProvider = new ConfiguredProviderFixture();
+  const passRuntime = createM3BrowserRuntime({
+    provider: passProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+    now: () => '2026-09-20T00:00:00.000Z',
+  });
+  await passRuntime.connect();
+  const transfer = await passRuntime.reviewPassTransfer!({ recipient: VAULT, passBaseUnits: '1' });
+  const passRequest = passProvider.request.bind(passProvider);
+  passProvider.request = async (input) => {
+    const result = await passRequest(input);
+    if (input.method === 'eth_sendTransaction')
+      passProvider.account = asAddress('0x9999999999999999999999999999999999999999');
+    return result;
+  };
+  const passResult = await passRuntime.confirmPassTransfer!(transfer);
+  assert.equal(passResult.state, 'SUBMISSION_AMBIGUOUS');
+  assert.deepEqual(passRuntime.snapshot.transaction, {
+    status: 'SUBMISSION_AMBIGUOUS',
+    txHash: TX_HASH,
+    errorCode: 'POST_SUBMISSION_CHECK_FAILED',
+  });
+});
+
+test('runtime code changes fail closed before Vault or Pass submission', async () => {
+  const vaultProvider = new ConfiguredProviderFixture();
+  const vaultRuntime = createM3BrowserRuntime({
+    provider: vaultProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await vaultRuntime.connect();
+  vaultProvider.vaultCode = asHexData('0x6002');
+  await assert.rejects(
+    vaultRuntime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' }),
+    /M3_RUNTIME_CODE_MISMATCH/,
+  );
+
+  const passProvider = new ConfiguredProviderFixture();
+  const passRuntime = createM3BrowserRuntime({
+    provider: passProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await passRuntime.connect();
+  passProvider.passCode = asHexData('0x6002');
+  await assert.rejects(
+    passRuntime.reviewPassTransfer!({ recipient: VAULT, passBaseUnits: '1' }),
+    /M3_RUNTIME_CODE_MISMATCH/,
+  );
+
+  const unavailableProvider = new ConfiguredProviderFixture();
+  const unavailableRuntime = createM3BrowserRuntime({
+    provider: unavailableProvider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await unavailableRuntime.connect();
+  const unavailableRequest = unavailableProvider.request.bind(unavailableProvider);
+  unavailableProvider.request = (input) =>
+    input.method === 'eth_getCode' ? Promise.reject(new Error('provider detail')) : unavailableRequest(input);
+  await assert.rejects(
+    unavailableRuntime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' }),
+    /M3_RUNTIME_CODE_UNAVAILABLE/,
+  );
+
+  const changedAfterReviewProvider = new ConfiguredProviderFixture();
+  const changedAfterReview = createM3BrowserRuntime({
+    provider: changedAfterReviewProvider,
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => vaultSnapshot,
+      registerSubmission: async () => ({ state: 'SUBMITTED' }),
+    },
+  });
+  await changedAfterReview.connect();
+  const reviewed = await changedAfterReview.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' });
+  changedAfterReviewProvider.vaultCode = asHexData('0x6002');
+  await assert.rejects(changedAfterReview.confirmAction(reviewed), /M3_RUNTIME_CODE_MISMATCH/);
+});
+
+test('configured runtime consumes canonical Pass identity and balance from the contract-qualified reader', async () => {
+  const provider = new ConfiguredProviderFixture();
+  provider.passBalance = 999n;
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => vaultSnapshot,
+      readPassSnapshot: async () => ({
+        chainId: 46_630,
+        owner: OWNER,
+        contract: PASS,
+        projectionKey: 'm3-strategy-pass',
+        blockNumber: '101',
+        blockHash: vaultSnapshot.blockHash,
+        state: {
+          owner: OWNER,
+          pass: PASS,
+          strategyId: vaultSnapshot.state.strategyId,
+          decimals: 18,
+          balanceRaw: '7',
+        },
+      }),
+    },
+  });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.onchain.passBalanceBaseUnits, '7');
+  assert.equal(runtime.snapshot.onchain.passTransferMode, 'LIVE_AUTHORIZED');
+
+  const mismatched = createM3BrowserRuntime({
+    provider: new ConfiguredProviderFixture(),
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => vaultSnapshot,
+      readPassSnapshot: async () => ({
+        chainId: 46_630,
+        owner: OWNER,
+        contract: PASS,
+        projectionKey: 'm3-strategy-pass',
+        blockNumber: '101',
+        blockHash: vaultSnapshot.blockHash,
+        state: {
+          owner: OWNER,
+          pass: PASS,
+          strategyId: asHexData(`0x${'09'.repeat(32)}`),
+          decimals: 18,
+          balanceRaw: '7',
+        },
+      }),
+    },
+  });
+  await mismatched.connect();
+  assert.equal(mismatched.snapshot.onchain.passBalanceBaseUnits, undefined);
+  assert.equal(mismatched.snapshot.onchain.passTransferMode, 'DISABLED');
+});
+
+test('Pass submission without backend registration remains explicit and non-retryable', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+    now: () => '2026-09-20T00:00:00.000Z',
+  });
+  await runtime.connect();
+  const review = await runtime.reviewPassTransfer!({ recipient: VAULT, passBaseUnits: '1' });
+  const result = await runtime.confirmPassTransfer!(review);
+  assert.equal(result.state, 'SUBMISSION_AMBIGUOUS');
+  if (result.state !== 'SUBMISSION_AMBIGUOUS') assert.fail('expected ambiguous submission');
+  assert.equal(result.txHash, TX_HASH);
+  assert.equal(result.reason, 'LOCAL_EVIDENCE_INVALID');
+  assert.equal(result.retryable, false);
+});

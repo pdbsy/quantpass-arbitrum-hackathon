@@ -1,7 +1,12 @@
 import { parseUnits } from '../../../packages/domain/src/money.ts';
-import type { Address } from '../../../packages/chain-adapter/src/types.ts';
+import { asAddress, type Address } from '../../../packages/chain-adapter/src/types.ts';
 import type { WalletSubmission } from './chain-wallet.ts';
-import type { M3ProductChainPresentation, OnchainProductAction } from './m3-product-shell.ts';
+import type {
+  M3ProductChainPresentation,
+  M3VaultSelection,
+  M3VaultSelectionState,
+  OnchainProductAction,
+} from './m3-product-shell.ts';
 import type { DepositAuthorizationPresentation } from './m3-product-shell.ts';
 
 const PASS_BASE_UNITS_PER_AF_USDC_BASE_UNIT = 1_000_000_000_000n;
@@ -9,12 +14,26 @@ const PASS_BASE_UNITS_PER_AF_USDC_BASE_UNIT = 1_000_000_000_000n;
 export type M3ProductActionRequest =
   | { readonly kind: 'deposit'; readonly usdcBaseUnits: string }
   | { readonly kind: 'withdraw'; readonly usdcBaseUnits: string }
-  | { readonly kind: 'close' };
+  | { readonly kind: 'close' }
+  | { readonly kind: 'rescue-token'; readonly token: Address }
+  | { readonly kind: 'rescue-native' };
 
 export interface M3ProductActionReview {
   readonly operationId: string;
   readonly owner: Address;
   readonly request: M3ProductActionRequest;
+}
+
+export interface M3PassTransferRequest {
+  readonly recipient: Address;
+  readonly passBaseUnits: string;
+}
+
+export interface M3PassTransferReview {
+  readonly operationId: string;
+  readonly owner: Address;
+  readonly token: Address;
+  readonly request: M3PassTransferRequest;
 }
 
 export type M3DepositApprovalKind = 'af-usdc' | 'pass';
@@ -35,12 +54,18 @@ export interface M3DepositApprovalReview {
   readonly requirements: readonly [M3DepositApprovalRequirement, M3DepositApprovalRequirement];
 }
 
+export type { M3VaultSelection, M3VaultSelectionState } from './m3-product-shell.ts';
+
 export interface M3ProductRuntime {
   readonly snapshot: M3ProductChainPresentation;
+  readonly vaultSelection?: M3VaultSelectionState;
   connect(): Promise<void>;
   refresh(): Promise<void>;
+  selectVault?(selection: M3VaultSelection): Promise<void>;
   reviewAction(request: M3ProductActionRequest): Promise<M3ProductActionReview>;
   confirmAction(review: M3ProductActionReview): Promise<WalletSubmission>;
+  reviewPassTransfer?(request: M3PassTransferRequest): Promise<M3PassTransferReview>;
+  confirmPassTransfer?(review: M3PassTransferReview): Promise<WalletSubmission>;
   reviewDepositApprovals?(
     request: Extract<M3ProductActionRequest, { readonly kind: 'deposit' }>,
   ): Promise<M3DepositApprovalReview>;
@@ -49,6 +74,11 @@ export interface M3ProductRuntime {
     kind: M3DepositApprovalKind,
   ): Promise<WalletSubmission>;
   subscribe(listener: () => void): () => void;
+}
+
+export interface M3SelectableProductRuntime extends M3ProductRuntime {
+  readonly vaultSelection: M3VaultSelectionState;
+  selectVault(selection: M3VaultSelection): Promise<void>;
 }
 
 export interface RequiredDepositAllowances {
@@ -95,11 +125,22 @@ export function depositAllowanceCheck(
 
 export function sameM3ProductAction(left: M3ProductActionRequest, right: M3ProductActionRequest): boolean {
   if (left.kind !== right.kind) return false;
-  if (left.kind === 'close' || right.kind === 'close') return left.kind === right.kind;
-  return left.usdcBaseUnits === right.usdcBaseUnits;
+  switch (left.kind) {
+    case 'deposit':
+    case 'withdraw':
+      return right.kind === left.kind && left.usdcBaseUnits === right.usdcBaseUnits;
+    case 'rescue-token':
+      return right.kind === 'rescue-token' && left.token.toLowerCase() === right.token.toLowerCase();
+    case 'close':
+    case 'rescue-native':
+      return true;
+  }
 }
 
-export function parseM3ProductAction(action: OnchainProductAction, amount?: string): M3ProductActionRequest {
+export function parseM3ProductAction(
+  action: Extract<OnchainProductAction, 'deposit' | 'withdraw' | 'close'>,
+  amount?: string,
+): M3ProductActionRequest {
   if (action === 'close') {
     if (amount !== undefined) throw new Error('CLOSE_AMOUNT_FORBIDDEN');
     return Object.freeze({ kind: 'close' });
@@ -108,4 +149,26 @@ export function parseM3ProductAction(action: OnchainProductAction, amount?: stri
   const usdcBaseUnits = parseUnits(amount, 6);
   if (BigInt(usdcBaseUnits) <= 0n) throw new Error('AMOUNT_MUST_BE_POSITIVE');
   return Object.freeze({ kind: action, usdcBaseUnits });
+}
+
+export function parseM3RescueAction(
+  action: Extract<OnchainProductAction, 'rescue-token' | 'rescue-native'>,
+  token?: string,
+): Extract<M3ProductActionRequest, { readonly kind: 'rescue-token' | 'rescue-native' }> {
+  if (action === 'rescue-native') {
+    if (token !== undefined) throw new Error('RESCUE_NATIVE_TOKEN_FORBIDDEN');
+    return Object.freeze({ kind: 'rescue-native' });
+  }
+  if (token === undefined) throw new Error('RESCUE_TOKEN_REQUIRED');
+  const parsedToken = asAddress(token);
+  if (/^0x0{40}$/i.test(parsedToken)) throw new Error('RESCUE_TOKEN_REQUIRED');
+  return Object.freeze({ kind: 'rescue-token', token: parsedToken });
+}
+
+export function parseM3PassTransfer(recipient: string, amount: string): M3PassTransferRequest {
+  const parsedRecipient = asAddress(recipient);
+  if (/^0x0{40}$/i.test(parsedRecipient)) throw new Error('PASS_RECIPIENT_REQUIRED');
+  const passBaseUnits = parseUnits(amount, 18);
+  if (BigInt(passBaseUnits) <= 0n) throw new Error('AMOUNT_MUST_BE_POSITIVE');
+  return Object.freeze({ recipient: parsedRecipient, passBaseUnits });
 }

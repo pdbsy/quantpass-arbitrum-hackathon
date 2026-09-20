@@ -1,12 +1,15 @@
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
 import { createM3BrowserRuntime, type M3BrowserDeploymentConfig } from './m3-browser-runtime.ts';
+import { createM3BrowserRuntimeSet } from './m3-browser-runtime-set.ts';
 import type { Eip1193Provider } from './chain-wallet.ts';
 import { renderM3DepositApprovalDialog, runM3DialogAction } from './m3-product-dialog.ts';
 import { extendM3ProductPages, onchainActionEnabled } from './m3-product-shell.ts';
 import type { OnchainProductAction } from './m3-product-shell.ts';
 import {
   depositAllowanceCheck,
+  parseM3RescueAction,
+  parseM3PassTransfer,
   parseM3ProductAction,
   sameM3ProductAction,
   type M3ProductActionRequest,
@@ -14,6 +17,8 @@ import {
   type M3DepositApprovalKind,
   type M3DepositApprovalReview,
   type M3ProductRuntime,
+  type M3PassTransferRequest,
+  type M3PassTransferReview,
 } from './m3-product-runtime.ts';
 import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
 interface Prototype {
@@ -26,6 +31,7 @@ interface Prototype {
   };
   m3OnchainRuntime?: M3ProductRuntime;
   m3Deployment?: M3BrowserDeploymentConfig;
+  m3Deployments?: readonly M3BrowserDeploymentConfig[];
 }
 declare global {
   interface Window {
@@ -41,10 +47,16 @@ if (!onchainRuntime && import.meta.env.DEV && new URLSearchParams(location.searc
   onchainRuntime = fixture.runtime;
   fixtureModule.installM3InjectedRuntimeControls(fixture);
 }
-onchainRuntime ??= createM3BrowserRuntime({
-  ...(window.ethereum ? { provider: window.ethereum } : {}),
-  ...(AF.m3Deployment ? { deployment: AF.m3Deployment } : {}),
-});
+onchainRuntime ??=
+  AF.m3Deployments !== undefined
+    ? createM3BrowserRuntimeSet({
+        ...(window.ethereum ? { provider: window.ethereum } : {}),
+        deployments: AF.m3Deployments,
+      })
+    : createM3BrowserRuntime({
+        ...(window.ethereum ? { provider: window.ethereum } : {}),
+        ...(AF.m3Deployment ? { deployment: AF.m3Deployment } : {}),
+      });
 const adapter = new ProductAdapter();
 const client = adapter.client;
 const esc = (value: unknown) =>
@@ -309,6 +321,11 @@ interface OnchainDraft {
   readonly approval?: M3DepositApprovalReview;
 }
 let onchainDraft: OnchainDraft | null = null;
+interface PassTransferDraft {
+  readonly request?: M3PassTransferRequest;
+  readonly review?: M3PassTransferReview;
+}
+let passTransferDraft: PassTransferDraft | null = null;
 function openOnchainAction(action: OnchainProductAction): void {
   if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');
   if (!onchainActionEnabled(onchainRuntime.snapshot.onchain, action)) throw Error('CHAIN_ACTION_UNAVAILABLE');
@@ -316,7 +333,11 @@ function openOnchainAction(action: OnchainProductAction): void {
   const amount =
     action === 'close'
       ? '<p>Close returns protocol-accounted assets and remaining locked Pass to the immutable Vault owner.</p>'
-      : '<label>AF-USDC amount<input name="chainAmount" inputmode="decimal" autocomplete="off" autofocus></label>';
+      : action === 'rescue-native'
+        ? '<p>Rescue sends untracked native currency from the closed Vault to its immutable owner.</p>'
+        : action === 'rescue-token'
+          ? '<label>Untracked token address<input name="chainToken" autocomplete="off" autofocus></label>'
+          : '<label>AF-USDC amount<input name="chainAmount" inputmode="decimal" autocomplete="off" autofocus></label>';
   AF.app.openDialog(
     `<span class="section-label">TESTNET / WALLET REVIEW</span><h2>Review ${esc(action)}.</h2>${amount}<p>Current wallet signature and contract authorization determine access. AlphaForge Account does not grant Vault ownership.</p><p data-product-dialog-error class="form-error" role="alert"></p><div class="inline-actions"><button class="primary-btn" data-chain-review>Read and simulate ↗</button><button class="text-link" data-close>Cancel</button></div>`,
   );
@@ -328,7 +349,11 @@ function showOnchainDialogError(message: string): void {
 async function reviewOnchainAction(): Promise<void> {
   if (!onchainRuntime || !onchainDraft) throw Error('CHAIN_REVIEW_REQUIRED');
   const amountInput = document.querySelector<HTMLInputElement>('dialog[open] [name="chainAmount"]');
-  const request = parseM3ProductAction(onchainDraft.action, amountInput?.value);
+  const tokenInput = document.querySelector<HTMLInputElement>('dialog[open] [name="chainToken"]');
+  const request =
+    onchainDraft.action === 'rescue-token' || onchainDraft.action === 'rescue-native'
+      ? parseM3RescueAction(onchainDraft.action, tokenInput?.value)
+      : parseM3ProductAction(onchainDraft.action, amountInput?.value);
   if (request.kind === 'deposit') {
     if (onchainRuntime.reviewDepositApprovals) {
       const approval = await onchainRuntime.reviewDepositApprovals(request);
@@ -356,14 +381,46 @@ async function reviewOnchainAction(): Promise<void> {
   const review = await onchainRuntime.reviewAction(request);
   if (!sameM3ProductAction(request, review.request)) throw Error('CHAIN_ACTION_REVIEW_MISMATCH');
   onchainDraft = { action: onchainDraft.action, request, review };
-  const amount = request.kind === 'close' ? 'No amount' : `${request.usdcBaseUnits} AF-USDC base units`;
+  const amount =
+    request.kind === 'deposit' || request.kind === 'withdraw'
+      ? `${request.usdcBaseUnits} AF-USDC base units`
+      : request.kind === 'rescue-token'
+        ? `Token ${request.token}`
+        : 'No amount';
   AF.app.openDialog(
     `<span class="section-label">TESTNET / LIVE SIMULATION PASSED</span><h2>Confirm ${esc(request.kind)}.</h2><div class="receipt"><div class="receipt-lines"><div><span>Wallet owner</span><span>${esc(review.owner)}</span></div><div><span>Operation</span><span>${esc(review.operationId)}</span></div><div><span>Amount</span><span>${esc(amount)}</span></div></div></div><p>The wallet will show the exact contract transaction. Submission is not success; AlphaForge waits for receipt and canonical readback.</p><p data-product-dialog-error class="form-error" role="alert"></p><div class="inline-actions"><button class="primary-btn" data-chain-confirm>Request wallet confirmation ↗</button><button class="text-link" data-close>Cancel</button></div>`,
   );
 }
+function openPassTransfer(): void {
+  if (!onchainRuntime?.reviewPassTransfer || !onchainRuntime.confirmPassTransfer)
+    throw Error('PASS_TRANSFER_UNAVAILABLE');
+  if (onchainRuntime.snapshot.onchain.passTransferMode === 'DISABLED')
+    throw Error('PASS_TRANSFER_UNAVAILABLE');
+  passTransferDraft = {};
+  AF.app.openDialog(
+    '<span class="section-label">TESTNET / PASS TRANSFER</span><h2>Review Pass transfer.</h2><label>Recipient address<input name="passRecipient" autocomplete="off" autofocus></label><label>Pass amount<input name="passAmount" inputmode="decimal" autocomplete="off"></label><p>Pass uses 18 decimals. Paid Buy and Sell are outside Phase One.</p><p data-product-dialog-error class="form-error" role="alert"></p><div class="inline-actions"><button class="primary-btn" data-pass-review>Read and simulate ↗</button><button class="text-link" data-close>Cancel</button></div>',
+  );
+}
+async function reviewPassTransfer(): Promise<void> {
+  if (!onchainRuntime?.reviewPassTransfer || !passTransferDraft) throw Error('PASS_TRANSFER_REVIEW_REQUIRED');
+  const recipient = document.querySelector<HTMLInputElement>('dialog[open] [name="passRecipient"]')?.value;
+  const amount = document.querySelector<HTMLInputElement>('dialog[open] [name="passAmount"]')?.value;
+  if (recipient === undefined || amount === undefined) throw Error('PASS_TRANSFER_INPUT_REQUIRED');
+  const request = parseM3PassTransfer(recipient, amount);
+  const review = await onchainRuntime.reviewPassTransfer(request);
+  if (
+    review.request.recipient.toLowerCase() !== request.recipient.toLowerCase() ||
+    review.request.passBaseUnits !== request.passBaseUnits
+  )
+    throw Error('PASS_TRANSFER_REVIEW_MISMATCH');
+  passTransferDraft = { request, review };
+  AF.app.openDialog(
+    `<span class="section-label">TESTNET / LIVE SIMULATION PASSED</span><h2>Confirm Pass transfer.</h2><div class="receipt"><div class="receipt-lines"><div><span>Wallet owner</span><span>${esc(review.owner)}</span></div><div><span>Pass contract</span><span>${esc(review.token)}</span></div><div><span>Recipient</span><span>${esc(request.recipient)}</span></div><div><span>Amount</span><span>${esc(request.passBaseUnits)} Pass base units</span></div><div><span>Operation</span><span>${esc(review.operationId)}</span></div></div></div><p>The wallet will show the exact ERC-20 transfer. One Pass equals 10^18 base units.</p><p data-product-dialog-error class="form-error" role="alert"></p><div class="inline-actions"><button class="primary-btn" data-pass-confirm>Request wallet confirmation ↗</button><button class="text-link" data-close>Cancel</button></div>`,
+  );
+}
 document.addEventListener('click', (event) => {
   const target = (event.target as Element).closest<HTMLElement>(
-    '[data-product-login],[data-product-refresh],[data-product-retry],[data-product-dismiss],[data-product-command],[data-product-review],[data-product-confirm],[data-product-claim],[data-chain-connect],[data-chain-refresh],[data-chain-action],[data-chain-review],[data-chain-confirm],[data-chain-approve]',
+    '[data-product-login],[data-product-refresh],[data-product-retry],[data-product-dismiss],[data-product-command],[data-product-review],[data-product-confirm],[data-product-claim],[data-chain-connect],[data-chain-refresh],[data-chain-action],[data-chain-review],[data-chain-confirm],[data-chain-approve],[data-pass-transfer],[data-pass-review],[data-pass-confirm]',
   );
   if (!target) return;
   event.preventDefault();
@@ -408,6 +465,33 @@ document.addEventListener('click', (event) => {
       claimId = null;
       localError = null;
       openOnchainAction(target.dataset.chainAction as OnchainProductAction);
+    } else if (target.hasAttribute('data-pass-transfer')) {
+      draft = null;
+      claimId = null;
+      onchainDraft = null;
+      localError = null;
+      openPassTransfer();
+    } else if (target.hasAttribute('data-pass-review')) {
+      void runM3DialogAction(
+        'review',
+        target as HTMLButtonElement,
+        reviewPassTransfer,
+        showOnchainDialogError,
+      );
+    } else if (target.hasAttribute('data-pass-confirm')) {
+      if (!onchainRuntime?.confirmPassTransfer || !passTransferDraft?.review)
+        throw Error('PASS_TRANSFER_REVIEW_REQUIRED');
+      const captured = passTransferDraft.review;
+      passTransferDraft = null;
+      void runM3DialogAction(
+        'confirm',
+        target as HTMLButtonElement,
+        async () => {
+          await onchainRuntime.confirmPassTransfer!(captured);
+          AF.app.closeDialog();
+        },
+        showOnchainDialogError,
+      );
     } else if (target.hasAttribute('data-chain-review')) {
       void runM3DialogAction(
         'review',
@@ -482,6 +566,21 @@ document.addEventListener('input', (event) => {
 });
 document.addEventListener('change', (event) => {
   const input = event.target as HTMLSelectElement;
+  if (input.hasAttribute('data-chain-vault-select')) {
+    const selection = onchainRuntime?.vaultSelection?.options.find(
+      (option) => `${option.chainId}:${option.vaultAddress}` === input.value,
+    );
+    if (!onchainRuntime?.selectVault || !selection) {
+      localError = 'M3_VAULT_SELECTION_NOT_ALLOWLISTED';
+      render();
+      return;
+    }
+    onchainDraft = null;
+    passTransferDraft = null;
+    AF.app.closeDialog();
+    void run(() => onchainRuntime.selectVault!(selection));
+    return;
+  }
   if (input.hasAttribute('data-product-status-filter')) statusFilter = input.value;
   else if (input.hasAttribute('data-product-environment-filter')) environment = input.value;
   else return;
@@ -492,6 +591,7 @@ window.addEventListener('hashchange', () => {
   draft = null;
   claimId = null;
   onchainDraft = null;
+  passTransferDraft = null;
   void run(alignVault);
 });
 client.subscribe(() => render());

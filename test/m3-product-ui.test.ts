@@ -69,9 +69,12 @@ test('strategy shell separates fixture content from unavailable Testnet capabili
   assert.equal(M3_CANONICAL_STRATEGY_ID, 'trend');
   assert.match(html, /CANONICAL STRATEGY ID/);
 
-  for (const action of ['Buy Pass', 'Sell Pass', 'Deposit', 'Withdraw', 'Approve']) {
+  for (const action of ['Deposit', 'Withdraw', 'Approve']) {
     assert.match(html, new RegExp(`<button[^>]+disabled[^>]*>${action} · NOT IMPLEMENTED</button>`));
   }
+  assert.match(html, /data-pass-transfer disabled>Transfer Pass/);
+  assert.match(html, /Buy Pass · OUT OF PHASE ONE/);
+  assert.match(html, /Sell Pass · OUT OF PHASE ONE/);
 });
 
 test('historical local strategy identities remain isolated from the canonical product strategy', () => {
@@ -517,6 +520,100 @@ test('degraded indexer preserves owner withdraw and close through live RPC simul
   assert.match(html, /<button[^>]*data-chain-action="withdraw"[^>]*>Withdraw<\/button>/);
   assert.match(html, /<button[^>]*data-chain-action="close"[^>]*>Close<\/button>/);
   assert.match(html, /<button[^>]*data-chain-action="deposit"[^>]*disabled[^>]*>Deposit<\/button>/);
+});
+
+test('closed Vault keeps only owner post-close rescue actions available', () => {
+  const onchain = {
+    deployment: 'CONFIGURED' as const,
+    health: 'DEGRADED' as const,
+    readiness: 'FINALITY_UNKNOWN' as const,
+    owner: 'OWNER' as const,
+    writeMode: 'LIVE_AUTHORIZED' as const,
+    exitPath: 'SIMULATION' as const,
+    supportedActions: ['rescue-token', 'rescue-native'] as const,
+    vaultAddress: '0x2222222222222222222222222222222222222222',
+    vaultClosed: true,
+  };
+
+  for (const action of ['deposit', 'withdraw', 'close'] as const)
+    assert.equal(onchainActionEnabled(onchain, action), false, action);
+  assert.equal(onchainActionEnabled(onchain, 'rescue-token' as never), true);
+  assert.equal(onchainActionEnabled(onchain, 'rescue-native' as never), true);
+
+  const html = renderM3StrategyShell({ strategyId: 'trend', contentProvenance: 'FIXTURE', onchain });
+  assert.match(html, /VAULT CLOSED/);
+  assert.match(html, /data-chain-action="rescue-token"/);
+  assert.match(html, /data-chain-action="rescue-native"/);
+  assert.match(html, /Rescue untracked token/);
+  assert.match(html, /Rescue native/);
+});
+
+test('configured Pass capability offers transfer while paid sale remains outside Phase One', () => {
+  const html = renderM3StrategyShell({
+    strategyId: 'trend',
+    contentProvenance: 'FIXTURE',
+    onchain: {
+      deployment: 'CONFIGURED',
+      health: 'LIVE',
+      readiness: 'FINALITY_UNKNOWN',
+      owner: 'NON_OWNER',
+      writeMode: 'DISABLED',
+      exitPath: 'UNAVAILABLE',
+      supportedActions: [],
+      passAddress: '0x4444444444444444444444444444444444444444',
+      passBalanceBaseUnits: '1',
+      passTransferMode: 'LIVE_AUTHORIZED',
+      passInitialSupplyBaseUnits: '10000000000000000000',
+      passInitialRecipient: '0x1111111111111111111111111111111111111111',
+    } as never,
+  });
+
+  assert.match(html, /0x4444444444444444444444444444444444444444/);
+  assert.match(html, /0\.000000000000000001 Pass/);
+  assert.match(html, /1 base unit/);
+  assert.match(html, /Initial Pass allocation/);
+  assert.match(html, /10\.000000000000000000 Pass/);
+  assert.match(html, /0x1111111111111111111111111111111111111111/);
+  assert.match(html, /<button[^>]*data-pass-transfer[^>]*>Transfer Pass<\/button>/);
+  assert.match(html, /Buy Pass · OUT OF PHASE ONE/);
+  assert.match(html, /Sell Pass · OUT OF PHASE ONE/);
+  assert.doesNotMatch(html, /Buy Pass · NOT IMPLEMENTED/);
+});
+
+test('Vault selection renders two reviewed choices while preserving a shared Pass identity', () => {
+  const vaultA = asAddress('0x2222222222222222222222222222222222222222');
+  const vaultB = asAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+  const sharedPass = '0x4444444444444444444444444444444444444444';
+  const html = renderM3StrategyShell({
+    strategyId: 'trend',
+    contentProvenance: 'FIXTURE',
+    vaultSelection: {
+      selected: { chainId: 46_630, vaultAddress: vaultB },
+      options: [
+        { chainId: 46_630, vaultAddress: vaultA },
+        { chainId: 46_630, vaultAddress: vaultB },
+      ],
+    },
+    onchain: {
+      deployment: 'CONFIGURED',
+      health: 'LIVE',
+      readiness: 'FINALITY_UNKNOWN',
+      owner: 'OWNER',
+      writeMode: 'INJECTED_MOCK',
+      exitPath: 'SIMULATION',
+      supportedActions: ['deposit', 'withdraw', 'close'],
+      vaultAddress: vaultB,
+      passAddress: sharedPass,
+      passTransferMode: 'INJECTED_MOCK',
+    },
+  });
+
+  assert.match(html, /data-chain-vault-select/);
+  assert.match(html, new RegExp(`value="46630:${vaultA}"`));
+  assert.match(html, new RegExp(`value="46630:${vaultB}" selected`));
+  assert.match(html, /Reviewed deployment allowlist/);
+  assert.match(html, new RegExp(sharedPass));
+  assert.doesNotMatch(html, /Discover|Deploy new Vault/);
 });
 
 test('degraded indexer identifies a non-owner wallet without implying an owner exit path', () => {

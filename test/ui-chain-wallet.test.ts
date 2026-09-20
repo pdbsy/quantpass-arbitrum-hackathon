@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  Eip1193WalletConnection,
   Eip1193Wallet,
   PreparedActionFactory,
   WalletFailure,
   type Eip1193Provider,
   type Eip1193Request,
   type PreparedAction,
+  type PreparedActionAuthority,
 } from '../apps/web/src/chain-wallet.ts';
 import { asAddress, asHexData, asTransactionHash } from '../packages/chain-adapter/src/types.ts';
 
@@ -382,4 +384,237 @@ test('prepared action factory rejects values outside the EVM uint256 range', () 
     encode: () => ({ data: asHexData('0x'), value: 1n << 256n }),
   });
   assert.throws(() => invalidFactory.prepare(null, OWNER), /INVALID_TRANSACTION_VALUE/);
+});
+
+test('wallet construction and prepared action validators reject invalid authority boundaries', () => {
+  assert.throws(
+    () =>
+      new PreparedActionFactory<null>({
+        chainId: 0,
+        target: CONTRACT,
+        operationId: () => 'valid',
+        encode: () => ({ data: asHexData('0x'), value: 0n }),
+      }),
+    /INVALID_CHAIN_ID/,
+  );
+  const invalidOperation = new PreparedActionFactory<null>({
+    chainId: CHAIN_ID,
+    target: CONTRACT,
+    operationId: () => 'invalid operation',
+    encode: () => ({ data: asHexData('0x'), value: 0n }),
+  });
+  assert.throws(() => invalidOperation.prepare(null, OWNER), /INVALID_OPERATION_ID/);
+  const oversized = new PreparedActionFactory<null>({
+    chainId: CHAIN_ID,
+    target: CONTRACT,
+    operationId: () => 'oversized',
+    encode: () => ({ data: asHexData(`0x${'00'.repeat(131_073)}`), value: 0n }),
+  });
+  assert.throws(() => oversized.prepare(null, OWNER), /TRANSACTION_DATA_TOO_LARGE/);
+
+  assert.throws(
+    () =>
+      new Eip1193Wallet({} as Eip1193Provider, {
+        chainId: CHAIN_ID,
+        target: CONTRACT,
+        actionAuthority: factory.authority,
+      }),
+    /INVALID_EIP1193_PROVIDER/,
+  );
+  assert.throws(
+    () =>
+      new Eip1193Wallet(new ProviderFixture(), {
+        chainId: CHAIN_ID,
+        target: CONTRACT,
+        actionAuthority: {} as PreparedActionAuthority,
+      }),
+    /INVALID_ACTION_AUTHORITY/,
+  );
+});
+
+test('wallet connection sanitizes malformed accounts, chain ids and provider failures', async () => {
+  for (const accounts of [null, ['invalid']] as const) {
+    const provider = new ProviderFixture();
+    provider.accounts = accounts as unknown as readonly string[];
+    const connection = new Eip1193WalletConnection(provider, CHAIN_ID);
+    await assert.rejects(
+      connection.connect(),
+      (error: unknown) => error instanceof WalletFailure && error.code === 'WALLET_INVALID_RESPONSE',
+    );
+  }
+
+  const empty = new ProviderFixture();
+  empty.accounts = [];
+  await assert.rejects(
+    new Eip1193WalletConnection(empty, CHAIN_ID).connect(),
+    (error: unknown) => error instanceof WalletFailure && error.code === 'WALLET_DISCONNECTED',
+  );
+
+  for (const chainId of [1, '0x01', '0x0', `0x${'f'.repeat(32)}`] as const) {
+    const provider = new ProviderFixture();
+    provider.chainId = chainId as string;
+    await assert.rejects(
+      new Eip1193WalletConnection(provider, CHAIN_ID).connect(),
+      (error: unknown) => error instanceof WalletFailure && error.code === 'WALLET_INVALID_RESPONSE',
+    );
+  }
+
+  for (const failure of [{ code: 4001 }, new Error('provider detail')]) {
+    const provider = new ProviderFixture();
+    provider.request = () => Promise.reject(failure);
+    await assert.rejects(
+      new Eip1193WalletConnection(provider, CHAIN_ID).connect(),
+      (error: unknown) =>
+        error instanceof WalletFailure &&
+        error.code === ('code' in failure ? 'WALLET_REJECTED' : 'WALLET_REQUEST_FAILED'),
+    );
+  }
+
+  const chainFailure = new ProviderFixture();
+  const request = chainFailure.request.bind(chainFailure);
+  chainFailure.request = (input) =>
+    input.method === 'eth_chainId' ? Promise.reject(new Error('chain detail')) : request(input);
+  await assert.rejects(
+    new Eip1193WalletConnection(chainFailure, CHAIN_ID).connect(),
+    (error: unknown) => error instanceof WalletFailure && error.code === 'WALLET_REQUEST_FAILED',
+  );
+});
+
+test('wallet rejects trusted actions whose chain or target differs from its authority context', async () => {
+  const provider = new ProviderFixture();
+  const prepared = factory.prepare({ amount: '08' }, OWNER);
+  const targetMismatch = new Eip1193Wallet(provider, {
+    chainId: CHAIN_ID,
+    target: OTHER_OWNER,
+    actionAuthority: factory.authority,
+  });
+  await assert.rejects(
+    targetMismatch.submit(prepared),
+    (error: unknown) => error instanceof WalletFailure && error.code === 'UNTRUSTED_PREPARED_ACTION',
+  );
+  const chainMismatch = new Eip1193Wallet(provider, {
+    chainId: CHAIN_ID + 1,
+    target: CONTRACT,
+    actionAuthority: factory.authority,
+  });
+  await assert.rejects(
+    chainMismatch.submit(prepared),
+    (error: unknown) => error instanceof WalletFailure && error.code === 'UNTRUSTED_PREPARED_ACTION',
+  );
+});
+
+test('wallet fails closed for missing or changed sessions at each pre-submit checkpoint', async () => {
+  const cases: Array<{
+    mutate(provider: ProviderFixture): void;
+    code: WalletFailure['code'];
+  }> = [
+    {
+      mutate: (provider) => {
+        provider.accounts = [];
+      },
+      code: 'WALLET_DISCONNECTED',
+    },
+    {
+      mutate: (provider) => {
+        const request = provider.request.bind(provider);
+        let accountReads = 0;
+        provider.request = (input) => {
+          if (input.method === 'eth_accounts' && ++accountReads === 2) return Promise.resolve([]);
+          return request(input);
+        };
+      },
+      code: 'WALLET_DISCONNECTED',
+    },
+    {
+      mutate: (provider) => {
+        const request = provider.request.bind(provider);
+        let chainReads = 0;
+        provider.request = (input) => {
+          if (input.method === 'eth_chainId' && ++chainReads === 2) return Promise.resolve('0x1');
+          return request(input);
+        };
+      },
+      code: 'WALLET_WRONG_CHAIN',
+    },
+    {
+      mutate: (provider) => {
+        const request = provider.request.bind(provider);
+        provider.request = async (input) => {
+          const result = await request(input);
+          if (input.method === 'eth_accounts') provider.emit('disconnect', null);
+          return result;
+        };
+      },
+      code: 'WALLET_SESSION_CHANGED',
+    },
+    {
+      mutate: (provider) => {
+        const request = provider.request.bind(provider);
+        provider.request = async (input) => {
+          const result = await request(input);
+          if (input.method === 'eth_call') provider.emit('chainChanged', '0x1');
+          return result;
+        };
+      },
+      code: 'WALLET_SESSION_CHANGED',
+    },
+  ];
+  for (const item of cases) {
+    const provider = new ProviderFixture();
+    item.mutate(provider);
+    const wallet = new Eip1193Wallet(provider, {
+      chainId: CHAIN_ID,
+      target: CONTRACT,
+      actionAuthority: factory.authority,
+    });
+    await assert.rejects(
+      wallet.submit(factory.prepare({ amount: '09' }, OWNER)),
+      (error: unknown) => error instanceof WalletFailure && error.code === item.code,
+    );
+  }
+});
+
+test('post-submit observation and cleanup failures preserve an explicit result', async () => {
+  const observationFailure = new ProviderFixture();
+  const request = observationFailure.request.bind(observationFailure);
+  let accountReads = 0;
+  observationFailure.request = (input) => {
+    if (input.method === 'eth_accounts' && ++accountReads === 3)
+      return Promise.reject(new Error('post-submit detail'));
+    return request(input);
+  };
+  const ambiguous = await new Eip1193Wallet(observationFailure, {
+    chainId: CHAIN_ID,
+    target: CONTRACT,
+    actionAuthority: factory.authority,
+    now: () => '2026-09-14T12:00:00.000Z',
+  }).submit(factory.prepare({ amount: '10' }, OWNER));
+  assert.equal(ambiguous.state, 'SUBMISSION_AMBIGUOUS');
+  if (ambiguous.state !== 'SUBMISSION_AMBIGUOUS') assert.fail('expected ambiguous submission');
+  assert.equal(ambiguous.reason, 'POST_SUBMISSION_CHECK_FAILED');
+
+  const cleanupFailure = new ProviderFixture();
+  cleanupFailure.removeListener = () => {
+    throw new Error('cleanup detail');
+  };
+  const submitted = await new Eip1193Wallet(cleanupFailure, {
+    chainId: CHAIN_ID,
+    target: CONTRACT,
+    actionAuthority: factory.authority,
+    now: () => '2026-09-14T12:00:00.000Z',
+  }).submit(factory.prepare({ amount: '11' }, OWNER));
+  assert.equal(submitted.state, 'SUBMITTED');
+
+  const invalidTime = new ProviderFixture();
+  const invalidTimeResult = await new Eip1193Wallet(invalidTime, {
+    chainId: CHAIN_ID,
+    target: CONTRACT,
+    actionAuthority: factory.authority,
+    now: () => {
+      throw new Error('clock detail');
+    },
+  }).submit(factory.prepare({ amount: '12' }, OWNER));
+  assert.equal(invalidTimeResult.state, 'SUBMISSION_AMBIGUOUS');
+  if (invalidTimeResult.state !== 'SUBMISSION_AMBIGUOUS') assert.fail('expected ambiguous submission');
+  assert.equal(invalidTimeResult.reason, 'LOCAL_EVIDENCE_INVALID');
 });

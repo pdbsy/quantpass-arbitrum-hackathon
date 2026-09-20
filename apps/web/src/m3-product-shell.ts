@@ -1,4 +1,6 @@
 import { ROBINHOOD_CHAIN_TESTNET } from '../../../packages/robinhood-chain/src/network.ts';
+import { formatUnits } from '../../../packages/domain/src/money.ts';
+import type { Address } from '../../../packages/chain-adapter/src/types.ts';
 import type { WalletSubmission } from './chain-wallet.ts';
 import type { ProductOperationEvidence } from './strategy-adapter.ts';
 
@@ -62,7 +64,7 @@ export interface TransactionPresentation {
   readonly errorMessage?: string;
 }
 
-export type OnchainProductAction = 'deposit' | 'withdraw' | 'close';
+export type OnchainProductAction = 'deposit' | 'withdraw' | 'close' | 'rescue-token' | 'rescue-native';
 export type OnchainReadiness = 'UNKNOWN' | 'SOFT_READY' | 'FINALITY_UNKNOWN' | 'REORGED';
 
 export interface DepositAuthorizationPresentation {
@@ -82,7 +84,22 @@ export interface OnchainProductPresentation {
   readonly supportedActions: readonly OnchainProductAction[];
   readonly vaultAddress?: string;
   readonly vaultClosed?: boolean;
+  readonly passAddress?: string;
+  readonly passBalanceBaseUnits?: string;
+  readonly passInitialSupplyBaseUnits?: string;
+  readonly passInitialRecipient?: string;
+  readonly passTransferMode?: 'DISABLED' | 'INJECTED_MOCK' | 'LIVE_AUTHORIZED';
   readonly depositAuthorization?: DepositAuthorizationPresentation;
+}
+
+export interface M3VaultSelection {
+  readonly chainId: 46_630;
+  readonly vaultAddress: Address;
+}
+
+export interface M3VaultSelectionState {
+  readonly selected: M3VaultSelection;
+  readonly options: readonly M3VaultSelection[];
 }
 
 export interface M3ProductChainPresentation {
@@ -90,6 +107,7 @@ export interface M3ProductChainPresentation {
   readonly network: NetworkPresentation;
   readonly transaction: TransactionPresentation;
   readonly onchain: OnchainProductPresentation;
+  readonly vaultSelection?: M3VaultSelectionState;
 }
 
 export interface StrategyShellInput {
@@ -99,6 +117,7 @@ export interface StrategyShellInput {
   readonly network?: NetworkPresentation;
   readonly transaction?: TransactionPresentation;
   readonly onchain?: OnchainProductPresentation;
+  readonly vaultSelection?: M3VaultSelectionState;
 }
 
 export interface AccountShellInput {
@@ -107,6 +126,7 @@ export interface AccountShellInput {
   readonly network?: NetworkPresentation;
   readonly transaction?: TransactionPresentation;
   readonly onchain?: OnchainProductPresentation;
+  readonly vaultSelection?: M3VaultSelectionState;
 }
 
 export interface M3ProductPages {
@@ -278,18 +298,14 @@ function transactionCard(transaction: TransactionPresentation): string {
 }
 
 function disabledActions(): string {
-  return `<div class="inline-actions" aria-label="Testnet asset actions">${[
-    'Buy Pass',
-    'Sell Pass',
-    'Deposit',
-    'Withdraw',
-    'Approve',
-  ]
+  return `<div class="inline-actions" aria-label="Testnet asset actions">${['Deposit', 'Withdraw', 'Approve']
     .map(
       (action) =>
         `<button class="outline-btn" disabled title="Requires reviewed Macbeth02 contract capability and Macbeth03 chain adapter">${action} · NOT IMPLEMENTED</button>`,
     )
-    .join('')}</div>`;
+    .join(
+      '',
+    )}<button class="outline-btn" data-pass-transfer disabled>Transfer Pass</button><button class="outline-btn" disabled>Buy Pass · OUT OF PHASE ONE</button><button class="outline-btn" disabled>Sell Pass · OUT OF PHASE ONE</button></div>`;
 }
 
 const readinessMessages: Record<OnchainReadiness, string> = {
@@ -303,8 +319,8 @@ export function onchainActionEnabled(
   onchain: OnchainProductPresentation,
   action: OnchainProductAction,
 ): boolean {
+  const rescue = action === 'rescue-token' || action === 'rescue-native';
   if (
-    onchain.vaultClosed === true ||
     onchain.deployment !== 'CONFIGURED' ||
     onchain.health === 'UNAVAILABLE' ||
     onchain.owner !== 'OWNER' ||
@@ -312,6 +328,8 @@ export function onchainActionEnabled(
     !onchain.supportedActions.includes(action)
   )
     return false;
+  if ((onchain.vaultClosed === true) !== rescue) return false;
+  if (rescue) return onchain.exitPath === 'LIVE_RPC' || onchain.exitPath === 'SIMULATION';
   if (action === 'deposit') {
     const authorization = onchain.depositAuthorization;
     const validUnits = (value: string) => /^(0|[1-9][0-9]*)$/.test(value);
@@ -341,6 +359,8 @@ function onchainActions(onchain: OnchainProductPresentation): string {
     ['deposit', 'Deposit'],
     ['withdraw', 'Withdraw'],
     ['close', 'Close'],
+    ['rescue-token', 'Rescue untracked token'],
+    ['rescue-native', 'Rescue native'],
   ];
   return `<div class="inline-actions" aria-label="Testnet contract actions">${labels
     .map(([action, label]) => {
@@ -355,18 +375,55 @@ function unsupportedOnchainActions(onchain: OnchainProductPresentation): string 
     onchain.depositAuthorization?.approvalCapability === 'AVAILABLE'
       ? 'Approve · USE DEPOSIT REVIEW'
       : 'Approve · NOT AVAILABLE';
-  return `<div class="inline-actions" aria-label="Unavailable Testnet actions">${['Buy Pass', 'Sell Pass']
-    .map((label) => `<button class="outline-btn" disabled>${label} · NOT IMPLEMENTED</button>`)
-    .join('')}<button class="outline-btn" disabled>${approval}</button></div>`;
+  const passConfigured = /^0x[0-9a-fA-F]{40}$/.test(onchain.passAddress ?? '');
+  const transferEnabled =
+    passConfigured && onchain.passTransferMode !== undefined && onchain.passTransferMode !== 'DISABLED';
+  const passBalance = /^(0|[1-9][0-9]*)$/.test(onchain.passBalanceBaseUnits ?? '')
+    ? `${escapeHtml(formatUnits(onchain.passBalanceBaseUnits!, 18))} Pass · ${escapeHtml(onchain.passBalanceBaseUnits)} base unit${onchain.passBalanceBaseUnits === '1' ? '' : 's'}`
+    : 'Unavailable';
+  return `<p><strong>Pass contract</strong> · ${passConfigured ? escapeHtml(onchain.passAddress) : 'Unavailable'}</p><p><strong>Wallet Pass balance</strong> · ${passBalance}</p><div class="inline-actions" aria-label="Testnet Pass actions"><button class="outline-btn" data-pass-transfer ${transferEnabled ? '' : 'disabled'}>Transfer Pass</button><button class="outline-btn" disabled>Buy Pass · OUT OF PHASE ONE</button><button class="outline-btn" disabled>Sell Pass · OUT OF PHASE ONE</button><button class="outline-btn" disabled>${approval}</button></div>`;
 }
 
-function onchainCard(onchain: OnchainProductPresentation): string {
+function vaultSelector(selection: M3VaultSelectionState | undefined): string {
+  if (!selection || selection.options.length === 0) return '';
+  const validAddress = (value: string) => /^0x[0-9a-fA-F]{40}$/.test(value);
+  if (
+    selection.selected.chainId !== ROBINHOOD_CHAIN_TESTNET.chainId ||
+    !validAddress(selection.selected.vaultAddress) ||
+    selection.options.some(
+      (option) => option.chainId !== ROBINHOOD_CHAIN_TESTNET.chainId || !validAddress(option.vaultAddress),
+    ) ||
+    !selection.options.some(
+      (option) =>
+        option.chainId === selection.selected.chainId &&
+        option.vaultAddress.toLowerCase() === selection.selected.vaultAddress.toLowerCase(),
+    )
+  )
+    return '';
+  return `<label><strong>Reviewed deployment allowlist</strong><select data-chain-vault-select aria-label="Reviewed Vault">${selection.options
+    .map((option) => {
+      const selected =
+        option.chainId === selection.selected.chainId &&
+        option.vaultAddress.toLowerCase() === selection.selected.vaultAddress.toLowerCase();
+      const value = `${option.chainId}:${option.vaultAddress}`;
+      return `<option value="${escapeHtml(value)}"${selected ? ' selected' : ''}>Chain ${option.chainId} · ${escapeHtml(option.vaultAddress)}</option>`;
+    })
+    .join(
+      '',
+    )}</select></label><p>Choose only from complete reviewed deployment records. Backend status cross-checks identity and health; it does not discover or authorize Vaults.</p>`;
+}
+
+function onchainCard(onchain: OnchainProductPresentation, selection?: M3VaultSelectionState): string {
   const deploymentMessage =
     onchain.deployment === 'CONFIGURED'
       ? 'Verified deployment metadata is configured.'
       : 'NOT DEPLOYED — no verified Vault address or deployment manifest is configured.';
   const healthMessage = onchain.vaultClosed
-    ? `${onchain.health === 'DEGRADED' ? 'INDEXER DEGRADED. ' : ''}VAULT CLOSED. Deposit, withdraw and close are unavailable.`
+    ? `${onchain.health === 'DEGRADED' ? 'INDEXER DEGRADED. ' : ''}VAULT CLOSED. Deposit, withdraw and close are unavailable.${
+        onchain.owner === 'OWNER' && (onchain.exitPath === 'LIVE_RPC' || onchain.exitPath === 'SIMULATION')
+          ? ' Owner-only post-close rescue remains available.'
+          : ''
+      }`
     : onchain.health === 'DEGRADED'
       ? onchain.owner === 'NON_OWNER'
         ? 'INDEXER DEGRADED. Current wallet is not the Vault owner; owner exits are unavailable.'
@@ -391,6 +448,11 @@ function onchainCard(onchain: OnchainProductPresentation): string {
         ? 'Live wallet actions require an explicit review and confirmation.'
         : 'Chain writes are disabled.';
   const authorization = onchain.depositAuthorization;
+  const initialAllocation =
+    /^(0|[1-9][0-9]*)$/.test(onchain.passInitialSupplyBaseUnits ?? '') &&
+    /^0x[0-9a-fA-F]{40}$/.test(onchain.passInitialRecipient ?? '')
+      ? `${escapeHtml(formatUnits(onchain.passInitialSupplyBaseUnits!, 18))} Pass to ${escapeHtml(onchain.passInitialRecipient)}`
+      : 'Unavailable until reviewed deployment constructor values are configured.';
   const depositAuthorization = authorization
     ? `<div class="receipt"><div class="receipt-lines"><div><span>AF-USDC allowance</span><span>${escapeHtml(
         authorization.afUsdcAllowanceBaseUnits,
@@ -406,7 +468,7 @@ function onchainCard(onchain: OnchainProductPresentation): string {
     : '<p>Deposit allowances are unavailable. Deposit remains disabled until both AF-USDC and Pass allowances are read for the configured Vault.</p>';
   return `<article class="sketch-box"><span class="section-label">PASS + VAULT / TESTNET</span><h3>${escapeHtml(
     onchain.readiness.replaceAll('_', ' '),
-  )}</h3><p><strong>Deployment</strong> · ${escapeHtml(deploymentMessage)}</p><p>${escapeHtml(
+  )}</h3><p><strong>Deployment</strong> · ${escapeHtml(deploymentMessage)}</p>${vaultSelector(selection)}<p><strong>Selected Vault</strong> · ${escapeHtml(onchain.vaultAddress ?? 'Unavailable')}</p><p><strong>Initial Pass allocation</strong> · ${initialAllocation}</p><p>${escapeHtml(
     readinessMessages[onchain.readiness],
   )}</p><p>${escapeHtml(
     healthMessage,
@@ -425,12 +487,13 @@ function chainCards(
   transaction: TransactionPresentation,
   assetBoundary: string,
   onchain?: OnchainProductPresentation,
+  vaultSelection?: M3VaultSelectionState,
 ): string {
   return `<div class="strategy-grid">${walletCard(wallet)}${networkCard(network)}${transactionCard(
     transaction,
   )}</div>${
     onchain
-      ? `${onchainCard(onchain)}<div class="inline-actions" aria-label="Testnet wallet controls"><button class="outline-btn" data-chain-connect>Connect wallet</button><button class="text-link" data-chain-refresh>Refresh chain state</button></div>`
+      ? `${onchainCard(onchain, vaultSelection)}<div class="inline-actions" aria-label="Testnet wallet controls"><button class="outline-btn" data-chain-connect>Connect wallet</button><button class="text-link" data-chain-refresh>Refresh chain state</button></div>`
       : `<article class="sketch-box"><span class="section-label">PASS + VAULT / TESTNET / NOT IMPLEMENTED</span><p>${escapeHtml(
           assetBoundary,
         )}</p>${disabledActions()}</article>`
@@ -468,6 +531,7 @@ export function renderM3StrategyShell(input: StrategyShellInput): string {
     transaction,
     assetBoundary,
     input.onchain,
+    input.vaultSelection,
   )}</section>`;
 }
 
@@ -483,6 +547,7 @@ export function renderM3AccountShell(input: AccountShellInput): string {
     transaction,
     'Chain ownership, balances, deployment evidence and supported writes are unavailable on this baseline.',
     input.onchain,
+    input.vaultSelection,
   )}</section>`;
 }
 
@@ -499,6 +564,7 @@ export function extendM3ProductPages(pages: M3ProductPages, options: M3PageExten
                 wallet: chain.wallet,
                 network: chain.network,
                 transaction: chain.transaction,
+                ...(chain.vaultSelection ? { vaultSelection: chain.vaultSelection } : {}),
               }
             : {}),
           ...(onchain ? { onchain } : {}),
@@ -517,6 +583,7 @@ export function extendM3ProductPages(pages: M3ProductPages, options: M3PageExten
                 wallet: chain.wallet,
                 network: chain.network,
                 transaction: chain.transaction,
+                ...(chain.vaultSelection ? { vaultSelection: chain.vaultSelection } : {}),
               }
             : {}),
           ...(onchain ? { onchain } : {}),

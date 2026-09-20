@@ -171,3 +171,120 @@ test('allowance reads fail closed on wrong chain, malformed responses and overfl
     (error: unknown) => error instanceof M3AllowanceFailure && error.code === 'M3_ALLOWANCE_INVALID_AMOUNT',
   );
 });
+
+test('allowance input rejects zero, malformed and out-of-range chain quantities', async () => {
+  await assert.rejects(
+    readM3VaultDepositAuthorization(new AllowanceProvider(), {
+      chainId: 46_630,
+      vault: VAULT,
+      owner: OWNER,
+      usdcBaseUnits: '0',
+    }),
+    (error: unknown) => error instanceof M3AllowanceFailure && error.code === 'M3_ALLOWANCE_INVALID_AMOUNT',
+  );
+
+  for (const value of [1, '0x01', '0x0', `0x${'f'.repeat(32)}`] as const) {
+    const provider = new AllowanceProvider();
+    provider.request = async (input) => (input.method === 'eth_chainId' ? value : [OWNER]);
+    await assert.rejects(
+      readM3VaultDepositAuthorization(provider, {
+        chainId: 46_630,
+        vault: VAULT,
+        owner: OWNER,
+        usdcBaseUnits: '1',
+      }),
+      (error: unknown) => error instanceof M3AllowanceFailure && error.code === 'M3_ALLOWANCE_READ_FAILED',
+    );
+  }
+});
+
+test('allowance reads bind both initial and final owner observations', async () => {
+  const cases: Array<{ accounts: readonly unknown[][]; code: M3AllowanceFailure['code'] }> = [
+    { accounts: [[], [OWNER]], code: 'M3_ALLOWANCE_OWNER_CHANGED' },
+    { accounts: [['invalid'], [OWNER]], code: 'M3_ALLOWANCE_READ_FAILED' },
+    { accounts: [[VAULT], [VAULT]], code: 'M3_ALLOWANCE_OWNER_CHANGED' },
+    { accounts: [[OWNER], []], code: 'M3_ALLOWANCE_OWNER_CHANGED' },
+    { accounts: [[OWNER], ['invalid']], code: 'M3_ALLOWANCE_READ_FAILED' },
+    { accounts: [[OWNER], [VAULT]], code: 'M3_ALLOWANCE_OWNER_CHANGED' },
+  ];
+  for (const item of cases) {
+    const provider = new AllowanceProvider();
+    const request = provider.request.bind(provider);
+    let reads = 0;
+    provider.request = (input) => {
+      if (input.method === 'eth_accounts') return Promise.resolve(item.accounts[Math.min(reads++, 1)]);
+      return request(input);
+    };
+    await assert.rejects(
+      readM3VaultDepositAuthorization(provider, {
+        chainId: 46_630,
+        vault: VAULT,
+        owner: OWNER,
+        usdcBaseUnits: '1',
+      }),
+      (error: unknown) => error instanceof M3AllowanceFailure && error.code === item.code,
+    );
+  }
+});
+
+test('allowance provider and listener failures remain sanitized and cleanup is best effort', async () => {
+  const listenerFailure = new AllowanceProvider();
+  listenerFailure.on = () => {
+    throw new Error('listener detail');
+  };
+  await assert.rejects(
+    readM3VaultDepositAuthorization(listenerFailure, {
+      chainId: 46_630,
+      vault: VAULT,
+      owner: OWNER,
+      usdcBaseUnits: '1',
+    }),
+    /M3_ALLOWANCE_READ_FAILED/,
+  );
+
+  for (const error of [new Error('provider detail'), new M3AllowanceFailure('M3_ALLOWANCE_READ_FAILED')]) {
+    const provider = new AllowanceProvider();
+    const request = provider.request.bind(provider);
+    provider.request = (input) => (input.method === 'eth_call' ? Promise.reject(error) : request(input));
+    await assert.rejects(
+      readM3VaultDepositAuthorization(provider, {
+        chainId: 46_630,
+        vault: VAULT,
+        owner: OWNER,
+        usdcBaseUnits: '1',
+      }),
+      /M3_ALLOWANCE_READ_FAILED/,
+    );
+  }
+
+  const cleanupFailure = new AllowanceProvider();
+  cleanupFailure.removeListener = () => {
+    throw new Error('cleanup detail');
+  };
+  const result = await readM3VaultDepositAuthorization(cleanupFailure, {
+    chainId: 46_630,
+    vault: VAULT,
+    owner: OWNER,
+    usdcBaseUnits: '1',
+  });
+  assert.equal(result.summary.owner, OWNER);
+});
+
+test('unexpected option access is converted to the public allowance failure', async () => {
+  const options = new Proxy(
+    { chainId: 46_630, vault: VAULT, owner: OWNER, usdcBaseUnits: '1' },
+    {
+      get(target, property, receiver) {
+        if (property === 'chainId') throw new Error('private option detail');
+        return Reflect.get(target, property, receiver);
+      },
+    },
+  );
+  await assert.rejects(
+    readM3VaultDepositAuthorization(new AllowanceProvider(), options),
+    (error: unknown) =>
+      error instanceof M3AllowanceFailure &&
+      error.code === 'M3_ALLOWANCE_READ_FAILED' &&
+      !error.message.includes('private'),
+  );
+});

@@ -37,3 +37,69 @@ test('Vault action factory rejects zero, signed, noncanonical and uint256-overfl
     );
   }
 });
+
+test('Vault action factory prepares post-close token and native rescue calldata for the fixed Vault', () => {
+  const factory = createM3VaultActionFactory({ chainId: 46_630, target: CONTRACT });
+  let tokenRescue: ReturnType<typeof factory.prepare> | undefined;
+  let nativeRescue: ReturnType<typeof factory.prepare> | undefined;
+  try {
+    tokenRescue = factory.prepare(
+      {
+        operationId: 'rescue-token-1',
+        type: 'rescue-token',
+        token: asAddress('0x3333333333333333333333333333333333333333'),
+      },
+      OWNER,
+    );
+    nativeRescue = factory.prepare({ operationId: 'rescue-native-1', type: 'rescue-native' }, OWNER);
+  } catch {
+    // The assertions below keep the missing behavior as an explicit RED failure.
+  }
+
+  assert.equal(
+    tokenRescue?.data,
+    `0x45f5030f${'3333333333333333333333333333333333333333'.padStart(64, '0')}`,
+  );
+  assert.equal(nativeRescue?.data, '0xfc82f084');
+  for (const prepared of [tokenRescue, nativeRescue]) {
+    assert.equal(prepared?.target, CONTRACT);
+    assert.equal(prepared?.owner, OWNER);
+    assert.equal(prepared?.value, 0n);
+  }
+});
+
+test('Pass transfer factory preserves one raw unit at full eighteen-decimal precision', async () => {
+  let prepared:
+    | {
+        readonly target: string;
+        readonly owner: string;
+        readonly value: bigint;
+        readonly data: string;
+      }
+    | undefined;
+  try {
+    const { createM3PassTransferFactory } = await import('../apps/web/src/m3-pass-actions.ts');
+    const factory = createM3PassTransferFactory({
+      chainId: 46_630,
+      target: asAddress('0x4444444444444444444444444444444444444444'),
+    });
+    prepared = factory.prepare(
+      {
+        operationId: 'pass-transfer-1',
+        recipient: asAddress('0x5555555555555555555555555555555555555555'),
+        passBaseUnits: '1',
+      },
+      OWNER,
+    );
+  } catch {
+    // The assertions below keep a missing transfer factory as an explicit RED failure.
+  }
+
+  assert.equal(prepared?.target, '0x4444444444444444444444444444444444444444');
+  assert.equal(prepared?.owner, OWNER);
+  assert.equal(prepared?.value, 0n);
+  assert.equal(
+    prepared?.data,
+    `0xa9059cbb${'5555555555555555555555555555555555555555'.padStart(64, '0')}${'1'.padStart(64, '0')}`,
+  );
+});

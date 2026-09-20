@@ -125,3 +125,65 @@ test('a failed reconnect clears the previous wallet session', async () => {
   await assert.rejects(flow.connect(), /WALLET_DISCONNECTED/);
   await assert.rejects(flow.review({ kind: 'close' }), /WALLET_CONNECTION_REQUIRED/);
 });
+
+test('review and confirmation both reject prepared actions that escape the connected session', async () => {
+  const reviewMismatch = fixture();
+  const mismatchedAdapter = {
+    ...reviewMismatch.adapter,
+    async prepareAction() {
+      return { ...prepared, owner: target };
+    },
+  };
+  const mismatchedFlow = new M3ChainActionFlow(mismatchedAdapter, reviewMismatch.wallet);
+  await mismatchedFlow.connect();
+  await assert.rejects(mismatchedFlow.review({ kind: 'close' }), /PREPARED_ACTION_SESSION_MISMATCH/);
+
+  const reconnect = fixture();
+  let connectedOwner = owner;
+  const changingWallet: BrowserWalletPort = {
+    async connect() {
+      return { account: connectedOwner, chainId: 46630 };
+    },
+    submit: (value) => reconnect.wallet.submit(value),
+  };
+  const reconnectFlow = new M3ChainActionFlow(reconnect.adapter, changingWallet);
+  await reconnectFlow.connect();
+  const review = await reconnectFlow.review({ kind: 'close' });
+  connectedOwner = target;
+  await reconnectFlow.connect();
+  await assert.rejects(reconnectFlow.confirm(review), /PREPARED_ACTION_SESSION_MISMATCH/);
+});
+
+test('confirmation requires a live session and repeats simulation failure details', async () => {
+  const disconnected = fixture();
+  let failConnect = false;
+  const wallet: BrowserWalletPort = {
+    async connect() {
+      if (failConnect) throw new Error('WALLET_DISCONNECTED');
+      return disconnected.wallet.connect();
+    },
+    submit: (value) => disconnected.wallet.submit(value),
+  };
+  const flow = new M3ChainActionFlow(disconnected.adapter, wallet);
+  await flow.connect();
+  const review = await flow.review({ kind: 'close' });
+  failConnect = true;
+  await assert.rejects(flow.connect(), /WALLET_DISCONNECTED/);
+  await assert.rejects(flow.confirm(review), /WALLET_CONNECTION_REQUIRED/);
+
+  const dynamic = fixture();
+  let simulations = 0;
+  const dynamicAdapter = {
+    ...dynamic.adapter,
+    async simulateAction() {
+      simulations += 1;
+      return simulations === 1
+        ? ({ ok: true } as const)
+        : ({ ok: false, errorCode: 'CLOSE_BLOCKED', errorMessage: 'tracked position remains' } as const);
+    },
+  };
+  const dynamicFlow = new M3ChainActionFlow(dynamicAdapter, dynamic.wallet);
+  await dynamicFlow.connect();
+  const dynamicReview = await dynamicFlow.review({ kind: 'close' });
+  await assert.rejects(dynamicFlow.confirm(dynamicReview), /CLOSE_BLOCKED: tracked position remains/);
+});

@@ -120,3 +120,32 @@ test('provider errors are reported as sanitized connectivity failures and never 
     return true;
   });
 });
+
+test('live reads reject malformed quantities, block identities and deployment options', async () => {
+  for (const chain of ['not-hex', '0x01']) {
+    const provider = new Provider();
+    provider.chain = chain;
+    await assert.rejects(readM3VaultLiveSnapshot(provider, options), /M3_LIVE_READ_FAILED/);
+  }
+  const zeroChain = new Provider();
+  zeroChain.chain = '0x0';
+  await assert.rejects(readM3VaultLiveSnapshot(zeroChain, options), /M3_LIVE_WRONG_CHAIN/);
+
+  const malformedBlock = new Provider();
+  const request = malformedBlock.request.bind(malformedBlock);
+  malformedBlock.request = (input) =>
+    input.method === 'eth_getBlockByNumber' ? Promise.resolve(null) : request(input);
+  await assert.rejects(readM3VaultLiveSnapshot(malformedBlock, options), /M3_LIVE_READ_FAILED/);
+
+  await assert.rejects(
+    readM3VaultLiveSnapshot(new Provider(), { ...options, chainId: 1 as 46_630 }),
+    /M3_LIVE_READ_FAILED/,
+  );
+  await assert.rejects(
+    readM3VaultLiveSnapshot(new Provider(), {
+      ...options,
+      vaultAddress: asAddress('0x0000000000000000000000000000000000000000'),
+    }),
+    /M3_LIVE_READ_FAILED/,
+  );
+});

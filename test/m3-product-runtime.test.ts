@@ -1,11 +1,34 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { asAddress } from '../packages/chain-adapter/src/types.ts';
+import * as productRuntime from '../apps/web/src/m3-product-runtime.ts';
 import {
   depositAllowanceCheck,
+  parseM3RescueAction,
   parseM3ProductAction,
   requiredDepositAllowances,
   sameM3ProductAction,
 } from '../apps/web/src/m3-product-runtime.ts';
+
+test('Pass transfer input preserves the full eighteen-decimal amount and fixed recipient', () => {
+  const parseM3PassTransfer = (
+    productRuntime as typeof productRuntime & {
+      readonly parseM3PassTransfer?: (recipient: string, amount: string) => unknown;
+    }
+  ).parseM3PassTransfer;
+  assert.equal(typeof parseM3PassTransfer, 'function');
+  if (!parseM3PassTransfer) return;
+  assert.deepEqual(
+    parseM3PassTransfer('0x5555555555555555555555555555555555555555', '0.000000000000000001'),
+    {
+      recipient: '0x5555555555555555555555555555555555555555',
+      passBaseUnits: '1',
+    },
+  );
+  for (const amount of ['0', '0.0000000000000000001', '01', '1e18', '-1'])
+    assert.throws(() => parseM3PassTransfer('0x5555555555555555555555555555555555555555', amount));
+  assert.throws(() => parseM3PassTransfer('0x0000000000000000000000000000000000000000', '1'));
+});
 
 test('deposit and withdraw requests preserve exact AF-USDC six-decimal base units', () => {
   assert.deepEqual(parseM3ProductAction('deposit', '1.000001'), {
@@ -29,6 +52,17 @@ test('close carries no amount or configurable recipient', () => {
   assert.throws(() => parseM3ProductAction('close', '1'), /CLOSE_AMOUNT_FORBIDDEN/);
 });
 
+test('post-close rescue input accepts only an explicit nonzero token for token rescue', () => {
+  assert.deepEqual(parseM3RescueAction('rescue-native'), { kind: 'rescue-native' });
+  assert.deepEqual(parseM3RescueAction('rescue-token', '0x5555555555555555555555555555555555555555'), {
+    kind: 'rescue-token',
+    token: '0x5555555555555555555555555555555555555555',
+  });
+  assert.throws(() => parseM3RescueAction('rescue-native', '0x5555555555555555555555555555555555555555'));
+  assert.throws(() => parseM3RescueAction('rescue-token'));
+  assert.throws(() => parseM3RescueAction('rescue-token', '0x0000000000000000000000000000000000000000'));
+});
+
 test('review binding compares action kind and exact base units', () => {
   assert.equal(
     sameM3ProductAction(
@@ -49,6 +83,14 @@ test('review binding compares action kind and exact base units', () => {
     false,
   );
   assert.equal(sameM3ProductAction({ kind: 'close' }, { kind: 'close' }), true);
+  assert.equal(sameM3ProductAction({ kind: 'rescue-native' }, { kind: 'rescue-native' }), true);
+  assert.equal(
+    sameM3ProductAction(
+      { kind: 'rescue-token', token: asAddress('0x5555555555555555555555555555555555555555') },
+      { kind: 'rescue-token', token: asAddress('0x5555555555555555555555555555555555555555') },
+    ),
+    true,
+  );
 });
 
 test('deposit requires exact AF-USDC and Pass allowances using the frozen 1e12 conversion', () => {
