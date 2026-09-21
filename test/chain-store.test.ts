@@ -1509,6 +1509,130 @@ test('sync leases and rollback remain isolated by contract in a shared chain dat
   store.close();
 });
 
+test('healthy completion rolls back when its lease disappears inside the transaction', async () => {
+  const store = new ChainStore(await databasePath());
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, []);
+  store.commitProjections(CHAIN_ID, CONTRACT, block, [
+    {
+      chainId: CHAIN_ID,
+      owner: OWNER_A,
+      contract: CONTRACT,
+      projectionKey: 'm3-vault',
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+      state: { owner: OWNER_A },
+    },
+  ]);
+  const ownerToken = '00000000-0000-4000-8000-000000000003';
+  store.claimSync(CHAIN_ID, CONTRACT, 100n, ownerToken);
+  store.db.exec(`
+    CREATE TRIGGER delete_healthy_lease_after_checkpoint_update
+    AFTER UPDATE OF sync_healthy ON chain_checkpoints
+    WHEN OLD.sync_healthy = 0 AND NEW.sync_healthy = 1
+      AND NEW.chain_id = ${CHAIN_ID}
+      AND NEW.contract_address = '${CONTRACT.toLowerCase()}'
+    BEGIN
+      DELETE FROM chain_sync_leases
+      WHERE chain_id = NEW.chain_id AND contract_address = NEW.contract_address;
+    END;
+  `);
+
+  assert.throws(() => store.markSyncHealthy(CHAIN_ID, CONTRACT, 100n, ownerToken), /CHAIN_SYNC_SUPERSEDED/);
+  assert.equal(
+    (
+      store.db
+        .prepare('SELECT owner_token FROM chain_sync_leases WHERE chain_id = ? AND contract_address = ?')
+        .get(CHAIN_ID, CONTRACT.toLowerCase()) as { owner_token: string }
+    ).owner_token,
+    ownerToken,
+  );
+  assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT), {
+    healthy: false,
+    error: 'CHAIN_SYNC_INCOMPLETE',
+  });
+  assert.equal(store.syncTarget(CHAIN_ID, CONTRACT), 100n);
+  assert.throws(() => store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'm3-vault'), /CHAIN_SYNC_UNHEALTHY/);
+
+  store.db.exec('DROP TRIGGER delete_healthy_lease_after_checkpoint_update');
+  assert.equal(store.markSyncHealthy(CHAIN_ID, CONTRACT, 100n, ownerToken), true);
+  assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT), { healthy: true, error: null });
+  assert.equal(store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'm3-vault')?.state.owner, OWNER_A);
+  store.close();
+});
+
+test('incomplete release rolls back lease loss without changing another Vault', async () => {
+  const store = new ChainStore(await databasePath());
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1_000n };
+  for (const [contract, owner] of [
+    [CONTRACT, OWNER_A],
+    [CONTRACT_B, OWNER_B],
+  ] as const) {
+    store.recordCanonicalBlock(CHAIN_ID, contract, block, []);
+    store.commitProjections(CHAIN_ID, contract, block, [
+      {
+        chainId: CHAIN_ID,
+        owner,
+        contract,
+        projectionKey: 'm3-vault',
+        blockNumber: 100n,
+        blockHash: BLOCK_100,
+        state: { owner },
+      },
+    ]);
+  }
+  const firstOwner = '00000000-0000-4000-8000-000000000004';
+  const secondOwner = '00000000-0000-4000-8000-000000000005';
+  store.claimSync(CHAIN_ID, CONTRACT, 101n, firstOwner);
+  store.claimSync(CHAIN_ID, CONTRACT_B, 102n, secondOwner);
+  store.db.exec(`
+    CREATE TRIGGER delete_incomplete_lease_after_checkpoint_update
+    AFTER UPDATE OF sync_target_block_number ON chain_checkpoints
+    WHEN NEW.chain_id = ${CHAIN_ID}
+      AND NEW.contract_address = '${CONTRACT.toLowerCase()}'
+    BEGIN
+      DELETE FROM chain_sync_leases
+      WHERE chain_id = NEW.chain_id AND contract_address = NEW.contract_address;
+    END;
+  `);
+
+  assert.throws(
+    () => store.releaseSyncIncomplete(CHAIN_ID, CONTRACT, 101n, firstOwner),
+    /CHAIN_SYNC_SUPERSEDED/,
+  );
+  const leaseOwner = store.db.prepare(
+    'SELECT owner_token FROM chain_sync_leases WHERE chain_id = ? AND contract_address = ?',
+  );
+  assert.equal(
+    (leaseOwner.get(CHAIN_ID, CONTRACT.toLowerCase()) as { owner_token: string }).owner_token,
+    firstOwner,
+  );
+  assert.equal(
+    (leaseOwner.get(CHAIN_ID, CONTRACT_B.toLowerCase()) as { owner_token: string }).owner_token,
+    secondOwner,
+  );
+  assert.equal(store.syncTarget(CHAIN_ID, CONTRACT), 101n);
+  assert.equal(store.syncTarget(CHAIN_ID, CONTRACT_B), 102n);
+  assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT), {
+    healthy: false,
+    error: 'CHAIN_SYNC_INCOMPLETE',
+  });
+  assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT_B), {
+    healthy: false,
+    error: 'CHAIN_SYNC_INCOMPLETE',
+  });
+
+  store.db.exec('DROP TRIGGER delete_incomplete_lease_after_checkpoint_update');
+  store.releaseSyncIncomplete(CHAIN_ID, CONTRACT, 101n, firstOwner);
+  assert.equal(leaseOwner.get(CHAIN_ID, CONTRACT.toLowerCase()), undefined);
+  assert.equal(
+    (leaseOwner.get(CHAIN_ID, CONTRACT_B.toLowerCase()) as { owner_token: string }).owner_token,
+    secondOwner,
+  );
+  store.releaseSyncIncomplete(CHAIN_ID, CONTRACT_B, 102n, secondOwner);
+  store.close();
+});
+
 test('local recovery drill measures backup, reopen and 128-block catch-up separately', async (context) => {
   const block = (number: bigint) => ({
     number,
