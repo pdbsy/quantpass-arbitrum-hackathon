@@ -16,9 +16,9 @@
     {
       "agent": "Macbeth03",
       "task": "M3-03-PHASE1-RECOVERY",
-      "branch": "macbeth03/m3-phase1-recovery-final",
-      "head": "4caa95424201691f4728882f9dbf6707d3b5ab1d",
-      "local_ref": "refs/remotes/local-macbeth03/m3-phase1-recovery-final"
+      "branch": "macbeth03/m3-pr22-lease-regressions",
+      "head": "379d9cc9a8f10c5b57b5552bbe11313d52fe2c28",
+      "local_ref": "refs/remotes/local-macbeth03/m3-pr22-lease-regressions"
     },
     {
       "agent": "Macbeth04",

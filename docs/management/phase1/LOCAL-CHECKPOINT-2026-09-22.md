@@ -1,3 +1,17 @@
+# PR22 current checkpoint — child evidence and recovery
+
+Manager: Macbeth01. Status: NOT_READY_TO_MERGE. Earlier checkpoint details below remain historical.
+
+- Exact source C `77e925c20930fa06d990e4e2c9ec28d27ded7df2`, manifest R `5b45375`, snapshot S `3965df91e53282f0144efe57b2ddadb50b5fce38`.
+- S full check: 833 tests passed; all three real local/mock browser workflows passed. Main report `report-abb404e2-7ce4-444f-ac9c-c4d8b28a9575.json`, SHA-256 `bcec2753bf17867a130e1b71718f7aa1e6187e604b8eac2ff98874d3208f7254`.
+- Additional assertion-bearing preparation/Node/browser qualification on the same S produced `report-4942e2cd-f11d-4f57-adbc-38e826e459fe.json`: lines 10806/12289 (87.93%), statements 12398/14987 (82.72%), functions 2001/2330 (85.87%), branches 8111/10625 (76.33%). Five workflows PASS; two incomplete npm-check lifecycles remain zero contributors. No denominator was removed. Threshold interpretation remains awaiting user clarification; conservatively all four dimensions are evaluated against 90% meanwhile.
+- Macbeth05 independently reviewed C child binding: 6 existing and 13 independent negative tests PASS; actual legacy and management child replay at S PASS. Source equivalence was checked; this is bounded functional review, not whole-candidate security or independent external approval. Review logs SHA-256: `cd7969f3566e57dbc24f58b5ffdd33c6e1c1d63588b2693a267f99a2f13b4140` and `895f6534acdd3c944f487ba62ab4aa437999a1b16f5b38cac1f7b5f6ee79d535`. Exact review and raw scripts are retained in ignored local evidence.
+- Manager commit `0ed6bd5` makes qualification collection part of the versioned entrypoint. Subsequent original Macbeth03 commit `379d9cc9a8f10c5b57b5552bbe11313d52fe2c28` adds only two transaction lease-loss rollback tests; normal merge `f67e26e47a9291ba80d686c254f59e7445844c25` preserves authors/history. Manager rerun: chain-store 55/55 PASS. Production/schema/package unchanged by that worker commit.
+- Actual local environment at f67e26e: Node 24.21.0, npm 11.19.1, Apple arm64, fnm activation and admission PASS/eligibleForEvidence=true. The first direct-PATH attempt lacked active fnm and returned BLOCKED; its raw result is retained. Neither result claims native Windows/Linux or contract admission.
+- Current source/manifest updates still require a fresh C/R/S and full run; these measured S results are not inherited by a later candidate. Public history disposition, final coverage/method/security/governance/review/merge authorization and Testnet acceptance remain open separately.
+
+## Earlier completed checkpoint
+
 # PR22 local checkpoint — 2026-09-22
 
 Manager: Macbeth01. Repository: pdbsy/quantpass-arbitrum-hackathon. Status: NOT_READY_TO_MERGE.
