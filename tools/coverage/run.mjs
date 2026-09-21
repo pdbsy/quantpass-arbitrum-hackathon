@@ -58,6 +58,36 @@ if (options.browserDirectory) {
     workflows.push({ ...browserConfiguration, directory: browserRun.directory, browser: true });
   }
 }
+// Run the existing assertion-bearing method qualifications under the same
+// candidate-bound hook. Only verified local tool paths enter the child process.
+const prerequisites = {
+  AF_QUALIFIED_COVERAGE_TOOLS: resolve(
+    options.instrumentationDirectory || resolve(root, '.checks/coverage-tools/instrumentation/node_modules'),
+  ),
+  ...(options.browserDirectory
+    ? {
+        AF_QUALIFIED_BROWSER_TOOLS: resolve(options.browserDirectory),
+        CHROMIUM_PATH: options.executablePath,
+      }
+    : {}),
+};
+const qualification = {
+  id: 'coverage-qualification',
+  args: [
+    '--import',
+    `data:text/javascript,${encodeURIComponent(`Object.assign(process.env, ${JSON.stringify(prerequisites)});`)}`,
+    '--test',
+    'test/coverage-preparation.qualified.test.mjs',
+    'test/coverage-node-hook.qualified.test.mjs',
+    ...(options.browserDirectory ? ['test/coverage-browser.qualified.test.mjs'] : []),
+  ],
+};
+const qualified = await collectNodeWorkflow(root, prepared.directory, {
+  ...options,
+  ...qualification,
+  timeoutMs: 300000,
+});
+workflows.push({ ...qualification, directory: qualified.directory });
 const result = await reportCoverage(root, prepared.directory, {
   ...options,
   workflows,
