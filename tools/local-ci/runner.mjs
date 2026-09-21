@@ -68,8 +68,15 @@ function source(cwd, home) {
       throw new Error('Tracked source must be a regular file without symlink parents');
     if (Boolean(stat.mode & 0o111) !== (mode === '100755')) throw new Error('Tracked mode mismatch');
     const bytes = readFileSync(absolute);
-    const actual = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
-    if (actual !== object) throw new Error('Tracked bytes differ from pinned tree');
+    // Read the exact Git blob without checkout filters or a weak Node digest.
+    const pinnedBytes = execFileSync('/usr/bin/git', ['--no-replace-objects', 'cat-file', 'blob', object], {
+      cwd,
+      env: environment(home),
+      timeout: 10000,
+      maxBuffer: Math.max(1, bytes.length),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (!bytes.equals(pinnedBytes)) throw new Error('Tracked bytes differ from pinned tree');
     snapshot.push({ path, mode, object });
   }
   return {

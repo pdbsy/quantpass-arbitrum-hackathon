@@ -1,3 +1,15 @@
+# Latest measured local checkpoint: c0dfe08
+
+C `e25231910007d75cf4274621dd186ab8926d125a`; R `6c39f69`; S `c0dfe0884894076bc2f5f5bf5077b53ec22aa9cf` / tree `146627240318fb410cdc345f193a6f92497cc725`. Full check 835/835 and all five functional workflows PASS; LOCAL identity 139 (101 imported, 38 manager). Coverage report `report-6c537cff-16d5-4ae4-9dbe-710147e58077.json` SHA-256 `67e80364e1bf7af85120f5718558575df29187c1572047b4281453d8594d3f3b`: lines 87.91%, statements 82.73%, functions 85.87%, branches 76.32%; 134 source entries, two incomplete npm-check lifecycles retained. Chain-store lines 96.39%, functions 100%, statements 94.65%, branches 91.91%.
+
+At this exact S: source-policy, OSV 2.6.0, Gitleaks 8.30.1 and native contract entrypoint PASS. Gitleaks retains its raw FAIL for exactly the existing approved GITLEAKS-FP-001 proof; no additional finding was waived. Contracts: 134 Solidity tests, 25 Python tests, ABI/artifact equality, Slither and 2 offline deployment rehearsal tests passed.
+
+Semgrep 1.177.0 scanned 138 files with 22 rules/44 fixtures and found `af.js-weak-hash` in `tools/local-ci/runner.mjs:71`. Manager remediation reads raw Git blobs and compares bytes, with no rule exception or history change. Exact original failure and regression RED/GREEN logs are preserved. Executor regressions: 21/21 PASS; fresh candidate scan/full verification remains required.
+
+Read-only GitHub observation on 2026-09-22: visibility PRIVATE, PR22 OPEN/Draft at 3a78e34. Prior user authorization to restore normal PR validation remains; private hosted availability/cost is unconfirmed, not inferred. No remote write, merge, rule change or chain transaction occurred. See FINAL-EVIDENCE-INDEX.md for bounded evidence and remaining acceptance.
+
+## Earlier checkpoints
+
 # PR22 current checkpoint — child evidence and recovery
 
 Manager: Macbeth01. Status: NOT_READY_TO_MERGE. Earlier checkpoint details below remain historical.

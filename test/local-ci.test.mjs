@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createHash } from 'node:crypto';
+import crypto, { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 
@@ -370,5 +370,75 @@ test(
       createHash('sha256').update(bytes).digest('hex') + '\n',
     );
     assert.equal(verifyRun(r.directory, config.expected).state, 'BLOCKED');
+  },
+);
+
+// Reverting to a weak runtime digest must block this otherwise valid run.
+test(
+  'raw Git source binding works when weak Node digests are unavailable',
+  { skip: !available },
+  async (t) => {
+    const { config, job, git } = fixture(t);
+    const unusual = '文件 with spaces\n"quote".bin';
+    writeFileSync(join(config.cwd, '.gitattributes'), '* text=auto eol=lf\n*.bin -text\n');
+    writeFileSync(join(config.cwd, unusual), Buffer.from([0, 13, 10, 255, 128, 0]));
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.test',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-m',
+      'binary source binding',
+    );
+    config.expected.head = git('rev-parse', 'HEAD');
+    config.expected.tree = git('rev-parse', 'HEAD^{tree}');
+    const original = crypto.createHash;
+    try {
+      crypto.createHash = (algorithm, ...args) => {
+        if (['sha1', 'md5'].includes(algorithm.toLowerCase())) throw new Error('Weak digest unavailable');
+        return original(algorithm, ...args);
+      };
+      syncBuiltinESMExports();
+      const r = await runLocal({ ...config, jobs: [job('console.log("bound actual source")')] });
+      assert.equal(r.state, 'PASS');
+      assert.equal(verifyRun(r.directory, config.expected).state, 'PASS');
+      assert.match(readFileSync(join(r.directory, r.jobs[0].stdout.file), 'utf8'), /bound actual source/);
+    } finally {
+      crypto.createHash = original;
+      syncBuiltinESMExports();
+    }
+  },
+);
+
+test(
+  'clean Git normalization cannot admit different on-disk source bytes',
+  { skip: !available },
+  async (t) => {
+    const { config, job, git } = fixture(t);
+    writeFileSync(join(config.cwd, '.gitattributes'), '* text=auto eol=lf\nsource.txt text eol=crlf\n');
+    git('add', '.gitattributes');
+    git(
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.test',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-m',
+      'explicit checkout normalization',
+    );
+    config.expected.head = git('rev-parse', 'HEAD');
+    config.expected.tree = git('rev-parse', 'HEAD^{tree}');
+    writeFileSync(join(config.cwd, 'source.txt'), 'trusted fixture\r\n');
+    git('add', 'source.txt');
+    assert.equal(git('status', '--porcelain', '--untracked-files=no'), '');
+    const r = await runLocal({ ...config, jobs: [job('console.log("must not run")')] });
+    assert.equal(r.state, 'BLOCKED');
+    assert.equal(r.jobs.length, 0);
   },
 );
