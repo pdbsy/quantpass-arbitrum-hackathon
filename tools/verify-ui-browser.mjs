@@ -66,6 +66,15 @@ try {
     await page.goto(`${origin}/#/${route}`);
     await page.locator('h1').waitFor();
   }
+  async function closePrototypeDialog() {
+    const dialog = page.locator('#app-dialog[open]');
+    assert.equal(await dialog.count(), 1, 'prototype dialog is open');
+    await page.locator('#close-dialog').click();
+    await dialog.waitFor({ state: 'hidden' });
+  }
+  async function prototypeState() {
+    return page.evaluate(() => ({ local: window.AF.store.read(), exchange: window.AF.exchange.read() }));
+  }
   await go('home');
   assert.match(await page.locator('h1').first().textContent(), /Good ideas/);
   assert.equal(
@@ -275,6 +284,274 @@ try {
     assert.equal(v1Probe.status(), 404);
     checks.push('Legacy backend capability explicitly detected; no claim of second-strategy or v1 support');
   }
+
+  // The production API catalogue is part of the same visible market page as the imported prototype.
+  await go('market');
+  await page.locator('[data-product-search]').fill('missing-api-strategy');
+  assert.match(await page.locator('[data-product-catalogue]').textContent(), /No API strategies match/);
+  await page.locator('[data-product-search]').fill('core-flow-demo');
+  assert.match(await page.locator('[data-product-catalogue]').textContent(), /core-flow-demo/);
+  await page.locator('[data-product-status-filter]').selectOption('stopped');
+  assert.match(await page.locator('[data-product-catalogue]').textContent(), /core-flow-demo/);
+  await page.locator('[data-product-environment-filter]').selectOption('TEST_ONLY');
+  assert.match(await page.locator('[data-product-catalogue]').textContent(), /TEST_ONLY/);
+
+  await go('home');
+  await page.locator('[data-home-filter="Mean Reversion"]').click();
+  assert.equal(await page.locator('#strategy-grid .strategy-card:visible').count(), 1);
+  await page.locator('#strategy-search').fill('no-such-home-idea');
+  assert.equal(await page.locator('#no-results').isVisible(), true);
+  assert.equal(await page.locator('#result-count').textContent(), '00 SPECIMENS');
+  await page.locator('#reset-search').click();
+  assert.equal(await page.locator('#strategy-grid .strategy-card:visible').count(), 3);
+  await page.locator('#press-button').click();
+  await page.locator('#machine.issued').waitFor();
+  assert.match(await page.locator('#press-button').textContent(), /Press again/);
+
+  await go('market');
+  await page.locator('[data-product-search]').fill('');
+  await page.locator('[data-product-status-filter]').selectOption('all');
+  await page.locator('[data-product-environment-filter]').selectOption('all');
+  await page.locator('#market-search').fill('no-such-market-idea');
+  assert.match(await page.locator('#market-results').textContent(), /We have not found that idea yet/);
+  await page.locator('[data-action="market-reset"]').click();
+  assert.equal(await page.locator('#market-results .market-card').count(), 6);
+  await page.locator('[data-market-category="Trend"]').click();
+  assert.equal(await page.locator('#market-results .market-card').count(), 2);
+  await page.locator('#market-frequency').selectOption({ label: 'Medium' });
+  assert.equal(await page.locator('#market-results .market-card').count(), 1);
+  await page.locator('[data-market-category="All"]').click();
+  await page.locator('#market-frequency').selectOption({ label: 'All frequencies' });
+  await page.locator('#market-sort').selectOption('name');
+  await page.locator('#market-results [data-save="trend"]').click();
+  await page.locator('#only-saved').check();
+  assert.equal(await page.locator('#market-results .market-card').count(), 1);
+  await page.locator('#only-saved').uncheck();
+  await page.locator('#market-results [data-compare="trend"]').check();
+  await page.locator('#market-results [data-compare="factor"]').check();
+  assert.equal(await page.locator('[data-action="compare-open"]').isEnabled(), true);
+  await page.locator('[data-action="compare-open"]').click();
+  assert.equal(await page.locator('#app-dialog[open] .compare-table').isVisible(), true);
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /Compare methods/);
+  await closePrototypeDialog();
+  await page.locator('[data-action="compare-clear"]').click();
+  assert.equal(await page.locator('#compare-tray').textContent(), '');
+
+  await go('rankings');
+  await page.locator('[data-rank-mode="volume"]').click();
+  await page.locator('[data-rank-range="30d"]').click();
+  await page.locator('#rank-category').selectOption({ label: 'Trend' });
+  assert.equal(await page.locator('[data-ranking-row]').count(), 2);
+  await page.locator('#rank-search').fill('no-such-ranked-idea');
+  assert.match(await page.locator('#ranking-results').textContent(), /No ideas match these filters yet/);
+  await page.locator('#rank-search').fill('');
+  await page.locator('#rank-saved').check();
+  assert.equal(await page.locator('[data-ranking-row="trend"]').count(), 1);
+  await page.locator('[data-v3-action="rank-method"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /Four questions/);
+  await closePrototypeDialog();
+  checks.push(
+    'Prototype Home, Market, and Rankings filters expose selected, empty, reset, and comparison states',
+  );
+
+  await go('forum');
+  await page.locator('#forum-search').fill('no-such-forum-question');
+  assert.match(await page.locator('#forum-results').textContent(), /That question has not been written yet/);
+  await page.locator('#forum-search').fill('');
+  await page.locator('[data-forum-category="Build Logs"]').click();
+  assert.match(await page.locator('#forum-results').textContent(), /Treat an unknown result/);
+  await page.locator('#forum-sort').selectOption('replies');
+  await page.locator('[data-forum-category="All"]').click();
+  await page.locator('a[href="#/forum/post/backtest"]').first().click();
+  await page.locator('[data-like="backtest"]').click();
+  await page.locator('[data-bookmark="backtest"]').click();
+  assert.equal(await page.locator('[data-like="backtest"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('[data-bookmark="backtest"]').getAttribute('aria-pressed'), 'true');
+  await page.locator('#comment-body').fill('A visible local reply for the browser behavior contract.');
+  await page.locator('#comment-form button[type="submit"]').click();
+  assert.match(await page.locator('.comments-section').textContent(), /visible local reply/);
+
+  await go('forum');
+  await page.locator('[data-action="compose"]').first().click();
+  await page.locator('#compose-title').fill('Visible browser note');
+  await page
+    .locator('#compose-body')
+    .fill(
+      'This local note verifies draft preservation, publication, reply, and deletion through visible controls.',
+    );
+  await page.locator('#compose-category').selectOption({ label: 'Workshop Proposals' });
+  await page.locator('#compose-form [data-close]').click();
+  await page.locator('#app-dialog').waitFor({ state: 'hidden' });
+  await go('account/notes');
+  assert.match(await page.locator('main').textContent(), /UNFINISHED \/ YOUR DRAFT/);
+  assert.match(await page.locator('main').textContent(), /Visible browser note/);
+  await page.locator('[data-action="compose"]').last().click();
+  assert.equal(await page.locator('#compose-title').inputValue(), 'Visible browser note');
+  await page.locator('#compose-form button[type="submit"]').click();
+  await page.waitForFunction(() => window.location.hash.startsWith('#/forum/post/local-'));
+  await page.locator('h1').filter({ hasText: 'Visible browser note' }).waitFor();
+  assert.match(await page.locator('h1').textContent(), /Visible browser note/);
+  await page.locator('#comment-body').fill('Reply on the local note before deletion.');
+  await page.locator('#comment-form button[type="submit"]').click();
+  assert.match(await page.locator('.comments-section').textContent(), /before deletion/);
+  await page.locator('[data-delete-post]').click();
+  await page.locator('[data-delete-post-confirm]').click();
+  await page.waitForFunction(() => window.location.hash === '#/account/notes');
+  await page.waitForFunction(
+    () => !document.querySelector('main').textContent.includes('Visible browser note'),
+  );
+  assert.equal((await page.locator('main').textContent()).includes('Visible browser note'), false);
+
+  await go('account/saved');
+  assert.match(await page.locator('main').textContent(), /Ridgeline/);
+  assert.match(await page.locator('main').textContent(), /A beautiful backtest/);
+  await go('account/settings');
+  await page.locator('[data-action="profile"]').first().click();
+  await page.locator('#profile-name').fill('Browser Researcher');
+  await page.locator('#profile-bio').fill('Visible local profile state.');
+  await page.locator('#profile-form button[type="submit"]').click();
+  await page.locator('.profile-details h2').filter({ hasText: 'Browser Researcher' }).waitFor();
+  assert.equal(await page.locator('.profile-details h2').textContent(), 'Browser Researcher');
+  await page.locator('[data-action="reset-confirm"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /Start a fresh demo/);
+  await page.locator('#app-dialog[open] [data-close]').click();
+  await page.locator('#app-dialog').waitFor({ state: 'hidden' });
+  checks.push(
+    'Prototype Forum and Account flows preserve bookmarks, drafts, local notes, replies, deletion, and profile edits',
+  );
+
+  await go('trade/core-flow-demo');
+  await page.locator('[data-product-command="deposit"]').first().click();
+  await page.locator('dialog[open] [name="amount"]').fill('0');
+  await page.locator('dialog[open] [data-product-review]').click();
+  assert.match(
+    await page.locator('dialog[open] [data-product-dialog-error]').textContent(),
+    /greater than zero/,
+  );
+  await page.locator('dialog[open] [data-close]').first().click();
+  await page.locator('[data-product-refresh]').click();
+  await waitReady();
+  await page.locator('[data-product-command="cancelOrder"]').first().click();
+  await page.locator('dialog[open] [data-product-review]').click();
+  assert.match(
+    await page.locator('dialog[open] [data-product-dialog-error]').textContent(),
+    /Select an existing pending operation/,
+  );
+  await page.locator('dialog[open] [data-close]').first().click();
+  await page.locator('[data-product-refresh]').click();
+  await waitReady();
+
+  await go('trade/factor');
+  await page.locator('#trade-panel [data-trade-pane="pass"]').click();
+  const localBeforeClaim = (await prototypeState()).local;
+  await page.locator('#trade-panel [data-claim="factor"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /Claim demo Pass/);
+  await page.locator('#app-dialog[open] [data-close]').click();
+  assert.equal(Boolean((await prototypeState()).local.passes.factor), false);
+  await page.locator('#trade-panel [data-claim="factor"]').click();
+  await page.locator('#app-dialog[open] [data-action="commit"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /recorded locally/i);
+  await closePrototypeDialog();
+  let visibleState = await prototypeState();
+  assert.equal(Boolean(visibleState.local.passes.factor), true);
+  assert.equal(visibleState.local.idle, localBeforeClaim.idle);
+
+  await page.locator('#trade-panel [data-trade-pane="funds"]').first().click();
+  await page.locator('#allocate-amount').fill('1500');
+  await page.locator('#allocate-form [name="consent"]').check();
+  await page.locator('#allocate-form button[type="submit"]').click();
+  assert.match(
+    await page.locator('#allocate-error').textContent(),
+    /exceeds the 1,000 DEMO allocation limit/,
+  );
+  await page.locator('#allocate-amount').fill('250');
+  await page.locator('#allocate-form button[type="submit"]').click();
+  await page.locator('#app-dialog[open] [data-action="commit"]').click();
+  await closePrototypeDialog();
+  visibleState = await prototypeState();
+  assert.equal(visibleState.local.allocated.factor, 25_000);
+  await page.locator('#trade-panel [data-release="factor"]').click();
+  await page.locator('#cash-amount').fill('50');
+  await page.locator('#cash-form button[type="submit"]').click();
+  await page.locator('#app-dialog[open] [data-action="commit"]').click();
+  await closePrototypeDialog();
+  visibleState = await prototypeState();
+  assert.equal(visibleState.local.allocated.factor, 20_000);
+
+  await go('account/funds');
+  await page.locator('[data-cash="deposit"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /Add demo funds/);
+  await page.locator('#app-dialog[open] [data-close]').click();
+  await page.locator('[data-cash="withdraw"]').click();
+  await page.locator('#cash-amount').fill('999999');
+  await page.locator('#cash-form button[type="submit"]').click();
+  assert.match(await page.locator('#cash-error').textContent(), /Only idle demo funds can be withdrawn/);
+  await page.locator('#cash-amount').fill('10');
+  await page.locator('#cash-form button[type="submit"]').click();
+  await page.locator('#app-dialog[open] [data-action="commit"]').click();
+  await closePrototypeDialog();
+  assert.equal((await prototypeState()).local.pending.length, 1);
+  await page.locator('[data-withdraw-cancel]').click();
+  await page.locator('#app-dialog[open] [data-action="commit"]').click();
+  await closePrototypeDialog();
+  visibleState = await prototypeState();
+  assert.equal(visibleState.local.pending.length, 0);
+  assert.equal(visibleState.local.netFunding, localBeforeClaim.netFunding);
+  checks.push(
+    'Product API and prototype trial controls expose zero or missing-operation errors, cancel, allocation, release, and withdrawal states',
+  );
+
+  await go('trade/trend');
+  await page.locator('#trade-panel [data-trade-pane="market"]').click();
+  await page.locator('[data-price-range="90d"]').click();
+  assert.equal(await page.locator('[data-price-range="90d"]').getAttribute('aria-pressed'), 'true');
+  await page.locator('[data-price-style="line"]').click();
+  assert.equal(await page.locator('[data-price-style="line"]').getAttribute('aria-pressed'), 'true');
+  await page.locator('[data-return-range="7d"]').click();
+  assert.equal(await page.locator('[data-return-range="7d"]').getAttribute('aria-pressed'), 'true');
+  await page.locator('[data-v3-chart="price"]').focus();
+  await page.keyboard.press('ArrowRight');
+  assert.match(await page.locator('#price-readout').textContent(), /UTC/);
+  await page.locator('[data-asset="0"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /RESEARCH RELATION/);
+  await closePrototypeDialog();
+  await page.locator('#pass-qty').fill('0');
+  await page.locator('#pass-order-form button[type="submit"]').click();
+  assert.match(await page.locator('#pass-order-error').textContent(), /whole number of Passes/);
+  await page.locator('#pass-qty').fill('2');
+  await page.locator('.order-settings summary').click();
+  await page.locator('#pass-slippage').selectOption('100');
+  await page.locator('#pass-order-form button[type="submit"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /Review buy: 2 Passes/);
+  await page.locator('#app-dialog[open] [data-close]').click();
+  await page.locator('#pass-order-form button[type="submit"]').click();
+  await page.locator('#app-dialog[open] [data-v3-action="commit-order"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /purchase recorded/);
+  await closePrototypeDialog();
+  visibleState = await prototypeState();
+  assert.equal(visibleState.exchange.positions.trend.qty, 2);
+  await page.locator('#trade-panel [data-pass-side="sell"]').click();
+  await page.locator('#trade-panel [data-pass-shortcut="50%"]').click();
+  assert.equal(await page.locator('#pass-qty').inputValue(), '1');
+  await page.locator('#pass-order-form button[type="submit"]').click();
+  await page.locator('#app-dialog[open] [data-v3-action="commit-order"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /sale recorded/);
+  await closePrototypeDialog();
+  visibleState = await prototypeState();
+  assert.equal(visibleState.exchange.positions.trend.qty, 1);
+  assert.equal(visibleState.exchange.orders.length, 2);
+  await go('account/trades');
+  assert.equal(await page.locator('.fill-table tbody tr').count(), 2);
+  assert.match(await page.locator('.portfolio-table').textContent(), /1 Pass/);
+  await page.screenshot({
+    path: resolve(evidence, 'visible-product-paths.png'),
+    fullPage: true,
+    animations: 'disabled',
+  });
+  checks.push(
+    'Prototype Pass trading exposes chart controls, asset context, invalid input, reviewed buy and sell receipts, and account readback',
+  );
+
   for (const route of [
     'home',
     'market',
