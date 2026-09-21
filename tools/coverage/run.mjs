@@ -66,7 +66,7 @@ const receipt = {
   ...collected,
   reportPath: result.path,
   preparedDirectory: prepared.directory,
-  scope: options.browserDirectory ? 'NODE_AND_M3_BROWSER' : 'NODE_WORKFLOW_ONLY',
+  scope: options.browserDirectory ? 'NODE_AND_M3_LEGACY_MANAGEMENT_BROWSER' : 'NODE_WORKFLOW_ONLY',
   functionalState: result.report.functionalState,
   thresholdMet: result.report.thresholdMet,
   summary: result.report.summary,

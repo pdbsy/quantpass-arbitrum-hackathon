@@ -52,24 +52,23 @@ try {
           outputDirectory: resolve(output, 'browser'),
           executablePath: options.executablePath,
         });
-  assert.equal(
-    options.workflow && options.workflow !== 'm3' ? result.status : result.workflowResult.state,
-    'PASS',
-  );
+  const state = options.workflow && options.workflow !== 'm3' ? result.status : result.workflowResult.state;
+  assert.ok(['PASS', 'FAIL'].includes(state));
+  process.exitCode = state === 'PASS' ? 0 : 1;
   receipt = {
     schemaVersion: 1,
     provider: 'LOCAL',
-    state: 'PASS',
+    state,
     candidateCommit: manifest.candidateCommit,
     candidateTree: manifest.candidateTree,
     manifestSha256: sha256(readFileSync(resolve(prepared, 'manifest.json'))),
-    directory: options.workflow && options.workflow !== 'm3' ? result.directory : result.directory,
-    index: options.workflow && options.workflow !== 'm3' ? result.collection.index : result.index,
+    directory: result.directory,
+    ...(result.nodeChild ? { nodeChild: result.nodeChild } : {}),
+    index: options.workflow && options.workflow !== 'm3' ? result.collection?.index : result.index,
     browserRuntime,
-    checks:
-      options.workflow && options.workflow !== 'm3'
-        ? result.collection.observations.length
-        : result.workflowResult.checks,
+    ...(options.workflow && options.workflow !== 'm3'
+      ? { driver: result.driver, intervals: result.collection?.observations.length }
+      : { checks: result.workflowResult.checks }),
     workflow: options.workflow || 'm3',
   };
 } catch (error) {

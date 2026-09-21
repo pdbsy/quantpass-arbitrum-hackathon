@@ -15,10 +15,10 @@
       "dependencies": "无",
       "deliverables": "矩阵、登记、当前状态与 C/R/S",
       "acceptance": "所有来源映射；真实 ACK；无旧状态冒充当前",
-      "evidence": "ASSIGNMENTS.md；PR21；本轮 PR",
+      "evidence": "C3005b40/R2dd51c8/S5dc6da7已完成；后续源码变更需重采集；LOCAL-CHECKPOINT-2026-09-22.md",
       "blocker_type": "NONE",
       "requires_user_decision": false,
-      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "actual_candidate": "5dc6da79b4a669cc1daa94b371c0482dac46195c",
       "budget_limited": false,
       "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
@@ -213,10 +213,10 @@
       "dependencies": "起点base；最终统一候选",
       "deliverables": "独立功能复测/覆盖率/缺陷及修复SHA",
       "acceptance": "测量总体90%目标和关键授权会计100%分支要求；不足仍FAIL/BLOCKED，不拿数量替代",
-      "evidence": "05对3a78e34的711/711、C/R/S、身份与环境已有独立通过；总体正式覆盖仍NOT_MEASURED。历史探索诊断不用于新候选；本轮方法准入/真实路径/竞态/独立复验继续",
+      "evidence": "S5dc6da7完整check827/827和三条浏览器通过；行84.13/语句79.32/函数84.03/分支75.51均未达90%；05在28013f8独立导航资格11/11通过；子进程计数接线后的新候选与最终方法准入待验收",
       "blocker_type": "BROWSER_MEASUREMENT_AND_CANDIDATE_DEPENDENCY",
       "requires_user_decision": false,
-      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "actual_candidate": "5dc6da79b4a669cc1daa94b371c0482dac46195c",
       "budget_limited": false,
       "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
     },
@@ -460,7 +460,7 @@
     "remote_write": "NORMAL_PR_VALIDATION_AUTHORIZED_PENDING_PUBLICATION_REVIEW",
     "spec": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md",
     "visibility": "PUBLIC_USER_CHANGED",
-    "last_tested_candidate": "9aefa70c7af30f5710500d128c7aa49e20fda7e4",
-    "last_local_result": "810_TESTS_PASS_FULL_CHECK_PRIVACY_FAILURE_REMEDIATED_PENDING_RERUN"
+    "last_tested_candidate": "5dc6da79b4a669cc1daa94b371c0482dac46195c",
+    "last_local_result": "827_TESTS_FULL_CHECK_AND_THREE_BROWSER_WORKFLOWS_PASS_COVERAGE_THRESHOLD_NOT_MET"
   }
 }

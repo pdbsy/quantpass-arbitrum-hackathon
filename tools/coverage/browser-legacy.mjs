@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   browserDigest,
   browserHelperBootstrap,
@@ -11,6 +11,7 @@ import {
   verifyBrowserSource,
 } from './browser-evidence.mjs';
 import { shouldTransformBrowserPath } from './browser.mjs';
+import { recordBrowserChild } from './browser-child.mjs';
 
 const prototypePath = 'apps/web/prototype/AlphaForge_v3_EN.html';
 const workflows = Object.freeze({
@@ -227,9 +228,7 @@ async function writePlaywrightShim({
   const generatedPath = resolve(outputDirectory, 'generated.json');
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' });
   await writeFile(generatedPath, `${JSON.stringify(generated)}\n`, { flag: 'wx' });
-  const lifecyclePath = pathToFileURL(
-    resolve(dirname(fileURLToPath(import.meta.url)), 'browser-lifecycle.mjs'),
-  ).href;
+  const lifecyclePath = pathToFileURL(resolve(root, 'tools/coverage/browser-lifecycle.mjs')).href;
   const summaryPath = resolve(outputDirectory, `driver-summary-${randomUUID()}.json`);
   const rawDirectory = resolve(outputDirectory, 'raw');
   await mkdir(rawDirectory, { recursive: true });
@@ -302,7 +301,13 @@ async function runChild({ root, driver, env, outputDirectory }) {
     child.stderr.on('data', (chunk) => stderr.push(chunk));
     child.once('error', rejectResult);
     child.once('close', (code, signal) =>
-      resolveResult({ code, signal, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) }),
+      resolveResult({
+        pid: child.pid,
+        code,
+        signal,
+        stdout: Buffer.concat(stdout),
+        stderr: Buffer.concat(stderr),
+      }),
     );
   });
   await writeFile(stdoutPath, result.stdout);
@@ -421,6 +426,9 @@ export async function collectLegacyBrowserCoverage({
     workflow,
     driver: runtime.driver,
     child,
+    nodeChild: nodeHook
+      ? recordBrowserChild({ directory, child, runtimeRoot: runtime.runtimeRoot, workflow })
+      : undefined,
     summary,
     status,
     workflowResult: { status, exitCode: child.code, signal: child.signal },

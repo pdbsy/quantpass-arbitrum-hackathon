@@ -6,6 +6,7 @@ import { verifyPrepared } from './prepare.mjs';
 import { verifyNodeWorkflow } from './collect.mjs';
 import { replayBrowserCoverage } from './browser-evidence.mjs';
 import { mergeObserved } from './evidence.mjs';
+import { replayBrowserChild } from './browser-child.mjs';
 
 export function summarizeCoverage(coverage, library) {
   const map = library.createCoverageMap(coverage);
@@ -57,9 +58,27 @@ export async function reportCoverage(root, preparedDirectory, options) {
       const receipt = JSON.parse(readFileSync(resolve(workflow.directory, 'browser-receipt.json')));
       assert.equal(receipt.schemaVersion, 1);
       assert.equal(receipt.provider, 'LOCAL');
+      const selector = workflow.args.indexOf('--workflow');
+      const expectedWorkflow = selector < 0 ? 'm3' : workflow.args[selector + 1];
+      assert.ok(['m3', 'legacy', 'management'].includes(expectedWorkflow));
+      assert.equal(receipt.workflow, expectedWorkflow, 'browser workflow identity differs');
       assert.equal(receipt.candidateCommit, manifest.candidateCommit);
       assert.equal(receipt.candidateTree, manifest.candidateTree);
+      assert.equal(receipt.manifestSha256, preparation.manifestSha256);
       if (result.state === 'PASS') assert.equal(receipt.state, 'PASS');
+      if (receipt.workflow === 'legacy' || receipt.workflow === 'management') {
+        assert.ok(receipt.nodeChild, 'browser child evidence absent');
+        assert.equal(workflow.id, `${receipt.workflow}-browser`);
+        const child = replayBrowserChild({
+          directory: receipt.directory,
+          receipt: receipt.nodeChild,
+          manifest,
+          manifestSha256: preparation.manifestSha256,
+          workflow: receipt.workflow,
+        });
+        if (result.state === 'PASS') assert.equal(child.state, 'PASS');
+        observations.push(...child.observations);
+      }
       const browser = replayBrowserCoverage({
         manifest,
         outputDirectory: receipt.directory,
