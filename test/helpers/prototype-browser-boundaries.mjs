@@ -809,9 +809,13 @@ export async function verifyPrototypeBoundaries(page) {
   await page.locator('#pass-qty').fill('1');
   await page.locator('#pass-order-form button[type="submit"]').click();
   const beforeExpiry = await page.evaluate(() => window.AF.exchange.read());
-  await page.waitForFunction(() => document.querySelector('#quote-countdown')?.textContent === '1 second', {
-    timeout: 35_000,
-  });
+  await page.waitForFunction(
+    () => document.querySelector('#quote-countdown')?.textContent === '1 second',
+    undefined,
+    {
+      timeout: 35_000,
+    },
+  );
   await page
     .locator('[data-v3-action="commit-order"]')
     .filter({ hasText: /Quote expired/ })
@@ -869,5 +873,114 @@ export async function verifyPrototypeBoundaries(page) {
     exchange: window.AF.exchange.read(),
   }));
   assert.deepEqual(restored, original);
+  cases.push(...(await verifyApiLossAndThrottle(page)));
   return cases;
+}
+
+async function verifyApiLossAndThrottle(page) {
+  const origin = new URL(page.url()).origin;
+  const savedRoute = page.url();
+  const state = async () => {
+    const response = await page.request.get(`${origin}/api/vaults`);
+    assert.equal(response.status(), 200);
+    return response.json();
+  };
+  const ready = () =>
+    page
+      .locator('[data-product-state]')
+      .filter({ hasText: /^(READY|EMPTY)$/ })
+      .waitFor();
+  const command = async (type, fields = {}) => {
+    await page.locator(`[data-product-command="${type}"]`).first().click();
+    const dialog = page.locator('dialog[open]');
+    for (const [key, value] of Object.entries(fields)) await dialog.locator(`[name="${key}"]`).fill(value);
+    await dialog.locator('[data-product-review]').click();
+    await dialog.locator('[data-product-confirm]').click();
+    await ready();
+  };
+  const alice = await state();
+  await page.locator('[data-product-login="bob"]').click();
+  await ready();
+  assert.deepEqual(await state(), []);
+  await page.goto(`${origin}/#/trade/core-flow-demo`);
+  await page.locator('[data-product-claim="core-flow-demo"]').click();
+  await page.locator('dialog[open] [data-product-confirm]').click();
+  await ready();
+  for (const [type, fields] of [
+    ['deposit', { amount: '1' }],
+    ['allocate', { amount: '1' }],
+    ['start', {}],
+    ['reserveBuy', { amount: '1' }],
+    ['fillBuy', {}],
+    ['markPosition', { value: '0' }],
+    ['stop', {}],
+    ['settlePosition', { proceeds: '0' }],
+  ])
+    await command(type, fields);
+  const loss = (await state())[0];
+  assert.equal(loss.balances.realizedPnl, '-1000000');
+  assert.equal(loss.positionValue, '0');
+  assert.equal(loss.status, 'stopped');
+  assert.equal(loss.balances.equity, '0');
+  assert.match(await page.locator('main').textContent(), /Realized simulation P&L\s*-1\.000000/);
+  const attempted = [];
+  let retryAfter = 0;
+  const pattern = '**/api/v1/vaults/*/commands';
+  await page.route(pattern, async (route) => {
+    attempted.push(route.request().postDataJSON());
+    if (attempted.length === 1) {
+      retryAfter = Date.now() + 3000;
+      await route.fulfill({
+        status: 429,
+        headers: { 'Retry-After': '3' },
+        contentType: 'application/json',
+        body: '{}',
+      });
+    } else await route.continue();
+  });
+  try {
+    await page.locator('[data-product-command="deposit"]').first().click();
+    await page.locator('dialog[open] [name="amount"]').fill('0.1');
+    await page.locator('[data-product-review]').click();
+    await page.locator('[data-product-confirm]').click();
+    await page
+      .locator('[data-product-retry]')
+      .filter({ hasText: /after [1-3]s/ })
+      .waitFor();
+    assert.equal(await page.locator('[data-product-retry]').isDisabled(), true);
+    assert.equal(await page.locator('[data-product-command="deposit"]').first().isDisabled(), true);
+    assert.deepEqual((await state())[0], loss);
+    const pending = await page.evaluate(() => localStorage.getItem('quantpass.local.pending-command.v1'));
+    assert.ok(pending);
+    await page.reload();
+    assert.equal(
+      await page.evaluate(() => localStorage.getItem('quantpass.local.pending-command.v1')),
+      pending,
+    );
+    // Reload cannot expose owner-specific pending data before a fresh session read.
+    // Once the actual HTTP deadline has elapsed, the visible refresh re-establishes it.
+    await page.waitForTimeout(Math.max(0, retryAfter - Date.now()) + 150);
+    await page.locator('[data-product-refresh]').click();
+    await page.locator('[data-product-retry]').waitFor();
+    await page.locator('[data-product-retry]:not([disabled])').waitFor({ timeout: 6_000 });
+    await page.locator('[data-product-retry]').click();
+    await ready();
+    assert.equal(attempted.length, 2);
+    assert.deepEqual(attempted[1], attempted[0]);
+    const accepted = (await state())[0];
+    assert.equal(accepted.revision, loss.revision + 1);
+    assert.equal(accepted.idle, '100000');
+    assert.equal(accepted.balances.realizedPnl, '-1000000');
+    assert.equal(await page.evaluate(() => localStorage.getItem('quantpass.local.pending-command.v1')), null);
+  } finally {
+    await page.unroute(pattern);
+    await page.locator('[data-product-login="alice"]').click();
+    await ready();
+    await page.goto(savedRoute);
+  }
+  assert.deepEqual(await state(), alice);
+  return [
+    'Visible API loss settles to zero equity with exact negative P&L and no phantom funds',
+    'HTTP 429 disables writes, persists the original request across reload, re-establishes its owner, and retries exactly once after the real deadline',
+  ];
 }
