@@ -2,7 +2,7 @@
 
 归属：AlphaForge / Robinhood Chain Testnet / PR #22；Macbeth01；与 Xlayer 分离。用户最新选择“暂不发布，保留本地交付”；下表早期派单不构成新一轮启动或发布授权。本轮01继续本地回归、看板修复、C/R/S、覆盖率与离线交付封存；没有启动新 worker。
 
-当前细节见 [边界回归](phase1/BOUNDARY-REGRESSIONS-2026-09-22.md)。此前06回传的独立回滚探针及覆盖方法有限复核保留原始范围，不视为新候选全量验收。NOT_READY_TO_MERGE。
+当前细节见 [请求与隐私边界](phase1/CLIENT-PRIVACY-BOUNDARIES-2026-09-23.md) 与 [来源和浏览器恢复](phase1/RECOVERY-BOUNDARIES-2026-09-23.md)。此前06回传的独立回滚探针及覆盖方法有限复核保留原始范围，不视为新候选全量验收。NOT_READY_TO_MERGE。
 
 ## 先前队列（原始记录保留）
 

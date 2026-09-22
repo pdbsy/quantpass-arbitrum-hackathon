@@ -532,3 +532,224 @@ test('a changed durable pending record during command rejection is not overwritt
   );
   assert.equal(h.storage.getItem(pendingKey), replacement);
 });
+
+// Untrusted persisted requests must not be discarded or submitted on recovery.
+test('legacy pending envelopes reject malformed fields without posting or deleting evidence', async (t) => {
+  const h = await harness(t);
+  const vaultId = h.client.snapshot.selectedVaultId!;
+  const command = { id: 'boundary-request', type: 'deposit', amount: '7', expectedRevision: 0 };
+  const valid = { owner: 'alice', vaultId, command };
+  const invalid = [
+    null,
+    { ...valid, owner: 'mallory' },
+    { ...valid, vaultId: '../foreign' },
+    { ...valid, command: null },
+    { ...valid, command: { ...command, type: 'constructor' } },
+    { ...valid, command: { ...command, amount: undefined } },
+    { ...valid, command: { ...command, extra: true } },
+    { ...valid, command: { ...command, id: '-invalid' } },
+    { ...valid, command: { ...command, expectedRevision: -1 } },
+    { ...valid, command: { ...command, expectedRevision: 10001 } },
+    { ...valid, command: { ...command, expectedRevision: 0.5 } },
+    { ...valid, command: { ...command, amount: '-1' } },
+    { ...valid, command: { id: 'boundary-request', type: 'cancelOrder', orderId: '', expectedRevision: 0 } },
+    ...[null, 1, {}].map((code) => ({ ...valid, rejection: { code, status: 409 } })),
+    ...[399, 401, 500, 409.5, '409'].map((status) => ({ ...valid, rejection: { code: 'REJECTED', status } })),
+  ];
+  let writes = 0;
+  h.controls.before = async (_path, body) => {
+    if (body !== undefined) writes++;
+  };
+  for (const [index, value] of invalid.entries()) {
+    const raw = JSON.stringify(value);
+    h.storage.setItem(pendingKey, raw);
+    const restored = new ProductClient({ request: h.request, storage: h.storage });
+    await assert.rejects(restored.refresh(), /PENDING_STORAGE_INVALID/, `case ${index}`);
+    assert.equal(restored.snapshot.phase, 'ERROR');
+    assert.equal(restored.snapshot.notice, null);
+    assert.equal(h.storage.getItem(pendingKey), raw);
+    assert.throws(() => restored.prepare(), /PENDING_STORAGE_INVALID/);
+  }
+  assert.equal(writes, 0);
+  assert.equal(h.store.get(vaultId, 'alice').revision, 0);
+  assert.deepEqual(h.store.audit('alice', vaultId), []);
+});
+
+test('recovery translates non-Error storage and transport failures without losing the pending record', async (t) => {
+  const h = await harness(t);
+  const raw = JSON.stringify({
+    owner: 'alice',
+    vaultId: h.client.snapshot.selectedVaultId,
+    command: { id: 'preserved-request', type: 'deposit', amount: '7', expectedRevision: 0 },
+  });
+  h.storage.setItem(pendingKey, raw);
+  const storage: ClientStorage = {
+    getItem: () => {
+      throw 'UNAVAILABLE_STORAGE';
+    },
+    setItem: () => {
+      assert.fail('unexpected write');
+    },
+    removeItem: () => {
+      assert.fail('unexpected removal');
+    },
+  };
+  const restored = new ProductClient({ request: h.request, storage });
+  await assert.rejects(restored.refresh(), /STORAGE_FAILED/);
+  assert.equal(restored.snapshot.phase, 'ERROR');
+  const disconnected = new ProductClient({
+    request: async () => {
+      throw 'OFFLINE';
+    },
+    storage: h.storage,
+  });
+  await assert.rejects(disconnected.refresh(), (error) => error === 'OFFLINE');
+  assert.equal(disconnected.snapshot.phase, 'DISCONNECTED');
+  assert.equal(disconnected.snapshot.error, 'REQUEST_FAILED');
+  assert.equal(h.storage.getItem(pendingKey), raw);
+});
+
+test('catalogue recovery rejects invalid session, catalogue, detail, and audit responses atomically', async (t) => {
+  const h = await harness(t);
+  const vaultId = h.client.snapshot.selectedVaultId!;
+  const cases: { path: string; change: (value: unknown) => unknown; error: RegExp }[] = [
+    { path: '/session', change: () => ({ user: 'mallory' }), error: /RESPONSE_CONTEXT_MISMATCH/ },
+    { path: '/strategies', change: () => ({}), error: /INVALID_CATALOGUE_RESPONSE/ },
+    { path: '/vaults', change: () => null, error: /INVALID_CATALOGUE_RESPONSE/ },
+    {
+      path: `/vaults/${vaultId}`,
+      change: (value) => ({ ...(value as object), strategyId: 'foreign' }),
+      error: /RESPONSE_CONTEXT_MISMATCH/,
+    },
+    {
+      path: `/vaults/${vaultId}`,
+      change: (value) => ({ ...(value as object), revision: -1 }),
+      error: /RESPONSE_CONTEXT_MISMATCH/,
+    },
+    { path: `/vaults/${vaultId}/audit`, change: () => ({}), error: /INVALID_AUDIT_RESPONSE/ },
+    {
+      path: `/vaults/${vaultId}/audit`,
+      change: () => [{ command_id: '../bad', revision: 1 }],
+      error: /INVALID_AUDIT_RESPONSE/,
+    },
+    {
+      path: `/vaults/${vaultId}/audit`,
+      change: () => [{ command_id: 'valid', revision: 0.5 }],
+      error: /INVALID_AUDIT_RESPONSE/,
+    },
+  ];
+  for (const entry of cases) {
+    let commits = 0,
+      discards = 0;
+    const request: ApiRequest = async <T>(path: string, body?: unknown) => {
+      const value = await h.request<T>(path, body);
+      return (path === entry.path ? entry.change(value) : value) as T;
+    };
+    const restored = new ProductClient({
+      request,
+      storage: h.storage,
+      beginRead: () => ({
+        request,
+        commit: () => {
+          commits++;
+        },
+        discard: () => {
+          discards++;
+        },
+      }),
+    });
+    await assert.rejects(restored.refresh(), entry.error);
+    assert.equal(restored.snapshot.phase, 'DISCONNECTED');
+    assert.equal(restored.snapshot.notice, null);
+    assert.deepEqual(restored.snapshot.vaults, []);
+    assert.deepEqual(restored.snapshot.audit, []);
+    assert.equal(commits, 0);
+    assert.equal(discards, 1);
+  }
+  assert.equal(h.store.get(vaultId, 'alice').revision, 0);
+});
+
+test('busy clients reject refresh, vault changes, claims, and command reviews during identity selection', async (t) => {
+  const h = await harness(t);
+  const vaultId = h.client.snapshot.selectedVaultId!;
+  const entered = deferred(),
+    release = deferred();
+  h.controls.before = async (path) => {
+    if (path === '/demo/session') {
+      entered.resolve();
+      await release.promise;
+    }
+  };
+  const changing = h.client.selectIdentity('bob');
+  await entered.promise;
+  try {
+    await assert.rejects(h.client.refresh(), /BUSY/);
+    await assert.rejects(h.client.selectVault(vaultId), /BUSY/);
+    await assert.rejects(h.client.claim('core-flow-demo'), /BUSY/);
+    assert.throws(() => h.client.prepare(), /BUSY/);
+  } finally {
+    release.resolve();
+    await changing;
+  }
+  assert.equal(h.client.snapshot.user, 'bob');
+  assert.deepEqual(h.client.snapshot.vaults, []);
+  assert.equal(h.store.get(vaultId, 'alice').revision, 0);
+});
+
+test('claims require a refreshed known identity and catalogue, and reject mismatched allocations', async (t) => {
+  const h = await harness(t);
+  const fresh = new ProductClient({ request: h.request, storage: h.storage });
+  await assert.rejects(fresh.claim('core-flow-demo'), /REFRESH_REQUIRED/);
+  await assert.rejects(h.client.claim('unknown-strategy'), /UNKNOWN_STRATEGY/);
+  await h.client.refresh();
+  h.controls.after = async (path, body, data) => {
+    if (path === '/vaults' && body !== undefined) (data as { strategyId: string }).strategyId = 'foreign';
+  };
+  await assert.rejects(h.client.claim('core-flow-demo'), /RESPONSE_CONTEXT_MISMATCH/);
+  assert.equal(h.client.snapshot.phase, 'DISCONNECTED');
+  assert.equal(h.client.snapshot.notice, null);
+});
+
+test('retry and rejection dismissal require the preserved matching envelope', async (t) => {
+  const h = await harness(t);
+  await assert.rejects(h.client.retry(), /NO_PENDING_REQUEST/);
+  await assert.rejects(h.client.dismissRejected(), /UNRESOLVED_REQUEST/);
+  const raw = JSON.stringify({
+    owner: 'bob',
+    vaultId: h.client.snapshot.selectedVaultId,
+    command: { id: 'foreign-request', type: 'deposit', amount: '7', expectedRevision: 0 },
+    rejection: { code: 'REVISION_CONFLICT', status: 409 },
+  });
+  h.storage.setItem(pendingKey, raw);
+  await assert.rejects(h.client.dismissRejected(), /PENDING_OWNER_MISMATCH/);
+  await assert.rejects(h.client.claim('core-flow-demo'), /CONFIRM_PENDING_REQUEST_FIRST/);
+  assert.equal(h.storage.getItem(pendingKey), raw);
+  assert.equal(h.client.snapshot.notice, null);
+});
+
+test('accepted writes with a non-incrementing response or stale readback remain unresolved', async (t) => {
+  for (const staleReadback of [false, true]) {
+    const h = await harness(t);
+    const vaultId = h.client.snapshot.selectedVaultId!;
+    h.controls.after = async (path, _body, data) => {
+      if (path === `/vaults/${vaultId}/commands`) {
+        const result = data as { vault: { revision: number } };
+        result.vault.revision = staleReadback ? 2 : 0;
+      }
+    };
+    await assert.rejects(
+      h.client.command('deposit', { amount: '7' }, h.client.prepare()),
+      staleReadback ? /READBACK_STALE/ : /RESPONSE_CONTEXT_MISMATCH/,
+    );
+    assert.equal(h.client.snapshot.phase, 'DISCONNECTED');
+    assert.equal(h.client.snapshot.notice, null);
+    const raw = h.storage.getItem(pendingKey)!;
+    assert.ok(raw);
+    assert.equal(h.store.get(vaultId, 'alice').idle, '7');
+    assert.equal(h.store.audit('alice', vaultId).length, 1);
+    delete h.controls.after;
+    await h.client.retry();
+    assert.equal(h.storage.getItem(pendingKey), null);
+    assert.equal(h.store.audit('alice', vaultId).length, 1);
+  }
+});

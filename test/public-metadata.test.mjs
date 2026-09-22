@@ -1050,3 +1050,113 @@ test('package integrity SHA-256 hex is distinct from an SSH SHA-256 fingerprint'
     assert.deepEqual(findOperationalMetadataKinds(`${prefix}:${hash}`), ['ssh-fingerprint']);
   }
 });
+
+test('privacy parser fails closed at string, whitespace, member, and scan resource boundaries', () => {
+  const identityKey = ['host', 'name'].join('');
+  const host = ['ho', 'st'].join('');
+  const name = ['na', 'me'].join('');
+  const gap = ' '.repeat(65);
+  const cases = [
+    `const ${identityKey} = "${'a'.repeat(257)}";`,
+    `const ${identityKey} = "${'a'.repeat(129)}" + "${'b'.repeat(128)}";`,
+    `const ${identityKey} = ("string" +${gap}"str");`,
+    `const ${identityKey} = ("string"${gap});`,
+    `profile.${gap}member = "string";`,
+    `profile?.${gap}member = "string";`,
+    `profile["member"]${'["member"]'.repeat(128)} = "string";`,
+    `profile${'?.member'.repeat(129)} = "string";`,
+    `const profile = { ["${identityKey}"]${gap}: "string" };`,
+    `const profile = { ["${identityKey}"]: ${'('.repeat(9)}"string"${')'.repeat(9)} };`,
+    `const profile = { ${host}: { ${name}: ${'('.repeat(9)}"string"${')'.repeat(9)} } };`,
+    Array(10_001).fill(`const ${identityKey} = "string";`).join('\n'),
+    Array(10_001).fill(`const profile = { ${host}: { ${name}: "string" } };`).join('\n'),
+    Array(10_001).fill('const profile = { ["public"]: "string" };').join('\n'),
+    Array(10_001).fill('profile.public = "string";').join('\n'),
+  ];
+  for (const [index, source] of cases.entries())
+    assert.ok(
+      findOperationalMetadataKinds(source, 'src/record.ts').includes('structured-record-budget'),
+      `resource case ${index}`,
+    );
+});
+
+test('privacy parser bounds YAML indentation, decoded keys, records, and nested contexts', () => {
+  const cases = [
+    '\tfield: null',
+    `${' '.repeat(257)}field: null`,
+    Array(10_001).fill('field: null').join('\n'),
+    `"${'a'.repeat(129)}": null`,
+    '"invalid\\u00xx": null',
+    Array.from({ length: 34 }, (_, depth) => `${' '.repeat(depth * 2)}field:`).join('\n'),
+    JSON.stringify(Object.fromEntries(Array.from({ length: 10_001 }, (_, n) => [`field${n}`, null]))),
+    `${'['.repeat(34)}null${']'.repeat(34)}`,
+  ];
+  for (const [index, record] of cases.entries())
+    assert.ok(
+      findOperationalMetadataKinds(record, 'records/public.yaml').includes('structured-record-budget'),
+      `record case ${index}`,
+    );
+});
+
+test('privacy parser rejects sensitive YAML aliases and merges while retaining harmless annotations', () => {
+  const host = ['ho', 'st'].join('');
+  const ssh = ['s', 'sh'].join('');
+  for (const record of [`${host}: *machine`, `${host}:\n  <<: *machine`])
+    assert.deepEqual(findOperationalMetadataKinds(record, 'records/public.yaml'), ['host-identity']);
+  assert.deepEqual(findOperationalMetadataKinds(`${ssh}: *remote`, 'records/public.yaml'), ['ssh-exposure']);
+  for (const record of [
+    'field: *public',
+    'field: &',
+    'field: !',
+    'field: &public !!map\n  name: null',
+    '\t- 0',
+  ])
+    assert.deepEqual(findOperationalMetadataKinds(record, 'records/public.yaml'), [], record);
+});
+
+test('privacy parser handles nonstring structured identity and disabled access values without inventing host evidence', () => {
+  const identityKey = ['host', 'name'].join('');
+  const ssh = ['s', 'sh'].join('');
+  for (const value of [null, false, 0, 1, {}, [], [null, false], 'string', 'localhost']) {
+    assert.deepEqual(findOperationalMetadataKinds(JSON.stringify({ [identityKey]: value })), []);
+  }
+  for (const value of [null, false, {}, [], 'disabled', '65536', -1, 0.5]) {
+    assert.deepEqual(findOperationalMetadataKinds(JSON.stringify({ [ssh]: { port: value } })), []);
+  }
+  for (const value of [null, false, {}, [], 22, 'not-configured']) {
+    assert.deepEqual(findOperationalMetadataKinds(JSON.stringify({ [ssh]: { bind: value } })), []);
+  }
+});
+
+test('workspace privacy scan reports oversized and missing tracked files without their contents', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'privacy-resource-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  initializeRepository(root);
+  await writeFile(join(root, 'large.txt'), 'X'.repeat(2 * 1024 * 1024 + 1));
+  await writeFile(join(root, 'missing.txt'), 'non-sensitive fixture');
+  execFileSync('git', ['add', 'missing.txt'], { cwd: root });
+  await rm(join(root, 'missing.txt'));
+  await assert.rejects(scanPublicMetadata(root), (error) => {
+    assert.match(error.message, /large\.txt: text-file-too-large/);
+    assert.match(error.message, /missing\.txt: unreadable-path/);
+    assert.ok(!error.message.includes('XXXXX'));
+    return true;
+  });
+});
+
+test('file identity comparison rejects unavailable, zero, negative, and different identifiers', () => {
+  const valid = { dev: 1n, ino: 2n };
+  assert.equal(sameFileIdentity(valid, { dev: 1n, ino: 2n }), true);
+  for (const first of [
+    { dev: 1, ino: 2n },
+    { dev: 1n, ino: 2 },
+    { dev: -1n, ino: 2n },
+    { dev: 1n, ino: 0n },
+  ])
+    assert.equal(sameFileIdentity(first, valid), false);
+  for (const second of [
+    { dev: 2n, ino: 2n },
+    { dev: 1n, ino: 3n },
+  ])
+    assert.equal(sameFileIdentity(valid, second), false);
+});

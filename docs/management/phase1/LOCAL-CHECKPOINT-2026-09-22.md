@@ -1,12 +1,12 @@
-# 当前本地检查点 — d57a53b
+# 当前本地检查点 — 07b15a9
 
-归属：AlphaForge / Robinhood Chain Testnet / Hackathon / PR #22；Macbeth01；Xlayer独立。用户“暂不发布，保留本地交付”的决定继续有效。
+归属：AlphaForge / Robinhood Chain Testnet / Hackathon / PR #22；Macbeth01；Xlayer独立。用户“暂不发布，保留本地交付”继续有效。
 
-准确S d57a53ba654c4caa17bbac39cfca3f1165d28fe2 已通过956/956、8条实际功能工作流、141 Solidity/25 Python/2离线演练、Semgrep/OSV/Gitleaks和正式fnm准入。173条LOCAL提交身份通过，不是托管或独立审批。蓝色看板非法状态修复及真实失败/恢复回归已验收；本地完整历史bundle和原始日志已封存。
+准确S 07b15a9e58a96f6ac92dca733acb0e8fbf1ee2a4，C c0109210c59aa484ebed776ab9fd5af2daff559a → R 8ac5eb0。管理采集11PASS/0FAIL/4未注册NOT_RUN；966/966、三组真实浏览器、17项方法资格、source-policy、dependency-delta、OSV与Gitleaks等9工作流全部PASS。
 
-该S完整覆盖率：行91.54%、语句88.92%、函数91.53%、分支83.67%。报告SHA-256 39d41184498129179709fbd3d372a7c2b0c48ede4b77d5ffa375b69a8d826a4a，阈值仍未达。新一轮正在补齐Git来源、存储恢复和可见导出/重置边界，并把已有实际OSV纳入同候选采集；需重新生成C/R/S与全量结果。见 [本轮记录](RECOVERY-BOUNDARIES-2026-09-23.md)。
+覆盖为行92.00%、语句89.56%、函数91.87%、分支84.44%；报告SHA-256 3e0d972833ecc7a7effa8d4ec9107b7a50287927e72e5883c7c69b61ccc7fce7。全分母和两条未完整结束生命周期保留，仍未达到当前四维90%规则。后续请求恢复/隐私解析边界与canonical CLI夹具测试已通过预检，须生成新的准确C/R/S和全量结果；见[本轮记录](CLIENT-PRIVACY-BOUNDARIES-2026-09-23.md)。
 
-NOT_READY_TO_MERGE。保持完整分母、四维90%保守规则和独立准入边界；没有推送、远程PR更新、新头托管CI、merge、规则修改或链交易。
+d57a53b的合约、Semgrep、正式fnm及完整历史bundle保留原范围，未冒充07b或后续候选的准确头结果。NOT_READY_TO_MERGE；不把本地测试当独立或托管审批。没有推送、PR更新、新头托管CI、merge、规则修改或链交易。
 
 ## 先前检查点（原始记录保留）
 

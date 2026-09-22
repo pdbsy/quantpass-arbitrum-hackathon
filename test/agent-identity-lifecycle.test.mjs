@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, copyFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -32,18 +33,26 @@ function scenario(t, { commits = [{ subject, body }], mergeCheckout = false } = 
   for (const commit of commits) git('commit', '--allow-empty', '-qm', commit.subject, '-m', commit.body);
   const head = git('rev-parse', 'HEAD');
   if (mergeCheckout) git('commit', '--allow-empty', '-qm', '[Macbeth99] unrelated checkout');
-  mkdirSync(join(root, 'tools'));
-  for (const name of ['agent-identity.mjs', 'agent-identity-set.mjs', 'check-agent-identity.mjs'])
-    copyFileSync(new URL(`../tools/${name}`, import.meta.url), join(root, 'tools', name));
+  // Exercise the canonical CLI with an explicit disposable Git database.
+  // Test event payloads are not hosted evidence; the actual checkout's refs stay untouched.
+  const cli = fileURLToPath(new URL('../tools/check-agent-identity.mjs', import.meta.url));
   return {
     base,
     head,
     run(eventName, payload, extraEnv = {}) {
       const path = join(root, 'event.json');
       writeFileSync(path, JSON.stringify(payload));
-      return spawnSync(process.execPath, ['tools/check-agent-identity.mjs'], {
+      return spawnSync(process.execPath, [cli], {
         cwd: root,
-        env: { ...env, GITHUB_EVENT_NAME: eventName, GITHUB_EVENT_PATH: path, GITHUB_SHA: head, ...extraEnv },
+        env: {
+          ...env,
+          GITHUB_EVENT_NAME: eventName,
+          GITHUB_EVENT_PATH: path,
+          GITHUB_SHA: head,
+          ...extraEnv,
+          GIT_DIR: join(root, '.git'),
+          GIT_WORK_TREE: root,
+        },
         encoding: 'utf8',
       });
     },
