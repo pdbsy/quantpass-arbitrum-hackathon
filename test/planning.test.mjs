@@ -54,3 +54,11 @@ test('generated artifacts match the canonical roadmap', async () => {
   assert.equal(actualMarkdown, renderMarkdownBoard(plan));
   assert.equal(actualHtml, renderHtmlBoard(plan));
 });
+
+test('roadmap dates reject ambiguous formatting and calendar rollover', () => {
+  for (const updatedAt of ['2026/09/06', '2026-9-06', '2026-02-29', '']) {
+    const malformed = structuredClone(plan);
+    malformed.updatedAt = updatedAt;
+    assert.throws(() => validatePlan(malformed), /real YYYY-MM-DD date/);
+  }
+});

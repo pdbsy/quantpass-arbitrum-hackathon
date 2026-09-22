@@ -86,3 +86,30 @@ test('PR11-P5 bounded PR pagination and request budget report PARTIAL rather tha
   assert.equal(result.partial, true);
   assert.equal(result.calls, 40);
 });
+
+test('a missing or malformed previous Forum snapshot cannot invent trusted messages after sync failure', () => {
+  for (const previous of [undefined, null, {}, { source: {}, messages: {}, threads: 'bad' }]) {
+    const failure = createFailureSnapshot(previous, 'GitHub source unavailable');
+    assert.deepEqual(failure, {
+      schema_version: 1,
+      source: { state: 'ERROR', error: 'GitHub source unavailable', last_sync_at: null },
+      messages: [],
+      threads: [],
+    });
+  }
+});
+
+test('Forum collection rejects malformed or oversized pages without declaring partial results complete', async () => {
+  const { collectGithubForum } = await import('../tools/sync-agent-forum.mjs');
+  for (const page of [null, {}, Array.from({ length: 101 }, (_, index) => ({ number: index + 1 }))]) {
+    let calls = 0;
+    await assert.rejects(
+      collectGithubForum('pdbsy/quantpass-arbitrum-hackathon', async () => {
+        calls++;
+        return page;
+      }),
+      /Invalid bounded GitHub page/,
+    );
+    assert.equal(calls, 1);
+  }
+});

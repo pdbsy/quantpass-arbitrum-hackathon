@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+import { createDashboardServer } from '../../tools/serve-management-dashboard.mjs';
 
 // Fixture responses are intercepted only in this isolated test browser. No generated
 // dashboard JSON or persisted PASS evidence is edited by this regression suite.
@@ -235,7 +237,7 @@ export async function verifyManagementBoundaries(page, origin) {
     }),
   );
   try {
-    for (const state of ['ERROR', 'PARTIAL', 'READY']) {
+    for (const state of ['ERROR', 'PARTIAL', 'STALE', 'READY']) {
       forumFixture.source = {
         ...forumFixture.source,
         state,
@@ -247,7 +249,7 @@ export async function verifyManagementBoundaries(page, origin) {
       assert.match(await page.locator('#source').textContent(), new RegExp(`SOURCE ${state}`));
       assert.equal(
         await page.locator('#source').getAttribute('class'),
-        state === 'READY' ? 'source' : 'source error',
+        state === 'READY' ? 'source' : state === 'STALE' ? 'source stale' : 'source error',
       );
       assert.equal(await page.locator('.message b').count(), 0);
       assert.match(await page.locator('.message').first().textContent(), /来源链接无效/);
@@ -273,6 +275,62 @@ export async function verifyManagementBoundaries(page, origin) {
     await page.goto(`${origin}/index.html`);
     await page.locator('.task-card').first().waitFor();
     assert.equal(await page.locator('#project-title').textContent(), original.project.name);
+  }
+  const planningServer = await createDashboardServer({ root: resolve('docs'), port: 0 });
+  await new Promise((done) => planningServer.listen(0, '127.0.0.1', done));
+  try {
+    await page.goto(`http://127.0.0.1:${planningServer.address().port}/task-board.html`);
+    await page.waitForFunction(() =>
+      globalThis.document.querySelector('#filter-status')?.textContent.includes('/'),
+    );
+    const count = await page.locator('[data-task]').count();
+    assert.ok(count > 0);
+    assert.equal(await page.locator('[data-task]:visible').count(), count);
+    await page.locator('#task-search').fill('NONEXISTENT-LITERAL-<b>');
+    assert.equal(await page.locator('[data-task]:visible').count(), 0);
+    assert.equal(await page.locator('[data-phase-section]:visible').count(), 0);
+    await page.locator('#reset-filter').click();
+    assert.equal(await page.locator('[data-task]:visible').count(), count);
+    assert.equal(
+      await page.locator('#task-search').evaluate((node) => node === node.ownerDocument.activeElement),
+      true,
+    );
+    const first = await page
+      .locator('[data-task]')
+      .first()
+      .evaluate((node) => ({
+        id: node.querySelector('.task-id').textContent,
+        phase: node.dataset.phase,
+        status: node.dataset.status,
+        risk: node.dataset.risk,
+      }));
+    for (const [selector, field] of [
+      ['#phase-filter', 'phase'],
+      ['#status-filter', 'status'],
+      ['#risk-filter', 'risk'],
+    ]) {
+      await page.locator(selector).selectOption(first[field]);
+      const values = await page
+        .locator('[data-task]:visible')
+        .evaluateAll((nodes, key) => nodes.map((node) => node.dataset[key]), field);
+      assert.ok(values.length > 0);
+      assert.ok(values.every((value) => value === first[field]));
+    }
+    await page.locator('#task-search').fill(`  ${first.id.toLowerCase()}  `);
+    assert.equal(await page.locator('[data-task]:visible').count(), 1);
+    assert.equal(await page.locator('[data-task]:visible .task-id').textContent(), first.id);
+    await page.locator('#reset-filter').click();
+    for (const selector of ['#phase-filter', '#status-filter', '#risk-filter'])
+      assert.equal(await page.locator(selector).inputValue(), 'all');
+    assert.equal(await page.locator('#task-search').inputValue(), '');
+    assert.equal(await page.locator('[data-task]:visible').count(), count);
+    assert.equal(await page.locator('#filter-status').textContent(), `显示 ${count} / ${count} 个任务`);
+    passed.push(
+      'Active planning task board combines real search/phase/status/risk filters, hides empty phases, and resets controls/focus',
+    );
+  } finally {
+    await page.goto(`${origin}/index.html`);
+    await new Promise((done) => planningServer.close(done));
   }
   return passed;
 }

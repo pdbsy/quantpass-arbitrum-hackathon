@@ -1204,3 +1204,24 @@ test('a recorded failed check keeps the aggregate and build failed', () => {
   assert.equal(snapshot.tests.status, 'FAIL');
   assert.equal(snapshot.build.status, 'FAIL');
 });
+
+test('missing source times are rejected and absent document items cannot create evidence links', () => {
+  const sources = fixtureSources();
+  delete sources.management.workQueue.observedAt;
+  assert.throws(
+    () => buildDashboardSnapshot({ sources, git: gitState(), observedAt }),
+    /management.workQueue.observedAt/,
+  );
+  sources.management.workQueue.observedAt = observedAt;
+  delete sources.documents.architecture.data;
+  const snapshot = buildDashboardSnapshot({ sources, git: gitState(), observedAt });
+  assert.equal(
+    snapshot.links.some((item) => item.kind === 'architecture'),
+    false,
+  );
+  assert.equal(
+    snapshot.sourceHealth.find((item) => item.source === 'docs/management/WORK-QUEUE.md').observedAt,
+    observedAt,
+  );
+  assert.notEqual(snapshot.tests.status, 'PASS');
+});
