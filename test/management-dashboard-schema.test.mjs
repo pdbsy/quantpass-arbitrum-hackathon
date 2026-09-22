@@ -1569,6 +1569,7 @@ test('standalone credential boundaries include quoted responses and diagnostic s
       `${credential} (401)`,
       `response "${credential}"`,
       `${credential}, rejected`,
+      `${credential} status=401`,
     ]) {
       const output = sanitizeLog(input);
       assert.equal(output.includes(credential.split(' ')[1]), false, 'standalone credential suffix leaked');

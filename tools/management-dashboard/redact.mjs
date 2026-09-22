@@ -665,11 +665,13 @@ function containsAuthorizationCredential(payload, scheme) {
         return true;
     }
   }
-  if (
-    /^bearer$/i.test(scheme) &&
-    /^[ \t]*[-A-Za-z0-9._~+/]+={0,}(?:[ \t]*$|["'),;]|[ \t]+[([])/.test(payload)
-  )
-    return true;
+  if (/^bearer$/i.test(scheme)) {
+    const token = /^[ \t]*[-A-Za-z0-9._~+/]+={0,}/.exec(payload);
+    if (token) {
+      const tail = payload.slice(token[0].length);
+      if (/^[ \t]*["'),;([]/.test(tail) || isStructuredAssignmentTail(tail)) return true;
+    }
+  }
   if (authorizationChallengeAssignmentPattern.test(payload)) return true;
   authorizationOpaqueTokenPattern.lastIndex = 0;
   let match;
