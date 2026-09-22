@@ -1560,3 +1560,22 @@ test('short standalone Basic and Bearer credentials are redacted with or without
   for (const prose of ['Basic authentication remains disabled.', 'Bearer market conditions', 'OAuth x'])
     assert.equal(sanitizeLog(prose), prose);
 });
+
+test('standalone credential boundaries include quoted responses and diagnostic suffixes', () => {
+  const basic = Buffer.from('user:pass').toString('base64');
+  for (const credential of [`Basic ${basic}`, 'Bearer abc']) {
+    for (const input of [
+      credential,
+      `${credential} (401)`,
+      `response "${credential}"`,
+      `${credential}, rejected`,
+    ]) {
+      const output = sanitizeLog(input);
+      assert.equal(output.includes(credential.split(' ')[1]), false, 'standalone credential suffix leaked');
+      assert.match(output, /\[REDACTED\]/);
+    }
+  }
+  assert.equal(sanitizeLog('Basic authentication'), 'Basic authentication');
+  assert.match(sanitizeLog('Bearer support'), /\[REDACTED\]/);
+  assert.equal(sanitizeLog('authMethod=Bearer status=ok'), 'authMethod=Bearer status=ok');
+});

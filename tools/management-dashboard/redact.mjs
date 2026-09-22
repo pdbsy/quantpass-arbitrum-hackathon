@@ -654,10 +654,21 @@ function redactStaticBracketAssignments(value) {
 }
 
 function containsAuthorizationCredential(payload, scheme) {
-  // An isolated Basic/Bearer token is credential-shaped even when it is short
-  // or contains no punctuation. Multiword explanatory prose still uses the
-  // bounded challenge/opaque-token checks below.
-  if (/^(?:basic|bearer)$/i.test(scheme) && /^[ \t]*[-A-Za-z0-9._~+/]+={0,}[ \t]*$/.test(payload))
+  // Basic has a verifiable user:password encoding; do not rely on entropy or
+  // length. Bearer values are opaque, so an isolated or punctuation-delimited
+  // token is treated conservatively, including quoted responses/status suffixes.
+  if (/^basic$/i.test(scheme)) {
+    const token = /^[ \t]*([A-Za-z0-9+/]+={0,2})(?=$|[^A-Za-z0-9+/=])/.exec(payload)?.[1];
+    if (token) {
+      const bytes = Buffer.from(token, 'base64');
+      if (bytes.includes(58) && bytes.toString('base64').replace(/=+$/, '') === token.replace(/=+$/, ''))
+        return true;
+    }
+  }
+  if (
+    /^bearer$/i.test(scheme) &&
+    /^[ \t]*[-A-Za-z0-9._~+/]+={0,}(?:[ \t]*$|["'),;]|[ \t]+[([])/.test(payload)
+  )
     return true;
   if (authorizationChallengeAssignmentPattern.test(payload)) return true;
   authorizationOpaqueTokenPattern.lastIndex = 0;
