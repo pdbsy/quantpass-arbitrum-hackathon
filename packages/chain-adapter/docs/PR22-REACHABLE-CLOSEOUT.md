@@ -151,3 +151,9 @@ These proofs apply to the current source, pinned dependencies, serialized input 
 ## Integration limits
 
 Macbeth01 coordinates Macbeth05 review and final C/R/S, complete regression, scanners, source identity, formal environment admission and hosted CI. This handoff is not an independent approval, hosted CI result, merge authorization, deployment evidence, signing or broadcast.
+
+## Independent review follow-up: permission fixture portability
+
+Macbeth05 identified that the directory-chmod cleanup fault assumes POSIX permissions. It is now a separate explicitly named test, with Windows `SKIP` and a `NOT_RUN` reason. Tampering, transaction abort, original database/live-WAL byte checks and ordinary retry remain unconditional tests on Windows. No production code or prior generated coverage report is changed.
+
+This boundary follows [Node chmod semantics](https://nodejs.org/docs/latest-v24.x/api/fs.html#fschmodpath-mode-callback) and [Microsoft's directory read-only attribute semantics](https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants). It is not evidence of a Windows execution on this macOS host. POSIX coverage of this fixture must not be reported as Windows coverage; final platform receipts retain their own counts and skipped cases.

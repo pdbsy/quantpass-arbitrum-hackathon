@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
@@ -1546,7 +1546,7 @@ test('chain recovery rejects invalid usage, missing destination parents and inte
   await assert.rejects(stat(target), { code: 'ENOENT' });
 });
 
-test('recovery cleans up real copied data after boundary-injected tampering or SQLite transaction abort', async (t) => {
+async function assertRecoveryBackupFault(t: TestContext, mode: 'tamper' | 'abort' | 'cleanup') {
   const pending = createOperation({
     operationId: 'backup-fault',
     chainId: CHAIN_ID,
@@ -1554,74 +1554,89 @@ test('recovery cleans up real copied data after boundary-injected tampering or S
     target: CONTRACT,
     state: 'AWAITING_SIGNATURE',
   });
-  for (const mode of ['tamper', 'abort', 'cleanup']) {
-    const source = await databasePath();
-    const store = new ChainStore(source);
-    t.after(() => store.close());
-    store.saveOperation(pending);
-    const target = `${source}.new`;
-    const before = readFileSync(source);
-    const walBefore = readFileSync(`${source}-wal`);
-    assert.ok(walBefore.length > 0, 'the live source must have uncheckpointed WAL data');
-    const preload = `${source}.fault.cjs`;
-    // Inject only at the external backup completion boundary. The actual CLI,
-    // SQLite copy, schema/integrity checks and cleanup run from unchanged source.
-    await writeFile(
-      preload,
-      `
-      const sqlite = require('node:sqlite');
-      const { syncBuiltinESMExports } = require('node:module');
-      const backup = sqlite.backup;
-      sqlite.backup = async (source, target, ...args) => {
-        const result = await backup(source, target, ...args);
-        if (${JSON.stringify(mode)} !== 'abort') {
-          const db = new sqlite.DatabaseSync(target);
-          db.exec('DELETE FROM chain_transactions');
-          db.exec('PRAGMA journal_mode=DELETE');
-          db.close();
-          if (${JSON.stringify(mode)} === 'cleanup')
-            require('node:fs').chmodSync(require('node:path').dirname(target), 0o500);
-        } else {
-          source.exec('ROLLBACK');
-          throw new Error('FIXTURE_BACKUP_TRANSACTION_ABORT');
-        }
-        return result;
-      };
-      syncBuiltinESMExports();
-    `,
-    );
-    const result = spawnSync(
-      process.execPath,
-      ['--require', preload, resolve('tools/chain-recovery.ts'), 'backup', source, target],
-      { encoding: 'utf8', timeout: 10_000 },
-    );
-    // The isolated fixture denies unlinking only for the child CLI; restore its
-    // directory before assertions and normal retry/teardown in this parent.
-    if (mode === 'cleanup') await chmod(resolve(source, '..'), 0o700);
-    assert.equal(result.error, undefined);
-    assert.equal(result.status, 1);
-    assert.match(
-      result.stderr,
-      mode === 'abort' ? /FIXTURE_BACKUP_TRANSACTION_ABORT/ : /CHAIN_RECOVERY_CONTENT_MISMATCH/,
-    );
-    assert.doesNotMatch(result.stdout, /HEALTHY/);
-    assert.deepEqual(readFileSync(source), before);
-    assert.deepEqual(readFileSync(`${source}-wal`), walBefore);
-    if (mode === 'cleanup') {
-      assert.match(result.stderr, /CHAIN_RECOVERY_FAILED_CLEANUP_FAILED/);
-      assert.match(result.stderr, /EACCES|EPERM/);
-      assert.ok((await stat(target)).isFile(), 'a denied unlink must be reported as a remaining failed copy');
-      await rm(target);
-    } else await assert.rejects(stat(target), { code: 'ENOENT' });
-    const retry = runRecovery('backup', source, target);
-    assert.equal(retry.status, 0, retry.stderr);
-    assert.deepEqual(readFileSync(source), before);
-    assert.deepEqual(readFileSync(`${source}-wal`), walBefore);
-    const restored = new ChainStore(target);
-    assert.deepEqual(restored.operation(pending.operationId), pending);
-    restored.close();
-  }
+  const source = await databasePath();
+  const store = new ChainStore(source);
+  t.after(() => store.close());
+  store.saveOperation(pending);
+  const target = `${source}.new`;
+  const before = readFileSync(source);
+  const walBefore = readFileSync(`${source}-wal`);
+  assert.ok(walBefore.length > 0, 'the live source must have uncheckpointed WAL data');
+  const preload = `${source}.fault.cjs`;
+  // Inject only at the external backup completion boundary. The actual CLI,
+  // SQLite copy, schema/integrity checks and cleanup run from unchanged source.
+  await writeFile(
+    preload,
+    `
+    const sqlite = require('node:sqlite');
+    const { syncBuiltinESMExports } = require('node:module');
+    const backup = sqlite.backup;
+    sqlite.backup = async (source, target, ...args) => {
+      const result = await backup(source, target, ...args);
+      if (${JSON.stringify(mode)} !== 'abort') {
+        const db = new sqlite.DatabaseSync(target);
+        db.exec('DELETE FROM chain_transactions');
+        db.exec('PRAGMA journal_mode=DELETE');
+        db.close();
+        if (${JSON.stringify(mode)} === 'cleanup')
+          require('node:fs').chmodSync(require('node:path').dirname(target), 0o500);
+      } else {
+        source.exec('ROLLBACK');
+        throw new Error('FIXTURE_BACKUP_TRANSACTION_ABORT');
+      }
+      return result;
+    };
+    syncBuiltinESMExports();
+  `,
+  );
+  const result = spawnSync(
+    process.execPath,
+    ['--require', preload, resolve('tools/chain-recovery.ts'), 'backup', source, target],
+    { encoding: 'utf8', timeout: 10_000 },
+  );
+  // The isolated fixture denies unlinking only for the child CLI; restore its
+  // directory before assertions and normal retry/teardown in this parent.
+  if (mode === 'cleanup') await chmod(resolve(source, '..'), 0o700);
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 1);
+  assert.match(
+    result.stderr,
+    mode === 'abort' ? /FIXTURE_BACKUP_TRANSACTION_ABORT/ : /CHAIN_RECOVERY_CONTENT_MISMATCH/,
+  );
+  assert.doesNotMatch(result.stdout, /HEALTHY/);
+  assert.deepEqual(readFileSync(source), before);
+  assert.deepEqual(readFileSync(`${source}-wal`), walBefore);
+  if (mode === 'cleanup') {
+    assert.match(result.stderr, /CHAIN_RECOVERY_FAILED_CLEANUP_FAILED/);
+    assert.match(result.stderr, /EACCES|EPERM/);
+    assert.ok((await stat(target)).isFile(), 'a denied unlink must be reported as a remaining failed copy');
+    await rm(target);
+  } else await assert.rejects(stat(target), { code: 'ENOENT' });
+  const retry = runRecovery('backup', source, target);
+  assert.equal(retry.status, 0, retry.stderr);
+  assert.deepEqual(readFileSync(source), before);
+  assert.deepEqual(readFileSync(`${source}-wal`), walBefore);
+  const restored = new ChainStore(target);
+  assert.deepEqual(restored.operation(pending.operationId), pending);
+  restored.close();
+}
+
+test('recovery cleans up real copied data after boundary-injected tampering or SQLite transaction abort', async (t) => {
+  for (const mode of ['tamper', 'abort'] as const) await assertRecoveryBackupFault(t, mode);
 });
+
+test(
+  'recovery reports a POSIX directory permission cleanup failure without claiming a healthy copy',
+  {
+    skip:
+      process.platform === 'win32'
+        ? 'NOT_RUN: Windows directory chmod does not enforce POSIX unlink permissions'
+        : false,
+  },
+  async (t) => {
+    await assertRecoveryBackupFault(t, 'cleanup');
+  },
+);
 
 test('chain recovery CLI creates and restores a validated independent database', async () => {
   const source = await databasePath();
