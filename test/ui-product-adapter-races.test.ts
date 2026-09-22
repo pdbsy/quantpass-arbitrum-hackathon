@@ -16,6 +16,35 @@ function projection(snapshot: CanonicalSnapshot) {
   const { user, strategies, vaults, account, details, audit } = snapshot;
   return { user, strategies, vaults, account, details, audit };
 }
+
+test('an identity change from a loading subscriber cancels the superseded read before HTTP', async (t) => {
+  const h = await setup(t);
+  const aliceVault = structuredClone(h.store.get(h.a, 'alice'));
+  const paths: string[] = [];
+  h.hooks.after = async (path) => {
+    paths.push(path);
+  };
+  let switched: Promise<void> | undefined;
+  let armed = true;
+  const unsubscribe = h.adapter.client.subscribe((snapshot) => {
+    if (armed && snapshot.phase === 'LOADING') {
+      armed = false;
+      switched = h.adapter.client.selectIdentity('bob');
+    }
+  });
+  t.after(unsubscribe);
+  await h.adapter.client.refresh();
+  assert.ok(switched);
+  await switched;
+  assert.equal(paths.filter((path) => path === '/session').length, 1);
+  assert.equal(paths.filter((path) => path === '/v1/product-snapshot').length, 1);
+  assert.equal(h.adapter.snapshot.user, 'bob');
+  assert.equal(h.adapter.snapshot.account?.ownerId, 'bob');
+  assert.equal(h.adapter.snapshot.phase, 'EMPTY');
+  assert.deepEqual(h.adapter.snapshot.vaults, []);
+  assert.throws(() => h.adapter.client.prepare(), /VAULT_REQUIRED/);
+  assert.deepEqual(h.store.get(h.a, 'alice'), aliceVault);
+});
 async function setup(t: TestContext) {
   const h = await productHarness();
   t.after(() => h.app.close());

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { verifyRuntimePortJourneys } from './product-runtime-boundaries.mjs';
+import { verifyLegacyApiJourneys, verifyRecoveryJourneys } from './product-recovery-journeys.mjs';
 
 // Exercise the actual loaded browser model. All values are fictional DEMO fixtures;
 // these checks are separate from visible journeys and never certify chain accounting.
@@ -867,6 +868,8 @@ export async function verifyPrototypeBoundaries(page) {
   cases.push(...(await verifyAdditionalReachableJourneys(page)));
   cases.push(...(await verifyConfiguredBootstrapJourneys(page)));
   cases.push(...(await verifyRuntimePortJourneys(page)));
+  cases.push(...(await verifyRecoveryJourneys(page)));
+  cases.push(...(await verifyLegacyApiJourneys(page)));
 
   await page.evaluate((saved) => {
     localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(saved.local));

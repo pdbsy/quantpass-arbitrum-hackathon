@@ -8,12 +8,14 @@ export async function verifyRuntimePortJourneys(parent) {
   const checks = [];
   for (const scenario of [
     'connect-error',
+    'action-disabled-after-render',
     'approval-required',
     'allowance-lost',
     'allowance-invalid',
     'action-mismatch',
     'legacy-ready',
     'pass-unsupported',
+    'pass-disabled-after-render',
     'pass-recipient-mismatch',
     'pass-amount-mismatch',
   ]) {
@@ -57,6 +59,8 @@ export async function verifyRuntimePortJourneys(parent) {
             throw 'Untrusted provider detail';
           },
           async refresh() {
+            if (scenario === 'pass-disabled-after-render') snapshot.onchain.passTransferMode = 'DISABLED';
+            if (scenario === 'action-disabled-after-render') snapshot.onchain.writeMode = 'DISABLED';
             if (scenario === 'allowance-lost') delete snapshot.onchain.depositAuthorization;
             if (scenario === 'allowance-invalid')
               snapshot.onchain.depositAuthorization.passAllowanceBaseUnits = '01';
@@ -110,8 +114,10 @@ export async function verifyRuntimePortJourneys(parent) {
         assert.match(await page.locator('[role="alert"]').first().textContent(), /REQUEST_FAILED/);
         assert.doesNotMatch(await page.locator('body').textContent(), /Untrusted provider detail/);
       } else if (scenario.startsWith('pass-')) {
+        if (scenario === 'pass-disabled-after-render')
+          await page.evaluate(() => window.AF.m3OnchainRuntime.refresh());
         await page.locator('[data-pass-transfer]').click();
-        if (scenario === 'pass-unsupported') {
+        if (scenario === 'pass-unsupported' || scenario === 'pass-disabled-after-render') {
           assert.match(
             await page.locator('[role="alert"]').first().textContent(),
             /PASS_TRANSFER_UNAVAILABLE/,
@@ -128,6 +134,11 @@ export async function verifyRuntimePortJourneys(parent) {
           );
           assert.equal(await page.locator('[data-pass-confirm]').count(), 0);
         }
+      } else if (scenario === 'action-disabled-after-render') {
+        await page.evaluate(() => window.AF.m3OnchainRuntime.refresh());
+        await page.locator('[data-chain-action="deposit"]').click();
+        assert.match(await page.locator('[role="alert"]').first().textContent(), /CHAIN_ACTION_UNAVAILABLE/);
+        assert.equal(await page.locator('dialog[open]').count(), 0);
       } else {
         await page.locator('[data-chain-action="deposit"]').click();
         await page.locator('[name="chainAmount"]').fill(scenario === 'approval-required' ? '1' : '0.000001');

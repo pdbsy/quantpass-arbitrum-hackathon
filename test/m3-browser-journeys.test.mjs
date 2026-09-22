@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { asAddress, asHexData } from '../packages/chain-adapter/src/types.ts';
 import { encodeM3VaultCall } from '../packages/chain-adapter/src/vault-abi.ts';
 import {
@@ -26,6 +29,35 @@ test('browser CLI help documents isolated tool and port inputs without launching
   assert.match(output, /AF_M3_BROWSER_PORT/);
   assert.match(output, /AF_M3_BROWSER_EVIDENCE_ROOT/);
 });
+
+const browserTool = resolve(
+  process.env.AF_PLAYWRIGHT_PATH || '.checks/browser-tools/node_modules/playwright-core/index.mjs',
+);
+test(
+  'real browser CLI rejects nonnumeric, privileged and out-of-range ports before launching a server',
+  { skip: !existsSync(browserTool) && 'Approved optional browser tool is not installed' },
+  (t) => {
+    const evidence = mkdtempSync(join(tmpdir(), 'alphaforge-cli-invalid-port-'));
+    t.after(() => rmSync(evidence, { recursive: true, force: true }));
+    for (const port of ['not-a-port', '1023', '65536']) {
+      const result = spawnSync(process.execPath, ['tools/verify-m3-browser.mjs'], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          AF_PLAYWRIGHT_PATH: browserTool,
+          AF_M3_BROWSER_EVIDENCE_ROOT: evidence,
+          AF_M3_BROWSER_PORT: port,
+        },
+        timeout: 15000,
+      });
+      assert.equal(result.error, undefined, port);
+      assert.equal(result.signal, null, port);
+      assert.equal(result.status, 1, port);
+      assert.match(result.stderr, /INVALID_AF_M3_BROWSER_PORT/, port);
+      assert.doesNotMatch(result.stdout + result.stderr, /EADDRINUSE|browserType\.launch|ECONNREFUSED/);
+    }
+  },
+);
 
 const word = (value) => value.slice(2).padStart(64, '0');
 const amountWord = (value) => value.toString(16).padStart(64, '0');
