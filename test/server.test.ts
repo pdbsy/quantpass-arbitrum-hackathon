@@ -1,13 +1,210 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readdir, readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { buildApp } from '../apps/server/src/app.ts';
 import { LocalStore } from '../apps/server/src/store.ts';
+import { DatabaseSync } from 'node:sqlite';
+import { createHash } from 'node:crypto';
+import { apiError } from '../apps/server/src/api-errors.ts';
 
 const env = { QP_MODE: 'local', QP_ADAPTER: 'mock' };
 const origin = 'http://127.0.0.1:4180';
 const headers = { host: '127.0.0.1:4180', 'x-quantpass-demo': '1' };
+
+test('demo backup CLI reopens independent copies and rejects real SQLite integrity violations', async () => {
+  for (const corrupt of [false, true]) {
+    const root = await folder();
+    await mkdir(resolve(root, '.data'));
+    const source = resolve(root, '.data/demo.sqlite');
+    const seed = new LocalStore(source);
+    const vault = seed.obtainTestPasses('alice', 'core-flow-demo');
+    if (corrupt) {
+      seed.db.exec('PRAGMA ignore_check_constraints=ON');
+      seed.db.prepare('UPDATE vaults SET revision=-1 WHERE id=?').run(vault.id);
+      seed.db.exec('PRAGMA ignore_check_constraints=OFF');
+    }
+    seed.close();
+    const before = await readFile(source);
+    const result = spawnSync(process.execPath, [resolve('tools/backup-demo.ts')], {
+      cwd: root,
+      env: { ...process.env, ...env, NODE_ENV: 'test' },
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, corrupt ? 1 : 0, result.stderr);
+    assert.deepEqual(await readFile(source), before, 'source must never be replaced or repaired by backup');
+    const copies = await readdir(resolve(root, '.data/backups'));
+    assert.equal(copies.length, 1);
+    const copy = new LocalStore(resolve(root, '.data/backups', copies[0]!));
+    try {
+      if (corrupt) {
+        assert.match(result.stderr, /BACKUP_INTEGRITY_FAILED/);
+        assert.doesNotMatch(result.stdout, /reopened and validated/);
+        assert.notEqual(copy.db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok');
+      } else {
+        assert.match(result.stdout, /TEST_ONLY backup reopened and validated/);
+        assert.deepEqual(copy.get(vault.id, 'alice'), vault);
+        assert.equal(copy.db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok');
+      }
+    } finally {
+      copy.close();
+    }
+  }
+});
+
+test('unknown error codes cannot reveal internal details or inherited object properties', () => {
+  for (const code of ['private database path', '__proto__', 'constructor']) {
+    assert.deepEqual(apiError(code), {
+      status: 500,
+      body: {
+        error: 'LOCAL_OPERATION_FAILED',
+        code: 'LOCAL_OPERATION_FAILED',
+        message: '本地操作未完成，请稍后重试。',
+        retryable: true,
+      },
+    });
+  }
+});
+
+test('session capacity rejects new identities until expiry and expired cookies stay invalid', async (t) => {
+  const h = await harness();
+  t.after(() => h.app.close());
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  const cookies = [];
+  for (let index = 0; index < 100; index++) cookies.push(await h.login(index % 2 ? 'bob' : 'alice'));
+  const blocked = await h.request('', '/api/demo/session', { user: 'bob' });
+  assert.equal(blocked.statusCode, 409);
+  assert.deepEqual(blocked.json(), { error: 'SESSION_LIMIT' });
+  assert.equal((await h.request(cookies[0]!, '/api/session')).json().user, 'alice');
+  now += 8 * 60 * 60 * 1000 + 1;
+  const fresh = await h.login('bob');
+  assert.equal((await h.request(fresh, '/api/session')).json().user, 'bob');
+  const expired = await h.request(cookies[0]!, '/api/session');
+  assert.equal(expired.statusCode, 401);
+  assert.deepEqual(expired.json(), { error: 'SESSION_REQUIRED' });
+  assert.deepEqual(h.store.list('alice'), []);
+  assert.deepEqual(h.store.list('bob'), []);
+});
+
+test('unknown strategy vault lookup cannot create a ledger or disclose another account', async (t) => {
+  const h = await harness();
+  t.after(() => h.app.close());
+  const cookie = await h.login();
+  const result = await h.request(cookie, '/api/strategies/missing/vault');
+  assert.equal(result.statusCode, 409);
+  assert.deepEqual(result.json(), { error: 'UNKNOWN_STRATEGY' });
+  assert.deepEqual(h.store.list('alice'), []);
+  assert.equal((await h.vault(cookie)).revision, 0);
+});
+
+test('ledger refuses unknown database schemas without replacing existing data', async () => {
+  for (const version of [0, 2]) {
+    const path = resolve(await folder(), 'unknown.sqlite');
+    const seed = new DatabaseSync(path);
+    seed.exec(
+      `CREATE TABLE unrelated(value TEXT); INSERT INTO unrelated VALUES ('preserve'); PRAGMA user_version=${version}`,
+    );
+    seed.close();
+    assert.throws(
+      () => new LocalStore(path),
+      version === 0 ? /REFUSING_UNKNOWN_DATABASE/ : /UNSUPPORTED_DATABASE_VERSION/,
+    );
+    const inspect = new DatabaseSync(path);
+    assert.equal(inspect.prepare('SELECT value FROM unrelated').get()?.value, 'preserve');
+    assert.equal(inspect.prepare('PRAGMA user_version').get()?.user_version, version);
+    inspect.close();
+  }
+});
+
+test('validly hashed but mismatched persisted owner identity fails closed and is recoverable', async (t) => {
+  const h = await harness();
+  t.after(() => h.app.close());
+  const cookie = await h.login(),
+    state = await h.vault(cookie);
+  const row = h.store.db.prepare('SELECT state_json,digest FROM vaults WHERE id=?').get(state.id)!;
+  const changed = JSON.stringify({ ...JSON.parse(String(row.state_json)), ownerId: 'bob' });
+  h.store.db
+    .prepare('UPDATE vaults SET state_json=?,digest=? WHERE id=?')
+    .run(changed, createHash('sha256').update(changed).digest('hex'), state.id);
+  assert.throws(() => h.store.get(state.id, 'alice'), /CORRUPT_LEDGER/);
+  assert.throws(() => h.store.get(state.id, 'bob'), /VAULT_NOT_FOUND/);
+  const failed = await h.request(cookie, `/api/vaults/${state.id}`);
+  assert.equal(failed.statusCode, 500);
+  assert.deepEqual(failed.json(), { error: 'LOCAL_OPERATION_FAILED' });
+  h.store.db
+    .prepare('UPDATE vaults SET state_json=?,digest=? WHERE id=?')
+    .run(row.state_json!, row.digest!, state.id);
+  assert.equal((await h.request(cookie, `/api/vaults/${state.id}`)).json().revision, 0);
+});
+
+test('claim rollback faults leave no vault or open transaction and permit a later claim', async (t) => {
+  for (const action of ['ABORT', 'ROLLBACK']) {
+    const h = await harness();
+    t.after(() => h.app.close());
+    const cookie = await h.login();
+    h.store.db.exec(
+      `CREATE TEMP TRIGGER claim_fault BEFORE INSERT ON vaults BEGIN SELECT RAISE(${action}, 'private fixture'); END`,
+    );
+    const failed = await h.request(cookie, '/api/vaults', { strategyId: 'core-flow-demo' });
+    assert.equal(failed.statusCode, 500);
+    assert.deepEqual(failed.json(), { error: 'LOCAL_OPERATION_FAILED' });
+    assert.equal(h.store.db.isTransaction, false);
+    assert.deepEqual(h.store.list('alice'), []);
+    h.store.db.exec('DROP TRIGGER claim_fault');
+    assert.equal((await h.vault(cookie)).revision, 0);
+    assert.equal(h.store.list('alice').length, 1);
+  }
+});
+
+test('ignored writes and SQLite automatic rollback preserve ledger and idempotency for a retry', async (t) => {
+  for (const action of ['IGNORE', 'ROLLBACK']) {
+    const h = await harness();
+    t.after(() => h.app.close());
+    const cookie = await h.login(),
+      state = await h.vault(cookie);
+    const expression = action === 'IGNORE' ? 'IGNORE' : "ROLLBACK, 'private fixture'";
+    h.store.db.exec(
+      `CREATE TEMP TRIGGER command_fault BEFORE UPDATE ON vaults BEGIN SELECT RAISE(${expression}); END`,
+    );
+    const command = { id: 'retry-after-fault', type: 'deposit', expectedRevision: 0, amount: '123' };
+    const failed = await h.request(cookie, `/api/vaults/${state.id}/commands`, command);
+    assert.equal(failed.statusCode, action === 'IGNORE' ? 409 : 500);
+    assert.deepEqual(failed.json(), {
+      error: action === 'IGNORE' ? 'REVISION_CONFLICT' : 'LOCAL_OPERATION_FAILED',
+    });
+    assert.equal(h.store.db.isTransaction, false);
+    assert.equal(h.store.get(state.id, 'alice').idle, '0');
+    assert.equal(h.store.audit('alice', state.id).length, 0);
+    h.store.db.exec('DROP TRIGGER command_fault');
+    const successful = await h.request(cookie, `/api/vaults/${state.id}/commands`, command);
+    assert.equal(successful.statusCode, 200);
+    assert.equal(successful.json().replayed, false);
+    assert.equal(successful.json().vault.idle, '123');
+    assert.equal(
+      (await h.request(cookie, `/api/vaults/${state.id}/commands`, command)).json().replayed,
+      true,
+    );
+    assert.equal(h.store.audit('alice', state.id).length, 1);
+  }
+});
+
+test('backup invalid parent fails without touching the source ledger', async (t) => {
+  const h = await harness();
+  t.after(() => h.app.close());
+  const state = h.store.obtainTestPasses('alice', 'core-flow-demo');
+  await assert.rejects(h.store.backupTo(resolve(h.directory, 'missing', 'backup.sqlite')), {
+    code: 'ENOENT',
+  });
+  assert.equal(h.store.get(state.id, 'alice').revision, 0);
+  const copy = await h.store.backupTo(resolve(h.directory, 'backup.sqlite'));
+  const restored = new LocalStore(copy);
+  assert.equal(restored.get(state.id, 'alice').revision, 0);
+  restored.close();
+});
 test('static delivery stays inside webroot and finds newly rebuilt assets', async (t) => {
   const directory = await folder(),
     webRoot = resolve(directory, 'web');

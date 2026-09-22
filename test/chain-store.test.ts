@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
@@ -28,6 +28,324 @@ const BLOCK_101_ALT = asBlockHash(`0x${'12'.repeat(32)}`);
 const TX_A = asTransactionHash(`0x${'aa'.repeat(32)}`);
 const TX_B = asTransactionHash(`0x${'bb'.repeat(32)}`);
 const SIGNATURE = asHexData(`0x${'cc'.repeat(32)}`);
+
+test('a physically damaged projection row fails closed instead of appearing absent', async () => {
+  const path = await databasePath();
+  const store = new ChainStore(path);
+  const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1000n };
+  store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, []);
+  store.commitProjections(CHAIN_ID, CONTRACT, block, [
+    {
+      chainId: CHAIN_ID,
+      owner: OWNER_A,
+      contract: CONTRACT,
+      projectionKey: 'damaged',
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+      state: { amount: '9' },
+    },
+  ]);
+  const ddl = String(
+    store.db.prepare("SELECT sql FROM sqlite_schema WHERE name='product_projections'").get()!.sql,
+  );
+  store.close();
+  // Build an isolated corruption fixture: relax the declaration only while writing
+  // the bad row, then restore the exact original DDL before the application reads it.
+  const corrupt = new DatabaseSync(path);
+  corrupt.enableDefensive(false);
+  corrupt.exec('PRAGMA writable_schema=ON');
+  corrupt
+    .prepare("UPDATE sqlite_schema SET sql=? WHERE name='product_projections'")
+    .run(ddl.replace('block_number INTEGER NOT NULL', 'block_number INTEGER'));
+  corrupt.exec('PRAGMA writable_schema=RESET');
+  corrupt.exec("UPDATE product_projections SET block_number=NULL WHERE projection_key='damaged'");
+  corrupt.exec('PRAGMA writable_schema=ON');
+  corrupt.prepare("UPDATE sqlite_schema SET sql=? WHERE name='product_projections'").run(ddl);
+  corrupt.exec('PRAGMA writable_schema=RESET');
+  corrupt.close();
+  const reopened = new ChainStore(path);
+  try {
+    assert.equal(
+      reopened.db.prepare("SELECT sql FROM sqlite_schema WHERE name='product_projections'").get()!.sql,
+      ddl,
+    );
+    assert.throws(
+      () => reopened.projection(CHAIN_ID, OWNER_A, CONTRACT, 'damaged'),
+      /CORRUPT_CHAIN_DATABASE/,
+    );
+    assert.equal(reopened.projection(CHAIN_ID, OWNER_B, CONTRACT, 'damaged'), null);
+    assert.equal(reopened.checkpoint(CHAIN_ID, CONTRACT)?.blockNumber, 100n);
+    assert.equal(reopened.db.isTransaction, false);
+    reopened.db.exec("UPDATE product_projections SET block_number=100 WHERE projection_key='damaged'");
+    assert.deepEqual(reopened.projection(CHAIN_ID, OWNER_A, CONTRACT, 'damaged')?.state, { amount: '9' });
+  } finally {
+    reopened.close();
+  }
+});
+
+test('chain database refuses future schema versions without modifying their contents', async () => {
+  const path = await databasePath();
+  const seed = new DatabaseSync(path);
+  seed.exec(
+    "CREATE TABLE unrelated(value TEXT); INSERT INTO unrelated VALUES ('preserve'); PRAGMA user_version=8",
+  );
+  seed.close();
+  assert.throws(() => new ChainStore(path), /UNSUPPORTED_CHAIN_DATABASE/);
+  const inspect = new DatabaseSync(path);
+  assert.equal(inspect.prepare('SELECT value FROM unrelated').get()?.value, 'preserve');
+  assert.equal(inspect.prepare('PRAGMA user_version').get()?.user_version, 8);
+  inspect.close();
+});
+
+test('recognized chain tables with a future version are rejected without migrating stored observations', async () => {
+  const path = await databasePath();
+  const seed = new ChainStore(path);
+  seed.recordCanonicalBlock(
+    CHAIN_ID,
+    CONTRACT,
+    { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1000n },
+    [event()],
+  );
+  const before = seed.db.prepare('SELECT * FROM chain_events').all();
+  seed.db.exec('PRAGMA user_version=8');
+  seed.close();
+  assert.throws(() => new ChainStore(path), /UNSUPPORTED_CHAIN_DATABASE/);
+  const inspect = new DatabaseSync(path);
+  try {
+    assert.equal(inspect.prepare('PRAGMA user_version').get()?.user_version, 8);
+    assert.deepEqual(inspect.prepare('SELECT * FROM chain_events').all(), before);
+    assert.equal(inspect.prepare('SELECT block_number FROM chain_checkpoints').get()?.block_number, 100);
+  } finally {
+    inspect.close();
+  }
+});
+
+test('missing reconciliation failure reason cannot replace a valid stored operation', async () => {
+  const store = new ChainStore(await databasePath());
+  try {
+    const submitted = transitionOperation(
+      createOperation({
+        operationId: 'failure-reason',
+        chainId: CHAIN_ID,
+        owner: OWNER_A,
+        target: CONTRACT,
+        state: 'AWAITING_SIGNATURE',
+      }),
+      { state: 'SUBMITTED', txHash: TX_A, submittedAt: '2026-09-23T00:00:00.000Z' },
+    );
+    const mined = transitionOperation(submitted, {
+      state: 'MINED',
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+      receiptStatus: 'SUCCESS',
+    });
+    store.saveOperation(mined);
+    assert.throws(
+      () => store.saveOperation({ ...mined, state: 'RECONCILIATION_FAILED', errorCode: null }),
+      /INVALID_OPERATION_EVIDENCE/,
+    );
+    assert.deepEqual(store.operation(mined.operationId), mined);
+  } finally {
+    store.close();
+  }
+});
+
+test('unsubmitted operation checkpoint updates and full cursor pages preserve identity', async () => {
+  const store = new ChainStore(await databasePath());
+  try {
+    const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1000n };
+    store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, []);
+    store.commitProjections(CHAIN_ID, CONTRACT, block, []);
+    const pending = createOperation({
+      operationId: 'unsigned',
+      chainId: CHAIN_ID,
+      owner: OWNER_A,
+      target: CONTRACT,
+      state: 'AWAITING_SIGNATURE',
+    });
+    store.saveOperation(pending);
+    const rejected = transitionOperation(pending, { state: 'REJECTED', errorCode: 'WALLET_REJECTED' });
+    store.saveOperationAtCheckpoint(rejected, pending, store.checkpoint(CHAIN_ID, CONTRACT)!);
+    assert.deepEqual(store.operation('unsigned'), rejected);
+    assert.deepEqual(store.trackableOperationIds(CHAIN_ID, CONTRACT), []);
+    for (const [id, txHash] of [
+      ['one', TX_A],
+      ['two', TX_B],
+    ] as const)
+      store.saveOperation(
+        transitionOperation(
+          createOperation({
+            operationId: id,
+            chainId: CHAIN_ID,
+            owner: OWNER_A,
+            target: CONTRACT,
+            state: 'AWAITING_SIGNATURE',
+          }),
+          { state: 'SUBMITTED', txHash, submittedAt: '2026-09-23T00:00:00.000Z' },
+        ),
+      );
+    assert.deepEqual(store.trackableOperationIds(CHAIN_ID, CONTRACT, 1, 'one'), ['two']);
+    assert.deepEqual(store.trackableOperationIds(CHAIN_ID, CONTRACT, 1, 'two'), ['one']);
+    assert.deepEqual(store.trackableOperationIds(CHAIN_ID, CONTRACT_B), []);
+  } finally {
+    store.close();
+  }
+});
+
+test('automatic SQLite rollbacks leave chain transactions, projections and leases unchanged for retry', async () => {
+  const cases = [
+    'claim',
+    'unhealthy',
+    'healthy',
+    'release',
+    'record',
+    'operation',
+    'projection',
+    'rewind',
+  ] as const;
+  for (const kind of cases) {
+    const store = new ChainStore(await databasePath());
+    try {
+      const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1000n };
+      const nextBlock = { number: 101n, hash: BLOCK_101, parentHash: BLOCK_100, timestamp: 1001n };
+      const projection = {
+        chainId: CHAIN_ID,
+        owner: OWNER_A,
+        contract: CONTRACT,
+        projectionKey: 'm3-vault',
+        blockNumber: 100n,
+        blockHash: BLOCK_100,
+        state: { amount: '9' },
+      };
+      store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [event()]);
+      store.commitProjections(CHAIN_ID, CONTRACT, block, [projection]);
+      const pending = createOperation({
+        operationId: 'unsigned',
+        chainId: CHAIN_ID,
+        owner: OWNER_A,
+        target: CONTRACT,
+        state: 'AWAITING_SIGNATURE',
+      });
+      store.saveOperation(pending);
+      const owner = '00000000-0000-4000-8000-000000000003';
+      if (kind === 'healthy' || kind === 'release') store.claimSync(CHAIN_ID, CONTRACT, 100n, owner);
+      const before = () =>
+        [
+          'chain_blocks',
+          'chain_events',
+          'chain_transactions',
+          'chain_checkpoints',
+          'chain_sync_leases',
+          'product_projections',
+        ].map((table) => store.db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all());
+      const original = before();
+      const triggers = {
+        claim: 'BEFORE INSERT ON chain_sync_leases',
+        unhealthy: 'BEFORE UPDATE ON chain_checkpoints',
+        healthy: 'BEFORE DELETE ON chain_sync_leases',
+        release: 'BEFORE DELETE ON chain_sync_leases',
+        record: 'BEFORE INSERT ON chain_events',
+        operation: 'BEFORE INSERT ON chain_transactions',
+        projection: 'BEFORE INSERT ON product_projections',
+        rewind: 'BEFORE UPDATE OF canonical ON chain_events',
+      };
+      const action = () => {
+        switch (kind) {
+          case 'claim':
+            return store.claimSync(CHAIN_ID, CONTRACT, 100n, owner);
+          case 'unhealthy':
+            return store.markSyncUnhealthy(CHAIN_ID, CONTRACT, 'CHAIN_REORG_DEPTH_EXCEEDED');
+          case 'healthy':
+            return store.markSyncHealthy(CHAIN_ID, CONTRACT, 100n, owner);
+          case 'release':
+            return store.releaseSyncIncomplete(CHAIN_ID, CONTRACT, 100n, owner);
+          case 'record':
+            return store.recordCanonicalBlock(CHAIN_ID, CONTRACT, nextBlock, [
+              event({ transactionHash: TX_B, blockNumber: 101n, blockHash: BLOCK_101 }),
+            ]);
+          case 'operation':
+            return store.saveOperationAtCheckpoint(
+              transitionOperation(pending, { state: 'REJECTED', errorCode: 'WALLET_REJECTED' }),
+              pending,
+              store.checkpoint(CHAIN_ID, CONTRACT)!,
+            );
+          case 'projection':
+            return store.commitProjections(CHAIN_ID, CONTRACT, block, [
+              { ...projection, state: { amount: '10' } },
+            ]);
+          case 'rewind':
+            return store.rollbackFromBlock(CHAIN_ID, CONTRACT, 100n);
+        }
+      };
+      store.db.exec(
+        `CREATE TEMP TRIGGER automatic_fault ${triggers[kind]} BEGIN SELECT RAISE(ROLLBACK, 'fixture automatic rollback'); END`,
+      );
+      assert.throws(action, /fixture automatic rollback/, kind);
+      assert.equal(store.db.isTransaction, false, kind);
+      assert.deepEqual(before(), original, kind);
+      store.db.exec('DROP TRIGGER automatic_fault');
+      action();
+      assert.equal(store.db.isTransaction, false);
+      assert.notDeepEqual(before(), original, `${kind} must remain usable after removing the storage fault`);
+    } finally {
+      store.close();
+    }
+  }
+});
+
+test('evidence read errors before and after automatic rollback preserve stored operation state', async () => {
+  for (const automaticRollback of [false, true]) {
+    const store = new ChainStore(await databasePath());
+    try {
+      const operation = createOperation({
+        operationId: 'read-fault',
+        chainId: CHAIN_ID,
+        owner: OWNER_A,
+        target: CONTRACT,
+        state: 'AWAITING_SIGNATURE',
+      });
+      store.saveOperation(operation);
+      store.db.function('fixture_read_fault', () => {
+        if (automaticRollback) store.db.exec('ROLLBACK');
+        throw new Error('fixture evidence read failure');
+      });
+      const columns = store.db
+        .prepare('PRAGMA table_info(chain_transactions)')
+        .all()
+        .map((row) =>
+          row.name === 'operation_id' ? 'fixture_read_fault() AS operation_id' : String(row.name),
+        )
+        .join(',');
+      store.db.exec(`CREATE TEMP VIEW chain_transactions AS SELECT ${columns} FROM main.chain_transactions`);
+      assert.throws(
+        () => store.operationEvidence(operation.operationId, 'm3-vault'),
+        /fixture evidence read failure/,
+      );
+      assert.equal(store.db.isTransaction, false);
+      store.db.exec('DROP VIEW temp.chain_transactions');
+      assert.deepEqual(store.operation(operation.operationId), operation);
+      const recovered = store.operationEvidence(operation.operationId, 'm3-vault');
+      assert.equal(recovered?.productReady, false);
+      assert.equal(recovered?.lifecycle, 'AWAITING_SIGNATURE');
+    } finally {
+      store.close();
+    }
+  }
+});
+
+test('chain backup invalid parent does not reserve a file or modify chain state', async () => {
+  const path = await databasePath();
+  const store = new ChainStore(path);
+  try {
+    const target = resolve(`${path}.missing`, 'backup.sqlite');
+    await assert.rejects(store.backupTo(target), { code: 'ENOENT' });
+    await assert.rejects(stat(target), { code: 'ENOENT' });
+    assert.equal(store.health().status, 'HEALTHY');
+    assert.equal(store.checkpoint(CHAIN_ID, CONTRACT), null);
+  } finally {
+    store.close();
+  }
+});
 
 async function databasePath() {
   await mkdir('.checks', { recursive: true });
@@ -1189,6 +1507,138 @@ test('a failed chain backup removes its incomplete destination so an operator ca
   await assert.rejects(store.backupTo(target));
   await assert.rejects(stat(target), { code: 'ENOENT' });
 });
+
+test('chain recovery rejects invalid usage, missing destination parents and integrity damage without changing source', async () => {
+  const source = await databasePath();
+  const store = new ChainStore(source);
+  store.recordCanonicalBlock(
+    CHAIN_ID,
+    CONTRACT,
+    { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1000n },
+    [],
+  );
+  store.close();
+  const before = readFileSync(source);
+  const target = `${source}.new`;
+  for (const args of [[], ['backup'], ['delete', source, target], ['backup', source, target, 'extra']]) {
+    const result = spawnSync(process.execPath, [resolve('tools/chain-recovery.ts'), ...args], {
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /USAGE: chain-recovery/);
+    assert.deepEqual(readFileSync(source), before);
+    await assert.rejects(stat(target), { code: 'ENOENT' });
+  }
+  const missingParent = runRecovery('backup', source, `${source}.absent/copy.sqlite`);
+  assert.equal(missingParent.status, 1);
+  assert.match(missingParent.stderr, /ENOENT/);
+  assert.deepEqual(readFileSync(source), before);
+  const corrupt = new DatabaseSync(source);
+  corrupt.exec(
+    'PRAGMA ignore_check_constraints=ON; UPDATE chain_blocks SET log_count=-1; PRAGMA ignore_check_constraints=OFF',
+  );
+  assert.notEqual(corrupt.prepare('PRAGMA quick_check').get()?.quick_check, 'ok');
+  corrupt.close();
+  const damagedBefore = readFileSync(source);
+  const rejected = runRecovery('backup', source, target);
+  assert.equal(rejected.status, 1);
+  assert.match(rejected.stderr, /CHAIN_RECOVERY_TARGET_UNHEALTHY/);
+  assert.deepEqual(readFileSync(source), damagedBefore);
+  await assert.rejects(stat(target), { code: 'ENOENT' });
+});
+
+async function assertRecoveryBackupFault(t: TestContext, mode: 'tamper' | 'abort' | 'cleanup') {
+  const pending = createOperation({
+    operationId: 'backup-fault',
+    chainId: CHAIN_ID,
+    owner: OWNER_A,
+    target: CONTRACT,
+    state: 'AWAITING_SIGNATURE',
+  });
+  const source = await databasePath();
+  const store = new ChainStore(source);
+  t.after(() => store.close());
+  store.saveOperation(pending);
+  const target = `${source}.new`;
+  const before = readFileSync(source);
+  const walBefore = readFileSync(`${source}-wal`);
+  assert.ok(walBefore.length > 0, 'the live source must have uncheckpointed WAL data');
+  const preload = `${source}.fault.cjs`;
+  // Inject only at the external backup completion boundary. The actual CLI,
+  // SQLite copy, schema/integrity checks and cleanup run from unchanged source.
+  await writeFile(
+    preload,
+    `
+    const sqlite = require('node:sqlite');
+    const { syncBuiltinESMExports } = require('node:module');
+    const backup = sqlite.backup;
+    sqlite.backup = async (source, target, ...args) => {
+      const result = await backup(source, target, ...args);
+      if (${JSON.stringify(mode)} !== 'abort') {
+        const db = new sqlite.DatabaseSync(target);
+        db.exec('DELETE FROM chain_transactions');
+        db.exec('PRAGMA journal_mode=DELETE');
+        db.close();
+        if (${JSON.stringify(mode)} === 'cleanup')
+          require('node:fs').chmodSync(require('node:path').dirname(target), 0o500);
+      } else {
+        source.exec('ROLLBACK');
+        throw new Error('FIXTURE_BACKUP_TRANSACTION_ABORT');
+      }
+      return result;
+    };
+    syncBuiltinESMExports();
+  `,
+  );
+  const result = spawnSync(
+    process.execPath,
+    ['--require', preload, resolve('tools/chain-recovery.ts'), 'backup', source, target],
+    { encoding: 'utf8', timeout: 10_000 },
+  );
+  // The isolated fixture denies unlinking only for the child CLI; restore its
+  // directory before assertions and normal retry/teardown in this parent.
+  if (mode === 'cleanup') await chmod(resolve(source, '..'), 0o700);
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 1);
+  assert.match(
+    result.stderr,
+    mode === 'abort' ? /FIXTURE_BACKUP_TRANSACTION_ABORT/ : /CHAIN_RECOVERY_CONTENT_MISMATCH/,
+  );
+  assert.doesNotMatch(result.stdout, /HEALTHY/);
+  assert.deepEqual(readFileSync(source), before);
+  assert.deepEqual(readFileSync(`${source}-wal`), walBefore);
+  if (mode === 'cleanup') {
+    assert.match(result.stderr, /CHAIN_RECOVERY_FAILED_CLEANUP_FAILED/);
+    assert.match(result.stderr, /EACCES|EPERM/);
+    assert.ok((await stat(target)).isFile(), 'a denied unlink must be reported as a remaining failed copy');
+    await rm(target);
+  } else await assert.rejects(stat(target), { code: 'ENOENT' });
+  const retry = runRecovery('backup', source, target);
+  assert.equal(retry.status, 0, retry.stderr);
+  assert.deepEqual(readFileSync(source), before);
+  assert.deepEqual(readFileSync(`${source}-wal`), walBefore);
+  const restored = new ChainStore(target);
+  assert.deepEqual(restored.operation(pending.operationId), pending);
+  restored.close();
+}
+
+test('recovery cleans up real copied data after boundary-injected tampering or SQLite transaction abort', async (t) => {
+  for (const mode of ['tamper', 'abort'] as const) await assertRecoveryBackupFault(t, mode);
+});
+
+test(
+  'recovery reports a POSIX directory permission cleanup failure without claiming a healthy copy',
+  {
+    skip:
+      process.platform === 'win32'
+        ? 'NOT_RUN: Windows directory chmod does not enforce POSIX unlink permissions'
+        : false,
+  },
+  async (t) => {
+    await assertRecoveryBackupFault(t, 'cleanup');
+  },
+);
 
 test('chain recovery CLI creates and restores a validated independent database', async () => {
   const source = await databasePath();

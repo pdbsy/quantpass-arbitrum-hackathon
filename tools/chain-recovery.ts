@@ -110,8 +110,12 @@ try {
     throw error;
   }
   await backup(sourceDatabase, target);
-  const recovered = new DatabaseSync(target, { readOnly: true });
+  // SQLite on the pinned runtime skips CHECK validation for read-only handles.
+  // Inspect only our newly created copy with a write-capable handle, then deny
+  // SQL mutations. The original source remains opened read-only throughout.
+  const recovered = new DatabaseSync(target);
   try {
+    recovered.exec('PRAGMA query_only=ON');
     const recoveredSnapshot = validatedSnapshot(
       recovered,
       expectedSchema,

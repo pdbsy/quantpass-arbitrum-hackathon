@@ -60,6 +60,28 @@ function invested() {
 const code = (expected: string) => (error: unknown) =>
   error instanceof DomainError && error.code === expected;
 
+test('direct domain callers preserve ordered metadata in idempotency fingerprints', () => {
+  const initial = create();
+  const command = {
+    id: 'metadata-deposit',
+    expectedRevision: 0,
+    type: 'deposit',
+    amount: '17',
+    metadata: [
+      { label: 'first', nested: ['a', 'b'] },
+      { label: 'second', nested: [] },
+    ],
+  } as const;
+  const deposited = execute(initial, owner, command);
+  assert.equal(deposited.idle, '17');
+  assert.equal(execute(deposited, owner, structuredClone(command)), deposited);
+  const changed = { ...command, metadata: [...command.metadata].reverse() };
+  assert.throws(() => execute(deposited, owner, changed), code('IDEMPOTENCY_CONFLICT'));
+  assert.equal(deposited.revision, 1);
+  assert.equal(deposited.events.length, 1);
+  assert.equal(initial.revision, 0);
+});
+
 test('domain amounts roundtrip exactly and reject overflow, floats, exponents and malformed precision', () => {
   for (const [value, decimals] of [
     ['1000', 6],
