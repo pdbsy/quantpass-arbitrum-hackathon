@@ -2088,3 +2088,130 @@ test('version-six backups remain read-only recoverable and observations survive 
     }
   }
 });
+
+// These cases protect persisted recovery boundaries, not SQLite's own constraints.
+test('projection JSON rejects unsafe numeric and byte payloads without replacing the last good view', async () => {
+  const store = new ChainStore(await databasePath());
+  try {
+    const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1000n };
+    store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, []);
+    const projection = {
+      chainId: CHAIN_ID,
+      owner: OWNER_A,
+      contract: CONTRACT,
+      projectionKey: 'vault-boundary',
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+      state: { principal: '1000000' },
+    };
+    store.commitProjections(CHAIN_ID, CONTRACT, block, [projection]);
+    for (const value of [NaN, Infinity, -Infinity, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.throws(
+        () =>
+          store.commitProjections(CHAIN_ID, CONTRACT, block, [{ ...projection, state: { amount: value } }]),
+        /INVALID_CHAIN_JSON/,
+      );
+      assert.deepEqual(store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'vault-boundary')?.state, {
+        principal: '1000000',
+      });
+    }
+    assert.throws(
+      () =>
+        store.commitProjections(CHAIN_ID, CONTRACT, block, [
+          { ...projection, state: { payload: '界'.repeat(22000) } },
+        ]),
+      /CHAIN_JSON_TOO_LARGE/,
+    );
+    assert.equal(store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'vault-boundary')?.state.principal, '1000000');
+    assert.equal(store.db.isTransaction, false);
+  } finally {
+    store.close();
+  }
+});
+
+test('negative chain ids, overflowing heights and malformed lease owners never establish a checkpoint', async () => {
+  const store = new ChainStore(await databasePath());
+  try {
+    for (const id of [0, -1, 1.5, NaN, Number.MAX_SAFE_INTEGER + 1])
+      assert.throws(() => store.checkpoint(id, CONTRACT), /INVALID_CHAIN_ID/);
+    for (const number of [-1n, BigInt(Number.MAX_SAFE_INTEGER) + 1n])
+      assert.throws(
+        () =>
+          store.recordCanonicalBlock(
+            CHAIN_ID,
+            CONTRACT,
+            { number, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1n },
+            [],
+          ),
+        /CHAIN_BLOCK_NUMBER_UNSUPPORTED/,
+      );
+    assert.throws(
+      () => store.claimSync(CHAIN_ID, CONTRACT, 100n, 'not-a-lease-owner'),
+      /INVALID_CHAIN_SYNC_OWNER/,
+    );
+    assert.equal(store.checkpoint(CHAIN_ID, CONTRACT), null);
+    assert.equal(store.projectionCheckpoint(CHAIN_ID, CONTRACT), null);
+    assert.equal(store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'missing'), null);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM chain_sync_leases').get()?.n, 0);
+  } finally {
+    store.close();
+  }
+});
+
+test('canonical replay refuses old heights and lost event rows without advancing state', async () => {
+  const store = new ChainStore(await databasePath());
+  try {
+    const first = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1000n };
+    const second = { number: 101n, hash: BLOCK_101, parentHash: BLOCK_100, timestamp: 1001n };
+    store.recordCanonicalBlock(CHAIN_ID, CONTRACT, first, [event()]);
+    store.recordCanonicalBlock(CHAIN_ID, CONTRACT, second, []);
+    assert.throws(
+      () => store.recordCanonicalBlock(CHAIN_ID, CONTRACT, first, [event()]),
+      /CHAIN_BLOCK_OUT_OF_ORDER/,
+    );
+    assert.equal(store.checkpoint(CHAIN_ID, CONTRACT)?.blockNumber, 101n);
+    // Restored database has lost an event while its checkpoint still claims one.
+    store.db.prepare('DELETE FROM chain_events').run();
+    store.db.prepare('DELETE FROM chain_blocks WHERE block_number = 101').run();
+    store.db.prepare('UPDATE chain_checkpoints SET block_number = 100, block_hash = ?').run(BLOCK_100);
+    assert.throws(
+      () => store.recordCanonicalBlock(CHAIN_ID, CONTRACT, first, [event()]),
+      /CHAIN_BLOCK_CONFLICT/,
+    );
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM chain_events').get()?.n, 0);
+    assert.equal(store.db.isTransaction, false);
+  } finally {
+    store.close();
+  }
+});
+
+test('orphan projections and contradictory sync health cannot become readable product evidence', async () => {
+  const store = new ChainStore(await databasePath());
+  try {
+    store.db
+      .prepare('INSERT INTO product_projections VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(CHAIN_ID, OWNER_A, CONTRACT, 'orphan', 100, BLOCK_100, '{"principal":"1000000"}');
+    assert.throws(() => store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'orphan'), /CORRUPT_CHAIN_DATABASE/);
+    const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1n };
+    store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, []);
+    store.commitProjections(CHAIN_ID, CONTRACT, block, []);
+    for (const error of ['CHAIN_REORG_DEPTH_EXCEEDED', 'CHAIN_REORG_NO_COMMON_ANCESTOR'] as const) {
+      store.markSyncUnhealthy(CHAIN_ID, CONTRACT, error);
+      assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT), { healthy: false, error });
+      assert.throws(() => store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'orphan'), /CHAIN_SYNC_UNHEALTHY/);
+    }
+    store.db.prepare('UPDATE chain_checkpoints SET sync_healthy = 0, sync_error = NULL').run();
+    assert.throws(() => store.syncHealth(CHAIN_ID, CONTRACT), /CORRUPT_CHAIN_DATABASE/);
+    assert.throws(() => store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'orphan'), /CORRUPT_CHAIN_DATABASE/);
+  } finally {
+    store.close();
+  }
+});
+
+test('database health exposes changed schema and closed handle as unhealthy', async () => {
+  const store = new ChainStore(await databasePath());
+  store.db.exec('PRAGMA user_version = 8');
+  assert.deepEqual(store.health(), { status: 'UNHEALTHY', schemaVersion: 8, integrity: 'FAILED' });
+  store.close();
+  assert.deepEqual(store.health(), { status: 'UNHEALTHY', schemaVersion: null, integrity: 'FAILED' });
+});

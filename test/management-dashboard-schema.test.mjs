@@ -1371,3 +1371,56 @@ test('redaction preserves repeated safe aliases while still terminating real cyc
   assert.deepEqual(redacted.primary, shared);
   assert.deepEqual(redacted.repeated, shared);
 });
+
+test('redaction bounds encoded JSON, oversized containers and Unicode log output', () => {
+  let deep = { public: 'end' };
+  for (let n = 0; n < 18; n++) deep = { nested: deep };
+  const deepResult = sanitizeLog(JSON.stringify(deep));
+  assert.match(deepResult, /MAX_DEPTH/);
+  assert.doesNotMatch(deepResult, /end/);
+  const array = JSON.parse(sanitizeLog(JSON.stringify(Array(1002).fill('public'))));
+  assert.equal(array.length, 1001);
+  assert.equal(array.at(-1), '[TRUNCATED 2 ITEMS]');
+  let encoded = 'public';
+  for (let n = 0; n < 10; n++) encoded = JSON.stringify(encoded);
+  assert.match(sanitizeLog(encoded), /REDACTED NESTED STRING/);
+  for (const limit of [0, 1, 5, 11, 12, 14, 20]) {
+    const result = sanitizeLog('界'.repeat(20), { maxBytes: limit });
+    assert.ok(Buffer.byteLength(result) <= limit);
+    assert.doesNotMatch(result, /\uFFFD/);
+  }
+  assert.equal(redactValue('public'.repeat(10), { maxStringLength: 5 }), '[TRUN');
+});
+
+test('structured metadata preserves safe nulls and diagnostic codes while rejecting inherited credentials', () => {
+  const record = Object.assign(Object.create({ inherited: 'must-not-appear' }), {
+    authStatus: null,
+    authEnabled: null,
+    token: 'local-fixture-marker',
+    descriptor: { key: 'code', value: 'DATA_SOURCE_ERROR' },
+    emptyScheme: { bearer: '' },
+  });
+  assert.deepEqual(redactValue(record), {
+    authStatus: null,
+    authEnabled: null,
+    token: '[REDACTED]',
+    descriptor: { key: 'code', value: 'DATA_SOURCE_ERROR' },
+    emptyScheme: { bearer: '' },
+  });
+  const quoted = redactValue({ "'code'": 'local-fixture-marker' });
+  assert.doesNotMatch(JSON.stringify(quoted), /local-fixture-marker/);
+});
+
+test('nested URL and malformed JSON boundaries never reveal embedded credentials', () => {
+  let nested = 'https://service.example.test/?token=local-fixture-marker';
+  for (let n = 0; n < 6; n++) nested = `https://service.example.test/?next=${encodeURIComponent(nested)}`;
+  const result = sanitizeLog(nested);
+  assert.doesNotMatch(result, /local-fixture-marker/);
+  assert.match(decodeURIComponent(result), /REDACTED/);
+  assert.match(sanitizeLog('https://service.example.test/%E0%A4%A'), /REDACTED/);
+  for (const prefix of ['{]', '[}', '{"escaped":"a\\\\b"}', '['.repeat(65)]) {
+    const output = sanitizeLog(`${prefix} {"password":"local-fixture-marker"}`);
+    assert.doesNotMatch(output, /local-fixture-marker/);
+    assert.match(output, /REDACTED/);
+  }
+});

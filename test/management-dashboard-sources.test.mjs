@@ -1024,3 +1024,65 @@ test('source collection distinguishes malformed Markdown and non-file or non-dir
   assert.equal(sources.management.currentStatus.error, 'NOT_A_FILE');
   assert.equal(sources.taskRecords[0].error, 'NOT_A_DIRECTORY');
 });
+
+test('recorded CI identity rejects malformed and contradictory context before trusting Git', async () => {
+  const recorded = {
+    branch: 'macbeth/closeout',
+    commit: '1'.repeat(40),
+    tree: '2'.repeat(40),
+    dirtyFiles: 0,
+  };
+  const valid = {
+    GITHUB_ACTIONS: 'true',
+    GITHUB_SHA: '1'.repeat(40),
+    GITHUB_EVENT_NAME: 'push',
+    GITHUB_REF: 'refs/heads/macbeth/closeout',
+  };
+  const environments = [
+    null,
+    [],
+    'push',
+    { GITHUB_SHA: '1'.repeat(40) },
+    { ...valid, GITHUB_ACTIONS: 'false' },
+    { ...valid, GITHUB_SHA: 42 },
+    { ...valid, GITHUB_REF: 'x'.repeat(513) },
+    { ...valid, GITHUB_REF: 'refs/tags/release' },
+    { ...valid, GITHUB_REF: 'refs/heads/../wrong' },
+    { ...valid, GITHUB_BASE_REF: 'master' },
+    { ...valid, GITHUB_HEAD_REF: 'other' },
+    { ...valid, GITHUB_EVENT_NAME: 'pull_request', GITHUB_REF: undefined },
+    { ...valid, GITHUB_EVENT_NAME: 'merge_group', GITHUB_REF: 'refs/heads/macbeth/closeout' },
+    {
+      ...valid,
+      GITHUB_EVENT_NAME: 'merge_group',
+      GITHUB_REF: 'refs/heads/gh-readonly-queue/master/pr22',
+      GITHUB_HEAD_REF: 'other',
+    },
+  ];
+  for (const environment of environments) {
+    const result = await collectRecordedGitState('/nonexistent-fixture', 'master', recorded, { environment });
+    assert.equal(result.status, 'DATA_SOURCE_ERROR');
+    assert.equal(result.error, 'RECORDED_GIT_CI_CONTEXT_INVALID');
+    assert.equal(result.commit, undefined);
+  }
+  for (const [field, error] of [
+    ['commit', 'RECORDED_GIT_COMMIT_INVALID'],
+    ['tree', 'RECORDED_GIT_TREE_INVALID'],
+  ]) {
+    const input = { ...recorded };
+    delete input[field];
+    assert.equal((await collectRecordedGitState('/nonexistent-fixture', 'master', input)).error, error);
+  }
+});
+
+test('source reader rejects per-file overflow and marks absent optional records honestly', async (t) => {
+  const root = await createSourceFixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, 'docs/management/CURRENT-STATUS.md'), 'x'.repeat(1024 * 1024 + 1));
+  await rm(join(root, 'docs/management/tasks'), { recursive: true });
+  const result = await collectRepositorySources(root);
+  assert.equal(result.management.currentStatus.error, 'SOURCE_TOO_LARGE');
+  assert.deepEqual(result.taskRecords, []);
+  assert.equal(result.documents.architecture.status, 'NOT_AVAILABLE');
+  assert.ok(Number.isFinite(Date.parse(result.observedAt)));
+});

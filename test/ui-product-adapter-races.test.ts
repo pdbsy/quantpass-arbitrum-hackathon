@@ -298,3 +298,112 @@ test(
     assert.equal(h.adapter.retryAfterSeconds, 0);
   },
 );
+
+// Reject complete-looking but contradictory responses before committing any owner projection.
+test('canonical snapshot corruption matrix preserves the last accepted account atomically', async (t) => {
+  const h = await setup(t);
+  await h.deposit(h.a, '10', 'boundary-deposit');
+  await h.adapter.client.refresh();
+  const accepted = projection(h.adapter.snapshot);
+  const mutations: Array<[string, (value: Record<string, unknown>) => void]> = [];
+  const set = (path: string[], value: unknown) => (snapshot: Record<string, unknown>) => {
+    let current = snapshot;
+    for (const part of path.slice(0, -1)) current = current[part] as Record<string, unknown>;
+    current[path.at(-1)!] = value;
+  };
+  for (const [path, value] of [
+    [['vaults', '0', 'revision'], -1],
+    [['vaults', '0', 'pendingOperations'], null],
+    [
+      ['vaults', '0', 'pendingOperations'],
+      [{ operationId: 'p', kind: 'other', amount: '1', status: 'pending' }],
+    ],
+    [
+      ['vaults', '0', 'pendingOperations'],
+      [{ operationId: 'p', kind: 'order', amount: '1', status: 'done' }],
+    ],
+    [
+      ['vaults', '0', 'pendingOperations'],
+      [
+        { operationId: 'p', kind: 'order', amount: '1', status: 'pending' },
+        { operationId: 'p', kind: 'order', amount: '1', status: 'pending' },
+      ],
+    ],
+    [['details'], []],
+    [['details', '0', 'strategyId'], 'unregistered-strategy'],
+    [['account', 'strategies', '0', 'status'], 'stopping'],
+    [['account', 'passBalances', '0', 'total'], '999'],
+    [['account', 'passBalances', '0', 'allowance'], '999'],
+    [['account', 'status'], 'running'],
+    [['account', 'identity', 'mode'], 'REAL'],
+    [['account', 'passBalances'], null],
+    [['account', 'vaults'], null],
+  ] as Array<[string[], unknown]>)
+    mutations.push([path.join('.'), set(path, value)]);
+  mutations.push([
+    'duplicate-vault',
+    (value) => {
+      const vaults = value.vaults as unknown[];
+      vaults.push(structuredClone(vaults[0]));
+    },
+  ]);
+  mutations.push([
+    'duplicate-details',
+    (value) => {
+      const details = value.details as unknown[];
+      details[1] = structuredClone(details[0]);
+    },
+  ]);
+  mutations.push([
+    'audit-rewrite',
+    (value) => {
+      const audit = value.audit as Record<string, unknown>[];
+      assert.ok(audit.length > 0);
+      audit[0]!.recordedAt = '2000-01-01T00:00:00.000Z';
+    },
+  ]);
+  for (const [label, mutate] of mutations) {
+    h.hooks.after = async (path, value) => {
+      if (path === '/v1/product-snapshot') mutate(value);
+    };
+    await assert.rejects(h.adapter.client.refresh(), /RESPONSE|INVALID/, label);
+    assert.deepEqual(projection(h.adapter.snapshot), accepted, label);
+    delete h.hooks.after;
+    await h.adapter.client.refresh();
+    assert.equal(h.adapter.snapshot.phase, 'READY', label);
+  }
+});
+
+test('catalogue malformed and duplicate entries never replace accepted strategies', async (t) => {
+  const h = await setup(t);
+  const accepted = projection(h.adapter.snapshot);
+  for (const mutate of [
+    (value: Record<string, unknown>) => {
+      value.items = null;
+    },
+    (value: Record<string, unknown>) => {
+      value.nextCursor = 42;
+    },
+    (value: Record<string, unknown>) => {
+      value.items = [null];
+    },
+    (value: Record<string, unknown>) => {
+      value.items = [{ strategyId: 42 }];
+    },
+    (value: Record<string, unknown>) => {
+      (value.items as Record<string, unknown>[])[0]!.scope = 'MAINNET';
+    },
+    (value: Record<string, unknown>) => {
+      const items = value.items as unknown[];
+      items.push(structuredClone(items[0]));
+    },
+  ]) {
+    h.hooks.after = async (path, value) => {
+      if (path.startsWith('/v1/strategies?')) mutate(value);
+    };
+    await assert.rejects(h.adapter.client.refresh(), /RESPONSE|INVALID/);
+    assert.deepEqual(projection(h.adapter.snapshot), accepted);
+    delete h.hooks.after;
+    await h.adapter.client.refresh();
+  }
+});

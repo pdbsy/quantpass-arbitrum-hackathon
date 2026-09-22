@@ -1125,3 +1125,82 @@ test('check mode uses a versioned report in local, push, PR, queue, and integrat
   const afterCiLayouts = await Promise.all([readFile(dashboardPath, 'utf8'), readFile(buildLogPath, 'utf8')]);
   assert.deepEqual(afterCiLayouts, before);
 });
+
+test('sparse roadmap metadata remains unavailable and never invents completion or ownership', () => {
+  const sources = fixtureSources();
+  sources.roadmap.data.project = { name: 'AlphaForge' };
+  sources.roadmap.data.phases = [];
+  sources.roadmap.data.tasks = [
+    { id: 'MINIMAL', title: 'Pending work', phase: 'PHASE-UNKNOWN', status: 'in_progress' },
+  ];
+  sources.roadmap.data.releaseGates = [{ id: 'G4', name: 'Delivery', status: 'blocked', checks: [] }];
+  sources.workers.workerB.data = { current: { ...sources.workers.workerB.data.current } };
+  for (const risk of sources.riskRegister.data.risks) delete risk.owner;
+  const snapshot = buildDashboardSnapshot({
+    sources,
+    git: { ...gitState(), aheadBehind: { ahead: 0, behind: 0 } },
+  });
+  const task = snapshot.tasks.find((item) => item.id === 'MINIMAL');
+  assert.equal(task.status, 'IN_PROGRESS');
+  assert.equal(task.owner, 'NOT_AVAILABLE');
+  assert.equal(task.priority, 'NOT_AVAILABLE');
+  assert.equal(task.risk, 'NOT_AVAILABLE');
+  assert.equal(task.lastUpdate, 'NOT_AVAILABLE');
+  assert.deepEqual(task.dependsOn, []);
+  assert.deepEqual(task.acceptance, []);
+  assert.deepEqual(task.evidence, []);
+  assert.equal(snapshot.project.chainId, 'NOT_AVAILABLE');
+  assert.equal(snapshot.project.network, 'NOT_AVAILABLE');
+  assert.equal(snapshot.project.currentWave, 'PHASE-UNKNOWN');
+  assert.equal(snapshot.hackathon.status, 'BLOCKED');
+  assert.equal(snapshot.integration.status, 'READY');
+  assert.deepEqual(snapshot.workers.find((worker) => worker.id === 'worker-b').activities, []);
+  assert.equal(snapshot.security.findings[0].owner, 'NOT_AVAILABLE');
+});
+
+test('missing Git and malformed worker records cannot render a ready integration', () => {
+  const sources = fixtureSources();
+  sources.workers.workerB.data = {};
+  sources.management.currentStatus = source(
+    'docs/management/CURRENT-STATUS.md',
+    undefined,
+    'DATA_SOURCE_ERROR',
+  );
+  const snapshot = buildDashboardSnapshot({
+    sources,
+    git: { status: 'DATA_SOURCE_ERROR', source: '.git', observedAt },
+  });
+  assert.equal(snapshot.project.branch, '[UNAVAILABLE]');
+  assert.equal(snapshot.integration.status, 'DATA_SOURCE_ERROR');
+  assert.equal(snapshot.integration.error, 'GIT_QUERY_FAILED');
+  assert.equal(snapshot.workers.find((worker) => worker.id === 'worker-b').status, 'DATA_SOURCE_ERROR');
+  assert.ok(snapshot.dashboardLog.some((item) => item.detail === 'UNKNOWN_SOURCE_ERROR'));
+  assert.notEqual(snapshot.tests.status, 'PASS');
+});
+
+test('accepted risk records do not override an unsafe network boundary', () => {
+  const sources = fixtureSources();
+  sources.riskRegister.data.risks.forEach((risk) => {
+    risk.status = 'accepted';
+  });
+  sources.securityBoundary.data.environment.mainnetSupported = true;
+  sources.roadmap.data.releaseGates = [{ id: 'G4', name: 'Delivery', status: 'passed', checks: [] }];
+  const snapshot = buildDashboardSnapshot({ sources, git: gitState(), checkReport: checkReport() });
+  assert.equal(snapshot.security.status, 'READY');
+  assert.equal(snapshot.network.status, 'BLOCKED');
+  assert.equal(snapshot.hackathon.status, 'DONE');
+});
+
+test('a recorded failed check keeps the aggregate and build failed', () => {
+  const report = checkReport();
+  const build = report.checks.find((check) => check.id === 'build');
+  build.status = 'FAIL';
+  build.exitCode = 1;
+  const snapshot = buildDashboardSnapshot({
+    sources: fixtureSources(),
+    git: gitState(),
+    checkReport: report,
+  });
+  assert.equal(snapshot.tests.status, 'FAIL');
+  assert.equal(snapshot.build.status, 'FAIL');
+});
