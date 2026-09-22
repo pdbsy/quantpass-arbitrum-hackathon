@@ -2,7 +2,8 @@
 
 - Agent / task: `Macbeth02` / `M3-02-PHASE1-CONTRACTS`
 - Repository: `pdbsy/quantpass-arbitrum-hackathon`
-- Branch: `macbeth02/m3-pr22-reachable-closeout`
+- Original implementation branch: `macbeth02/m3-pr22-reachable-closeout`
+- Draft publication branch: `macbeth02/M3-02-PHASE1-CONTRACTS`
 - Fixed source: `f966dd2e0772f6953e7315816b52aa53316c7eae`
 - Initial contracts tree: `9574b06ef54bf1de6eb062128ca47b87c4f74393`
 - Scope: local/offline contract tests and this worker's evidence. Publication is coordinated by
@@ -87,12 +88,47 @@ All rows below have block/branch coordinates retained in the full ledger. None i
 | `test/StrategyPass.invariant.t.sol`: 15, 33 | 2 | Concrete StrategyPass inherits ERC-20 transfer's true-or-revert behavior. Failed transfer reverts before these boolean guards. |
 | `test/StrategyPass.t.sol`: 13 | 1 | Concrete StrategyPass `transferFrom` returns true after allowance/balance checks or reverts; no false result reaches the spender guard. |
 | `test/VaultIntentPreview.invariant.t.sol`: 19, 21 | 2 | The immutable, view-only previewer is sampled under a fixed chainId and verifier. Identical inputs/domain are deterministic and earlier calls cannot mutate the empty-intent baseline. This proof does not extend to a changing chainId or replacement code. |
-| `test/harness/AlphaForgeVaultHarness.sol`: 89 | 1 | For the concrete fixed-supply/burn-only fixture tokens, tracked position can be seeded only up to funded balance. Tracked amount plus transferable controller balance cannot exceed totalSupply, itself bounded by uint256. A successful ordinary transfer before this guard therefore cannot cause the sum to overflow. This is a test-harness token-invariant proof, not a guarantee for arbitrary malicious IERC20s. |
+| `test/harness/AlphaForgeVaultHarness.sol`: 89 | 1 | For the concrete constructor-minted, burn-only fixture tokens, the bound is the initial minted supply S0, not the current totalSupply. The tracked amount plus all balances outside this Vault stays at most S0 under the fixture's ordinary operations, so a funded incoming amount cannot overflow the tracked amount. The detailed argument and its limits follow below. |
 
 These assumptions come from the exact sources and the consumed, pinned OpenZeppelin ERC20
 implementation. The guards remain in source and in the denominator. New mutable/false-return/
 inflationary token implementations, arbitrary storage rewrites or domain-changing fixture actions
 would invalidate the applicable classification and require reassessment.
+
+### Macbeth05 review correction: initial supply bound
+
+The original explanation incorrectly used current totalSupply. Macbeth05 identified a valid
+counterexample to that explanation: open a position of 10 units, then call ConfigurableAsset's
+forceBurn on one Vault unit. The tracked position is unchanged while totalSupply decreases.
+This disproves that current-supply invariant; it does not demonstrate an overflowing position.
+The original review evidence remains retained, and this correction supersedes that row's reason.
+
+For one concrete fixture asset, let T be this Vault's tracked position, E the sum of balances
+outside this Vault, and S0 the total amount minted by its constructor. ConfigurableAsset has no
+post-construction mint entry point; fees and forceBurn only destroy units. S0 is at most uint256.max.
+The bound needed here is T + E <= S0 over the following ordinary operations:
+
+- Initially T is zero and E is at most S0. An explicit setTrackedPositionForTest call must pass
+  _setTrackedPosition's funded-balance check, so resetting T to an amount at most the Vault's
+  actual balance reestablishes the bound against the current total supply, itself at most S0.
+- An incoming ordinary transfer reduces E by its nominal amount A before openPosition adds A
+  to T. Any receiver fee only burns units. The sender must own A before transfer, hence A <= E
+  before that transfer and T + A <= S0 when evaluating the overflow guard. A later deficit
+  rejection rolls back the entire transaction.
+- settlePosition decreases T by A before returning at most A units outside the Vault. A failed
+  transfer reverts both changes. Direct transfers between outside holders preserve E; transfers
+  into this Vault reduce E without increasing T.
+- Burning inside the Vault leaves T and E unchanged; burning outside reduces E. Thus the
+  current total supply may fall below T + E without violating the initial-supply bound.
+- Vault rescue can return only actual excess above the reserved tracked position; in that case
+  T plus E plus the rescued amount is at most the current total supply. Closing and the owner
+  USDC/Pass lifecycle cannot release a reserved ETH/BTC position; constructor guards keep those
+  assets distinct. The Vault exposes no other ordinary outward transfer of a tracked asset.
+
+This is limited to the exact constructor-minted, non-inflationary token fixtures and their ordinary
+transfer/accounting paths. Arbitrary storage or sender impersonation cheatcodes, replacement
+token code, fabricated balances, or post-construction minting are outside this argument and would
+require fresh review. No uncovered counter, source guard or denominator is changed by this correction.
 
 ## Verification and retained failures
 
