@@ -239,9 +239,9 @@ class M3BrowserRuntime implements M3ProductRuntime {
   readonly #connection: Eip1193WalletConnection | null;
   readonly #flow: M3ChainActionFlow<RuntimeSnapshot, M3ProductActionRequest, never> | null;
   readonly #listeners = new Set<() => void>();
-  readonly #actionReviews = new WeakMap<M3ProductActionReview, M3ActionReview>();
-  readonly #approvalReviews = new WeakMap<M3DepositApprovalReview, M3DepositAuthorization>();
-  readonly #passTransferReviews = new WeakMap<
+  #actionReviews = new WeakMap<M3ProductActionReview, M3ActionReview>();
+  #approvalReviews = new WeakMap<M3DepositApprovalReview, M3DepositAuthorization>();
+  #passTransferReviews = new WeakMap<
     M3PassTransferReview,
     { readonly prepared: PreparedAction; readonly wallet: Eip1193Wallet }
   >();
@@ -251,6 +251,7 @@ class M3BrowserRuntime implements M3ProductRuntime {
   readonly #registeredOperations = new Set<string>();
   #pendingOperation: PendingWalletSubmission | null = null;
   #session: WalletSession | null = null;
+  #readRevision = 0;
   #snapshot: M3ProductChainPresentation;
 
   constructor(options: M3BrowserRuntimeOptions) {
@@ -585,223 +586,332 @@ class M3BrowserRuntime implements M3ProductRuntime {
     }
   }
 
-  async connect(): Promise<void> {
-    if (!this.#connection) {
-      const error = new Error('WALLET_PROVIDER_UNAVAILABLE');
-      this.#publish({
-        ...this.#snapshot,
-        wallet: { status: 'DISCONNECTED', errorCode: error.message },
-        network: { status: 'UNAVAILABLE' },
-      });
-      throw error;
-    }
-    this.#session = null;
-    this.#publish({ ...this.#snapshot, wallet: { status: 'CONNECTING' } });
-    try {
-      if (this.#flow) {
-        const connected = await this.#flow.connect();
-        this.#session = connected.session;
-        this.#publish(await this.#connectedPresentation(connected.session, connected.snapshot));
-        const restored = this.#journal!.read(connected.session.account).at(-1);
-        if (!this.#pendingOperation || !sameAddress(this.#pendingOperation.owner, connected.session.account))
-          this.#pendingOperation = restored ?? null;
-        if (this.#pendingOperation) {
-          this.#publish({
-            ...this.#snapshot,
-            transaction: { status: 'SUBMISSION_AMBIGUOUS', txHash: this.#pendingOperation.txHash },
-          });
-          await this.refresh();
-        } else {
-          this.#publish({ ...this.#snapshot, transaction: { status: 'IDLE' } });
-        }
-      } else {
-        const session = await this.#connection.connect();
-        this.#session = session;
-        this.#publish({
-          ...this.#snapshot,
-          wallet: { status: 'CONNECTED', address: session.account },
-          network: { status: 'CORRECT', chainId: session.chainId },
-        });
-      }
-    } catch (error) {
-      const code = error instanceof WalletFailure ? error.code : 'WALLET_REQUEST_FAILED';
-      let observed = null;
-      try {
-        observed = await this.#connection.observe();
-      } catch {
-        // The original sanitized wallet error remains authoritative.
-      }
-      this.#publish({
-        ...this.#snapshot,
-        wallet: {
-          status: code === 'WALLET_REJECTED' ? 'CONNECTION_REJECTED' : 'DISCONNECTED',
-          ...(observed ? { address: observed.account } : {}),
-          errorCode: code,
-        },
-        network: observed
-          ? {
-              status: observed.chainId === ROBINHOOD_CHAIN_TESTNET.chainId ? 'CORRECT' : 'WRONG',
-              chainId: observed.chainId,
-            }
-          : { status: code === 'WALLET_WRONG_CHAIN' ? 'WRONG' : 'UNAVAILABLE' },
-      });
-      throw error;
-    }
-  }
-
-  async refresh(): Promise<void> {
-    if (!this.#connection) return;
-    const observed = await this.#connection.observe();
-    if (!observed) {
+  async #withSessionRead(
+    run: (
+      assertCurrent: () => void,
+      publish: (snapshot: M3ProductChainPresentation) => Promise<void>,
+    ) => Promise<void>,
+  ): Promise<void> {
+    const revision = ++this.#readRevision;
+    const assertCurrent = () => {
+      if (revision !== this.#readRevision) throw new WalletFailure('WALLET_SESSION_CHANGED');
+    };
+    const invalidate = () => {
+      if (revision !== this.#readRevision) return;
+      this.#readRevision++;
       this.#session = null;
+      this.#actionReviews = new WeakMap();
+      this.#approvalReviews = new WeakMap();
+      this.#passTransferReviews = new WeakMap();
       const { passBalanceBaseUnits, ...onchain } = this.#snapshot.onchain;
       void passBalanceBaseUnits;
       this.#publish({
         ...this.#snapshot,
-        wallet: { status: 'DISCONNECTED', errorCode: 'WALLET_DISCONNECTED' },
+        wallet: { status: 'DISCONNECTED', errorCode: 'WALLET_SESSION_CHANGED' },
         network: { status: 'UNAVAILABLE' },
         onchain: {
           ...onchain,
+          health: 'UNAVAILABLE',
           owner: 'UNKNOWN',
           writeMode: 'DISABLED',
           passTransferMode: 'DISABLED',
         },
       });
-      return;
-    }
-    if (this.#session && !sameAddress(observed.account, this.#session.account)) {
-      this.#session = null;
-      this.#publish({
-        ...this.#snapshot,
-        wallet: { status: 'ACCOUNT_CHANGED', address: observed.account },
-        network: {
-          status: observed.chainId === ROBINHOOD_CHAIN_TESTNET.chainId ? 'CORRECT' : 'WRONG',
-          chainId: observed.chainId,
-        },
-        onchain: {
-          ...this.#snapshot.onchain,
-          owner: 'UNKNOWN',
-          writeMode: 'DISABLED',
-          passTransferMode: 'DISABLED',
-        },
-      });
-      return;
-    }
-    if (observed.chainId !== ROBINHOOD_CHAIN_TESTNET.chainId) {
-      this.#publish({
-        ...this.#snapshot,
-        wallet: { status: 'CONNECTED', address: observed.account },
-        network: { status: 'WRONG', chainId: observed.chainId },
-        onchain: {
-          ...this.#snapshot.onchain,
-          owner: 'UNKNOWN',
-          writeMode: 'DISABLED',
-          passTransferMode: 'DISABLED',
-        },
-      });
-      return;
-    }
-    if (this.#deployment && this.#reader && this.#session) {
-      let snapshot = await this.#readFlowSnapshot(this.#session.account);
-      let presentation = await this.#connectedPresentation(this.#session, snapshot);
-      const saved = this.#journal!.read(this.#session.account);
-      const restored = saved.at(-1);
-      // A completed recovery hint must not replace the current transaction being
-      // watched for a later reorg with an older unresolved operation.
-      if (
-        restored &&
-        (!this.#pendingOperation || !sameAddress(this.#pendingOperation.owner, this.#session.account))
-      )
-        this.#pendingOperation = restored;
-      const pending = this.#pendingOperation;
-      for (const previous of saved) {
-        if (previous.operationId === pending?.operationId) continue;
-        try {
-          if (!this.#registeredOperations.has(previous.operationId)) {
-            if (!this.#reader.registerSubmission) continue;
-            await this.#reader.registerSubmission(previous);
-            this.#registeredOperations.add(previous.operationId);
-          }
-          const evidence = await this.#reader.readOperationEvidence?.(previous.operationId, previous.owner);
-          if (
-            evidence &&
-            (evidence.productReady ||
-              ['REJECTED', 'REVERTED', 'REPLACED', 'DROPPED'].includes(evidence.lifecycle))
-          )
-            this.#journal!.remove(previous);
-        } catch {
-          // Keep unresolved older hints without hiding the current transaction.
+    };
+    const publish = async (snapshot: M3ProductChainPresentation) => {
+      assertCurrent();
+      if (snapshot.wallet.status === 'CONNECTED' && snapshot.network.status === 'CORRECT') {
+        const observed = await this.#connection!.observe();
+        assertCurrent();
+        if (
+          !observed ||
+          observed.chainId !== snapshot.network.chainId ||
+          !snapshot.wallet.address ||
+          !sameAddress(observed.account, asAddress(snapshot.wallet.address))
+        ) {
+          invalidate();
+          throw new WalletFailure('WALLET_SESSION_CHANGED');
         }
       }
-      if (pending && sameAddress(pending.owner, this.#session.account)) {
+      assertCurrent();
+      this.#publish(snapshot);
+    };
+    const registered: ('chainChanged' | 'accountsChanged' | 'disconnect')[] = [];
+    try {
+      if (this.#provider)
+        for (const event of ['chainChanged', 'accountsChanged', 'disconnect'] as const) {
+          this.#provider.on(event, invalidate);
+          registered.push(event);
+        }
+      await run(assertCurrent, publish);
+    } catch (error) {
+      // Preserve a sanitized connection rejection; only close still-active read authority.
+      // A superseded read must never invalidate a newer successful connection.
+      if (
+        this.#snapshot.wallet.status === 'CONNECTING' ||
+        this.#snapshot.onchain.writeMode !== 'DISABLED' ||
+        this.#snapshot.onchain.passTransferMode === 'LIVE_AUTHORIZED'
+      )
+        invalidate();
+      throw error;
+    } finally {
+      for (const event of registered) {
         try {
-          if (!this.#registeredOperations.has(pending.operationId)) {
-            if (!this.#reader.registerSubmission) throw new Error('M3_SUBMISSION_REGISTRATION_UNAVAILABLE');
-            await this.#reader.registerSubmission(pending);
-            this.#registeredOperations.add(pending.operationId);
-          }
-          presentation = { ...presentation, transaction: { status: 'SUBMITTED', txHash: pending.txHash } };
-          if (!this.#reader.readOperationEvidence) {
-            this.#publish(presentation);
-            return;
-          }
-          const evidence = await this.#reader.readOperationEvidence(pending.operationId, pending.owner);
-          if (
-            evidence.productReady ||
-            ['REJECTED', 'REVERTED', 'REPLACED', 'DROPPED'].includes(evidence.lifecycle)
-          )
-            this.#journal!.remove(pending);
-          if (evidence.indexerStatus === 'DEGRADED' && snapshot.source !== 'LIVE_EXIT') {
-            snapshot = await this.#readLiveExitSnapshot();
-            presentation = await this.#connectedPresentation(this.#session, snapshot);
-          }
-          presentation = {
-            ...presentation,
-            transaction: transactionPresentationFromEvidence(evidence, pending.txHash),
-            onchain: {
-              ...presentation.onchain,
-              health: evidence.indexerStatus === 'DEGRADED' ? 'DEGRADED' : presentation.onchain.health,
-              readiness:
-                evidence.chainStatus === 'SOFT_READY'
-                  ? 'SOFT_READY'
-                  : evidence.chainStatus === 'REORGED'
-                    ? 'REORGED'
-                    : 'FINALITY_UNKNOWN',
-            },
-          };
+          this.#provider!.removeListener(event, invalidate);
         } catch {
-          if (!this.#registeredOperations.has(pending.operationId)) {
+          /* State guards remain closed. */
+        }
+      }
+    }
+  }
+
+  async connect(): Promise<void> {
+    return this.#withSessionRead(async (assertCurrent, publish) => {
+      if (!this.#connection) {
+        const error = new Error('WALLET_PROVIDER_UNAVAILABLE');
+        await publish({
+          ...this.#snapshot,
+          wallet: { status: 'DISCONNECTED', errorCode: error.message },
+          network: { status: 'UNAVAILABLE' },
+        });
+        throw error;
+      }
+      this.#session = null;
+      await publish({
+        ...this.#snapshot,
+        wallet: { status: 'CONNECTING' },
+        onchain: {
+          ...this.#snapshot.onchain,
+          owner: 'UNKNOWN',
+          writeMode: 'DISABLED',
+          passTransferMode: 'DISABLED',
+        },
+      });
+      try {
+        if (this.#flow) {
+          const connected = await this.#flow.connect(assertCurrent);
+          assertCurrent();
+          this.#session = connected.session;
+          await publish(await this.#connectedPresentation(connected.session, connected.snapshot));
+          const restored = this.#journal!.read(connected.session.account).at(-1);
+          if (
+            !this.#pendingOperation ||
+            !sameAddress(this.#pendingOperation.owner, connected.session.account)
+          )
+            this.#pendingOperation = restored ?? null;
+          if (this.#pendingOperation) {
+            await publish({
+              ...this.#snapshot,
+              transaction: { status: 'SUBMISSION_AMBIGUOUS', txHash: this.#pendingOperation.txHash },
+            });
+            await this.refresh();
+          } else {
+            await publish({ ...this.#snapshot, transaction: { status: 'IDLE' } });
+          }
+        } else {
+          const session = await this.#connection.connect();
+          assertCurrent();
+          this.#session = session;
+          await publish({
+            ...this.#snapshot,
+            wallet: { status: 'CONNECTED', address: session.account },
+            network: { status: 'CORRECT', chainId: session.chainId },
+          });
+        }
+      } catch (error) {
+        assertCurrent();
+        const code = error instanceof WalletFailure ? error.code : 'WALLET_REQUEST_FAILED';
+        let observed = null;
+        try {
+          observed = await this.#connection.observe();
+        } catch {
+          // The original sanitized wallet error remains authoritative.
+        }
+        await publish({
+          ...this.#snapshot,
+          wallet: {
+            status: code === 'WALLET_REJECTED' ? 'CONNECTION_REJECTED' : 'DISCONNECTED',
+            ...(observed ? { address: observed.account } : {}),
+            errorCode: code,
+          },
+          network: observed
+            ? {
+                status: observed.chainId === ROBINHOOD_CHAIN_TESTNET.chainId ? 'CORRECT' : 'WRONG',
+                chainId: observed.chainId,
+              }
+            : { status: code === 'WALLET_WRONG_CHAIN' ? 'WRONG' : 'UNAVAILABLE' },
+        });
+        throw error;
+      }
+    });
+  }
+
+  async refresh(): Promise<void> {
+    return this.#withSessionRead(async (assertCurrent, publish) => {
+      if (!this.#connection) return;
+      const observed = await this.#connection.observe();
+      assertCurrent();
+      if (!observed) {
+        this.#session = null;
+        const { passBalanceBaseUnits, ...onchain } = this.#snapshot.onchain;
+        void passBalanceBaseUnits;
+        await publish({
+          ...this.#snapshot,
+          wallet: { status: 'DISCONNECTED', errorCode: 'WALLET_DISCONNECTED' },
+          network: { status: 'UNAVAILABLE' },
+          onchain: {
+            ...onchain,
+            owner: 'UNKNOWN',
+            writeMode: 'DISABLED',
+            passTransferMode: 'DISABLED',
+          },
+        });
+        return;
+      }
+      if (this.#session && !sameAddress(observed.account, this.#session.account)) {
+        this.#session = null;
+        await publish({
+          ...this.#snapshot,
+          wallet: { status: 'ACCOUNT_CHANGED', address: observed.account },
+          network: {
+            status: observed.chainId === ROBINHOOD_CHAIN_TESTNET.chainId ? 'CORRECT' : 'WRONG',
+            chainId: observed.chainId,
+          },
+          onchain: {
+            ...this.#snapshot.onchain,
+            owner: 'UNKNOWN',
+            writeMode: 'DISABLED',
+            passTransferMode: 'DISABLED',
+          },
+        });
+        return;
+      }
+      if (observed.chainId !== ROBINHOOD_CHAIN_TESTNET.chainId) {
+        await publish({
+          ...this.#snapshot,
+          wallet: { status: 'CONNECTED', address: observed.account },
+          network: { status: 'WRONG', chainId: observed.chainId },
+          onchain: {
+            ...this.#snapshot.onchain,
+            owner: 'UNKNOWN',
+            writeMode: 'DISABLED',
+            passTransferMode: 'DISABLED',
+          },
+        });
+        return;
+      }
+      const session = this.#session;
+      if (this.#deployment && this.#reader && session) {
+        let snapshot = await this.#readFlowSnapshot(session.account);
+        assertCurrent();
+        let presentation = await this.#connectedPresentation(session, snapshot);
+        assertCurrent();
+        const saved = this.#journal!.read(session.account);
+        const restored = saved.at(-1);
+        // A completed recovery hint must not replace the current transaction being
+        // watched for a later reorg with an older unresolved operation.
+        if (
+          restored &&
+          (!this.#pendingOperation || !sameAddress(this.#pendingOperation.owner, session.account))
+        )
+          this.#pendingOperation = restored;
+        const pending = this.#pendingOperation;
+        for (const previous of saved) {
+          if (previous.operationId === pending?.operationId) continue;
+          try {
+            if (!this.#registeredOperations.has(previous.operationId)) {
+              if (!this.#reader.registerSubmission) continue;
+              await this.#reader.registerSubmission(previous);
+              assertCurrent();
+              this.#registeredOperations.add(previous.operationId);
+            }
+            const evidence = await this.#reader.readOperationEvidence?.(previous.operationId, previous.owner);
+            assertCurrent();
+            if (
+              evidence &&
+              (evidence.productReady ||
+                ['REJECTED', 'REVERTED', 'REPLACED', 'DROPPED'].includes(evidence.lifecycle))
+            )
+              this.#journal!.remove(previous);
+          } catch {
+            assertCurrent();
+            // Keep unresolved older hints without hiding the current transaction.
+          }
+        }
+        if (pending && sameAddress(pending.owner, session.account)) {
+          try {
+            if (!this.#registeredOperations.has(pending.operationId)) {
+              if (!this.#reader.registerSubmission) throw new Error('M3_SUBMISSION_REGISTRATION_UNAVAILABLE');
+              await this.#reader.registerSubmission(pending);
+              assertCurrent();
+              this.#registeredOperations.add(pending.operationId);
+            }
+            presentation = { ...presentation, transaction: { status: 'SUBMITTED', txHash: pending.txHash } };
+            if (!this.#reader.readOperationEvidence) {
+              await publish(presentation);
+              return;
+            }
+            const evidence = await this.#reader.readOperationEvidence(pending.operationId, pending.owner);
+            assertCurrent();
+            if (
+              evidence.productReady ||
+              ['REJECTED', 'REVERTED', 'REPLACED', 'DROPPED'].includes(evidence.lifecycle)
+            )
+              this.#journal!.remove(pending);
+            if (evidence.indexerStatus === 'DEGRADED' && snapshot.source !== 'LIVE_EXIT') {
+              snapshot = await this.#readLiveExitSnapshot();
+              presentation = await this.#connectedPresentation(session, snapshot);
+            }
             presentation = {
               ...presentation,
-              transaction: { status: 'SUBMISSION_AMBIGUOUS', txHash: pending.txHash },
-            };
-            this.#publish(presentation);
-          }
-          try {
-            snapshot = await this.#readLiveExitSnapshot();
-            presentation = {
-              ...(await this.#connectedPresentation(this.#session, snapshot)),
-              transaction: this.#snapshot.transaction,
+              transaction: transactionPresentationFromEvidence(evidence, pending.txHash),
+              onchain: {
+                ...presentation.onchain,
+                health: evidence.indexerStatus === 'DEGRADED' ? 'DEGRADED' : presentation.onchain.health,
+                readiness:
+                  evidence.chainStatus === 'SOFT_READY'
+                    ? 'SOFT_READY'
+                    : evidence.chainStatus === 'REORGED'
+                      ? 'REORGED'
+                      : 'FINALITY_UNKNOWN',
+              },
             };
           } catch {
-            presentation = {
-              ...presentation,
-              onchain: { ...presentation.onchain, health: 'DEGRADED' },
-            };
+            assertCurrent();
+            if (!this.#registeredOperations.has(pending.operationId)) {
+              presentation = {
+                ...presentation,
+                transaction: { status: 'SUBMISSION_AMBIGUOUS', txHash: pending.txHash },
+              };
+              await publish(presentation);
+            }
+            try {
+              snapshot = await this.#readLiveExitSnapshot();
+              presentation = {
+                ...(await this.#connectedPresentation(session, snapshot)),
+                transaction: this.#snapshot.transaction,
+              };
+            } catch {
+              assertCurrent();
+              presentation = {
+                ...presentation,
+                onchain: { ...presentation.onchain, health: 'DEGRADED' },
+              };
+            }
           }
         }
+        await publish(presentation);
+      } else {
+        await publish({
+          ...this.#snapshot,
+          wallet: { status: 'CONNECTED', address: observed.account },
+          network: {
+            status: observed.chainId === ROBINHOOD_CHAIN_TESTNET.chainId ? 'CORRECT' : 'WRONG',
+            chainId: observed.chainId,
+          },
+        });
       }
-      this.#publish(presentation);
-    } else {
-      this.#publish({
-        ...this.#snapshot,
-        wallet: { status: 'CONNECTED', address: observed.account },
-        network: {
-          status: observed.chainId === ROBINHOOD_CHAIN_TESTNET.chainId ? 'CORRECT' : 'WRONG',
-          chainId: observed.chainId,
-        },
-      });
-    }
+    });
   }
 
   async reviewDepositApprovals(

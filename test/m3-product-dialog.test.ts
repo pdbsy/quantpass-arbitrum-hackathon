@@ -92,3 +92,28 @@ test('deposit approval dialog exposes only exact token-bound finite requirements
   assert.equal((html.match(new RegExp(vault, 'g')) ?? []).length, 2);
   assert.doesNotMatch(html, /unlimited|infinite/i);
 });
+
+test('non-Error wallet rejection remains a visible failure and never invites blind confirmation retry', async () => {
+  for (const phase of ['review', 'confirm'] as const) {
+    const control = { disabled: false };
+    let message = '';
+    let calls = 0;
+    const success = await runM3DialogAction(
+      phase,
+      control,
+      () => {
+        calls++;
+        return Promise.reject({ code: 4001, message: 'untrusted wallet text' });
+      },
+      (value) => {
+        message = value;
+      },
+    );
+    assert.equal(success, false);
+    assert.equal(calls, 1);
+    assert.match(message, /CHAIN_REQUEST_FAILED/);
+    assert.doesNotMatch(message, /untrusted wallet text/);
+    assert.equal(control.disabled, phase === 'confirm');
+    if (phase === 'confirm') assert.match(message, /Do not retry automatically/);
+  }
+});

@@ -496,3 +496,29 @@ test('web Vault submission sanitizes unexpected response property failures', asy
     (error: unknown) => error instanceof M3VaultSubmissionFailure && !error.message.includes('private'),
   );
 });
+
+test('Pass and runtime API reads without configured contracts refuse before a network request', async () => {
+  let requests = 0;
+  const client = new M3VaultApiClient(async () => {
+    requests++;
+    throw Error('unexpected request');
+  });
+  await assert.rejects(client.readPassSnapshot(OWNER), /M3_VAULT_READ_FAILED/);
+  await assert.rejects(client.readRuntimeStatus(), /M3_VAULT_READ_FAILED/);
+  assert.equal(requests, 0);
+});
+
+test('runtime status failures are sanitized and never become healthy deployment evidence', async () => {
+  for (const response of [
+    async () => new Response('{}', { status: 503 }),
+    async () => {
+      throw { message: 'untrusted transport payload' };
+    },
+  ]) {
+    const client = new M3VaultApiClient(response, { vaultAddress: CONTRACT, passAddress: PASS });
+    await assert.rejects(
+      client.readRuntimeStatus(),
+      (error: unknown) => error instanceof M3VaultReadFailure && error.message === 'M3_VAULT_READ_FAILED',
+    );
+  }
+});

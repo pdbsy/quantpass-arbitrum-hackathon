@@ -753,3 +753,30 @@ test('accepted writes with a non-incrementing response or stale readback remain 
     assert.equal(h.store.audit('alice', vaultId).length, 1);
   }
 });
+
+for (const stage of ['session', 'detail'] as const) {
+  test(`a late ${stage} response cannot replace the newly selected demo identity`, async (t) => {
+    const h = await harness(t);
+    const started = deferred();
+    const held = deferred();
+    let blocked = false;
+    h.controls.after = async (path, body) => {
+      const selected = stage === 'session' ? path === '/session' : /^\/vaults\/[^/]+$/.test(path);
+      if (body === undefined && selected && !blocked) {
+        blocked = true;
+        started.resolve();
+        await held.promise;
+      }
+    };
+    const stale = h.client.refresh();
+    await started.promise;
+    await h.client.selectIdentity('bob');
+    const expected = structuredClone(h.client.snapshot);
+    held.resolve();
+    await stale;
+    assert.deepEqual(h.client.snapshot, expected);
+    assert.equal(h.client.snapshot.user, 'bob');
+    assert.deepEqual(h.client.snapshot.vaults, []);
+    assert.equal(h.client.snapshot.pending, null);
+  });
+}

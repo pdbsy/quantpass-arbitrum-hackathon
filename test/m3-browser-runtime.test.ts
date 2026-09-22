@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { asAddress, asBlockHash, asHexData } from '../packages/chain-adapter/src/types.ts';
+import { asAddress, asBlockHash, asHexData, asTransactionHash } from '../packages/chain-adapter/src/types.ts';
 import type { ProductOperationEvidence } from '../packages/chain-adapter/src/reconciliation.ts';
 import { encodeM3VaultCall } from '../packages/chain-adapter/src/vault-abi.ts';
 import { createM3BrowserRuntime } from '../apps/web/src/m3-browser-runtime.ts';
@@ -1439,3 +1439,238 @@ test('zero and aliased deployed token addresses cannot establish a writable runt
       /INVALID_M3_DEPLOYMENT_CONFIG/,
     );
 });
+
+for (const outcome of [
+  'ready',
+  'reverted',
+  'pending',
+  'registration-offline',
+  'no-registration',
+  'no-evidence',
+] as const) {
+  test(`recovery refresh preserves current transaction while older hint is ${outcome}`, async () => {
+    const { M3SubmissionJournal } = await import('../apps/web/src/m3-submission-journal.ts');
+    const provider = new ConfiguredProviderFixture();
+    const values = new Map<string, string>();
+    const submissionStorage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value);
+      },
+    };
+    const journal = new M3SubmissionJournal(
+      {
+        chainId: 46630,
+        manifestDigest: deployment.manifestDigest,
+        vaultAddress: VAULT,
+        strategyPassAddress: PASS,
+      },
+      submissionStorage,
+    );
+    const older = {
+      operationId: 'older-recovery',
+      chainId: 46630 as const,
+      owner: OWNER,
+      target: VAULT,
+      calldata: encodeM3VaultCall('withdraw(uint256)', [1n]),
+      txHash: asTransactionHash(`0x${'ba'.repeat(32)}`),
+    };
+    const current = {
+      ...older,
+      operationId: 'current-recovery',
+      calldata: encodeM3VaultCall('close()', []),
+      txHash: asTransactionHash(TX_HASH),
+    };
+    journal.record(older);
+    journal.record(current);
+    const registrations: string[] = [];
+    const pending: ProductOperationEvidence = {
+      lifecycle: 'SUBMITTED',
+      receipt: 'PENDING',
+      receiptCanonical: false,
+      confirmations: 0,
+      reconciliation: 'PENDING',
+      projection: 'PENDING',
+      chainStatus: 'PENDING',
+      l1Status: 'UNKNOWN',
+      finalityStatus: 'UNKNOWN',
+      indexerStatus: 'HEALTHY',
+      degradedReason: null,
+      productReady: false,
+    };
+    const reader = {
+      readSnapshot: async () => vaultSnapshot,
+      ...(outcome === 'no-registration'
+        ? {}
+        : {
+            registerSubmission: async (input: { operationId: string }) => {
+              registrations.push(input.operationId);
+              if (outcome === 'registration-offline' && input.operationId === older.operationId)
+                throw Error('LOCAL_API_OFFLINE');
+              return {};
+            },
+          }),
+      ...(outcome === 'no-evidence'
+        ? {}
+        : {
+            readOperationEvidence: async (id: string): Promise<ProductOperationEvidence> =>
+              id === older.operationId && outcome === 'ready'
+                ? { ...pending, lifecycle: 'CONFIRMED', receipt: 'SUCCESS', productReady: true }
+                : id === older.operationId && outcome === 'reverted'
+                  ? { ...pending, lifecycle: 'REVERTED', receipt: 'REVERTED' }
+                  : pending,
+          }),
+    };
+    const runtime = createM3BrowserRuntime({ provider, deployment, vaultReader: reader, submissionStorage });
+    await runtime.connect();
+    await runtime.refresh();
+    await runtime.refresh();
+    assert.equal(runtime.snapshot.transaction.txHash, TX_HASH);
+    assert.equal(
+      runtime.snapshot.transaction.status,
+      outcome === 'no-registration' ? 'SUBMISSION_AMBIGUOUS' : 'SUBMITTED',
+    );
+    assert.deepEqual(
+      journal.read(OWNER).map((x) => x.operationId),
+      ['ready', 'reverted'].includes(outcome) ? ['current-recovery'] : ['older-recovery', 'current-recovery'],
+    );
+    assert.equal(
+      provider.requests.filter((x) => x.method === 'eth_sendTransaction').length,
+      0,
+      'restoration must never resend a wallet transaction',
+    );
+    if (outcome !== 'no-registration')
+      assert.equal(registrations.filter((id) => id === current.operationId).length, 1);
+    if (outcome === 'pending' || outcome === 'no-evidence')
+      assert.equal(registrations.filter((id) => id === older.operationId).length, 1);
+  });
+}
+
+for (const method of ['connect', 'refresh'] as const) {
+  for (const identity of ['chain', 'account'] as const) {
+    test(`${method} cannot publish owner write access after ${identity} changes during a late snapshot`, async () => {
+      const provider = new ConfiguredProviderFixture();
+      let enter!: () => void;
+      let release!: () => void;
+      const entered = new Promise<void>((r) => {
+        enter = r;
+      });
+      const held = new Promise<void>((r) => {
+        release = r;
+      });
+      let block = false;
+      const runtime = createM3BrowserRuntime({
+        provider,
+        deployment,
+        vaultReader: {
+          readSnapshot: async () => {
+            if (block) {
+              enter();
+              await held;
+            }
+            return vaultSnapshot;
+          },
+        },
+      });
+      if (method === 'refresh') await runtime.connect();
+      block = true;
+      const result = runtime[method]().catch(() => {});
+      await entered;
+      if (identity === 'chain') provider.chainId = 1;
+      else provider.account = asAddress('0x9999999999999999999999999999999999999999');
+      release();
+      await result;
+      assert.equal(runtime.snapshot.onchain.writeMode, 'DISABLED');
+      assert.notEqual(runtime.snapshot.network.status, 'CORRECT');
+      assert.equal(provider.requests.filter((x) => x.method === 'eth_sendTransaction').length, 0);
+    });
+  }
+}
+
+for (const event of ['chainChanged', 'accountsChanged', 'disconnect'] as const) {
+  test(`transient ${event} during a snapshot invalidates the session even when final wallet identity returns`, async () => {
+    const base = new ConfiguredProviderFixture();
+    const listeners = new Map<string, Set<(value: unknown) => void>>();
+    const provider = {
+      request: (input: Eip1193Request) => base.request(input),
+      on: (name: string, listener: (value: unknown) => void) => {
+        const set = listeners.get(name) ?? new Set();
+        set.add(listener);
+        listeners.set(name, set);
+      },
+      removeListener: (name: string, listener: (value: unknown) => void) => {
+        listeners.get(name)?.delete(listener);
+      },
+    };
+    let enter!: () => void;
+    let release!: () => void;
+    const entered = new Promise<void>((r) => {
+      enter = r;
+    });
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    const runtime = createM3BrowserRuntime({
+      provider,
+      deployment,
+      vaultReader: {
+        readSnapshot: async () => {
+          enter();
+          await held;
+          return vaultSnapshot;
+        },
+      },
+    });
+    const operation = runtime.connect().catch(() => {});
+    await entered;
+    for (const listener of listeners.get(event) ?? []) listener(event === 'accountsChanged' ? [] : '0x1');
+    release();
+    await operation;
+    assert.equal(runtime.snapshot.onchain.writeMode, 'DISABLED');
+    assert.notEqual(runtime.snapshot.wallet.status, 'CONNECTED');
+    assert.equal(
+      [...listeners.values()].reduce((n, set) => n + set.size, 0),
+      0,
+      'temporary guards release their event listeners',
+    );
+  });
+}
+
+for (const lateFailure of [false, true]) {
+  test(`superseded connect ${lateFailure ? 'failure' : 'success'} cannot overwrite the newer connection`, async () => {
+    const provider = new ConfiguredProviderFixture();
+    let enter!: () => void;
+    let release!: () => void;
+    const entered = new Promise<void>((r) => {
+      enter = r;
+    });
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    let reads = 0;
+    const runtime = createM3BrowserRuntime({
+      provider,
+      deployment,
+      vaultReader: {
+        readSnapshot: async () => {
+          if (++reads === 1) {
+            enter();
+            await held;
+            if (lateFailure) throw Error('LATE_READ_FAILURE');
+          }
+          return vaultSnapshot;
+        },
+      },
+    });
+    const first = runtime.connect().catch(() => {});
+    await entered;
+    await runtime.connect();
+    const expected = runtime.snapshot;
+    release();
+    await first;
+    assert.deepEqual(runtime.snapshot, expected);
+    assert.equal(runtime.snapshot.wallet.status, 'CONNECTED');
+    assert.equal(runtime.snapshot.onchain.writeMode, 'LIVE_AUTHORIZED');
+    assert.equal(provider.requests.filter((x) => x.method === 'eth_sendTransaction').length, 0);
+  });
+}

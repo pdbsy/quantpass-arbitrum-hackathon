@@ -103,3 +103,28 @@ test('Pass transfer factory preserves one raw unit at full eighteen-decimal prec
     `0xa9059cbb${'5555555555555555555555555555555555555555'.padStart(64, '0')}${'1'.padStart(64, '0')}`,
   );
 });
+
+test('Pass transfer rejects invalid raw amounts and zero recipient before producing any wallet action', async () => {
+  const { createM3PassTransferFactory } = await import('../apps/web/src/m3-pass-actions.ts');
+  const factory = createM3PassTransferFactory({ chainId: 46630, target: CONTRACT });
+  for (const passBaseUnits of ['0', '-1', '+1', '01', '1.0', '1e18', `${1n << 256n}`]) {
+    assert.throws(
+      () => factory.prepare({ operationId: 'invalid-pass', recipient: OWNER, passBaseUnits }, OWNER),
+      /INVALID_M3_PASS_AMOUNT/,
+    );
+  }
+  assert.throws(
+    () =>
+      factory.prepare(
+        { operationId: 'zero-recipient', recipient: asAddress(`0x${'0'.repeat(40)}`), passBaseUnits: '1' },
+        OWNER,
+      ),
+    /INVALID_M3_PASS_RECIPIENT/,
+  );
+  const maximum = (1n << 256n) - 1n;
+  const valid = factory.prepare(
+    { operationId: 'maximum-pass', recipient: OWNER, passBaseUnits: String(maximum) },
+    OWNER,
+  );
+  assert.equal(valid.data, `0xa9059cbb${OWNER.slice(2).padStart(64, '0')}${'f'.repeat(64)}`);
+});
