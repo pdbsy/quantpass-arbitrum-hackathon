@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import crypto, { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
@@ -98,6 +99,47 @@ function fixture(t) {
   });
   return { config, job, git };
 }
+
+test(
+  'local CLI exits reflect actual successful, failing and blocked fixture runs',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    mkdirSync(config.outputRoot, { recursive: true });
+    for (const [state, exitCode, script, stale] of [
+      ['PASS', 0, 'console.log("actual fixture output")', false],
+      ['FAIL', 1, 'process.exit(7)', false],
+      ['BLOCKED', 2, 'throw Error("must not execute")', true],
+    ]) {
+      const path = join(config.outputRoot, `${state}.json`);
+      writeFileSync(
+        path,
+        JSON.stringify({
+          ...config,
+          expected: stale ? { ...config.expected, head: 'a'.repeat(40) } : config.expected,
+          jobs: [job(script)],
+        }),
+      );
+      const child = spawnSync(
+        process.execPath,
+        [fileURLToPath(new URL('../tools/local-ci/run.mjs', import.meta.url)), path],
+        {
+          env: process.env,
+          encoding: 'utf8',
+          timeout: 15000,
+        },
+      );
+      assert.equal(child.status, exitCode, child.stderr);
+      const receipt = JSON.parse(child.stdout);
+      assert.equal(receipt.state, state);
+      assert.equal(
+        verifyRun(receipt.directory, stale ? { ...config.expected, head: 'a'.repeat(40) } : config.expected)
+          .state,
+        state,
+      );
+    }
+  },
+);
 test(
   'success binds the source, tool bytes and actual output without inherited credentials',
   { skip: !available },

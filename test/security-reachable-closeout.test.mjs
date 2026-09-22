@@ -17,6 +17,71 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { fixtureExec } from './helpers/git-fixture.mjs';
 import { scanWorkspace } from '../tools/check-secrets.mjs';
+import { emit, inspect } from '../tools/ci/context.mjs';
+import { installScanner } from '../tools/security/bootstrap.mjs';
+import { verifySecretCanary } from '../tools/ci/check-gitleaks.mjs';
+
+test('CI report emission preserves failure exits and rejects oversized evidence before output', (t) => {
+  const previous = process.exitCode;
+  const rows = [];
+  const capture = t.mock.method(console, 'log', (value) => rows.push(JSON.parse(value)));
+  try {
+    for (const [state, expected] of [
+      ['PASS', 0],
+      ['FAIL', 1],
+      ['BLOCKED', 2],
+    ]) {
+      emit({ state });
+      assert.equal(process.exitCode, expected);
+      assert.equal(rows.at(-1).state, state);
+    }
+    assert.throws(() => emit({ state: 'PASS', payload: 'x'.repeat(512 * 1024) }), /bounded output limit/);
+    assert.equal(rows.length, 3);
+    assert.equal(process.exitCode, 2);
+  } finally {
+    capture.mock.restore();
+    process.exitCode = previous;
+  }
+});
+
+test('CI source inspection rejects malformed event object identities', (t) => {
+  const directory = mkdtempSync(join(tmpdir(), 'alphaforge-ci-context-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const path = join(directory, 'event.json');
+  const previous = process.env.GITHUB_EVENT_PATH;
+  process.env.GITHUB_EVENT_PATH = path;
+  try {
+    for (const event of [
+      { after: 'invalid' },
+      { pull_request: { head: { sha: 'a'.repeat(40) }, base: { sha: 'invalid' } } },
+    ]) {
+      writeFileSync(path, JSON.stringify(event));
+      assert.throws(() => inspect(), /Invalid source identity/);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.GITHUB_EVENT_PATH;
+    else process.env.GITHUB_EVENT_PATH = previous;
+  }
+});
+
+test('unknown scanner and missing canary executable cannot produce scanner admission', async (t) => {
+  await assert.rejects(installScanner('unreviewed'), /Unknown scanner/);
+  const directory = mkdtempSync(join(tmpdir(), 'alphaforge-canary-failure-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  assert.throws(
+    () =>
+      verifySecretCanary({
+        directory,
+        binary: join(directory, 'missing-scanner'),
+        env: {
+          PATH: process.env.PATH,
+          HOME: directory,
+          ...(process.platform === 'win32' ? { SystemRoot: process.env.SystemRoot } : {}),
+        },
+      }),
+    /history\/redaction canary failed/,
+  );
+});
 
 test('actual identity CLI refuses malformed events and empty protected ranges', (t) => {
   const directory = mkdtempSync(join(tmpdir(), 'alphaforge-identity-entry-'));
@@ -100,6 +165,7 @@ test('actual bootstrap and integration entrypoints reject malformed local invoca
       /Invalid LOCAL arguments/,
     ],
     ['tools/local-ci/run.mjs', [], 2, /Local CI BLOCKED/],
+    ['tools/verify-ci.mjs', ['--invalid'], 2, /CI verification BLOCKED/],
   ]) {
     const child = spawnSync(
       process.execPath,
@@ -113,6 +179,34 @@ test('actual bootstrap and integration entrypoints reject malformed local invoca
     assert.equal(child.status, status, path);
     assert.match(child.stderr, message, path);
     assert.equal(child.stdout, '', path);
+  }
+});
+
+test('hosted npm bootstrap refuses synthetic invalid contexts before touching the installed runtime', () => {
+  for (const invalid of [
+    { GITHUB_ACTIONS: 'false' },
+    { RUNNER_ENVIRONMENT: 'self-hosted' },
+    { GITHUB_REPOSITORY: 'unapproved/repository' },
+    { FNM_NODE_DIST_MIRROR: 'https://example.invalid/node' },
+  ]) {
+    const child = spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL('../tools/bootstrap-ci-npm.mjs', import.meta.url))],
+      {
+        env: {
+          ...process.env,
+          GITHUB_ACTIONS: 'true',
+          RUNNER_ENVIRONMENT: 'github-hosted',
+          GITHUB_REPOSITORY: 'pdbsy/quantpass-arbitrum-hackathon',
+          ...invalid,
+        },
+        encoding: 'utf8',
+        timeout: 15000,
+      },
+    );
+    assert.equal(child.status, 2);
+    assert.match(child.stderr, /BLOCKED at inputs/);
+    assert.equal(child.stdout, '');
   }
 });
 

@@ -1247,7 +1247,9 @@ export async function scanPublicMetadata(root) {
     }
     let handle;
     try {
-      handle = await open(candidate, constants.O_RDONLY | noFollow);
+      // A regular path can become a FIFO between lstat and open. Nonblocking
+      // open lets the handle identity/type checks reject it without a writer.
+      handle = await open(candidate, constants.O_RDONLY | noFollow | (constants.O_NONBLOCK ?? 0));
     } catch {
       failures.push(`${file}: unreadable-path`);
       continue;

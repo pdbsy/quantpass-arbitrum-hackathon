@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { readFileSync, mkdtempSync, mkdirSync, symlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -214,6 +216,33 @@ test('reports enforce shape, freshness, exact tree and safe fixed destination', 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('failed atomic report writes preserve the prior report and remove their temporary file', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'alphaforge-report-atomic-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const report = evaluate(inputs(), observation(), 'ci');
+  const destination = writeReport(root, report);
+  const before = readFileSync(destination);
+  const original = fs.writeFileSync;
+  const hook = t.mock.method(fs, 'writeFileSync', (target, ...args) => {
+    if (typeof target === 'number') {
+      const failure = new Error('synthetic disk full');
+      failure.code = 'ENOSPC';
+      throw failure;
+    }
+    return original(target, ...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    assert.throws(() => writeReport(root, report), { code: 'ENOSPC' });
+    assert.deepEqual(readFileSync(destination), before);
+    assert.deepEqual(fs.readdirSync(join(root, '.checks/environment')), ['report.json']);
+  } finally {
+    hook.mock.restore();
+    syncBuiltinESMExports();
+  }
+  assert.equal(writeReport(root, report), destination);
 });
 
 test('installed optional native packages must match the actual platform and CPU', async () => {

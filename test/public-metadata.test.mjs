@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { fixtureExec as execFileSync } from './helpers/git-fixture.mjs';
+import { spawnSync } from 'node:child_process';
 import fsPromises, { lstat, mkdtemp, mkdir, open, rm, symlink, writeFile } from 'node:fs/promises';
 import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -71,6 +72,40 @@ test('public metadata scan detects real file replacement and growth at read boun
     }
   }
 });
+
+test(
+  'a regular file replaced with a FIFO before open is rejected without waiting for a writer',
+  { skip: process.platform === 'win32' },
+  async (t) => {
+    const root = await fsPromises.realpath(await mkdtemp(join(tmpdir(), 'alphaforge-metadata-fifo-')));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    initializeRepository(root);
+    const path = join(root, 'source.txt');
+    await writeFile(path, 'public source\n');
+    const script = `
+    import assert from 'node:assert/strict';
+    import fs from 'node:fs/promises';
+    import {execFileSync} from 'node:child_process';
+    import {syncBuiltinESMExports} from 'node:module';
+    import {scanPublicMetadata} from ${JSON.stringify(new URL('../tools/check-public-metadata.mjs', import.meta.url).href)};
+    const path = ${JSON.stringify(path)};
+    const originalOpen = fs.open;
+    fs.open = async (...args) => {
+      if (args[0] === path) { await fs.rm(path); execFileSync('/usr/bin/mkfifo', [path]); }
+      return originalOpen(...args);
+    };
+    syncBuiltinESMExports();
+    await assert.rejects(scanPublicMetadata(${JSON.stringify(root)}), /path-changed-during-scan|non-regular-file|unreadable-path/);
+  `;
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      env: process.env,
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+    assert.equal(child.error, undefined, 'the scan must not block opening an untrusted FIFO');
+    assert.equal(child.status, 0, child.stderr);
+  },
+);
 
 test('public metadata scan rejects a tracked child through a replaced parent directory', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'alphaforge-metadata-parent-'));
@@ -1308,4 +1343,58 @@ test('escaped object wrappers retain sensitive records and preserve harmless sca
   let encoded = escaped;
   for (let depth = 0; depth < 12; depth++) encoded = JSON.stringify(encoded);
   assert.ok(findOperationalMetadataKinds(encoded, 'record.txt').includes('structured-record-budget'));
+});
+
+test('privacy parsing retains identities in unfinished templates and parenthesized properties', () => {
+  const field = ['host', 'name'].join('');
+  for (const source of [
+    'const note = `' + field + ': fictional-workstation',
+    'const note = `host: { name: fictional-workstation }',
+    `const ${field} = ("fictional-workstation");`,
+    `const profile = { ["${field}"]: ("fictional-workstation") };`,
+  ])
+    assert.deepEqual(findOperationalMetadataKinds(source, 'src/fixture.ts'), ['host-identity']);
+  assert.deepEqual(findOperationalMetadataKinds('host: { name: fictional-workstation }', 'record.txt'), [
+    'host-identity',
+  ]);
+  for (const source of [
+    `${field}: []`,
+    `${field}: null`,
+    `${field}: string # ordinary comment`,
+    `${field}: # ordinary comment`,
+  ])
+    assert.deepEqual(findOperationalMetadataKinds(source, 'record.yml'), []);
+  assert.deepEqual(findOperationalMetadataKinds('profile?. = "public";', 'src/fixture.ts'), []);
+});
+
+test('encoding depth limits distinguish embedded structured values from harmless primitive text', () => {
+  for (const scalar of ['null', 'false', '42', '[]', '{}', '"public"']) {
+    let encoded = JSON.stringify({ publicDescription: scalar });
+    for (let depth = 0; depth < 8; depth++) encoded = JSON.stringify(encoded);
+    const expected = ['[]', '{}', '"public"'].includes(scalar) ? ['structured-record-budget'] : [];
+    assert.deepEqual(findOperationalMetadataKinds(encoded, 'record.txt'), expected);
+  }
+  const field = ['host', 'name'].join('');
+  for (const [raw, expected] of [
+    [
+      JSON.stringify({ [field]: 'fictional-workstation' }).replaceAll('"', '\\"'),
+      ['structured-record-budget'],
+    ],
+    ['prefix \\"public\\"', []],
+  ]) {
+    let encoded = raw;
+    for (let depth = 0; depth < 8; depth++) encoded = JSON.stringify(encoded);
+    assert.deepEqual(findOperationalMetadataKinds(encoded, 'record.txt'), expected);
+  }
+});
+
+test('public metadata scan refuses an oversized path inventory before accepting empty files', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-metadata-file-limit-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  initializeRepository(root);
+  for (let offset = 0; offset < 10000; offset += 100)
+    await Promise.all(
+      Array.from({ length: 100 }, (_, i) => writeFile(join(root, `file-${offset + i}.txt`), '')),
+    );
+  await assert.rejects(scanPublicMetadata(root), /exceeded file limit/);
 });
