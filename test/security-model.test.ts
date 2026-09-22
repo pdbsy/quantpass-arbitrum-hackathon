@@ -562,3 +562,10 @@ test('replay retention includes the expiry boundary and cleans only expired entr
   assert.equal(await store.consume('scope', 'live', 1000, 101), false);
   assert.equal(await store.consume('other-scope', 'live', 1000, 101), true);
 });
+
+test('the real default clock does not bypass grant validation when no clock override is supplied', async () => {
+  const authorization = grantWith({ grantId: '' });
+  const { now, ...input } = request(authorization, decision(authorization));
+  void now;
+  await expectCode(issueExecutionPermit(input), 'INVALID_IDENTIFIER');
+});

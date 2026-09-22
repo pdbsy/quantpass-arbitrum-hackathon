@@ -59,3 +59,79 @@ test('real Git fixtures isolate configuration, normalize CRLF and bind detached 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('real Git event identities reject unsupported, stale and wrongly bound refs', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'alphaforge-event-graph-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const git = (...args) => fixtureExec('git', args, { cwd: root, encoding: 'utf8' }).trim();
+  git('init', '--quiet', '-b', 'master');
+  writeFileSync(join(root, 'base.txt'), 'base\n');
+  git('add', '.');
+  git('commit', '--quiet', '-m', 'fixture base');
+  const base = git('rev-parse', 'HEAD');
+  git('update-ref', 'refs/remotes/origin/master', base);
+  git('switch', '--quiet', '-c', 'feature');
+  writeFileSync(join(root, 'source.txt'), 'source\n');
+  git('add', '.');
+  git('commit', '--quiet', '-m', 'fixture source');
+  const head = git('rev-parse', 'HEAD');
+  const tree = git('rev-parse', 'HEAD^{tree}');
+  const run = (args) => git(...args);
+  assert.equal(gitIdentity(run, {}).historyValid, true);
+  for (const event of ['push', 'workflow_dispatch']) {
+    const valid = { event, sha: head, repository, ref: 'refs/heads/feature' };
+    const identity = gitIdentity(run, valid);
+    assert.equal(identity.historyValid, true);
+    assert.equal(identity.sourceHead, head);
+    assert.equal(identity.sourceTree, tree);
+    for (const change of [
+      { ref: 'refs/tags/feature' },
+      { ref: 'refs/heads/master' },
+      { ref: 'refs/heads/missing' },
+      { repository: 'other/repo' },
+      { sha: base },
+    ])
+      assert.equal(
+        gitIdentity(run, { ...valid, ...change }).historyValid,
+        false,
+        `${event} ${JSON.stringify(change)}`,
+      );
+  }
+  assert.equal(gitIdentity(run, { event: 'schedule', sha: head, repository }).historyValid, false);
+  const queue = {
+    event: 'merge_group',
+    sha: head,
+    repository,
+    ref: 'refs/heads/gh-readonly-queue/master/fixture',
+    head,
+    base,
+  };
+  assert.equal(gitIdentity(run, queue).historyValid, true);
+  for (const change of [
+    { ref: 'refs/heads/feature' },
+    { head: base },
+    { head: 'invalid' },
+    { base: 'invalid' },
+    { base: 'f'.repeat(40) },
+  ])
+    assert.equal(gitIdentity(run, { ...queue, ...change }).historyValid, false, JSON.stringify(change));
+  git('checkout', '--quiet', '--detach');
+  assert.equal(gitIdentity(run, {}).historyValid, false, 'detached local checkout has no source branch');
+  const unmerged = { event: 'pull_request', sha: head, repository, ref: 'refs/pull/1/merge', head, base };
+  assert.equal(gitIdentity(run, unmerged).historyValid, false, 'single-parent commit is not a PR merge');
+  git('switch', '--quiet', 'master');
+  git('merge', '--quiet', '--no-ff', 'feature', '-m', 'fixture PR merge');
+  const merge = git('rev-parse', 'HEAD');
+  const pr = { ...unmerged, sha: merge };
+  assert.equal(gitIdentity(run, pr).historyValid, true);
+  for (const change of [
+    { ref: 'refs/pull/0/merge' },
+    { base: head },
+    { head: base },
+    { base: 'invalid' },
+    { head: 'invalid' },
+  ])
+    assert.equal(gitIdentity(run, { ...pr, ...change }).historyValid, false, JSON.stringify(change));
+  git('update-ref', '-d', 'refs/remotes/origin/master');
+  assert.equal(gitIdentity(run, {}).historyValid, false, 'missing known base fails closed');
+});

@@ -1,5 +1,6 @@
 /* global window */
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 // Exercise the actual loaded browser model. All values are fictional DEMO fixtures;
 // these checks are separate from visible journeys and never certify chain accounting.
@@ -328,6 +329,228 @@ export async function verifyPrototypeBoundaries(page) {
   assert.equal(recovered.market.cash, 1000000);
   assert.deepEqual(recovered.market.orders, []);
   cases.push('corrupt persistence restores balanced demo with explicit recovery');
+
+  // Persisted records can predate the current UI or contain malformed optional
+  // content. Reloading the actual application must sanitize without changing funds.
+  const legacySaved = await page.evaluate(() => ({
+    v2: localStorage.getItem('alphaforge.prototype.v2'),
+    home: localStorage.getItem('alphaforge.home-concept.v1'),
+  }));
+  await page.evaluate(() => {
+    const raw = window.AF.store.read();
+    Object.assign(raw, {
+      profile: null,
+      favorites: null,
+      likes: null,
+      bookmarks: null,
+      posts: null,
+      comments: null,
+      history: null,
+      draft: null,
+      lastStrategy: 'unknown',
+    });
+    localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(raw));
+  });
+  await page.reload();
+  let normalized = await page.evaluate(() => window.AF.store.read());
+  assert.deepEqual(normalized.profile, { name: 'Workshop Guest', bio: '' });
+  for (const field of ['favorites', 'likes', 'bookmarks', 'posts', 'comments', 'history'])
+    assert.deepEqual(normalized[field], [], field);
+  assert.deepEqual(normalized.draft, { title: '', body: '', category: 'Research Notes' });
+  assert.equal(normalized.lastStrategy, 'trend');
+  assert.equal(normalized.idle, 1000000);
+  cases.push('Missing optional persisted content falls back without changing the ledger');
+  await page.evaluate(() => {
+    const raw = window.AF.store.read();
+    Object.assign(raw, {
+      profile: { name: 'x'.repeat(30), bio: 'b'.repeat(110) },
+      favorites: ['trend', 'trend', 'unknown'],
+      likes: [1, 'note'],
+      bookmarks: [null, 'note'],
+      posts: [
+        null,
+        {},
+        { id: 'external', category: 'Research Notes' },
+        {
+          id: 'local-note',
+          category: 'Research Notes',
+          title: 42,
+          body: 'valid body',
+          author: null,
+          excerpt: 0,
+        },
+      ],
+      comments: [
+        null,
+        { post: 1, body: 'invalid' },
+        { post: 'local-note', body: 'valid reply', author: null },
+      ],
+      history: [
+        null,
+        {},
+        { id: 'negative', amount: -1 },
+        { id: 'valid', amount: 1, type: 'Fixture history' },
+      ],
+      draft: { title: 1, body: null, category: 'All' },
+      lastStrategy: 'unknown',
+    });
+    localStorage.removeItem('alphaforge.prototype.v3');
+    localStorage.setItem('alphaforge.prototype.v2', JSON.stringify(raw));
+  });
+  await page.reload();
+  normalized = await page.evaluate(() => window.AF.store.read());
+  assert.deepEqual(normalized.favorites, ['trend']);
+  assert.deepEqual(normalized.likes, ['note']);
+  assert.deepEqual(normalized.bookmarks, ['note']);
+  assert.equal(normalized.profile.name, 'x'.repeat(20));
+  assert.equal(normalized.profile.bio, 'b'.repeat(100));
+  assert.equal(normalized.posts.length, 1);
+  assert.equal(normalized.posts[0].title, '');
+  assert.deepEqual(normalized.posts[0].replies, []);
+  assert.equal(normalized.comments.length, 1);
+  assert.equal(normalized.comments[0].author, '');
+  assert.deepEqual(normalized.history, [{ id: 'valid', amount: 1, type: 'Fixture history' }]);
+  assert.equal(normalized.draft.category, 'Research Notes');
+  assert.equal(normalized.netFunding, 1000000);
+  cases.push('Legacy v2 storage deduplicates and bounds optional content while preserving funds');
+  await page.evaluate(() => {
+    localStorage.removeItem('alphaforge.prototype.v3');
+    localStorage.removeItem('alphaforge.prototype.v2');
+    localStorage.setItem(
+      'alphaforge.home-concept.v1',
+      JSON.stringify({ favorites: ['trend', 'trend', 'unknown'], samplePass: true }),
+    );
+  });
+  await page.reload();
+  normalized = await page.evaluate(() => window.AF.store.read());
+  assert.deepEqual(normalized.favorites, ['trend']);
+  assert.equal(normalized.samplePass, true);
+  assert.equal(normalized.netFunding, 1000000);
+  cases.push('Legacy home preferences migrate without inventing balances or allocations');
+
+  // Simulate browser-level denial/quota errors only for the two local demo keys.
+  // This fault injection never replaces production functions or counters.
+  await page.addInitScript(() => {
+    const mode = sessionStorage.getItem('alphaforge-test-storage-fault');
+    if (!mode) return;
+    const method = mode === 'read' ? 'getItem' : 'setItem';
+    const original = Storage.prototype[method];
+    Storage.prototype[method] = function (key, ...rest) {
+      if (
+        this === localStorage &&
+        [
+          'alphaforge.prototype.v3',
+          'alphaforge.prototype.v2',
+          'alphaforge.home-concept.v1',
+          'alphaforge.passmarket.v3',
+        ].includes(key)
+      )
+        throw new DOMException(
+          'Injected browser storage failure',
+          mode === 'read' ? 'SecurityError' : 'QuotaExceededError',
+        );
+      return original.call(this, key, ...rest);
+    };
+  });
+  await page.evaluate(() => sessionStorage.setItem('alphaforge-test-storage-fault', 'read'));
+  await page.reload();
+  let storageState = await page.evaluate(() => ({
+    local: window.AF.store.available(),
+    market: window.AF.exchange.available(),
+    localRecovery: window.AF.store.recovery,
+    marketRecovery: window.AF.exchange.recovery,
+  }));
+  assert.deepEqual(storageState, { local: false, market: false, localRecovery: '', marketRecovery: '' });
+  cases.push('Browser read denial reports unavailable storage distinctly from corrupt records');
+  await page.evaluate(() => sessionStorage.setItem('alphaforge-test-storage-fault', 'write'));
+  await page.reload();
+  storageState = await page.evaluate(() => {
+    const before = {
+      local: localStorage.getItem('alphaforge.prototype.v3'),
+      market: localStorage.getItem('alphaforge.passmarket.v3'),
+    };
+    window.AF.store.dispatch({ type: 'deposit', amount: 1 });
+    window.AF.exchange.reset();
+    return {
+      available: [window.AF.store.available(), window.AF.exchange.available()],
+      before,
+      after: {
+        local: localStorage.getItem('alphaforge.prototype.v3'),
+        market: localStorage.getItem('alphaforge.passmarket.v3'),
+      },
+    };
+  });
+  assert.deepEqual(storageState.available, [false, false]);
+  assert.deepEqual(storageState.after, storageState.before);
+  cases.push('Browser quota failure never claims durable storage or overwrites prior records');
+  await page.evaluate(() => sessionStorage.removeItem('alphaforge-test-storage-fault'));
+  await page.reload();
+  await page.evaluate((legacy) => {
+    for (const [key, value] of [
+      ['alphaforge.prototype.v2', legacy.v2],
+      ['alphaforge.home-concept.v1', legacy.home],
+    ]) {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    }
+  }, legacySaved);
+  await page.reload();
+
+  const address = page.url().split('#')[0];
+  await page.goto(`${address}#/account/funds`);
+  const exportBefore = await page.evaluate(() => ({
+    state: window.AF.store.read(),
+    passMarket: window.AF.exchange.read(),
+  }));
+  const downloaded = page.waitForEvent('download');
+  await page.locator('[data-action="export"]').first().click();
+  const download = await downloaded;
+  assert.equal(download.suggestedFilename(), 'AlphaForge_local_demo.json');
+  const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
+  assert.equal(exported.product, 'AlphaForge');
+  assert.equal(exported.scope, 'LOCAL_PROTOTYPE_ONLY');
+  assert.deepEqual(exported.state, JSON.parse(JSON.stringify(exportBefore.state)));
+  assert.deepEqual(exported.passMarket, exportBefore.passMarket);
+  assert.ok(Number.isFinite(Date.parse(exported.exportedAt)));
+  assert.deepEqual(
+    await page.evaluate(() => ({ state: window.AF.store.read(), passMarket: window.AF.exchange.read() })),
+    exportBefore,
+  );
+  cases.push('Visible export downloads the exact two local ledgers without mutating either');
+  await page.goto(`${address}#/account/settings`);
+  await page.locator('[data-action="reset-confirm"]').click();
+  assert.match(await page.locator('#app-dialog[open]').textContent(), /Start a fresh demo/);
+  await page.locator('#app-dialog[open] [data-close]').click();
+  assert.deepEqual(
+    await page.evaluate(() => ({ state: window.AF.store.read(), passMarket: window.AF.exchange.read() })),
+    exportBefore,
+  );
+  await page.locator('[data-action="reset-confirm"]').click();
+  await page.locator('#app-dialog[open] [data-action="reset-run"]').click();
+  const reset = await page.evaluate(() => ({
+    local: window.AF.store.read(),
+    market: window.AF.exchange.read(),
+  }));
+  assert.equal(reset.local.idle, 1000000);
+  assert.equal(reset.local.netFunding, 1000000);
+  assert.deepEqual(reset.local.pending, []);
+  assert.deepEqual(Object.keys(reset.local.passes), ['trend']);
+  assert.equal(reset.market.cash, 1000000);
+  assert.deepEqual(reset.market.orders, []);
+  assert.deepEqual(reset.market.executed, []);
+  cases.push('Visible reset requires confirmation and restores both demo ledgers; cancel preserves data');
+  for (const route of ['not-a-page', '%E0%A4']) {
+    await page.goto(`${address}#/${route}`);
+    await page.getByText('This page is not in the workshop yet.', { exact: true }).waitFor();
+  }
+  await page.goto(`${address}#/forum/post/missing-local-note`);
+  await page.getByText('This note is not here.', { exact: true }).waitFor();
+  await page.goto(`${address}#/trade`);
+  await page.locator('h1').waitFor();
+  assert.equal(await page.evaluate(() => window.AF.route.id), 'trend');
+  cases.push(
+    'Unknown, malformed and missing-note routes fail safely; an omitted trade ID uses the saved strategy',
+  );
 
   // Restore the earlier visible-journey fixture, preserving the original six strategies.
   await page.evaluate((saved) => {

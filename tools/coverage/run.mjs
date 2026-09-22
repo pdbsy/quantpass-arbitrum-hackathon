@@ -93,6 +93,7 @@ workflows.push({ ...qualification, directory: qualified.directory });
 for (const gate of [
   { id: 'source-policy', args: ['tools/ci/check-source-policy.mjs'] },
   { id: 'dependency-delta-audit', args: ['tools/ci/check-dependency-delta.mjs'] },
+  { id: 'osv-scanner', args: ['tools/ci/check-osv.mjs'] },
   { id: 'gitleaks-history', args: ['tools/ci/check-gitleaks.mjs'] },
 ]) {
   const execution = await collectNodeWorkflow(root, prepared.directory, {

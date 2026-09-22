@@ -10,6 +10,9 @@ import {
   collectGitState,
   collectRecordedGitState,
   collectRepositorySources,
+  isGitCommitAncestor,
+  isGitCommitTree,
+  isManagementReportCommitFresh,
 } from '../tools/management-dashboard/sources.mjs';
 
 const fixtureRoot = new URL('./fixtures/management-dashboard/', import.meta.url);
@@ -966,4 +969,58 @@ test('recorded Git fixture preserves repository text bytes with autocrlf enabled
   git(root, ['checkout', '--', 'recorded.txt']);
   assert.equal(await readFile(join(root, 'recorded.txt'), 'utf8'), 'recorded\n');
   assert.equal(git(root, ['-c', 'core.autocrlf=false', 'status', '--porcelain']), '');
+});
+
+test('public source-binding helpers verify real ancestry, trees and manifest-only freshness', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-evidence-binding-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  git(root, ['init', '-b', 'master']);
+  await writeFile(join(root, 'runtime.txt'), 'original runtime\n');
+  git(root, ['add', '.']);
+  commit(root, 'fixture source');
+  const source = git(root, ['rev-parse', 'HEAD']);
+  const tree = git(root, ['rev-parse', 'HEAD^{tree}']);
+  assert.equal(await isGitCommitAncestor(root, source, source), true);
+  assert.equal(await isGitCommitTree(root, source, tree), true);
+  assert.equal(await isGitCommitTree(root, source, source), false, 'commit is not its tree object');
+  assert.equal(await isManagementReportCommitFresh(root, source, source), true);
+  await mkdir(join(root, '.checks/management'), { recursive: true });
+  await writeFile(join(root, '.checks/management/latest.json'), '{"fixture":true}\n');
+  git(root, ['add', '.']);
+  commit(root, 'fixture manifest only');
+  const manifest = git(root, ['rev-parse', 'HEAD']);
+  assert.equal(await isGitCommitAncestor(root, source, manifest), true);
+  assert.equal(await isGitCommitAncestor(root, manifest, source), false);
+  assert.equal(await isManagementReportCommitFresh(root, source, manifest), true);
+  assert.equal(await isManagementReportCommitFresh(root, manifest, source), false);
+  await writeFile(join(root, 'runtime.txt'), 'changed runtime\n');
+  git(root, ['add', '.']);
+  commit(root, 'fixture runtime changed');
+  const changed = git(root, ['rev-parse', 'HEAD']);
+  assert.equal(
+    await isManagementReportCommitFresh(root, source, changed),
+    false,
+    'runtime mutation cannot be a report-only descendant',
+  );
+  for (const bad of [undefined, null, 'invalid', 'f'.repeat(40)]) {
+    assert.equal(await isGitCommitAncestor(root, bad, source), false);
+    assert.equal(await isGitCommitAncestor(root, source, bad), false);
+    assert.equal(await isGitCommitTree(root, bad, tree), false);
+    assert.equal(await isGitCommitTree(root, source, bad), false);
+    assert.equal(await isManagementReportCommitFresh(root, bad, source), false);
+    assert.equal(await isManagementReportCommitFresh(root, manifest, bad), false);
+  }
+});
+
+test('source collection distinguishes malformed Markdown and non-file or non-directory sources', async (t) => {
+  const root = await createSourceFixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, 'docs/management/workers/worker-a.md'), '# Incomplete worker record\n');
+  await mkdir(join(root, 'docs/management/CURRENT-STATUS.md'));
+  await rm(join(root, 'docs/management/tasks'), { recursive: true });
+  await writeFile(join(root, 'docs/management/tasks'), 'not a directory\n');
+  const sources = await collectRepositorySources(root, { observedAt });
+  assert.equal(sources.workers.workerA.error, 'MALFORMED_MARKDOWN');
+  assert.equal(sources.management.currentStatus.error, 'NOT_A_FILE');
+  assert.equal(sources.taskRecords[0].error, 'NOT_A_DIRECTORY');
 });

@@ -178,3 +178,132 @@ test('bounded environment reads reject symlinks, oversized inputs and invalid UT
   writeFileSync(join(f.root, '.node-version'), node);
   assert.equal(readInputs(f.root).node, node.toString().trim());
 });
+
+test('real inspection decodes PR and merge-queue event fixtures without treating them as hosted approval', (t) => {
+  const f = fixture(t);
+  const base = f.git('rev-parse', 'HEAD');
+  f.git('switch', '-c', 'event-source');
+  writeFileSync(join(f.root, 'event-source.txt'), 'event source\n');
+  f.git('add', '.');
+  f.git('commit', '-m', 'event source');
+  const head = f.git('rev-parse', 'HEAD');
+  f.git('switch', 'fixture');
+  f.git('merge', '--no-ff', 'event-source', '-m', 'event merge');
+  const merge = f.git('rev-parse', 'HEAD');
+  const eventFile = join(f.parent, 'event.json');
+  const repositoryName = 'pdbsy/quantpass-arbitrum-hackathon';
+  const payload = {
+    pull_request: {
+      base: { repo: { full_name: repositoryName }, ref: 'master', sha: base },
+      head: { repo: { full_name: repositoryName }, sha: head },
+    },
+  };
+  const environment = {
+    ...f.environment,
+    GITHUB_ACTIONS: 'true',
+    GITHUB_EVENT_NAME: 'pull_request',
+    GITHUB_SHA: merge,
+    GITHUB_REF: 'refs/pull/1/merge',
+    GITHUB_REPOSITORY: repositoryName,
+    GITHUB_EVENT_PATH: eventFile,
+  };
+  writeFileSync(eventFile, JSON.stringify(payload));
+  let report = f.inspect({ mode: 'ci', environment });
+  assert.equal(status(report, 'history'), 'PASS');
+  assert.equal(report.sourceHead, head);
+  assert.equal(report.eligibleForEvidence, false, 'fixture event does not prove a qualified hosted job');
+  for (const [name, mutate] of [
+    [
+      'missing PR',
+      (p) => {
+        delete p.pull_request;
+      },
+    ],
+    [
+      'foreign base repository',
+      (p) => {
+        p.pull_request.base.repo.full_name = 'foreign/repo';
+      },
+    ],
+    [
+      'wrong base ref',
+      (p) => {
+        p.pull_request.base.ref = 'other';
+      },
+    ],
+    [
+      'foreign head repository',
+      (p) => {
+        p.pull_request.head.repo.full_name = 'foreign/repo';
+      },
+    ],
+  ]) {
+    const invalid = structuredClone(payload);
+    mutate(invalid);
+    writeFileSync(eventFile, JSON.stringify(invalid));
+    report = f.inspect({ mode: 'ci', environment });
+    assert.equal(status(report, 'history'), 'BLOCKED', name);
+    assert.equal(report.eligibleForEvidence, false, name);
+  }
+  for (const bytes of ['{invalid', 'null']) {
+    writeFileSync(eventFile, bytes);
+    assert.equal(status(f.inspect({ mode: 'ci', environment }), 'history'), 'BLOCKED');
+  }
+  writeFileSync(eventFile, JSON.stringify({ merge_group: { head_sha: merge, base_sha: base } }));
+  const queueEnv = {
+    ...environment,
+    GITHUB_EVENT_NAME: 'merge_group',
+    GITHUB_REF: 'refs/heads/gh-readonly-queue/master/fixture',
+  };
+  report = f.inspect({ mode: 'ci', environment: queueEnv });
+  assert.equal(status(report, 'history'), 'PASS');
+  assert.equal(report.sourceHead, merge);
+  assert.equal(report.eligibleForEvidence, false);
+  writeFileSync(eventFile, '{}');
+  assert.equal(status(f.inspect({ mode: 'ci', environment: queueEnv }), 'history'), 'BLOCKED');
+});
+
+for (const [label, bytes] of [
+  ['CRLF text', Buffer.from('fixture\r\n')],
+  ['invalid UTF-8', Buffer.from([0xff])],
+  ['oversized file', Buffer.alloc(2 * 1024 * 1024 + 1, 65)],
+])
+  test(`real inspection rejects tracked ${label}`, (t) => {
+    const f = fixture(t);
+    // Suppress newline conversion only in this disposable fixture so on-disk bytes
+    // really reach the same production file admission check.
+    writeFileSync(join(f.root, '.git/info/attributes'), 'malformed.bin -text\n');
+    writeFileSync(join(f.root, 'malformed.bin'), bytes);
+    f.git('add', '.');
+    f.git('commit', '-m', `fixture ${label}`);
+    const report = f.inspect();
+    assert.equal(status(report, 'files'), 'FAIL');
+    assert.equal(report.eligibleForEvidence, false);
+  });
+
+test('real inspection accepts binary NUL fixtures but rejects tracked file symlinks', (t) => {
+  const f = fixture(t);
+  writeFileSync(join(f.root, 'binary.bin'), Buffer.from([0, 255]));
+  f.git('add', '.');
+  f.git('commit', '-m', 'fixture binary');
+  assert.equal(status(f.inspect(), 'files'), 'PASS');
+  symlinkSync('source.txt', join(f.root, 'linked-source.txt'));
+  f.git('add', '.');
+  f.git('commit', '-m', 'fixture tracked link');
+  const report = f.inspect();
+  assert.equal(status(report, 'files'), 'FAIL');
+  assert.equal(report.eligibleForEvidence, false);
+});
+
+test('real inspection rejects malformed local-mode defaults and misaligned npm PATH', (t) => {
+  const f = fixture(t);
+  writeFileSync(join(f.root, '.env.example'), 'QP_MODE=live\nQP_ADAPTER=live\n');
+  let report = f.inspect();
+  assert.equal(status(report, 'local-mock'), 'FAIL');
+  assert.equal(report.eligibleForEvidence, false);
+  const environment = { ...f.environment, PATH: f.parent };
+  report = f.inspect({ environment });
+  assert.equal(status(report, 'tools'), 'PASS', 'exact Node/npm versions do not prove PATH alignment');
+  assert.notEqual(status(report, 'platform'), 'PASS');
+  assert.equal(report.eligibleForEvidence, false);
+});
