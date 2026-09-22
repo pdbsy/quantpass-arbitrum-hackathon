@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { createDashboardServer, resolveDashboardRequestPath } from '../tools/serve-management-dashboard.mjs';
+import {
+  createDashboardServer,
+  main as serveDashboard,
+  resolveDashboardRequestPath,
+} from '../tools/serve-management-dashboard.mjs';
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'quantpass-dashboard-server-'));
@@ -148,4 +152,53 @@ test('proposed local Forum write path remains disabled for every mutation method
     assert.equal(response.headers.get('allow'), 'GET, HEAD');
   }
   assert.equal((await fetch(`${origin}/api/posts`)).status, 404);
+});
+
+test('default dashboard root is served with loopback defaults and no implicit listener', async (t) => {
+  const server = await createDashboardServer();
+  t.after(() => server.close());
+  assert.equal(server.listening, false);
+  assert.equal(server.dashboardHost, '127.0.0.1');
+  assert.equal(server.dashboardPort, 4181);
+  const origin = await listen(server);
+  const response = await fetch(`${origin}/`);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /AlphaForge/);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+});
+
+test('invalid ports, non-directory roots and unknown CLI options fail before opening a listener', async (t) => {
+  for (const port of [-1, 65536, 0.5, Number.NaN, '4181']) {
+    await assert.rejects(createDashboardServer({ port }), /INVALID_PORT/);
+  }
+  const { root, outside } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(() => rm(outside, { recursive: true, force: true }));
+  await assert.rejects(
+    createDashboardServer({ root: join(root, 'index.html'), port: 0 }),
+    /DASHBOARD_ROOT_REQUIRED/,
+  );
+  await assert.rejects(serveDashboard(['--host=0.0.0.0']), /Unknown argument/);
+});
+
+test('asset size boundary and directory-shaped assets fail closed without disclosing local paths', async (t) => {
+  const { root, outside } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(() => rm(outside, { recursive: true, force: true }));
+  const limit = 5 * 1024 * 1024;
+  await writeFile(join(root, 'limit.js'), Buffer.alloc(limit, 32));
+  await writeFile(join(root, 'oversized.js'), Buffer.alloc(limit + 1, 32));
+  await mkdir(join(root, 'directory.json'));
+  const server = await createDashboardServer({ root, port: 0 });
+  t.after(() => server.close());
+  const origin = await listen(server);
+  const allowed = await fetch(`${origin}/limit.js`, { method: 'HEAD' });
+  assert.equal(allowed.status, 200);
+  assert.equal(allowed.headers.get('content-length'), String(limit));
+  assert.equal(await allowed.text(), '');
+  for (const path of ['oversized.js', 'directory.json', 'missing.js']) {
+    const response = await fetch(`${origin}/${path}`);
+    assert.equal(response.status, 404, path);
+    assert.equal(await response.text(), 'Not Found\n');
+  }
 });

@@ -573,6 +573,13 @@ test('builder CLI accepts only deterministic documented modes', () => {
     mode: 'write',
     observedAt,
   });
+  assert.deepEqual(parseBuildArgs(['--observed-at=2026-09-08T15:30:00Z']), {
+    mode: 'write',
+    observedAt: '2026-09-08T15:30:00Z',
+  });
+  for (const timestamp of ['2026-13-01T12:00:00.000Z', '2026-09-08T15:30:60Z']) {
+    assert.throws(() => parseBuildArgs([`--observed-at=${timestamp}`]), /Invalid observed-at/);
+  }
   assert.throws(() => parseBuildArgs(['--output=/tmp/file']), /Unknown argument/);
   assert.throws(() => parseBuildArgs(['--observed-at=not-a-date']), /Invalid observed-at/);
   assert.throws(() => parseBuildArgs(['--observed-at=2026-02-30T12:00:00.000Z']), /Invalid observed-at/);

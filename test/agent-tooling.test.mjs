@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { buildForumSnapshot, parseAgentMessages } from '../tools/agent-forum.mjs';
 import { renderForumPage } from '../tools/build-agent-forum.mjs';
 import { createFailureSnapshot, parseGithubRemote } from '../tools/sync-agent-forum.mjs';
 
@@ -111,5 +112,51 @@ test('Forum collection rejects malformed or oversized pages without declaring pa
       /Invalid bounded GitHub page/,
     );
     assert.equal(calls, 1);
+  }
+});
+
+test('Forum rejects a complete header block without Body and never replaces a newer message with stale content', () => {
+  const url = 'https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/22';
+  const headers = `[AGENT-MESSAGE]
+Schema-Version: 1
+Agent: Macbeth01
+To: Macbeth02
+Type: NOTICE
+Thread: M3-01-PHASE1-CLOSEOUT
+Reply-To: NONE
+Related-PR: ${url}`;
+  const record = {
+    source_type: 'PR_COMMENT',
+    source_url: `${url}#issuecomment-1`,
+    pr_url: url,
+    pr_number: 22,
+    github_author: 'pdbsy',
+    pr_author: 'pdbsy',
+    pr_head_ref: 'macbeth01/m3-phase1-closeout',
+    pr_title: '[Macbeth01][M3-01-PHASE1-CLOSEOUT] Local fixture',
+    pr_head_repo: 'pdbsy/quantpass-arbitrum-hackathon',
+    created_at: '2026-09-22T01:00:00.000Z',
+    updated_at: '2026-09-22T03:00:00.000Z',
+    text: `${headers}\nBody:\nCurrent instruction\n[/AGENT-MESSAGE]`,
+  };
+  assert.throws(
+    () => parseAgentMessages({ ...record, text: `${headers}\n[/AGENT-MESSAGE]` }),
+    /missing required fields/,
+  );
+  const older = {
+    ...record,
+    updated_at: '2026-09-22T02:00:00.000Z',
+    text: record.text.replace('Current instruction', 'Stale instruction'),
+  };
+  for (const records of [
+    [record, older],
+    [older, record],
+  ]) {
+    const snapshot = buildForumSnapshot(records, { syncedAt: '2026-09-22T04:00:00.000Z' });
+    assert.equal(snapshot.source.state, 'OK');
+    assert.equal(snapshot.messages.length, 1);
+    assert.equal(snapshot.messages[0].body, 'Current instruction');
+    assert.equal(snapshot.messages[0].updated_at, record.updated_at);
+    assert.equal(snapshot.threads[0].last_updated_at, record.updated_at);
   }
 });
