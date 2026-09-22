@@ -97,6 +97,29 @@ test('chain database refuses future schema versions without modifying their cont
   inspect.close();
 });
 
+test('recognized chain tables with a future version are rejected without migrating stored observations', async () => {
+  const path = await databasePath();
+  const seed = new ChainStore(path);
+  seed.recordCanonicalBlock(
+    CHAIN_ID,
+    CONTRACT,
+    { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1000n },
+    [event()],
+  );
+  const before = seed.db.prepare('SELECT * FROM chain_events').all();
+  seed.db.exec('PRAGMA user_version=8');
+  seed.close();
+  assert.throws(() => new ChainStore(path), /UNSUPPORTED_CHAIN_DATABASE/);
+  const inspect = new DatabaseSync(path);
+  try {
+    assert.equal(inspect.prepare('PRAGMA user_version').get()?.user_version, 8);
+    assert.deepEqual(inspect.prepare('SELECT * FROM chain_events').all(), before);
+    assert.equal(inspect.prepare('SELECT block_number FROM chain_checkpoints').get()?.block_number, 100);
+  } finally {
+    inspect.close();
+  }
+});
+
 test('missing reconciliation failure reason cannot replace a valid stored operation', async () => {
   const store = new ChainStore(await databasePath());
   try {
@@ -1531,7 +1554,7 @@ test('recovery cleans up real copied data after boundary-injected tampering or S
     target: CONTRACT,
     state: 'AWAITING_SIGNATURE',
   });
-  for (const mode of ['tamper', 'abort']) {
+  for (const mode of ['tamper', 'abort', 'cleanup']) {
     const source = await databasePath();
     const store = new ChainStore(source);
     t.after(() => store.close());
@@ -1551,10 +1574,13 @@ test('recovery cleans up real copied data after boundary-injected tampering or S
       const backup = sqlite.backup;
       sqlite.backup = async (source, target, ...args) => {
         const result = await backup(source, target, ...args);
-        if (${JSON.stringify(mode)} === 'tamper') {
+        if (${JSON.stringify(mode)} !== 'abort') {
           const db = new sqlite.DatabaseSync(target);
           db.exec('DELETE FROM chain_transactions');
+          db.exec('PRAGMA journal_mode=DELETE');
           db.close();
+          if (${JSON.stringify(mode)} === 'cleanup')
+            require('node:fs').chmodSync(require('node:path').dirname(target), 0o500);
         } else {
           source.exec('ROLLBACK');
           throw new Error('FIXTURE_BACKUP_TRANSACTION_ABORT');
@@ -1569,16 +1595,24 @@ test('recovery cleans up real copied data after boundary-injected tampering or S
       ['--require', preload, resolve('tools/chain-recovery.ts'), 'backup', source, target],
       { encoding: 'utf8', timeout: 10_000 },
     );
+    // The isolated fixture denies unlinking only for the child CLI; restore its
+    // directory before assertions and normal retry/teardown in this parent.
+    if (mode === 'cleanup') await chmod(resolve(source, '..'), 0o700);
     assert.equal(result.error, undefined);
     assert.equal(result.status, 1);
     assert.match(
       result.stderr,
-      mode === 'tamper' ? /CHAIN_RECOVERY_CONTENT_MISMATCH/ : /FIXTURE_BACKUP_TRANSACTION_ABORT/,
+      mode === 'abort' ? /FIXTURE_BACKUP_TRANSACTION_ABORT/ : /CHAIN_RECOVERY_CONTENT_MISMATCH/,
     );
     assert.doesNotMatch(result.stdout, /HEALTHY/);
     assert.deepEqual(readFileSync(source), before);
     assert.deepEqual(readFileSync(`${source}-wal`), walBefore);
-    await assert.rejects(stat(target), { code: 'ENOENT' });
+    if (mode === 'cleanup') {
+      assert.match(result.stderr, /CHAIN_RECOVERY_FAILED_CLEANUP_FAILED/);
+      assert.match(result.stderr, /EACCES|EPERM/);
+      assert.ok((await stat(target)).isFile(), 'a denied unlink must be reported as a remaining failed copy');
+      await rm(target);
+    } else await assert.rejects(stat(target), { code: 'ENOENT' });
     const retry = runRecovery('backup', source, target);
     assert.equal(retry.status, 0, retry.stderr);
     assert.deepEqual(readFileSync(source), before);
