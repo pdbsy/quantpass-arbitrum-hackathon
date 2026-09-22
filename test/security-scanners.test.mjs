@@ -23,7 +23,38 @@ import {
   adjudicateGitleaksHistory,
   readGitleaksExceptionProof,
 } from '../tools/security/gitleaks-disposition.mjs';
-import { historyCoverage } from '../tools/ci/check-gitleaks.mjs';
+import { assertNoSourceIgnore, historyCoverage } from '../tools/ci/check-gitleaks.mjs';
+
+test('Gitleaks source ignore guard refuses every existing root path without disclosing its contents', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'alphaforge-gitleaks-ignore-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const ignore = join(root, '.gitleaksignore');
+  assert.doesNotThrow(() => assertNoSourceIgnore(root));
+  for (const value of ['', 'synthetic-finding-fingerprint\n']) {
+    writeFileSync(ignore, value);
+    assert.throws(
+      () => assertNoSourceIgnore(root),
+      (error) => {
+        assert.match(error.message, /source ignore files are not permitted/);
+        assert.doesNotMatch(error.message, /synthetic-finding-fingerprint/);
+        return true;
+      },
+    );
+    rmSync(ignore);
+  }
+  mkdirSync(ignore);
+  assert.throws(() => assertNoSourceIgnore(root), /source ignore files are not permitted/);
+  rmSync(ignore, { recursive: true });
+  if (process.platform !== 'win32') {
+    symlinkSync('nonexistent-target', ignore);
+    assert.throws(() => assertNoSourceIgnore(root), /source ignore files are not permitted/);
+    rmSync(ignore);
+  }
+  const regular = join(root, 'not-a-directory');
+  writeFileSync(regular, 'ordinary file');
+  assert.throws(() => assertNoSourceIgnore(regular), /could not be verified/);
+  assert.doesNotThrow(() => assertNoSourceIgnore(root));
+});
 
 const pin = (name, version) => `${name}==${version} --hash=sha256:${'a'.repeat(64)}\n`;
 

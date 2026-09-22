@@ -33,6 +33,30 @@ test('supply-chain policy and npm lock are closed and produce deterministic SPDX
   assert.match(parsed.documentNamespace, /\/sbom\/[0-9a-f]{64}$/);
 });
 
+test('SBOM preserves resolved packages when optional root dependency sections are absent', () => {
+  const candidate = structuredClone(lockfile);
+  const manifest = structuredClone(packageJson);
+  for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+    delete manifest[field];
+    delete candidate.packages[''][field];
+  }
+  const locked = validatePackageLock(candidate, manifest, policy);
+  const sbom = JSON.parse(renderNpmSbom(candidate, manifest, policy));
+  assert.equal(sbom.packages.length, locked.length + 1);
+  assert.equal(
+    sbom.relationships.filter(
+      (row) => row.spdxElementId === 'SPDXRef-RootPackage' && row.relationshipType === 'DEPENDS_ON',
+    ).length,
+    0,
+  );
+  candidate.packages[''].dependencies = { 'unresolved-fixture-package': '1.0.0' };
+  manifest.dependencies = { 'unresolved-fixture-package': '1.0.0' };
+  assert.throws(
+    () => renderNpmSbom(candidate, manifest, policy),
+    /dependency unresolved-fixture-package is unresolved/,
+  );
+});
+
 test('npm lock validation rejects source, integrity, license and version drift', () => {
   const firstPath = Object.keys(lockfile.packages).find((path) => path !== '');
   const cases = [

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import {
   copyFileSync,
   mkdirSync,
@@ -70,6 +72,54 @@ function fixture(t) {
   };
 }
 const status = (report, id) => report.checks.find((check) => check.id === id)?.status;
+
+test('bounded environment reads reject real replacement and growth before consuming unbound bytes', (t) => {
+  const f = fixture(t);
+  const path = join(f.root, 'race.txt');
+  for (const mutation of ['replace', 'grow']) {
+    writeFileSync(path, 'safe\n');
+    const originalOpen = fs.openSync;
+    const hook = t.mock.method(fs, 'openSync', (...args) => {
+      if (args[0] === path) {
+        if (mutation === 'replace') {
+          fs.renameSync(path, `${path}.old`);
+          writeFileSync(path, 'replacement\n');
+        } else fs.appendFileSync(path, 'a'.repeat(65));
+      }
+      return originalOpen(...args);
+    });
+    syncBuiltinESMExports();
+    try {
+      assert.throws(() => boundedRead(path, 64), /Environment input unavailable/);
+    } finally {
+      hook.mock.restore();
+      syncBuiltinESMExports();
+    }
+  }
+});
+
+test('absent PATH and conflicting npm executable cannot be admitted as an aligned runtime', (t) => {
+  const f = fixture(t);
+  for (const extra of [{ PATH: '' }, { npm_execpath: join(f.parent, 'unapproved-npm.js') }]) {
+    const report = f.inspect({ environment: { ...f.environment, ...extra } });
+    assert.notEqual(status(report, 'platform'), 'PASS');
+    assert.equal(report.eligibleForEvidence, false);
+  }
+});
+
+test('case-colliding tracked names and shallow history remain ineligible for environment evidence', (t) => {
+  const f = fixture(t);
+  const object = f.git('rev-parse', 'HEAD:source.txt');
+  f.git('update-index', '--add', '--cacheinfo', `100644,${object},SOURCE.txt`);
+  const collision = f.inspect();
+  assert.equal(status(collision, 'files'), 'FAIL');
+  assert.equal(collision.eligibleForEvidence, false);
+  f.git('update-index', '--force-remove', 'SOURCE.txt');
+  writeFileSync(join(f.root, '.git/shallow'), f.git('rev-parse', 'HEAD') + '\n');
+  const shallow = f.inspect();
+  assert.equal(status(shallow, 'history'), 'BLOCKED');
+  assert.equal(shallow.eligibleForEvidence, false);
+});
 
 test('real environment probes bind a clean fixture to exact source and local npm configuration', (t) => {
   const f = fixture(t);
