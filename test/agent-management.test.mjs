@@ -496,3 +496,133 @@ test('all numbered M3 workers accept their own task and reject the next worker t
     );
   }
 });
+
+test('forum source boundaries reject malformed provenance, URLs, dates and message headers', () => {
+  const source = {
+    source_type: 'PR_COMMENT',
+    source_url: github('/pull/22#issuecomment-101'),
+    pr_url: github('/pull/22'),
+    pr_number: 22,
+    github_author: 'pdbsy',
+    pr_head_ref: 'macbeth01/m3-phase1-closeout',
+    pr_title: '[Macbeth01][M3-01-PHASE1-CLOSEOUT] Close out',
+    pr_author: 'pdbsy',
+    pr_head_repo: 'pdbsy/quantpass-arbitrum-hackathon',
+    text: message({ relatedPr: github('/pull/22') }),
+    created_at: '2026-09-23T00:00:00.000Z',
+    updated_at: '2026-09-23T00:00:00.000Z',
+  };
+  assert.equal(buildForumSnapshot([source]).messages.length, 1);
+  for (const patch of [
+    { source_type: 'ISSUE' },
+    { pr_number: 0 },
+    { pr_number: 0.5 },
+    { github_author: null },
+    { github_author: 'not/a/login' },
+    { text: 42 },
+    { created_at: null },
+    { updated_at: 'x'.repeat(41) },
+    { updated_at: 'not-a-date' },
+    { source_url: null },
+    { source_url: 'x'.repeat(501) },
+    { source_url: github('/pull/22?access=fixture') },
+    { source_url: github('/pull/22#unsupported') },
+    { source_url: 'https://github.com/other/repo/pull/22' },
+    { pr_url: github('/pull/22#issuecomment-101') },
+  ])
+    assert.throws(() => parseAgentMessages({ ...source, ...patch }), /input rejected/);
+  for (const value of [null, [], 'record']) assert.throws(() => parseAgentMessages(value), /input rejected/);
+  for (const patch of [
+    { pr_head_ref: null },
+    { pr_title: null },
+    { pr_head_repo: 'other/repo' },
+    { pr_author: null },
+    { github_author: 'other-author' },
+  ]) {
+    const rejected = buildForumSnapshot([{ ...source, ...patch }]);
+    assert.equal(rejected.messages.length, 0);
+    assert.equal(rejected.source.state, 'PARTIAL');
+    assert.equal(rejected.source.rejected_records, 1);
+  }
+  for (const text of [
+    source.text.replace('Schema-Version: 1', 'Schema-Version: 2'),
+    source.text.replace('Agent: Macbeth01', 'Agent: Macbeth99'),
+    source.text.replace('To: Macbeth02', 'To: Macbeth99'),
+    source.text.replace('Thread: AF-AGENT-SETUP', 'Thread: bad/thread'),
+    source.text.replace('Body:', 'Unknown: value\nBody:'),
+    source.text.replace('Body:', 'not a header\nBody:'),
+    source.text.replace('Body:', 'Agent: Macbeth01\nBody:'),
+    source.text.replace('Body:', ''),
+    source.text.replace('Body:', 'Reply-To-Message: afm-0123456789abcdef\nBody:'),
+    message({ body: '' }),
+    message({ body: 'x'.repeat(4001) }),
+    message({ replyTo: github('/pull/22#issuecomment-101') }).replace(
+      'Body:',
+      'Reply-To-Message: wrong\nBody:',
+    ),
+  ])
+    assert.throws(() => parseAgentMessages({ ...source, text }), /input rejected/);
+  assert.equal(parseAgentMessages({ ...source, text: source.text.replace('Agent:', '\nAgent:') }).length, 1);
+});
+
+test('forum limits and absent API fields remain partial or stale rather than asserting success', () => {
+  for (const records of [null, {}, Array(501).fill(null)]) assert.throws(() => buildForumSnapshot(records));
+  for (const options of [{ sourceState: 'PASS' }, { sourceError: 42 }, { sourceError: 'x'.repeat(201) }])
+    assert.throws(() => buildForumSnapshot([], options));
+  assert.throws(() => filterForumMessages(null));
+  assert.deepEqual(filterForumMessages([]), []);
+  assert.throws(() => recordsFromPullRequests({}));
+  const projected = recordsFromPullRequests([
+    { number: 22, html_url: github('/pull/22'), body: null, submitted_at: '2026-09-23T00:00:00.000Z' },
+  ]);
+  assert.equal(projected.length, 1);
+  assert.equal(projected[0].text, '');
+  assert.equal(projected[0].created_at, '2026-09-23T00:00:00.000Z');
+  assert.equal(projected[0].updated_at, '2026-09-23T00:00:00.000Z');
+  assert.equal(isForumSnapshotStale(null), true);
+  assert.equal(isForumSnapshotStale({ source: { last_sync_at: '2000-01-01T00:00:00.000Z' } }), true);
+});
+
+test('identity registry and bootstrap reject unrecognized state and malformed identity declarations', async () => {
+  const registry = JSON.parse(await read('docs/management/agents/registry.json'));
+  for (const field of [
+    'workspace_status',
+    'session_status',
+    'self_confirmation',
+    'communication_status',
+    'runtime_status',
+  ]) {
+    const altered = structuredClone(registry);
+    altered.agents[0][field] = 'APPROVED';
+    assert.throws(() => validateRegistry(altered), /invalid/);
+  }
+  for (const input of [
+    null,
+    [],
+    'registry',
+    { ...registry, protocol_version: 1 },
+    { ...registry, protocol_version: 'bad' },
+    { ...registry, protocol_version: '9.9.9' },
+  ])
+    assert.throws(() => validateRegistry(input));
+  for (const input of [
+    null,
+    'x'.repeat(20001),
+    '',
+    'AGENT_NAME = Macbeth01\nAGENT_NAME = Macbeth01\nBRANCH_PREFIX = macbeth01/',
+    'AGENT_NAME = Macbeth99\nBRANCH_PREFIX = macbeth99/',
+    'AGENT_NAME = Macbeth01\nBRANCH_PREFIX = macbeth02/',
+  ])
+    assert.throws(() => validateBootstrapIdentity(input, registry));
+  const { agentForBranch, taskMatchesAgent } = await import('../tools/agent-identity.mjs');
+  assert.equal(agentForBranch(null), null);
+  assert.equal(taskMatchesAgent(null, 'Macbeth01'), false);
+  assert.equal(taskMatchesAgent('AF-SETUP', 'Macbeth99'), false);
+  const commit = {
+    branch: 'macbeth01/closeout',
+    subject: '[Macbeth01][M3-01-PHASE1-CLOSEOUT] Check',
+    body: 'Agent-ID: Macbeth01\nTask-ID: M3-01-PHASE1-CLOSEOUT',
+  };
+  for (const patch of [{ branch: null }, { prTitle: 42 }, { prTitle: '[Macbeth99][AF-SETUP] Check' }])
+    assert.throws(() => validateCommitIdentity({ ...commit, ...patch }));
+});

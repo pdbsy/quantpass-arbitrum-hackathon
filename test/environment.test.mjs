@@ -248,3 +248,123 @@ test('Intel macOS is outside the user-approved platform scope', () => {
   o.job = 'verify-macos';
   assert.equal(evaluate(inputs(), o, 'ci').exitCode, 1);
 });
+
+test('environment report rejects forged eligibility, status and command evidence', () => {
+  const valid = evaluate(inputs(), observation(), 'ci');
+  for (const mutate of [
+    (r) => {
+      r.mode = 'production';
+    },
+    (r) => {
+      r.scope = 'mainnet';
+    },
+    (r) => {
+      r.remoteFreshness = 'PASS';
+    },
+    (r) => {
+      r.baseObservedAt = 'invalid';
+    },
+    (r) => {
+      r.lockSha256 = 'unbound';
+    },
+    (r) => {
+      r.platform = 'unknown';
+    },
+    (r) => {
+      r.arch = 'x86';
+    },
+    (r) => {
+      r.context = 'self-review';
+    },
+    (r) => {
+      r.generatedAt = new Date(Date.now() + 120000).toISOString();
+    },
+    (r) => {
+      r.checks[0].status = 'WARN';
+    },
+    (r) => {
+      r.checks[0].status = 'NOT_RUN';
+    },
+    (r) => {
+      r.checks[0].extra = true;
+    },
+    (r) => {
+      r.checks.at(-1).status = 'PASS';
+    },
+    (r) => {
+      r.eligibleForEvidence = false;
+    },
+    (r) => {
+      r.exitCode = 1;
+    },
+    (r) => {
+      r.head = null;
+    },
+    (r) => {
+      r.node = null;
+    },
+    (r) => {
+      r.commands = null;
+    },
+    (r) => {
+      r.commands = Array(81).fill({ id: 'git-version', exitCode: 0 });
+    },
+    (r) => {
+      r.commands = [{ id: 'unregistered', exitCode: 0 }];
+    },
+    (r) => {
+      r.commands = [{ id: 'git-version', exitCode: -1 }];
+    },
+    (r) => {
+      r.commands = [{ id: 'git-version', exitCode: 256 }];
+    },
+    (r) => {
+      r.commands = [{ id: 'git-version', exitCode: 0, stdout: 'untrusted' }];
+    },
+  ]) {
+    const report = structuredClone(valid);
+    mutate(report);
+    assert.throws(() => validateReport(report));
+  }
+  for (const key of ['head', 'tree', 'base', 'sourceHead', 'sourceTree', 'node', 'npm', 'git', 'image']) {
+    const report = structuredClone(valid);
+    report[key] = 'invalid';
+    assert.throws(() => validateReport(report));
+  }
+  assert.throws(() => validateReport(valid, { branch: 'fixture' }));
+  for (const status of ['FAIL', 'BLOCKED']) {
+    const report = structuredClone(valid);
+    report.checks[0].status = status;
+    report.exitCode = status === 'FAIL' ? 1 : 2;
+    report.eligibleForEvidence = false;
+    report.commands = [{ id: 'git-version', exitCode: null }];
+    report.head = null;
+    report.node = null;
+    assert.equal(validateReport(report), report);
+  }
+  const warning = evaluate(inputs(), { ...observation(), clean: false }, 'dev');
+  assert.equal(validateReport(warning).eligibleForEvidence, false);
+});
+
+test('environment writer refuses hard-linked or symlinked report destinations and safely replaces its own file', async (t) => {
+  const { linkSync } = await import('node:fs');
+  const dir = mkdtempSync(join(tmpdir(), 'alphaforge-report-destination-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const report = evaluate(inputs(), observation(), 'ci');
+  const destination = writeReport(dir, report);
+  const original = readFileSync(destination, 'utf8');
+  const linked = join(dir, 'shared');
+  linkSync(destination, linked);
+  assert.throws(() => writeReport(dir, report), /environment report/);
+  assert.equal(readFileSync(linked, 'utf8'), original);
+  rmSync(destination);
+  symlinkSync(linked, destination);
+  assert.throws(() => writeReport(dir, report), /environment report/);
+  assert.equal(readFileSync(linked, 'utf8'), original);
+  rmSync(destination);
+  writeReport(dir, report);
+  const next = { ...report, generatedAt: new Date().toISOString() };
+  writeReport(dir, next);
+  assert.deepEqual(JSON.parse(readFileSync(destination, 'utf8')), next);
+  assert.equal(readFileSync(linked, 'utf8'), original);
+});

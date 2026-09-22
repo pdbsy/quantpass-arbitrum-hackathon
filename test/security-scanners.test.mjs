@@ -5,7 +5,17 @@ import { buildInventory, parsePythonLock, scannerTargets } from '../tools/securi
 import { verifyBytes, selectPlatform } from '../tools/security/bootstrap.mjs';
 import { classifySemgrep, classifyOSV, classifyGitleaks } from '../tools/security/results.mjs';
 import { stageSources } from '../tools/security/staging.mjs';
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  symlinkSync,
+  rmSync,
+  realpathSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -509,5 +519,100 @@ test('the production proof reader uses actual Git objects and missing history re
   assert.equal(
     adjudicateGitleaksHistory({ status: 10, report: [approvedFinding] }, proof, dispositionTime).state,
     'BLOCKED',
+  );
+});
+
+test('artifact downloader validates cached bytes and refuses unqualified locations before network access', async (t) => {
+  const { downloadArtifact } = await import('../tools/security/bootstrap.mjs');
+  const parent = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-scanner-artifact-')));
+  t.after(() => rmSync(parent, { recursive: true, force: true }));
+  const cache = join(parent, 'cache');
+  mkdirSync(cache);
+  const bytes = Buffer.from('reviewed local artifact fixture');
+  const artifact = {
+    url: 'https://github.com/example/releases/artifact',
+    filename: 'scanner.bin',
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+  };
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    calls++;
+    throw Error('Unexpected network request');
+  });
+  writeFileSync(join(cache, artifact.filename), bytes);
+  assert.equal(await downloadArtifact(artifact, cache), join(cache, artifact.filename));
+  for (const patch of [
+    { url: 'http://github.com/example/file' },
+    { url: 'https://user@github.com/example/file' },
+    { url: 'https://user:pass@github.com/example/file' },
+    { url: 'https://github.com/example/file?version=1' },
+    { url: 'https://github.com/example/file#hash' },
+    { url: 'https://unqualified.example.test/file' },
+    { filename: '../scanner.bin' },
+    { filename: 'directory\\scanner.bin' },
+  ])
+    await assert.rejects(downloadArtifact({ ...artifact, ...patch }, cache), /Unqualified/);
+  await assert.rejects(downloadArtifact({ ...artifact, sha256: '0'.repeat(64) }, cache), /SHA-256/);
+  const linked = join(parent, 'linked');
+  symlinkSync(cache, linked);
+  await assert.rejects(downloadArtifact(artifact, linked), /symlinks/);
+  rmSync(join(cache, artifact.filename));
+  symlinkSync(join(parent, 'target'), join(cache, artifact.filename));
+  writeFileSync(join(parent, 'target'), bytes);
+  await assert.rejects(downloadArtifact(artifact, cache), /Invalid cached/);
+  assert.equal(calls, 0);
+});
+
+test('artifact download stream enforces origin, size and hash before atomically installing', async (t) => {
+  const { downloadArtifact } = await import('../tools/security/bootstrap.mjs');
+  const parent = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-scanner-stream-')));
+  t.after(() => rmSync(parent, { recursive: true, force: true }));
+  const bytes = Buffer.from('complete verified fixture');
+  const artifact = {
+    url: 'https://github.com/example/releases/artifact',
+    filename: 'scanner.bin',
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+  };
+  let response;
+  t.mock.method(globalThis, 'fetch', async () => response);
+  for (const bad of [
+    { ok: false, url: artifact.url },
+    { ok: true, url: 'https://unqualified.example.test/file' },
+  ]) {
+    response = bad;
+    await assert.rejects(downloadArtifact(artifact, parent), /unavailable/);
+  }
+  response = {
+    ok: true,
+    url: artifact.url,
+    body: (async function* () {
+      yield Buffer.from('changed');
+    })(),
+  };
+  await assert.rejects(downloadArtifact(artifact, parent), /SHA-256/);
+  assert.equal(existsSync(join(parent, artifact.filename)), false);
+  response = {
+    ok: true,
+    url: artifact.url,
+    body: (async function* () {
+      const chunk = Buffer.alloc(1024 * 1024);
+      for (let n = 0; n < 181; n++) yield chunk;
+    })(),
+  };
+  await assert.rejects(downloadArtifact(artifact, parent), /size limit/);
+  assert.equal(existsSync(join(parent, artifact.filename)), false);
+  response = {
+    ok: true,
+    url: 'https://release-assets.githubusercontent.com/fixture',
+    body: (async function* () {
+      yield bytes.subarray(0, 8);
+      yield bytes.subarray(8);
+    })(),
+  };
+  const result = await downloadArtifact(artifact, parent);
+  assert.deepEqual(readFileSync(result), bytes);
+  assert.equal(
+    readdirSync(parent).some((name) => name.endsWith('.tmp')),
+    false,
   );
 });
