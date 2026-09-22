@@ -337,7 +337,9 @@ test('chain backup invalid parent does not reserve a file or modify chain state'
   const path = await databasePath();
   const store = new ChainStore(path);
   try {
-    await assert.rejects(store.backupTo(resolve(path, 'missing', 'backup.sqlite')), { code: 'ENOTDIR' });
+    const target = resolve(`${path}.missing`, 'backup.sqlite');
+    await assert.rejects(store.backupTo(target), { code: 'ENOENT' });
+    await assert.rejects(stat(target), { code: 'ENOENT' });
     assert.equal(store.health().status, 'HEALTHY');
     assert.equal(store.checkpoint(CHAIN_ID, CONTRACT), null);
   } finally {
