@@ -495,3 +495,25 @@ test('worker projection and task detail retain safe missing-field fallbacks with
   assert.equal(ui.matchesDashboardSearch(null, [null]), true);
   assert.equal(ui.matchesDashboardSearch('missing', [null]), false);
 });
+
+test('dashboard loading rejects absent render-critical sections before reporting ready', async () => {
+  const mutations = [
+    (value) => delete value.management,
+    (value) => (value.management = null),
+    (value) => delete value.management.currentStatus,
+    (value) => delete value.management.workQueue,
+    (value) => delete value.management.changelog,
+    (value) => delete value.git,
+    (value) => delete value.decisions,
+    (value) => delete value.decisions.items,
+    (value) => (value.decisions.items = {}),
+  ];
+  for (const mutate of mutations) {
+    const candidate = structuredClone(snapshotFixture);
+    mutate(candidate);
+    const result = await loadDashboard(async () => ({ ok: true, json: async () => candidate }));
+    assert.equal(result.state, 'error');
+    assert.equal(result.status, 'DATA_SOURCE_ERROR');
+    assert.equal('data' in result, false);
+  }
+});

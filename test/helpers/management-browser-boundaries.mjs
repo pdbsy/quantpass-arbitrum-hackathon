@@ -179,6 +179,22 @@ export async function verifyManagementBoundaries(page, origin) {
     'Missing optional security and activity fields remain explicit; keyboard search and mobile close work',
   );
 
+  const validBoundaryFixture = structuredClone(fixture);
+  for (const section of ['management', 'git', 'decisions']) {
+    fixture = structuredClone(validBoundaryFixture);
+    delete fixture[section];
+    await refresh();
+    assert.match(await page.locator('#data-state').textContent(), /数据源错误/);
+    assert.equal(await page.locator('#refresh-dashboard').isEnabled(), true);
+    assert.match(await page.locator('#project-title').textContent(), /rendering boundaries/);
+    fixture = structuredClone(validBoundaryFixture);
+    await refresh();
+    assert.match(await page.locator('#data-state').textContent(), /^快照：/);
+  }
+  passed.push(
+    'Missing render-critical sections are rejected before state replacement; refresh remains usable and recovers',
+  );
+
   fixture.project.status = 'constructor';
   await refresh();
   assert.match(await page.locator('#data-state').textContent(), /数据源错误/);

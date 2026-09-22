@@ -209,6 +209,8 @@ function validateSnapshotForUi(value) {
   for (const field of [
     'project',
     'integration',
+    'git',
+    'decisions',
     'security',
     'tests',
     'build',
@@ -217,7 +219,12 @@ function validateSnapshotForUi(value) {
     'host',
   ])
     statusLabel(value[field]?.status);
-  for (const item of Object.values(value.management ?? {})) statusLabel(item.status);
+  if (!value.management || typeof value.management !== 'object' || Array.isArray(value.management))
+    throw new Error('INVALID_SNAPSHOT');
+  for (const field of ['currentStatus', 'workQueue', 'changelog'])
+    statusLabel(value.management[field]?.status);
+  for (const item of Object.values(value.management)) statusLabel(item.status);
+  if (!Array.isArray(value.decisions.items)) throw new Error('INVALID_SNAPSHOT');
   for (const field of [
     'workers',
     'tasks',
