@@ -2215,3 +2215,98 @@ test('database health exposes changed schema and closed handle as unhealthy', as
   store.close();
   assert.deepEqual(store.health(), { status: 'UNHEALTHY', schemaVersion: null, integrity: 'FAILED' });
 });
+
+test('sync targets remain monotonic and a fatal reorg releases only its owning lease', async () => {
+  const store = new ChainStore(await databasePath());
+  try {
+    const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1n };
+    store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, []);
+    const owner = '00000000-0000-4000-8000-000000000021';
+    store.markSyncUnhealthy(CHAIN_ID, CONTRACT, 'CHAIN_SYNC_INCOMPLETE', 103n);
+    store.markSyncUnhealthy(CHAIN_ID, CONTRACT, 'CHAIN_SYNC_INCOMPLETE', 102n);
+    store.claimSync(CHAIN_ID, CONTRACT, 103n, owner);
+    assert.equal(store.syncTarget(CHAIN_ID, CONTRACT), 103n);
+    assert.throws(
+      () =>
+        store.markSyncUnhealthy(
+          CHAIN_ID,
+          CONTRACT,
+          'CHAIN_REORG_DEPTH_EXCEEDED',
+          null,
+          '00000000-0000-4000-8000-000000000022',
+        ),
+      /CHAIN_SYNC_SUPERSEDED/,
+    );
+    assert.equal(store.syncTarget(CHAIN_ID, CONTRACT), 103n);
+    store.markSyncUnhealthy(CHAIN_ID, CONTRACT, 'CHAIN_REORG_DEPTH_EXCEEDED', null, owner);
+    assert.equal(store.syncTarget(CHAIN_ID, CONTRACT), null);
+    assert.equal(store.db.prepare('SELECT count(*) AS n FROM chain_sync_leases').get()?.n, 0);
+    assert.deepEqual(store.syncHealth(CHAIN_ID, CONTRACT), {
+      healthy: false,
+      error: 'CHAIN_REORG_DEPTH_EXCEEDED',
+    });
+    assert.throws(() => store.projection(CHAIN_ID, OWNER_A, CONTRACT, 'm3-vault'), /CHAIN_SYNC_UNHEALTHY/);
+  } finally {
+    store.close();
+  }
+});
+
+test('reorg rollback is atomic when storage fails after changing canonical blocks', async () => {
+  const store = new ChainStore(await databasePath());
+  try {
+    const block = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1n };
+    store.recordCanonicalBlock(CHAIN_ID, CONTRACT, block, [event()]);
+    const before = {
+      checkpoint: store.checkpoint(CHAIN_ID, CONTRACT),
+      events: store.canonicalEvents(CHAIN_ID, CONTRACT),
+    };
+    store.db.exec(
+      "CREATE TRIGGER rollback_fault BEFORE UPDATE OF canonical ON chain_events BEGIN SELECT RAISE(ABORT, 'fixture storage unavailable'); END;",
+    );
+    assert.throws(() => store.rollbackFromBlock(CHAIN_ID, CONTRACT, 100n), /fixture storage unavailable/);
+    assert.equal(store.db.isTransaction, false);
+    assert.deepEqual(store.checkpoint(CHAIN_ID, CONTRACT), before.checkpoint);
+    assert.deepEqual(store.canonicalEvents(CHAIN_ID, CONTRACT), before.events);
+    assert.equal(store.canonicalBlock(CHAIN_ID, CONTRACT, 100n)?.hash, BLOCK_100);
+    store.db.exec('DROP TRIGGER rollback_fault');
+    assert.deepEqual(store.rollbackFromBlock(CHAIN_ID, CONTRACT, 100n), {
+      blocks: 1,
+      events: 1,
+      operations: 0,
+      projections: 0,
+    });
+    assert.equal(store.checkpoint(CHAIN_ID, CONTRACT), null);
+  } finally {
+    store.close();
+  }
+});
+
+test('orphaned event reinclusion rejects changed payload atomically but accepts unchanged payload on a new block', async () => {
+  const store = new ChainStore(await databasePath());
+  try {
+    const first = { number: 100n, hash: BLOCK_100, parentHash: BLOCK_99, timestamp: 1n };
+    store.recordCanonicalBlock(CHAIN_ID, CONTRACT, first, [event()]);
+    store.rollbackFromBlock(CHAIN_ID, CONTRACT, 100n);
+    const replacement = { ...first, hash: BLOCK_101_ALT };
+    for (const change of [
+      { data: asHexData('0xabcd') },
+      { normalizedData: { owner: OWNER_A, amount: '2' } },
+    ]) {
+      assert.throws(
+        () =>
+          store.recordCanonicalBlock(CHAIN_ID, CONTRACT, replacement, [
+            event({ blockHash: BLOCK_101_ALT, ...change }),
+          ]),
+        /CHAIN_EVENT_CONFLICT/,
+      );
+      assert.equal(store.checkpoint(CHAIN_ID, CONTRACT), null);
+      assert.deepEqual(store.canonicalEvents(CHAIN_ID, CONTRACT), []);
+      assert.equal(store.db.isTransaction, false);
+    }
+    store.recordCanonicalBlock(CHAIN_ID, CONTRACT, replacement, [event({ blockHash: BLOCK_101_ALT })]);
+    assert.equal(store.checkpoint(CHAIN_ID, CONTRACT)?.blockHash, BLOCK_101_ALT);
+    assert.equal(store.canonicalEvents(CHAIN_ID, CONTRACT).length, 1);
+  } finally {
+    store.close();
+  }
+});

@@ -1086,3 +1086,122 @@ test('source reader rejects per-file overflow and marks absent optional records 
   assert.equal(result.documents.architecture.status, 'NOT_AVAILABLE');
   assert.ok(Number.isFinite(Date.parse(result.observedAt)));
 });
+
+test('dirty exclusion validation rejects invalid containers and accounts for both rename endpoints', async (t) => {
+  const fixture = await createRecordedGitFixture(t);
+  for (const excludeDirtyPaths of [null, {}, Array(17).fill('safe.txt')])
+    await assert.rejects(
+      () => collectGitState(fixture.root, 'master', { excludeDirtyPaths }),
+      /Invalid dirty-path exclusion list/,
+    );
+  git(fixture.root, ['mv', 'recorded.txt', 'renamed.txt']);
+  const partial = await collectGitState(fixture.root, 'master', { excludeDirtyPaths: ['renamed.txt'] });
+  assert.equal(partial.status, 'READY');
+  assert.equal(partial.dirtyFiles, 1);
+  const all = await collectGitState(fixture.root, 'master', {
+    excludeDirtyPaths: ['recorded.txt', 'renamed.txt'],
+  });
+  assert.equal(all.status, 'READY');
+  assert.equal(all.dirtyFiles, 0);
+});
+
+test('recorded source refuses branch-mode SHA drift and a renamed checkout', async (t) => {
+  const f = await createRecordedGitFixture(t);
+  git(f.root, ['update-ref', 'refs/remotes/origin/master', f.baseCommit]);
+  const recorded = recordedGit('macbeth/dashboard', f.recordedCommit, f.recordedTree);
+  const wrongSha = await collectRecordedGitState(f.root, 'master', recorded, {
+    environment: pushEnvironment(f.recordedCommit),
+  });
+  assert.equal(wrongSha.error, 'RECORDED_GIT_HEAD_MISMATCH');
+  git(f.root, ['switch', '--quiet', '-c', 'unexpected-checkout']);
+  const wrongBranch = await collectRecordedGitState(f.root, 'master', recorded);
+  assert.equal(wrongBranch.error, 'RECORDED_GIT_BRANCH_MISMATCH');
+});
+
+test('pull-request evidence requires the real detached merge checkout', async (t) => {
+  const f = await createRecordedGitFixture(t);
+  const merge = createPullRequestLayout(f);
+  git(f.root, ['switch', '--quiet', '-c', 'named-merge-checkout']);
+  const actual = await collectRecordedGitState(
+    f.root,
+    'master',
+    recordedGit('macbeth/dashboard', f.recordedCommit, f.recordedTree),
+    { environment: pullRequestEnvironment(merge) },
+  );
+  assert.equal(actual.error, 'RECORDED_GIT_BRANCH_MISMATCH');
+});
+
+test('merge queue evidence rejects checkout, declared SHA and remote queue drift separately', async (t) => {
+  const f = await createRecordedGitFixture(t);
+  const { mergeCommit, queueBranch } = createMergeGroupLayout(f);
+  const recorded = recordedGit('macbeth/dashboard', f.recordedCommit, f.recordedTree);
+  const environment = {
+    GITHUB_ACTIONS: 'true',
+    GITHUB_EVENT_NAME: 'merge_group',
+    GITHUB_REF: `refs/heads/${queueBranch}`,
+    GITHUB_SHA: mergeCommit,
+  };
+  const check = (env = environment) =>
+    collectRecordedGitState(f.root, 'master', recorded, { environment: env });
+  assert.equal((await check()).status, 'READY');
+  assert.equal(
+    (await check({ ...environment, GITHUB_SHA: f.headCommit })).error,
+    'RECORDED_GIT_HEAD_MISMATCH',
+  );
+  git(f.root, ['update-ref', `refs/remotes/origin/${queueBranch}`, f.headCommit]);
+  assert.equal((await check()).error, 'RECORDED_GIT_GRAPH_MISMATCH');
+  git(f.root, ['update-ref', `refs/remotes/origin/${queueBranch}`, mergeCommit]);
+  git(f.root, ['switch', '--quiet', '-c', 'unexpected-queue-checkout']);
+  assert.equal((await check()).error, 'RECORDED_GIT_BRANCH_MISMATCH');
+});
+
+test('integration evidence refuses a matching tree on a falsely named branch or mismatched head', async (t) => {
+  const f = await createRecordedGitFixture(t);
+  const integrated = createIntegratedPushLayout(f);
+  const recorded = recordedGit('macbeth/dashboard', f.recordedCommit, f.recordedTree);
+  assert.equal(
+    (
+      await collectRecordedGitState(f.root, 'master', recorded, {
+        environment: integratedPushEnvironment(f.headCommit),
+      })
+    ).error,
+    'RECORDED_GIT_HEAD_MISMATCH',
+  );
+  git(f.root, ['switch', '--quiet', '-c', 'unexpected-integration-checkout']);
+  assert.equal(
+    (
+      await collectRecordedGitState(f.root, 'master', recorded, {
+        environment: integratedPushEnvironment(integrated),
+      })
+    ).error,
+    'RECORDED_GIT_BRANCH_MISMATCH',
+  );
+});
+
+test('snapshot closure rejects a merge even when all descendant files are otherwise allowlisted', async (t) => {
+  const f = await createRecordedGitFixture(t);
+  git(f.root, ['switch', '--quiet', '-c', 'parallel-snapshot', f.recordedCommit]);
+  await mkdir(join(f.root, 'docs/management/dashboard/data'), { recursive: true });
+  await writeFile(join(f.root, 'docs/management/dashboard/data/build-log.json'), '{}\n');
+  git(f.root, ['add', '.']);
+  commit(f.root, 'parallel snapshot');
+  git(f.root, ['switch', '--quiet', 'macbeth/dashboard']);
+  git(f.root, [
+    '-c',
+    'user.name=Macbeth',
+    '-c',
+    'user.email=fixture@example.test',
+    'merge',
+    '--no-ff',
+    '--quiet',
+    '-m',
+    'nonlinear closure',
+    'parallel-snapshot',
+  ]);
+  const actual = await collectRecordedGitState(
+    f.root,
+    'master',
+    recordedGit('macbeth/dashboard', f.recordedCommit, f.recordedTree),
+  );
+  assert.equal(actual.error, 'RECORDED_GIT_GRAPH_MISMATCH');
+});

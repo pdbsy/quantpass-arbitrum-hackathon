@@ -763,6 +763,102 @@ export async function verifyPrototypeBoundaries(page) {
     'Visible saved-first sorting reacts to bookmark removal; pending and allocated demo balances remain distinct',
   );
 
+  // Real second-tab writes exercise storage synchronization and stale-review rejection.
+  await page.goto(`${address}#/account/funds`);
+  await page.locator('[data-cash="deposit"]').click();
+  await page.locator('#cash-amount').fill('1');
+  await page.locator('#cash-form button[type="submit"]').click();
+  const sibling = await page.context().newPage();
+  try {
+    await sibling.goto(`${address}#/home`);
+    await sibling.locator('h1').waitFor();
+    const otherLedger = await sibling.evaluate(() =>
+      window.AF.store.dispatch({ type: 'deposit', amount: 1 }),
+    );
+    await page.locator('[data-action="commit"]').click();
+    await page
+      .locator('#review-error')
+      .filter({ hasText: /Records have changed/ })
+      .waitFor();
+    assert.deepEqual(await page.evaluate(() => window.AF.store.read()), otherLedger);
+    await page.locator('dialog[open] [data-close]').first().click();
+
+    await page.goto(`${address}#/trade/trend`);
+    await page.locator('#pass-qty').fill('1');
+    await page.locator('#pass-order-form button[type="submit"]').click();
+    const otherExchange = await sibling.evaluate(() => {
+      const e = window.AF.exchange;
+      e.execute(e.review({ strategy: 'trend', side: 'buy', qty: 1 }));
+      return e.read();
+    });
+    await page.locator('[data-v3-action="commit-order"]').click();
+    await page
+      .locator('#pass-review-error')
+      .filter({ hasText: /trading account has changed/ })
+      .waitFor();
+    assert.deepEqual(await page.evaluate(() => window.AF.exchange.read()), otherExchange);
+    await page.locator('dialog[open] [data-close]').first().click();
+    cases.push(
+      'Real second-tab ledger and Pass writes invalidate stale reviews without a duplicate mutation',
+    );
+  } finally {
+    await sibling.close();
+  }
+
+  // Use the real clock: no replacement timer, Date stub or coverage counter mutation.
+  await page.locator('#pass-qty').fill('1');
+  await page.locator('#pass-order-form button[type="submit"]').click();
+  const beforeExpiry = await page.evaluate(() => window.AF.exchange.read());
+  await page.waitForFunction(() => document.querySelector('#quote-countdown')?.textContent === '1 second', {
+    timeout: 35_000,
+  });
+  await page
+    .locator('[data-v3-action="commit-order"]')
+    .filter({ hasText: /Quote expired/ })
+    .waitFor({ timeout: 5_000 });
+  assert.equal(await page.locator('[data-v3-action="commit-order"]').isDisabled(), true);
+  assert.deepEqual(await page.evaluate(() => window.AF.exchange.read()), beforeExpiry);
+  await page.locator('dialog[open] [data-close]').first().click();
+  cases.push(
+    'Real 30-second quote expiry disables confirmation and leaves the complete Pass ledger unchanged',
+  );
+
+  await page.locator('[data-trade-tab="fills"]').click();
+  assert.match(await page.locator('#trade-content').textContent(), /BUY|Buy|buy/);
+  await page.locator('[data-pass-side="sell"]').click();
+  await page.locator('[data-pass-shortcut="100%"] ').click();
+  assert.equal(await page.locator('#pass-qty').inputValue(), '1');
+  await page.locator('#pass-order-form button[type="submit"]').click();
+  await page.locator('[data-v3-action="commit-order"]').click();
+  await page.locator('[data-route="/account/trades"]').click();
+  await page.locator('.exchange-account').waitFor();
+  assert.match(await page.locator('main').textContent(), /SELL|Sell|sell/);
+  assert.equal(await page.evaluate(() => window.AF.exchange.read().positions.trend.qty), 0);
+  cases.push('Visible full-position sale records a loss and renders both buy and sell fills in the account');
+
+  await page.goto(`${address}#/trade/trend`);
+  for (const width of [600, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.waitForTimeout(150);
+    const chart = page.locator('[data-v3-chart="price"]');
+    const box = await chart.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await chart.focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowLeft');
+    assert.doesNotMatch(await page.locator('#price-readout').textContent(), /NaN|undefined/);
+    assert.equal(await chart.isVisible(), true);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('.menu-toggle').click();
+  assert.equal(await page.locator('.menu-toggle').getAttribute('aria-expanded'), 'true');
+  await page.locator('.menu-toggle').click();
+  assert.equal(await page.locator('.menu-toggle').getAttribute('aria-expanded'), 'false');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  cases.push(
+    'Responsive chart reflow preserves valid pointer and keyboard readouts; mobile navigation toggles both ways',
+  );
+
   await page.evaluate((saved) => {
     localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(saved.local));
     localStorage.setItem('alphaforge.passmarket.v3', JSON.stringify(saved.exchange));
