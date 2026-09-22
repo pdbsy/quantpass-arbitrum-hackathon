@@ -1962,7 +1962,17 @@
       "target_path": "test/ui-product-client.test.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
       "original_sha256": "b80e4a0f1f80068203b88ee285bae260b2c9e90b9d06e437107e3404f8c9a263",
-      "migrated_sha256": "f5c8146a6a1f19a66e7e8912b0a8b0c197563829681bdece50ddebeb1ddfec56"
+      "migrated_sha256": "f11683b2d63378569b2be2a2797e76c40060ef75a8b2fc1676245035fd90a4c2",
+      "subsequent_revisions": [
+        {
+          "commit": "12455fd1be46d88082f2b047417261d59760f4cc",
+          "agent": "Macbeth01",
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "previous_sha256": "f5c8146a6a1f19a66e7e8912b0a8b0c197563829681bdece50ddebeb1ddfec56",
+          "current_sha256": "f11683b2d63378569b2be2a2797e76c40060ef75a8b2fc1676245035fd90a4c2",
+          "reason": "Add assertion-bearing pending recovery and response-context boundaries; retain original Macbeth02 source, authorship and digest."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",

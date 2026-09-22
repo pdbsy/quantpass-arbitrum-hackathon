@@ -1,4 +1,4 @@
-/* global window */
+/* global window, document */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
@@ -305,6 +305,110 @@ export async function verifyPrototypeBoundaries(page) {
       () => exchange.review({ ...order, qty: max + 1, slippage: 300 }),
       'Insufficient Pass trading balance',
     );
+    const data = window.AF.marketData;
+    check(data.candles('missing').length === 0, 'unknown market series returns no invented candles');
+    check(data.candles('trend').length === 24, 'default candle window is exactly 24 hours');
+    check(
+      data.candles('trend', 'invalid').length === 24,
+      'unknown candle window uses documented daily fallback',
+    );
+    for (const [range, count] of [
+      ['24h', 24],
+      ['7d', 56],
+      ['30d', 30],
+      ['90d', 90],
+    ]) {
+      const candles = data.candles('trend', range);
+      check(candles.length === count, `${range}: stable candle aggregation size`);
+      check(
+        candles.every(
+          (c, i) =>
+            c.low <= c.open &&
+            c.low <= c.close &&
+            c.high >= c.open &&
+            c.high >= c.close &&
+            c.volume > 0 &&
+            (i === 0 || c.time > candles[i - 1].time),
+        ),
+        `${range}: valid chronological OHLC candles`,
+      );
+      const returns = data.returns('trend', range);
+      check(
+        returns[0].value === 0 && returns[0].benchmark === 0,
+        `${range}: returns start at zero for both series`,
+      );
+      const performance = data.performance('trend', range);
+      check(
+        Math.abs(performance.change - returns.at(-1).value) < 1e-10 && performance.drawdown >= 0,
+        `${range}: independent return chart agrees with period performance`,
+      );
+    }
+    check(
+      data.returns('trend').length === 31 && data.returns('trend', 'invalid').length === 31,
+      'return window defaults and unknown input retain a 30-day baseline',
+    );
+    check(
+      data.performance('trend').days === 30 && data.performance('trend', 'invalid').days === 30,
+      'performance fallback retains 30 complete days',
+    );
+    for (const [mode, field, direction] of [
+      ['price', 'change', -1],
+      ['volume', 'volume', -1],
+      ['returns', 'strategyReturn', -1],
+      ['risk', 'drawdown', 1],
+    ]) {
+      const ranked = data.ranking({ mode });
+      check(
+        ranked.length === 6 && new Set(ranked.map((r) => r.id)).size === 6,
+        `${mode}: all six strategies appear once`,
+      );
+      check(
+        ranked.slice(1).every((r, i) => direction * (r.market[field] - ranked[i].market[field]) >= 0),
+        `${mode}: documented ranking direction`,
+      );
+    }
+    check(
+      JSON.stringify(data.ranking()) === JSON.stringify(data.ranking({ mode: 'unknown' })),
+      'unknown ranking mode follows default price ordering',
+    );
+    const favoriteIds = store.read().favorites;
+    check(
+      data.ranking({ savedOnly: true }).every((r) => favoriteIds.includes(r.id)),
+      'saved ranking cannot introduce unbookmarked strategies',
+    );
+    check(
+      data.ranking({ category: 'Trend' }).every((r) => r.category === 'Trend'),
+      'category ranking remains scoped',
+    );
+    check(
+      data.ranking({ query: 'no-such-strategy' }).length === 0,
+      'unknown ranking search returns no synthetic matches',
+    );
+    check(
+      data.compact(1) === '0.01' && data.compact(123456) === '1.2k' && data.compact(100000000) === '1.00m',
+      'market denomination formatting covers cents, thousands and millions',
+    );
+    exchange.reset();
+    const price = data.metrics('trend').price;
+    const liquidity = data.metrics('trend').liquidity;
+    reject(
+      'excessive simulated impact',
+      () => exchange.review({ strategy: 'trend', side: 'buy', qty: Math.ceil((liquidity * 0.061) / price) }),
+      'price impact exceeds 3%',
+    );
+    for (let index = 0; index < 300; index++) {
+      const next = exchange.review({ strategy: 'trend', side: index % 2 === 0 ? 'buy' : 'sell', qty: 1 });
+      exchange.execute(next);
+    }
+    const capacity = exchange.read();
+    check(
+      capacity.orders.length === 300 &&
+        capacity.executed.length === 300 &&
+        capacity.positions.trend.qty === 0,
+      '300 actual local fills retain all receipts with no residual position',
+    );
+    const blocked = exchange.review({ strategy: 'trend', side: 'buy', qty: 1 });
+    reject('demo receipt capacity', () => exchange.execute(blocked), '300-order demo limit');
     return passed;
   });
   assert.ok(cases.length > 200, 'the actual model reports all boundary assertions');
@@ -539,6 +643,41 @@ export async function verifyPrototypeBoundaries(page) {
   assert.deepEqual(reset.market.orders, []);
   assert.deepEqual(reset.market.executed, []);
   cases.push('Visible reset requires confirmation and restores both demo ledgers; cancel preserves data');
+  for (const [route, message] of [
+    ['account/trades', 'No market holdings yet.'],
+    ['account/saved', 'Your bookmarks are still light.'],
+    ['account/notes', 'The first page is yours.'],
+  ]) {
+    await page.goto(`${address}#/${route}`);
+    await page.getByText(message, { exact: true }).waitFor();
+  }
+  cases.push('Empty holdings, bookmarks and notes explain the absence without fabricated activity');
+  await page.goto(`${address}#/rankings`);
+  await page.locator('#rank-saved').uncheck();
+  await page.locator('#rank-category').selectOption('All');
+  await page.locator('#rank-search').fill('');
+  for (const [mode, label] of [
+    ['risk', 'Strategy drawdown'],
+    ['returns', 'Strategy return'],
+    ['price', 'Pass Gainers'],
+  ]) {
+    await page.locator(`[data-rank-mode="${mode}"]`).click();
+    assert.match(await page.locator('.ranking-table thead th.sorted').textContent(), new RegExp(label));
+    assert.equal(await page.locator('[data-ranking-row]').count(), 6);
+  }
+  for (const range of ['24h', '7d', '30d']) {
+    await page.locator(`[data-rank-range="${range}"]`).click();
+    assert.equal(await page.locator(`[data-rank-range="${range}"]`).getAttribute('aria-pressed'), 'true');
+  }
+  await page.locator('h1').focus();
+  await page.keyboard.press('/');
+  assert.equal(
+    await page.locator('#rank-search').evaluate((element) => element === document.activeElement),
+    true,
+  );
+  cases.push(
+    'All ranking modes and outer periods are selectable, with keyboard search and six real fixture rows',
+  );
   for (const route of ['not-a-page', '%E0%A4']) {
     await page.goto(`${address}#/${route}`);
     await page.getByText('This page is not in the workshop yet.', { exact: true }).waitFor();
