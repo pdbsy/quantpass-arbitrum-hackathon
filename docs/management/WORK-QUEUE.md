@@ -1,3 +1,11 @@
+# 当前集中收口队列 — 2026-09-23
+
+AlphaForge / Robinhood Chain Testnet / PR22 / Macbeth01；Xlayer独立。集中补测已实测减少410个未变源码的原有分支缺口，并修复脱敏缺陷。下一步按C/R/S生成蓝色看板、准确S全量验收与本地完整历史交付；不再每批生成中间看板。见[记录](phase1/BRANCH-CLOSEOUT-2026-09-23.md)。
+
+用户暂停发布继续有效；新头hosted、最终独立验收及merge未授权步骤不能由本地PASS替代。未启动worker。NOT_READY_TO_MERGE。
+
+## 历史队列
+
 # 当前队列覆盖 — 本地交付
 
 归属：AlphaForge / Robinhood Chain Testnet / PR #22；Macbeth01；与 Xlayer 分离。用户最新选择“暂不发布，保留本地交付”；下表早期派单不构成新一轮启动或发布授权。本轮01继续本地回归、看板修复、C/R/S、覆盖率与离线交付封存；没有启动新 worker。

@@ -1,12 +1,12 @@
 # 第一阶段全量剩余任务矩阵
 
-归属：AlphaForge / Robinhood Chain Testnet / pdbsy/quantpass-arbitrum-hackathon / PR22；负责人Macbeth01；Xlayer独立。准确778f71a通过858/858、七实际工作流、完整合约入口及扫描；覆盖率90.78/87.66/91.14/81.74，阈值未达。后续源不继承该检查点PASS。
+归属：AlphaForge / Robinhood Chain Testnet / pdbsy/quantpass-arbitrum-hackathon / PR22；Macbeth01；Xlayer独立。最新集中补测与全量收口见[当前记录](BRANCH-CLOSEOUT-2026-09-23.md)。下表旧候选的PASS只保留原范围，不代表最终统一候选；新头托管和独立准入保持待验收。
 
-字段以[JSON矩阵](remaining-tasks.json)为事实源；见[证据索引](FINAL-EVIDENCE-INDEX.md)与[发布清单](PUBLICATION-PLAN-2026-09-22.md)。
+字段以[JSON矩阵](remaining-tasks.json)为事实源。
 
 | Task | Owner | 目标 | 当前状态 | 关闭条件 | 证据 / 阻塞 |
 | --- | --- | --- | --- | --- | --- |
-| PH1-01 | 01 | 固定基线、登记、文档/路线图/状态板同步 | IN_PROGRESS | 所有来源映射；真实 ACK；无旧状态冒充当前 | 778f71a准确C/R/S与11PASS/0FAIL/4NOT_RUN、858/858及七工作流通过；本次状态/来源/探针/实际依赖门禁后续源需新C/R/S / NONE |
+| PH1-01 | 01 | 固定基线、登记、文档/路线图/状态板同步 | IN_PROGRESS | 所有来源映射；真实 ACK；无旧状态冒充当前 | 集中补测在2b052c5及前序批次累计减少410个未变源码原有缺口，修复脱敏语法优先级；按准确源统一C/R/S和全量验收，本地交付，不预写PASS / NONE |
 | PH1-02 | 02 | Pass 固定供应、策略绑定、完整权限/事件/ABI；只补缺 | PASS_AT_LOCAL_778F71A_CHECKPOINT | 25 Vault selectors/7 topics 等完整 compiler equality；发行/转账精度及异常 token 回归 | 778f71a完整140 Solidity/25 Python/2演练/Slither/ABI/manifest通过；06独立140/140+后段失败回滚探针1/1及8制品绑定通过，正式回归纳入待新头复验 / FINAL_CANDIDATE_ACCEPTANCE |
 | PH1-03 | 02 | 可重建构建、constructor/immutables/bytecode 清单和本地 VM 演练 | PASS_AT_LOCAL_778F71A_CHECKPOINT | 干净重建一致；重复运行不覆盖；明确无外部链广播 | 准确778f71a生成制品与完整编译一致、2离线演练通过；06独立8制品和23依赖派生等价通过；NOT_DEPLOYED保留 / FINAL_CANDIDATE_ACCEPTANCE |
 | PH1-04 | 03 | manifest、地址/字节码/ABI、三方链身份与调用目标校验 | PASS_AT_PR26_SOURCE_CHECKPOINT | 错链/错地址/错ABI/错owner失败关闭；真实参数缺失保持 NOT_DEPLOYED | PR26 a4d73bb；05独立643/643，冻结Chain/API关键授权会计分支清单已通过；整体13文件95.39%分支保持原值；统一3a78e34已独立711/711通过，旧关键子集不重新标OPEN；本轮差异需准确复验 / CANDIDATE_DEPENDENCY |
@@ -17,7 +17,7 @@
 | PH1-09 | 04 | 发行/分配或获取 Pass、自由转账、创建/选择 Vault 操作入口 | PASS_AT_PR27_SOURCE_CHECKPOINT | 1 PASS容量不等于价格；转账18位；创建或选择 Vault；受审 allowlist 选择满足产品路径，创建保留显式 Owner 部署流程；切换废弃旧意图/模拟 | 3a78e34历史统一功能检查与真实local/mock浏览器通过；本轮新增确认中Vault切换竞态待验证/复测，不继承为新候选PASS / CANDIDATE_DEPENDENCY |
 | PH1-10 | 04 | 有限授权、模拟/会话复核、存入/提款/close/post-close rescue | DELIVERED_PENDING_FINAL_ACCEPTANCE | 关闭后禁用存取/close和无效approve；合法Owner rescue可执行；金额不舍入 | 3a78e34历史统一功能检查与真实local/mock浏览器通过；本轮新增确认中Vault切换竞态待验证/复测，不继承为新候选PASS / CANDIDATE_DEPENDENCY |
 | PH1-11 | 04 | API/index degraded 下 canonical 直接读和Owner退出 | DELIVERED_PENDING_FINAL_ACCEPTANCE | API失败不显示陈旧READY；链/Owner可验证时退出仍可用 | 3a78e34历史统一功能检查与真实local/mock浏览器通过；本轮新增确认中Vault切换竞态待验证/复测，不继承为新候选PASS / CANDIDATE_DEPENDENCY |
-| PH1-12 | 05 | 功能验收矩阵、准确覆盖率与跨层独立复测 | IN_PROGRESS_NOT_COMPLETE | 测量总体90%目标和关键授权会计100%分支要求；不足仍FAIL/BLOCKED，不拿数量替代 | 778f71a完整858/858与七流程PASS；行90.78/语句87.66/函数91.14/分支81.74；完整分母和2个未完整生命周期保留；阈值未达，06独立方法复核进行中 / COVERAGE_THRESHOLD_AND_FINAL_METHOD_ADMISSION |
+| PH1-12 | 05 | 功能验收矩阵、准确覆盖率与跨层独立复测 | IN_PROGRESS_NOT_COMPLETE | 测量总体90%目标和关键授权会计100%分支要求；不足仍FAIL/BLOCKED，不拿数量替代 | 完整基线6148305：979/979、九工作流PASS，四维92.67/90.44/92.38/86.01；集中补测未变源码原有缺口减少410个，脱敏源单独重采集。统一最终值、独立方法准入和关键语义验收分别判断 / COVERAGE_THRESHOLD_AND_FINAL_METHOD_ADMISSION |
 | PH1-13 | 05 | 独立最终安全复核 | BLOCKED_EXTERNAL_REVIEW | 服务限制未解除不得重试规避；普通功能复测不能代替；无伪造通过 | 05 2026-09-19服务失败；新05状态报告 / EXTERNAL_REVIEW |
 | PH1-14 | 06 | 7必需CI、附加任务、合约/scanner覆盖和证据真实性 | REMOTE_3A78E34_9_JOBS_PASS_NEW_CANDIDATE_PENDING | 9jobs每关键步骤实际执行；错误失败关闭；旧CI失败不改写 | 06实际run35499025043/attempt3 9/9 PASS含7/7 required，经理GitHub API回读一致；仅远程旧头3a78e34，新候选待发布及复验 / NEW_CANDIDATE_HOSTED_AND_SCANNER_RETEST |
 | PH1-15 | 01 | 仓库外不可被受检diff替换的治理验证与独立身份 | BLOCKED_EXTERNAL_AUTHORITY | 不可仅改JSON verified；外部修订/摘要/强制规则/失败样本均可验证 | docs/security/SUPPLY-CHAIN.md；组织准备方案 / EXTERNAL_DEPENDENCY_AND_AUTHORIZATION |

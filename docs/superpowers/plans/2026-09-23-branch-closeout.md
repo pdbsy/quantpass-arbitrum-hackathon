@@ -36,3 +36,7 @@
 - 2626eaa: 37 additional branches; cumulative 217. These are unchanged-source diagnostic unions, not final candidate coverage.
 - Mixed quoted assignments and CLI flags exposed an actual redaction defect: the first matcher to return could preserve an earlier credential. New failing regressions are preserved locally; choosing the earliest sensitive assignment across grammars fixes the leak. Seven assignment forms are checked in all 49 ordered pairs, with safe-prefix preservation and both fixture payloads absent.
 - Since the redactor source changed, earlier hits in that file are retired from the unchanged-source union. Final acceptance must recollect the new graph; no old coverage is transplanted onto it.
+
+## Current measured closure
+
+See docs/management/phase1/BRANCH-CLOSEOUT-2026-09-23.md for the complete measured batch table, actual defect and remaining-path policy. Final acceptance keeps all counters and checks the new candidate rather than reusing diagnostic unions.
