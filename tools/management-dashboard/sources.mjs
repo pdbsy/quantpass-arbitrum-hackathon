@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { open, opendir, realpath, stat } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { lstat, open, opendir, realpath, stat } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 
 import { parseTaskRecord, parseWorkerLog } from './markdown.mjs';
@@ -73,11 +74,14 @@ function consumeFileBudget(budget, bytes) {
   budget.bytes += bytes;
 }
 
-async function readBoundedFile(path, budget) {
-  const handle = await open(path, 'r');
+async function readBoundedFile(path, budget, expected) {
+  const flags = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
+  const handle = await open(path, flags);
   try {
     const metadata = await handle.stat();
     if (!metadata.isFile()) throw new SourceError('NOT_A_FILE');
+    if (metadata.dev !== expected.dev || metadata.ino !== expected.ino || (await realpath(path)) !== path)
+      throw new SourceError('SOURCE_CHANGED_DURING_READ');
     if (metadata.size > maximumSourceBytes) throw new SourceError('SOURCE_TOO_LARGE');
     consumeFileBudget(budget, metadata.size);
 
@@ -89,6 +93,18 @@ async function readBoundedFile(path, budget) {
       offset += bytesRead;
     }
     if (offset > metadata.size) throw new SourceError('SOURCE_CHANGED_DURING_READ');
+    const [after, named, canonical] = await Promise.all([handle.stat(), lstat(path), realpath(path)]);
+    if (
+      offset !== metadata.size ||
+      after.size !== metadata.size ||
+      after.mtimeMs !== metadata.mtimeMs ||
+      after.ctimeMs !== metadata.ctimeMs ||
+      !named.isFile() ||
+      named.dev !== metadata.dev ||
+      named.ino !== metadata.ino ||
+      canonical !== path
+    )
+      throw new SourceError('SOURCE_CHANGED_DURING_READ');
     return contents.subarray(0, offset).toString('utf8');
   } finally {
     await handle.close();
@@ -108,7 +124,9 @@ async function readBoundedSource(root, source, budget) {
   }
   if (!contained(repositoryRoot, resolved)) throw new SourceError('PATH_OUTSIDE_REPOSITORY');
   if (resolved !== candidate) throw new SourceError('SYMLINK_NOT_ALLOWED');
-  return readBoundedFile(resolved, budget);
+  const metadata = await lstat(resolved);
+  if (!metadata.isFile()) throw new SourceError('NOT_A_FILE');
+  return readBoundedFile(resolved, budget, metadata);
 }
 
 async function collectJson(root, source, observedAt, budget) {

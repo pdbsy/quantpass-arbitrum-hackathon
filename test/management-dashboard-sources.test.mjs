@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { fixtureExec as execFileSync } from './helpers/git-fixture.mjs';
 import { chmod, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -1248,4 +1249,122 @@ test('unsupported Git object identities never produce READY provenance', async (
   assert.equal(recorded.status, 'DATA_SOURCE_ERROR');
   assert.equal(recorded.error, 'RECORDED_GIT_QUERY_FAILED');
   assert.equal('commit' in recorded, false);
+});
+
+test('source collection rejects a real symlink replacement between canonicalization and open', async (t) => {
+  const root = await createSourceFixture();
+  const outside = await mkdtemp(join(tmpdir(), 'alphaforge-source-race-outside-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(() => rm(outside, { recursive: true, force: true }));
+  const target = join(root, 'planning/roadmap.json');
+  const external = join(outside, 'source.json');
+  await writeFile(external, JSON.stringify({ marker: 'outside-source-must-never-be-published' }));
+  // Isolated child interposes only the filesystem scheduling boundary. The production
+  // collector still performs every path/handle check and actual read itself.
+  const program = `
+    import assert from 'node:assert/strict';
+    import fs from 'node:fs/promises';
+    import { syncBuiltinESMExports } from 'node:module';
+    const [root, target, external, moduleUrl] = process.argv.slice(1);
+    const canonicalTarget = await fs.realpath(target);
+    const originalOpen = fs.open;
+    let replaced = false;
+    fs.open = async function(path, ...args) {
+      if (path === canonicalTarget && !replaced) {
+        replaced = true;
+        await fs.rename(canonicalTarget, canonicalTarget + '.original');
+        await fs.symlink(external, canonicalTarget);
+      }
+      return originalOpen.call(this, path, ...args);
+    };
+    syncBuiltinESMExports();
+    const { collectRepositorySources } = await import(moduleUrl);
+    const result = await collectRepositorySources(root, { observedAt: '2026-09-23T00:00:00.000Z' });
+    assert.equal(replaced, true);
+    assert.equal(result.roadmap.status, 'DATA_SOURCE_ERROR');
+    assert.doesNotMatch(JSON.stringify(result), /outside-source-must-never-be-published/);
+    console.log('PASS real source replacement rejected');
+  `;
+  const run = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '--eval',
+      program,
+      root,
+      target,
+      external,
+      new URL('../tools/management-dashboard/sources.mjs', import.meta.url).href,
+    ],
+    { encoding: 'utf8', timeout: 30000 },
+  );
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.stdout, /PASS real source replacement rejected/);
+});
+
+test('source collection rejects real file replacement, growth, truncation and same-size writes at the read boundary', async (t) => {
+  for (const scenario of ['replace', 'grow', 'truncate', 'same-size']) {
+    const root = await createSourceFixture();
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const program = `
+      import assert from 'node:assert/strict';
+      import fs from 'node:fs/promises';
+      import { syncBuiltinESMExports } from 'node:module';
+      import { join } from 'node:path';
+      const [root, scenario, moduleUrl] = process.argv.slice(1);
+      const target = await fs.realpath(join(root, 'planning/roadmap.json'));
+      const original = await fs.readFile(target, 'utf8');
+      const originalOpen = fs.open;
+      let changed = false;
+      fs.open = async function(path, ...args) {
+        if (path !== target || changed) return originalOpen.call(this, path, ...args);
+        changed = true;
+        if (scenario === 'replace') {
+          await fs.rename(target, target + '.original');
+          await fs.writeFile(target, original);
+        }
+        const handle = await originalOpen.call(this, path, ...args);
+        if (scenario !== 'replace') {
+          const originalStat = handle.stat.bind(handle);
+          let sampled = false;
+          handle.stat = async (...statArgs) => {
+            const metadata = await originalStat(...statArgs);
+            if (!sampled) {
+              sampled = true;
+              if (scenario === 'grow') await fs.appendFile(target, ' ');
+              if (scenario === 'truncate') await fs.writeFile(target, '{}');
+              if (scenario === 'same-size') {
+                await fs.writeFile(target, original.replace('QuantPass', 'OtherName'));
+                await fs.utimes(target, metadata.atime, new Date(metadata.mtimeMs + 2000));
+              }
+            }
+            return metadata;
+          };
+        }
+        return handle;
+      };
+      syncBuiltinESMExports();
+      const { collectRepositorySources } = await import(moduleUrl);
+      const result = await collectRepositorySources(root, { observedAt: '2026-09-23T00:00:00.000Z' });
+      assert.equal(changed, true);
+      assert.equal(result.roadmap.status, 'DATA_SOURCE_ERROR');
+      assert.equal(result.roadmap.error, 'SOURCE_CHANGED_DURING_READ');
+      assert.equal('data' in result.roadmap, false);
+      console.log('PASS actual source race rejected: ' + scenario);
+    `;
+    const run = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        program,
+        root,
+        scenario,
+        new URL('../tools/management-dashboard/sources.mjs', import.meta.url).href,
+      ],
+      { encoding: 'utf8', timeout: 30000 },
+    );
+    assert.equal(run.status, 0, `${scenario}: ${run.stderr || run.stdout}`);
+    assert.match(run.stdout, /PASS actual source race rejected/);
+  }
 });
