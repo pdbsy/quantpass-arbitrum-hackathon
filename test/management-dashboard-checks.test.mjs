@@ -378,3 +378,48 @@ test('check runner rejects missing identities and captures launcher exceptions a
   });
   assert.equal(silent.log, '(no output)\n');
 });
+
+test('runChecks rejects absent source identity before running checks or replacing prior evidence', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-check-identity-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, '.checks/management'), { recursive: true });
+  const reportPath = join(root, '.checks/management/latest.json');
+  await writeFile(reportPath, 'previous evidence\n');
+  for (const patch of [{ commit: undefined }, { tree: undefined }, { branch: '../escape' }]) {
+    let calls = 0;
+    await assert.rejects(
+      runChecks({
+        root,
+        runId: 'invalid-identity',
+        collectGitState: gitStateSequence(gitState(patch)),
+        runProcess: async () => {
+          calls++;
+          return { exitCode: 0, stdout: 'ok', stderr: '', timedOut: false };
+        },
+      }),
+      /CHECK_GIT_NOT_CLEAN/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(await readFile(reportPath, 'utf8'), 'previous evidence\n');
+    assert.deepEqual(await readdir(join(root, '.checks/management')), ['latest.json']);
+  }
+});
+
+test('runChecks defaults to full and binds automatic run IDs to the actual clean source', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-check-defaults-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const result = await runChecks({
+    root,
+    collectGitState: gitStateSequence(gitState()),
+    runProcess: async () => ({ exitCode: 0, stdout: 'ok', stderr: '', timedOut: false }),
+  });
+  assert.equal(result.profile, 'full');
+  assert.equal(result.commit, commit);
+  assert.equal(result.tree, tree);
+  assert.ok(result.checks.some((check) => check.id === 'dependency-audit' && check.status === 'PASS'));
+  assert.ok(result.checks.some((check) => check.id === 'slither' && check.status === 'NOT_RUN'));
+  assert.deepEqual(JSON.parse(await readFile(join(root, '.checks/management/latest.json'), 'utf8')), result);
+  const evidence = result.checks.find((check) => check.id === 'lint').evidence;
+  assert.match(evidence, /333333333333\/lint\.log$/);
+  assert.equal(await readFile(join(root, evidence), 'utf8'), 'ok\n');
+});

@@ -1488,3 +1488,30 @@ test('mixed assignment grammars redact the earliest credential regardless of mat
     }
   }
 });
+
+test('safe metadata exemptions require a complete bounded structured tail', () => {
+  const marker = 'fixture_payload_tail_91';
+  const invalid = [
+    `tokenCount=2 ${'a'.repeat(257)}=${marker}`,
+    'tokenCount=2 status=',
+    `command --tokenCount=2 --${'a'.repeat(257)} ${marker}`,
+    `command --tokenCount 2 --9invalid ${marker}`,
+    'command --tokenCount=2 --status=',
+    `command --tokenCount=2 --status? ${marker}`,
+    `command --tokenCount=2 --status=ok --${'a'.repeat(257)}=${marker}`,
+  ];
+  for (const input of invalid) {
+    const output = sanitizeLog(input);
+    assert.match(output, /REDACTED/, input);
+    assert.doesNotMatch(output, /fixture_payload_tail_91/);
+  }
+  for (const input of [
+    `tokenCount=2 ${'a'.repeat(256)}=public`,
+    `command --tokenCount=2 --${'a'.repeat(256)} public`,
+    'command --tokenCount=2 --authEnabled=true --status=ok',
+    'command --tokenCount 2 --authEnabled true --status ok',
+    'command --Bearer=disabled --status=ok',
+    'command --Bearer disabled --status ok',
+  ])
+    assert.equal(sanitizeLog(input), input, input);
+});
