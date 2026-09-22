@@ -444,6 +444,23 @@ test('single-runtime M3 app serves a supplied static root without changing the s
   assert.deepEqual(status.database, { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' });
   assert.equal(status.deployment.contract, CONTRACT);
   assert.equal(status.deployment.manifestDigest, manifestDigest);
+  runtime.recordSubmission({
+    operationId: 'custom-depth-deposit',
+    chainId: CHAIN_ID,
+    owner: OWNER,
+    target: CONTRACT,
+    calldata: encodeM3VaultCall('deposit(uint256)', [1_000_000n]),
+    txHash: TX,
+  });
+  await runtime.syncToHead();
+  const operation = runtime.store.operation('custom-depth-deposit');
+  assert.equal(operation?.confirmations, 3);
+  assert.equal(
+    operation?.state,
+    'CONFIRMING',
+    'the supplied depth of four must override the default of three',
+  );
+  assert.equal(operation?.reconciled, true);
 });
 
 test('startup listens only on its ephemeral socket and a busy bind closes its own database', async () => {
