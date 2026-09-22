@@ -1,5 +1,7 @@
 # 当前收口 — 2026-09-22 Public 与本地候选复验
 
+06已完成且经理回读核验：远程旧头3a78e34的Engineering run35499025043/attempt3（2026-09-22 09:27:29 UTC）9/9 SUCCESS，包含7/7 required；标准Linux/Windows/macOS。运行链接：https://github.com/pdbsy/quantpass-arbitrum-hackathon/actions/runs/35499025043/attempts/3 。该结果仅对应远程旧头；本地修复b9283da及后续候选未发布，不能继承。
+
 用户重新确认仓库 Public；经理实时回读验证 PUBLIC、master 为默认分支、PR22 OPEN/Draft、远程 head `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8`。用户明确要求06恢复测试，已向06派发原有CI门禁核验；当前本地新代码尚未发布，旧远程头的检查不能证明新代码通过。
 
 最近完整候选 `979f4aa9f1169eedcf4252d67e952e71ee26c76f`（tree `c6be18cae3091ee42fed9e50ef8d9afea42c6d5d`）通过844/844、完整check、M3/扩展旧界面/管理看板/方法资格五类功能流程、151条LOCAL身份、Semgrep与Gitleaks。C/R/S为ef3480a/bb32896/979f4aa，真实管理采集11 PASS/0 FAIL/4 NOT_RUN。覆盖率行89.64%、语句86.69%、函数90.28%、分支80.96%；完整分母和2个不完整生命周期保留，阈值未达，正式方法准入仍PENDING。

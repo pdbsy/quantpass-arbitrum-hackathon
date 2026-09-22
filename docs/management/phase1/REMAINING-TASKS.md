@@ -1,6 +1,6 @@
 # 第一阶段全量剩余任务矩阵
 
-唯一仓库pdbsy/quantpass-arbitrum-hackathon，已实时核实PUBLIC；PR22仍Draft/3a78e34。最近完整本地候选979f4aa：844/844、五功能流程通过，覆盖率89.64/86.69/90.28/80.96未达标。后续审计修复需独立复验，06已恢复托管测试。旧65%finish不是当前完成率。
+唯一仓库pdbsy/quantpass-arbitrum-hackathon，已实时核实PUBLIC；PR22仍Draft/3a78e34。最近完整本地候选979f4aa：844/844、五功能流程通过，覆盖率89.64/86.69/90.28/80.96未达标。后续审计修复需独立复验，06已完成远程旧头9/9任务、7/7必需检查，新候选另测。旧65%finish不是当前完成率。
 
 字段以[JSON矩阵](remaining-tasks.json)为事实源；见[证据索引](FINAL-EVIDENCE-INDEX.md)和[审计校准](AUDIT-CALIBRATION-2026-09-22.md)。
 
@@ -19,7 +19,7 @@
 | PH1-11 | 04 | API/index degraded 下 canonical 直接读和Owner退出 | DELIVERED_PENDING_FINAL_ACCEPTANCE | API失败不显示陈旧READY；链/Owner可验证时退出仍可用 | 3a78e34历史统一功能检查与真实local/mock浏览器通过；本轮新增确认中Vault切换竞态待验证/复测，不继承为新候选PASS / CANDIDATE_DEPENDENCY |
 | PH1-12 | 05 | 功能验收矩阵、准确覆盖率与跨层独立复测 | IN_PROGRESS_NOT_COMPLETE | 测量总体90%目标和关键授权会计100%分支要求；不足仍FAIL/BLOCKED，不拿数量替代 | 979f4aa完整844/844与五流程PASS；行89.64/语句86.69/函数90.28/分支80.96；2个不完整生命周期与完整分母保留；阈值及方法未验收 / COVERAGE_THRESHOLD_AND_FINAL_METHOD_ADMISSION |
 | PH1-13 | 05 | 独立最终安全复核 | BLOCKED_EXTERNAL_REVIEW | 服务限制未解除不得重试规避；普通功能复测不能代替；无伪造通过 | 05 2026-09-19服务失败；新05状态报告 / EXTERNAL_REVIEW |
-| PH1-14 | 06 | 7必需CI、附加任务、合约/scanner覆盖和证据真实性 | PUBLIC_HOSTED_RETEST_DISPATCHED_TO_06 | 9jobs每关键步骤实际执行；错误失败关闭；旧CI失败不改写 | 经理实时核实PUBLIC；06已按用户要求恢复远程3a78e34准确头测试；979f4aa本地Semgrep/Gitleaks PASS，新源码另测 / NEW_CANDIDATE_HOSTED_AND_SCANNER_RETEST |
+| PH1-14 | 06 | 7必需CI、附加任务、合约/scanner覆盖和证据真实性 | REMOTE_3A78E34_9_JOBS_PASS_NEW_CANDIDATE_PENDING | 9jobs每关键步骤实际执行；错误失败关闭；旧CI失败不改写 | 06实际run35499025043/attempt3 9/9 PASS含7/7 required，经理GitHub API回读一致；仅远程旧头3a78e34，新候选待发布及复验 / NEW_CANDIDATE_HOSTED_AND_SCANNER_RETEST |
 | PH1-15 | 01 | 仓库外不可被受检diff替换的治理验证与独立身份 | BLOCKED_EXTERNAL_AUTHORITY | 不可仅改JSON verified；外部修订/摘要/强制规则/失败样本均可验证 | docs/security/SUPPLY-CHAIN.md；组织准备方案 / EXTERNAL_DEPENDENCY_AND_AUTHORIZATION |
 | PH1-16 | 用户 | 首发分配与转账纳入；付费销售和真实Buy/Sell由用户明确移出第一阶段 | USER_DECIDED_OUT_OF_PHASE_FOR_PAID_TRADING | 不实现付费机制；不重复询问已确认范围 | docs/management/phase1/DECISIONS.md；用户本轮异步答复 / NONE |
 | PH1-17 | 01 | 旧PR15–20覆盖与superseded关系；Dependabot12/13单列 | SOURCE_RECONCILED | 不凭非祖先判断缺失；不重复merge；不删除来源refs；未覆盖差异保留任务 | PR-SUPERSESSION.json / PR-SUPERSESSION.md；PR15–20 已按准确来源覆盖证据关闭，原 refs 保留 / NONE |
@@ -30,4 +30,4 @@
 | PH1-22 | 01 | 真实Testnet发行/分配/转账/Vault授权存提款关闭验收 | NOT_RUN | local VM/mock非testnet；仅批准交易；未知结果先查链 | 尚无真实链证据 / EXTERNAL_CHAIN_AUTHORIZATION |
 | PH1-23 | 04 | 确认中Vault A→B与A→B→A失效；Vault action/Pass transfer/deposit approval | PASS_AT_WORKER_RETEST_INTEGRATED_QA_PENDING | 05定向独立复测；真正钱包发送前失效，已发送操作按原身份跟踪 | 04 aa6c764 guard; 05 independent717/717; f26 driver independent9 mock sends; integrated9aefa70 810 tests PASS; final source QA pending / ENGINEERING_VALIDATION |
 | PH1-24 | 06 | 九job本地映射、Woodpecker/Jenkins/act比较、PoC与接回方案 | PASS_AT_WORKER_RETEST_INTEGRATED_QA_PENDING | 真实失败/超时/日志缺失负例；无新服务/凭据；未运行平台NOT_RUN | 06 c817 runner19/19 plus05 independent22 probes;62444c8 identity58/58 independently reviewed; no new services installed / LOCAL_VALIDATION |
-| PH1-25 | 05 | 使用保存日志调查Windows文件级进程失败 | REMOTE_WINDOWS_RETEST_IN_PROGRESS | 06协作；无合格原生Windows则NOT_RUN，不用macOS证明Windows通过 | 用户恢复06测试；远程仍3a78e34，Windows结果待06实际回传；不得冒称覆盖本地979f4aa或后续修复 / EXACT_CANDIDATE_RETEST |
+| PH1-25 | 05 | 使用保存日志调查Windows文件级进程失败 | REMOTE_3A78E34_WINDOWS_PASS_NEW_CANDIDATE_PENDING | 06协作；无合格原生Windows则NOT_RUN，不用macOS证明Windows通过 | 06实际Windows2025标准runner在run35499025043/attempt3通过711/711；仅远程旧头，当前本地新候选另测 / EXACT_CANDIDATE_RETEST |
