@@ -75,6 +75,7 @@ export async function verifyManagementBoundaries(page, origin) {
   );
 
   fixture.project.name = 'TEST FIXTURE — AlphaForge rendering boundaries';
+  fixture.knownIssues = ['Literal known issue <b>must remain text</b>'];
   fixture.tasks = ['critical', 'high', 'medium', 'low'].map((risk, i) => ({
     id: `TEST-${i}`,
     title: `<b>Literal task ${i}</b>`,
@@ -102,6 +103,8 @@ export async function verifyManagementBoundaries(page, origin) {
   await refresh();
   assert.match(await page.locator('#milestone-content').textContent(), /全部发布门禁已通过/);
   assert.equal(await page.locator('#task-board b').count(), 0);
+  assert.match(await page.locator('#known-issues').textContent(), /Literal known issue <b>must remain text/);
+  assert.equal(await page.locator('#known-issues b').count(), 0);
   assert.equal(await page.locator('#documentation a').count(), 0);
   assert.equal(await page.locator('#ssh-host a').count(), 1);
   assert.equal(await page.locator('#ssh-host a').getAttribute('href'), '#raw-evidence');
@@ -193,6 +196,40 @@ export async function verifyManagementBoundaries(page, origin) {
   }
   passed.push(
     'Missing render-critical sections are rejected before state replacement; refresh remains usable and recovers',
+  );
+
+  for (const mutate of [
+    (value) => (value.decisions.items = [null]),
+    (value) => (value.git.recentCommits = [null]),
+    (value) => (value.workers[0].activities = [null]),
+    (value) => (value.hackathon.releaseGates = [{ status: 'open', checks: [null] }]),
+  ]) {
+    fixture = structuredClone(validBoundaryFixture);
+    mutate(fixture);
+    await refresh();
+    assert.match(await page.locator('#data-state').textContent(), /数据源错误/);
+    assert.equal(await page.locator('#refresh-dashboard').isEnabled(), true);
+    assert.match(await page.locator('#project-title').textContent(), /rendering boundaries/);
+  }
+  fixture = structuredClone(validBoundaryFixture);
+  await refresh();
+  await page.evaluate(() => {
+    const body = globalThis.document.querySelector('#git-history .panel-body');
+    body.dataset.fixtureDetached = 'true';
+    globalThis.document.body.append(body);
+  });
+  await refresh();
+  assert.match(await page.locator('#data-state').textContent(), /数据源错误/);
+  assert.equal(await page.locator('#refresh-dashboard').isEnabled(), true);
+  await page.evaluate(() => {
+    const body = globalThis.document.querySelector('[data-fixture-detached]');
+    delete body.dataset.fixtureDetached;
+    globalThis.document.querySelector('#git-history').append(body);
+  });
+  await refresh();
+  assert.match(await page.locator('#data-state').textContent(), /^快照：/);
+  passed.push(
+    'Invalid nested records and actual DOM rendering faults preserve failure visibility and retry recovery',
   );
 
   fixture.project.status = 'constructor';

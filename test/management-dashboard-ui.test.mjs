@@ -517,3 +517,30 @@ test('dashboard loading rejects absent render-critical sections before reporting
     assert.equal('data' in result, false);
   }
 });
+
+test('dashboard loading rejects malformed nested records consumed by renderers', async () => {
+  const mutations = [
+    (value) => (value.decisions.items = [null]),
+    (value) => (value.decisions.items = [{ text: {} }]),
+    (value) => (value.git.recentCommits = [null]),
+    (value) => (value.git.recentCommits = [{}]),
+    (value) => (value.git.commit = {}),
+    (value) => (value.workers[0].activities = [null]),
+    (value) => (value.workers[0].activities = {}),
+    (value) => (value.hackathon.releaseGates = [null]),
+    (value) => (value.hackathon.releaseGates = [{ status: 'open', checks: [null] }]),
+    (value) => (value.host.links = [null]),
+    (value) => (value.knownIssues = [null]),
+    (value) => (value.blockers = [null]),
+    (value) => (value.security.findings = [{ severity: 'low', component: {} }]),
+    (value) => (value.tests.items = [{ status: 'PASS', commit: 123 }]),
+  ];
+  for (const mutate of mutations) {
+    const candidate = structuredClone(snapshotFixture);
+    mutate(candidate);
+    const result = await loadDashboard(async () => ({ ok: true, json: async () => candidate }));
+    assert.equal(result.state, 'error');
+    assert.equal(result.status, 'DATA_SOURCE_ERROR');
+    assert.equal('data' in result, false);
+  }
+});
