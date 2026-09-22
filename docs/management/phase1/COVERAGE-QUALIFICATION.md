@@ -1,3 +1,11 @@
+# Current recovery and gate collection correction
+
+The c933e85 full check passed857 tests, but M3 browser assertions failed on an unresolved duplicate withdrawal and the missing workflow binding in its failure receipt then blocked aggregation. No complete percentage report exists for that candidate; older measurements below remain historical. The driver now explicitly verifies duplicate rejection, confirms the first mock operation, and then tests a new explicit degraded-mode withdrawal. The error receipt now retains workflow, exact manifest digest and the raw failure reference, without manufacturing an index or child completion.
+
+The versioned entrypoint also executes the existing source-policy and full-history Gitleaks commands through the same bounded, source-bound collector. These are actual gate runs with their original exit behavior, logs, canaries and precise approved disposition; first-party Node counters are collected while external scanner internals remain outside the source denominator. Missing prerequisites or nonzero exits do not become PASS. This supplements the existing check, three browser workflows and method qualifications; thresholds, full static denominator and incomplete-lifecycle handling are unchanged. New candidate execution and independent method admission remain pending.
+
+## Previous measured evidence
+
 # Latest measured checkpoint — 2026-09-22
 
 Exact 979f4aa passed all five functional workflows with 844 tests. Measured lower bound: lines89.64%, statements86.69%, functions90.28%, branches80.96%. Threshold remains NOT_MET; final method admission remains PENDING. Report SHA-256 `29be67a8b483c5f8fdab5b33a87c4cb75f61a653b5ae2b7538e8bcc3c1275de2`. The expanded visible product interactions and real environment probes are included. Subsequent audit remediation requires a new exact-candidate replay.

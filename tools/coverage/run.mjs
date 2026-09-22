@@ -88,6 +88,19 @@ const qualified = await collectNodeWorkflow(root, prepared.directory, {
   timeoutMs: 300000,
 });
 workflows.push({ ...qualification, directory: qualified.directory });
+// Include actual existing gate commands, not imports or inferred scanner hits.
+// Their nonzero exits still fail the complete functional workflow collection.
+for (const gate of [
+  { id: 'source-policy', args: ['tools/ci/check-source-policy.mjs'] },
+  { id: 'gitleaks-history', args: ['tools/ci/check-gitleaks.mjs'] },
+]) {
+  const execution = await collectNodeWorkflow(root, prepared.directory, {
+    ...options,
+    ...gate,
+    timeoutMs: 600000,
+  });
+  workflows.push({ ...gate, directory: execution.directory });
+}
 const result = await reportCoverage(root, prepared.directory, {
   ...options,
   workflows,

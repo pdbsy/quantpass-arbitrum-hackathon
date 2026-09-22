@@ -1,7 +1,20 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createRequire } from 'node:module';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import {
+  mkdtempSync,
+  writeFileSync,
+  readFileSync,
+  rmSync,
+  mkdirSync,
+  cpSync,
+  copyFileSync,
+  realpathSync,
+} from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { prepareCoverage } from '../tools/coverage/prepare.mjs';
+import { collectNodeWorkflow, verifyNodeWorkflow } from '../tools/coverage/collect.mjs';
+import { reportCoverage } from '../tools/coverage/report.mjs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -326,3 +339,118 @@ for (const scenario of ['location', 'reload', 'hash', 'history']) {
     }
   });
 }
+
+test('actual failed browser driver retains bound failure identity and replays as functional FAIL', async (t) => {
+  const repository = resolve(import.meta.dirname, '..');
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-browser-failure-')));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' },
+    }).trim();
+  mkdirSync(join(root, 'tools'), { recursive: true });
+  cpSync(join(repository, 'tools/coverage'), join(root, 'tools/coverage'), { recursive: true });
+  cpSync(join(repository, 'node_modules'), join(root, 'node_modules'), {
+    recursive: true,
+    verbatimSymlinks: true,
+  });
+  mkdirSync(join(root, 'planning'));
+  for (const file of ['coverage-toolchain.lock.json', 'coverage-instrumentation.package-lock.json'])
+    copyFileSync(join(repository, 'planning', file), join(root, 'planning', file));
+  for (const chunk of JSON.parse(readFileSync(join(repository, 'planning/coverage-toolchain.lock.json')))
+    .instrumentation.installedFileChunks)
+    copyFileSync(join(repository, chunk.path), join(root, chunk.path));
+  mkdirSync(join(root, 'apps/web/prototype'), { recursive: true });
+  writeFileSync(join(root, '.gitattributes'), '* text=auto eol=lf\n');
+  writeFileSync(join(root, '.gitignore'), 'node_modules/\noutputs/\n');
+  writeFileSync(join(root, 'package.json'), '{"type":"module"}\n');
+  writeFileSync(join(root, 'apps/web/vite.config.ts'), 'export default {};\n');
+  writeFileSync(
+    join(root, 'apps/web/prototype/AlphaForge_v3_EN.html'),
+    '<style>body{color:black}</style><script>globalThis.fixture = 1;</script>',
+  );
+  writeFileSync(
+    join(root, 'tools/verify-m3-browser.mjs'),
+    'export async function runM3BrowserJourneys() { throw new Error("ASSERTED_BROWSER_DRIVER_FAILURE"); }\n',
+  );
+  git('init', '-q');
+  git('config', 'user.name', 'Coverage fixture');
+  git('config', 'user.email', 'fixture@example.invalid');
+  git('add', '.');
+  git('commit', '-qm', 'bounded failure fixture');
+  const options = {
+    instrumentationDirectory: directory,
+    browserDirectory,
+    sourceBase: git('rev-parse', 'HEAD'),
+  };
+  const prepared = await prepareCoverage(root, options);
+  const configuration = {
+    id: 'm3-browser',
+    args: [
+      'tools/coverage/run-browser.mjs',
+      '--tools',
+      directory,
+      '--browser-tools',
+      browserDirectory,
+      '--chrome',
+      process.env.CHROMIUM_PATH,
+      '--base',
+      options.sourceBase,
+      '--workflow',
+      'm3',
+    ],
+  };
+  const failed = await collectNodeWorkflow(root, prepared.directory, {
+    ...options,
+    ...configuration,
+    timeoutMs: 60000,
+    artifactFiles: ['browser-receipt.json'],
+  });
+  assert.equal(failed.state, 'FAIL');
+  const receipt = JSON.parse(readFileSync(join(failed.directory, 'browser-receipt.json')));
+  assert.equal(receipt.state, 'FAIL');
+  assert.equal(receipt.workflow, 'm3');
+  assert.equal(receipt.manifestSha256, prepared.manifestSha256);
+  assert.equal(receipt.candidateCommit, prepared.sourceCommit);
+  assert.equal(receipt.candidateTree, prepared.sourceTree);
+  assert.ok(receipt.index && receipt.failure && receipt.error);
+  const originalFailure = readFileSync(join(receipt.directory, receipt.failure.file));
+  assert.equal(digest(originalFailure), receipt.failure.sha256);
+  assert.match(originalFailure.toString(), /ASSERTED_BROWSER_DRIVER_FAILURE/);
+  const measured = await reportCoverage(root, prepared.directory, {
+    ...options,
+    workflows: [{ ...configuration, directory: failed.directory, browser: true }],
+  });
+  assert.equal(measured.report.functionalState, 'FAIL');
+  assert.equal(measured.report.workflows[0].state, 'FAIL');
+  const manifest = JSON.parse(readFileSync(join(prepared.directory, 'manifest.json')));
+  const receiptPath = join(failed.directory, 'browser-receipt.json');
+  const workflowPath = join(failed.directory, 'workflow.json');
+  const workflow = JSON.parse(readFileSync(workflowPath));
+  for (const changed of [
+    { ...receipt, workflow: 'legacy' },
+    { ...receipt, manifestSha256: 'f'.repeat(64) },
+    { ...receipt, index: undefined },
+  ]) {
+    const bytes = JSON.stringify(changed);
+    writeFileSync(receiptPath, bytes);
+    const record = structuredClone(workflow);
+    const artifact = record.artifacts.find((item) => item.file === 'browser-receipt.json');
+    artifact.sha256 = digest(bytes);
+    artifact.bytes = Buffer.byteLength(bytes);
+    writeFileSync(workflowPath, JSON.stringify(record));
+    // Even a self-consistent artifact inventory cannot bypass cross-record binding.
+    assert.equal(
+      (await verifyNodeWorkflow(failed.directory, manifest, prepared.manifestSha256, configuration)).state,
+      'FAIL',
+    );
+    await assert.rejects(
+      reportCoverage(root, prepared.directory, {
+        ...options,
+        workflows: [{ ...configuration, directory: failed.directory, browser: true }],
+      }),
+    );
+  }
+});

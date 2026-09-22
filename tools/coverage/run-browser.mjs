@@ -78,8 +78,11 @@ try {
     state: 'FAIL',
     candidateCommit: manifest.candidateCommit,
     candidateTree: manifest.candidateTree,
+    manifestSha256: sha256(readFileSync(resolve(prepared, 'manifest.json'))),
+    workflow: options.workflow || 'm3',
     directory: error.browserCoverage?.directory,
     index: error.browserCoverage?.index,
+    failure: error.browserCoverage?.failure,
     browserRuntime,
     error: error.message,
   };
