@@ -1,3 +1,17 @@
+# 当前已验证检查点 — 778f71a
+
+归属：AlphaForge / Robinhood Chain Testnet / Hackathon；pdbsy/quantpass-arbitrum-hackathon；PR #22；负责人 Macbeth01 / M3-01-PHASE1-CLOSEOUT。Xlayer 为独立工作线。
+
+准确 S `778f71a45dac022ac5b10e25eb4dcde0527503dd`、tree `575186106c24f0464f0f5aec44a54cf3974dabed`，C/R 为 `7b9d38a0a9c9ec7dfaeafaee6bbeaa5f6f37c561` / `c4fab7beeafa3e35d7292ee5a3b47a5ccd7c8eb5`。真实管理采集 11 PASS / 0 FAIL / 4 NOT_RUN。完整 check 858/858、M3／旧界面／管理看板实际浏览器流程、17/17 方法资格回归、实际 source-policy 与 Gitleaks 共七条工作流均 PASS。正式 fnm 环境准入、Semgrep、OSV 与 LOCAL 身份验证通过；后者为165提交（102原来源、63经理），不是托管身份批准。
+
+该候选合约入口实际通过140 Solidity（含fuzz/invariant）、25 Python、2离线演练、Slither与冻结Vault ABI／生成制品一致性。另行实际Forge覆盖率保留LCOV：Vault 156/156行、22/22函数、46/46分支；Locker 47/47、8/8、11/11；StrategyPass 4/4、1/1、1/1。LCOV不单独提供语句维度，不能由这份LCOV声称四维100%。06独立在合约相同的d9c5889通过140/140、8制品绑定、依赖编译等价及1项后段转账回滚探针；06未执行Slither／完整Python／部署演练，不继承经理结果。
+
+JS/TS总体覆盖率：行11476/12641（90.78%）、语句13460/15354（87.66%）、函数2142/2350（91.14%）、分支8780/10741（81.74%）。完整分母及2个未完整结束的Node生命周期保留，后者贡献零命中；阈值未达，正式方法准入仍PENDING_INDEPENDENT_REVIEW。报告SHA-256 `339b4736c1cf7e6b45065dce4a978e1e2ad774145def067ba0961707e30e89b6`。用户尚未答复总体90%所适用维度，继续按四维均90%执行。
+
+本次后续源更改将06独立回滚探针纳入正式合约回归、登记真实待发布来源、把实际dependency-delta门禁接入覆盖率采集，并同步状态。后续准确C/R/S与执行结果必须重新生成，不借用778f71a的PASS。远程Public／master18f5352／PR22 Draft仍为3a78e34；9/9托管成功仅证明该旧头。公开历史处置、准确新候选托管验证、覆盖率／方法、外部安全／治理／适格review及本轮merge授权仍分列。NOT_READY_TO_MERGE；未部署、签名或广播。见[发布清单](phase1/PUBLICATION-PLAN-2026-09-22.md)。
+
+## 此前记录（按原检查点保留）
+
 # 当前工作 — AlphaForge / Robinhood Chain Testnet / PR22
 
 归属：pdbsy/quantpass-arbitrum-hackathon；负责人Macbeth01；任务M3-01-PHASE1-CLOSEOUT。Xlayer保持独立工作线。

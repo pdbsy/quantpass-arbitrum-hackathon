@@ -92,6 +92,7 @@ workflows.push({ ...qualification, directory: qualified.directory });
 // Their nonzero exits still fail the complete functional workflow collection.
 for (const gate of [
   { id: 'source-policy', args: ['tools/ci/check-source-policy.mjs'] },
+  { id: 'dependency-delta-audit', args: ['tools/ci/check-dependency-delta.mjs'] },
   { id: 'gitleaks-history', args: ['tools/ci/check-gitleaks.mjs'] },
 ]) {
   const execution = await collectNodeWorkflow(root, prepared.directory, {

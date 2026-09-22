@@ -1,3 +1,11 @@
+# Measured checkpoint 778f71a and next bounded collection
+
+Workstream: AlphaForge / Robinhood Chain Testnet / Hackathon / PR22; owner Macbeth01. Exact 778f71a passed all seven collected functional workflows and 858 ordinary tests. Lines11476/12641=90.78%, statements13460/15354=87.66%, functions2142/2350=91.14%, branches8780/10741=81.74%. Two incomplete Node lifecycles contribute zero; the complete static denominator remains. Threshold NOT_MET; method admission PENDING_INDEPENDENT_REVIEW. Report SHA-256339b4736c1cf7e6b45065dce4a978e1e2ad774145def067ba0961707e30e89b6. This is a measured source checkpoint, not a prediction for a later candidate.
+
+The next source adds the existing dependency-delta audit as a fixed real CLI workflow under the same collector. Its actual npm advisory response, source/base binding, temporary lock inputs and exit classification remain enforced. Network/prerequisite failures remain failures or blocked evidence. No denominator, threshold, executor environment, skip or retry policy changes. External npm internals are outside the first-party denominator. Its new exact-candidate execution is pending.
+
+## Earlier evidence
+
 # Current recovery and gate collection correction
 
 The c933e85 full check passed857 tests, but M3 browser assertions failed on an unresolved duplicate withdrawal and the missing workflow binding in its failure receipt then blocked aggregation. No complete percentage report exists for that candidate; older measurements below remain historical. The driver now explicitly verifies duplicate rejection, confirms the first mock operation, and then tests a new explicit degraded-mode withdrawal. The error receipt now retains workflow, exact manifest digest and the raw failure reference, without manufacturing an index or child completion.
