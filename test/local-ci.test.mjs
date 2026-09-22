@@ -215,7 +215,53 @@ test('unsupported native platforms are NOT_RUN, not simulated successes', { skip
   assert.equal(r.state, 'NOT_RUN');
   assert.equal(r.jobs[0].state, 'NOT_RUN');
   assert.equal(r.jobs[0].pid, undefined);
+  assert.equal(verifyRun(r.directory, config.expected).state, 'NOT_RUN');
 });
+
+test(
+  'a real non-executable command is BLOCKED before a successful job can be recorded',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const executable = join(config.cwd, 'non-executable');
+    writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o600 });
+    const report = await runLocal({ ...config, jobs: [job('', { executable, args: [] })] });
+    assert.equal(report.state, 'BLOCKED');
+    assert.equal(report.jobs[0].processFailure, true);
+    assert.equal(report.jobs[0].exitCode, null);
+    assert.equal(report.jobs[0].cleanup, 'PASS');
+    assert.equal(verifyRun(report.directory, config.expected).state, 'BLOCKED');
+  },
+);
+
+test(
+  'tracked symlinks cannot be accepted as a clean executable source snapshot',
+  { skip: !available },
+  async (t) => {
+    const { config, job, git } = fixture(t);
+    fs.symlinkSync('source.txt', join(config.cwd, 'linked.txt'));
+    git('add', 'linked.txt');
+    git(
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.test',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-m',
+      'fixture symlink',
+    );
+    const expected = {
+      ...config.expected,
+      head: git('rev-parse', 'HEAD'),
+      tree: git('rev-parse', 'HEAD^{tree}'),
+    };
+    const report = await runLocal({ ...config, expected, jobs: [job('throw Error("must not run")')] });
+    assert.equal(report.state, 'BLOCKED');
+    assert.deepEqual(report.jobs, []);
+  },
+);
 test('source mutation during execution invalidates the run', { skip: !available }, async (t) => {
   const { config, job } = fixture(t);
   const r = await runLocal({

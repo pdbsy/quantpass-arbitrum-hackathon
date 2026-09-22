@@ -1230,6 +1230,10 @@ export async function scanPublicMetadata(root) {
       failures.push(`${file}: symbolic-link-not-allowed`);
       continue;
     }
+    if (!pathMetadata.isFile()) {
+      failures.push(`${file}: non-regular-file`);
+      continue;
+    }
     let resolved;
     try {
       resolved = await realpath(candidate);
@@ -1262,7 +1266,10 @@ export async function scanPublicMetadata(root) {
         failures.push(`${file}: path-changed-during-scan`);
         continue;
       }
-      if (!metadata.isFile()) continue;
+      if (!metadata.isFile()) {
+        failures.push(`${file}: non-regular-file`);
+        continue;
+      }
       if (metadata.size > BigInt(maximumTextBytes)) {
         failures.push(`${file}: text-file-too-large`);
         continue;

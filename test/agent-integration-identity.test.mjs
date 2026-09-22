@@ -439,3 +439,62 @@ test('new integration queue remains blocked when its base already contains old c
     /integration.*queue/i,
   );
 });
+
+test('stacked closeout sources require a pinned manager checkpoint and every owner range', async (t) => {
+  const { verifyManagerIntegration } = await import('../tools/agent-integration-identity.mjs');
+  const integrationBranch = 'macbeth01/m3-phase1-closeout';
+  const task = 'M3-01-PHASE1-CLOSEOUT';
+  const prTitle = `[Macbeth01][${task}] Integrate reachable closeout`;
+  const s = fixture(t, { branch: integrationBranch, task, title: prTitle });
+  const checkpoint = s.git('rev-parse', 'HEAD');
+  const checkpointSource = {
+    agent: 'Macbeth01',
+    task,
+    branch: 'macbeth01/fixture-source-checkpoint',
+    head: checkpoint,
+  };
+  s.git('update-ref', `refs/remotes/origin/${checkpointSource.branch}`, checkpoint);
+  const sources = [];
+  for (const n of [2, 3, 4, 5, 6]) {
+    const agent = `Macbeth0${n}`;
+    const sourceTask = n === 6 ? 'M3-06-CI-GATES' : `AF-FIXTURE-0${n}`;
+    const sourceBranch = `macbeth0${n}/fixture-reachable`;
+    s.git('switch', '-qc', sourceBranch, checkpoint);
+    s.git(
+      'commit',
+      '--allow-empty',
+      '-qm',
+      `[${agent}][${sourceTask}] Assert reachable behavior`,
+      '-m',
+      `Agent-ID: ${agent}\nTask-ID: ${sourceTask}`,
+    );
+    const head = s.git('rev-parse', 'HEAD');
+    s.git('update-ref', `refs/remotes/origin/${sourceBranch}`, head);
+    sources.push({ agent, task: sourceTask, branch: sourceBranch, head });
+  }
+  s.git('switch', '-q', integrationBranch);
+  for (const source of sources)
+    s.git(
+      'merge',
+      '--no-ff',
+      '-m',
+      `[Macbeth01][${task}] Preserve original source history`,
+      '-m',
+      `Agent-ID: Macbeth01\nTask-ID: ${task}`,
+      source.head,
+    );
+  const manifest = { ...s.manifest, sources: [...sources, checkpointSource] };
+  let head = s.record(manifest);
+  const check = (pullBase = { ref: 'master', sha: s.base }) =>
+    verifyManagerIntegration(s.root, { branch: integrationBranch, head, prTitle, pullBase });
+  assert.deepEqual(check(), { skipped: false, verified: 20, imported: 14, manager: 6 });
+  assert.throws(() => check({ ref: 'unreviewed', sha: s.base }), /PR must target fixed master/);
+  assert.throws(() => check({ ref: 'master', sha: checkpoint }), /PR must target fixed master/);
+  // Removing the checkpoint cannot launder the inherited manager commits as worker work.
+  head = s.record({ ...manifest, sources });
+  assert.throws(() => check(), /source contains unregistered provenance/);
+  // Exact remote reachability remains required after restoring the complete source set.
+  head = s.record(manifest);
+  s.git('update-ref', `refs/remotes/origin/${sources[0].branch}`, s.base);
+  assert.throws(() => check(), /missing required ancestry/);
+});

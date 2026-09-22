@@ -3,7 +3,13 @@ import test from 'node:test';
 import { readFileSync, mkdtempSync, mkdirSync, symlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { validateInputs, evaluate, overrideKinds, CONFIG } from '../tools/environment/policy.mjs';
+import {
+  validateInputs,
+  evaluate,
+  overrideKinds,
+  nativePackagesValid,
+  CONFIG,
+} from '../tools/environment/policy.mjs';
 import { validateReport, writeReport } from '../tools/environment/report.mjs';
 
 const root = new URL('../', import.meta.url);
@@ -55,6 +61,34 @@ const observation = () => ({
     'legacy-peer-deps': 'false',
   },
   commands: [],
+});
+
+test('empty and approved overrides stay clean while proxy, mirror and npm overrides are rejected', () => {
+  assert.deepEqual(overrideKinds({ NODE_OPTIONS: '', FNM_NODE_DIST_MIRROR: 'https://nodejs.org/dist' }), []);
+  assert.deepEqual(
+    overrideKinds({
+      FNM_NODE_DIST_MIRROR: 'https://example.invalid/node',
+      https_proxy: 'https://example.invalid/proxy',
+      npm_config_unreviewed_setting: 'synthetic',
+    }),
+    ['download-source', 'npm', 'proxy'],
+  );
+});
+
+test('environment policy rejects malformed native inventory and unsupported report inputs', () => {
+  for (const lock of [null, {}, { packages: null }, { packages: 'invalid' }])
+    assert.equal(nativePackagesValid(lock, 'linux', 'x64'), false);
+  assert.equal(nativePackagesValid({ packages: { '': {} } }, 'linux', 'x64'), true);
+  assert.throws(() => evaluate(inputs(), observation(), 'production'), /Invalid environment mode/);
+  const report = evaluate(inputs(), { ...observation(), platform: 'unrecognized', arch: 'unknown' }, 'ci');
+  assert.equal(report.exitCode, 1);
+  assert.equal(report.eligibleForEvidence, false);
+  assert.equal(report.platform, null);
+  assert.equal(report.arch, null);
+  const missingPorts = evaluate(inputs(), { ...observation(), ports: 'unknown' }, 'ci');
+  assert.equal(missingPorts.checks.find((item) => item.id === 'ports').status, 'BLOCKED');
+  assert.equal(missingPorts.exitCode, 2);
+  assert.equal(missingPorts.eligibleForEvidence, false);
 });
 
 test('exact input sources reject engine and root lock drift without mutation', () => {
