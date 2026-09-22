@@ -1982,7 +1982,17 @@
       "target_path": "tools/verify-ui-browser.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; subsequent visible-browser assertion extension from Macbeth04 1dd5ca0fb03682b5b487ab68be424b35e4386d77 (metadata-only mapping from bf54f914), original source hash retained",
       "original_sha256": "4668e613f77c694aa66e8f43015c2d9f093fe8bf938f0d713e1baa6d627691e9",
-      "migrated_sha256": "2a96c3f47592327c48f46c01ebe51b89cb50362ba4b1c191b09d3b16512bb58c"
+      "migrated_sha256": "f2bf3b38f2f0e569f4ba56a486d27bde06612a62d3bf2d684ab50a00b88a48f6",
+      "subsequent_revisions": [
+        {
+          "commit": "dafb30d260769c19c940a54fde20b9bf97b7d5a2",
+          "agent": "Macbeth01",
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "previous_sha256": "2a96c3f47592327c48f46c01ebe51b89cb50362ba4b1c191b09d3b16512bb58c",
+          "current_sha256": "f2bf3b38f2f0e569f4ba56a486d27bde06612a62d3bf2d684ab50a00b88a48f6",
+          "reason": "Execute assertion-bearing local demo model boundaries through the original visible-browser driver; retain all earlier source and author provenance."
+        }
+      ]
     }
   ]
 }
