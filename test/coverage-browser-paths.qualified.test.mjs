@@ -129,6 +129,24 @@ test('browser collector uses the reviewed executable fallback and retains local 
   );
 });
 
+test('direct browser collection retains a replayable failure when HTTP and WebSocket leave loopback', async (t) => {
+  const f = await fixture(t, true);
+  await assert.rejects(
+    collectBrowserCoverage({ ...f, outputDirectory: join(f.root, 'outputs/direct-blocked') }),
+    (error) => {
+      const { directory, failure, index } = error.browserCoverage;
+      const raw = JSON.parse(readFileSync(join(directory, failure.file)));
+      assert.deepEqual(raw.blockedRequests, ['https://blocked.invalid', 'wss://blocked.invalid']);
+      assert.ok(raw.errors.some((row) => /unexpected browser network activity/.test(row.message)));
+      assert.ok(
+        replayBrowserCoverage({ manifest: f.manifest, outputDirectory: directory, index }).observations
+          .length,
+      );
+      return true;
+    },
+  );
+});
+
 for (const mode of ['default-pass', 'default-fail', 'explicit-fail'])
   test(`browser CLI receipt and report bind actual local routing outcome: ${mode}`, async (t) => {
     const failing = mode !== 'default-pass';

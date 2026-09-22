@@ -97,3 +97,20 @@ hits cannot simply be added to a later full percentage. New qualified test entry
 `test/coverage-task-board.qualified.test.mjs`, requiring the same reviewed
 instrumentation/Playwright inputs and explicit Chromium as existing browser
 qualification. Manager01 owns shared script registration;06 reviews this05 fix.
+
+## Final bounded coverage boundary batch
+
+The next test-only batch covers the actual browser CLI receipt writer with controlled worker
+outcomes (PASS, returned FAIL, rejected promise and missing child summary). It verifies exit status,
+workflow identity and the persisted manifest digest. These protocol fixtures do not establish
+browser or application success; the qualified tests separately exercise real Chromium.
+
+Real direct browser collection now verifies blocked HTTP and WebSocket requests and replays the
+retained failure evidence. Management collection verifies reviewed environment fallbacks, a missing
+default browser module, and a real failing driver with the generated Node hook and empty inherited
+Node options. Runtime tests verify an independent copy of caller dependencies, preservation of
+tracked dependency bytes, optional alias inventory and rejection of a missing default prototype.
+
+Targeted results: 27 CLI/runtime tests, one additional default-prototype test and four real-browser
+tests pass. The earlier full qualified tests remain separate evidence. A fresh diagnostic is required
+after committing this batch; no previous raw counters are edited or promoted to final acceptance.

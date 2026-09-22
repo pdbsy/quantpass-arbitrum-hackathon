@@ -174,6 +174,53 @@ test('real task board interactions contribute only replay-verified original grap
   assert.ok(observations.every((row) => row.sources[board].sha256 === f.manifest.sources[board].sha256));
 });
 
+for (const mode of ['reviewed-environment', 'missing-default-module', 'hooked-driver-failure'])
+  test(`management collector binds executable fallbacks and actual child outcomes: ${mode}`, async (t) => {
+    const f = await fixture(t, mode === 'hooked-driver-failure');
+    const keys = ['AF_PLAYWRIGHT_PATH', 'AF_CHROME_PATH', 'NODE_OPTIONS'];
+    const before = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    const cwd = process.cwd();
+    const hook = join(f.root, 'outputs', 'reviewed-node-hook.mjs');
+    if (mode === 'hooked-driver-failure')
+      writeFileSync(hook, f.generated['tools/coverage/node-hook.mjs'].code);
+    try {
+      process.chdir(f.root);
+      process.env.AF_CHROME_PATH = process.env.CHROMIUM_PATH;
+      process.env.NODE_OPTIONS = '';
+      if (mode === 'missing-default-module') delete process.env.AF_PLAYWRIGHT_PATH;
+      else process.env.AF_PLAYWRIGHT_PATH = resolve(browserDirectory, 'index.mjs');
+      const result = await collectManagementBrowserCoverage({
+        ...f,
+        outputDirectory: join(f.root, 'outputs', mode),
+        ...(mode === 'hooked-driver-failure' ? { nodeHook: hook } : {}),
+      });
+      assert.equal(result.status, mode === 'reviewed-environment' ? 'PASS' : 'FAIL');
+      if (mode === 'missing-default-module') {
+        assert.equal(result.child.code, 1);
+        assert.equal(result.collection, null);
+        assert.match(result.child.stderr.toString(), /ERR_MODULE_NOT_FOUND/);
+      } else {
+        assert.ok(
+          replayBrowserCoverage({
+            manifest: f.manifest,
+            outputDirectory: result.directory,
+            index: result.collection.index,
+          }).observations.length,
+        );
+        if (mode === 'hooked-driver-failure') {
+          assert.equal(result.nodeChild.exitCode, 1);
+          assert.match(result.child.stderr.toString(), /EXPECTED_DRIVER_FAILURE/);
+        }
+      }
+    } finally {
+      process.chdir(cwd);
+      for (const key of keys) {
+        if (before[key] === undefined) delete process.env[key];
+        else process.env[key] = before[key];
+      }
+    }
+  });
+
 for (const failDriver of [false, true])
   test(`management child receipt replays actual ${failDriver ? 'FAIL' : 'PASS'} without claiming method admission`, async (t) => {
     const f = await fixture(t, failDriver);
