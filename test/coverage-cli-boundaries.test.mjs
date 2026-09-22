@@ -40,6 +40,25 @@ test('workflow launcher converts a signalled child into failure instead of a suc
   assert.equal(result.signal, null);
 });
 
+test('an earlier UTF-8 loader preserves first-party source behavior under the real coverage hook', () => {
+  const loader = `import {registerHooks} from 'node:module';registerHooks({load(url,context,next){const result=next(url,context);return result.source&&typeof result.source!=='string'?{...result,source:Buffer.from(result.source).toString('utf8')}:result;}});`;
+  const result = run(
+    '--input-type=module',
+    [
+      '-e',
+      `import assert from 'node:assert/strict';import {isTypeOnly} from './tools/coverage/inventory.mjs';assert.equal(isTypeOnly({type:'ExportAllDeclaration',exportKind:'value'}),false);`,
+    ],
+    {
+      env: {
+        ...process.env,
+        NODE_OPTIONS:
+          `--import=data:text/javascript,${encodeURIComponent(loader)} ${process.env.NODE_OPTIONS || ''}`.trim(),
+      },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test('type-only re-export proof distinguishes mixed and empty value exports', () => {
   const row = (specifiers) => ({ type: 'ExportNamedDeclaration', exportKind: 'value', specifiers });
   assert.equal(isTypeOnly(row([{ exportKind: 'type' }])), true);

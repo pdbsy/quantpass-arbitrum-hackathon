@@ -14,6 +14,7 @@ import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { createHash } from 'node:crypto';
 import { prepareCoverage } from '../tools/coverage/prepare.mjs';
 import { collectNodeWorkflow, verifyNodeWorkflow } from '../tools/coverage/collect.mjs';
 import { reportCoverage } from '../tools/coverage/report.mjs';
@@ -68,13 +69,17 @@ async function fixture(t) {
     AF_COVERAGE_RAW: raw,
     AF_COVERAGE_WORKFLOW: 'fixture',
   };
-  const run = (code) =>
-    spawnSync(process.execPath, ['--import', pathToFileURL(hook).href, '--input-type=module', '-e', code], {
-      cwd: root,
-      env,
-      encoding: 'utf8',
-      timeout: 10000,
-    });
+  const run = (code, beforeHook = []) =>
+    spawnSync(
+      process.execPath,
+      [...beforeHook, '--import', pathToFileURL(hook).href, '--input-type=module', '-e', code],
+      {
+        cwd: root,
+        env,
+        encoding: 'utf8',
+        timeout: 10000,
+      },
+    );
   return {
     root,
     prepared,
@@ -115,6 +120,55 @@ test('changed source fails and killed lifecycle keeps its start without inventin
   assert.notEqual(completed.exitCode, 0);
 });
 
+test('Node hook accepts unchanged UTF-8 string loader results and preserves their actual branch hit', async (t) => {
+  const f = await fixture(t);
+  const loader = `import {registerHooks} from 'node:module';registerHooks({load(url,context,next){const result=next(url,context);return result.source&&typeof result.source!=='string'?{...result,source:Buffer.from(result.source).toString('utf8')}:result;}});`;
+  const result = f.run("import {choose} from './choice.ts';if(choose(false)!==9)process.exit(4);", [
+    '--import',
+    `data:text/javascript,${encodeURIComponent(loader)}`,
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  const rows = readdirSync(f.raw)
+    .filter((name) => name.startsWith('complete-'))
+    .map((name) => JSON.parse(readFileSync(join(f.raw, name))));
+  assert.equal(rows.length, 1);
+  assert.deepEqual(rows[0].sources['choice.ts'].coverage.b['0'], [0, 1]);
+});
+
+test('uninstrumented diagnostic hook with no loaded sources records empty evidence instead of seeded hits', async (t) => {
+  const f = await fixture(t);
+  const rawHook = join(f.prepared.directory, 'unmeasured-hook.mjs');
+  copyFileSync(join(repository, 'tools/coverage/node-hook.mjs'), rawHook);
+  // A deliberately uninstrumented bootstrap is only a lower-bound diagnostic.
+  // The qualified collector separately requires its exact generated hook hash.
+  const bootstrap = `await import(${JSON.stringify(pathToFileURL(rawHook).href)});`;
+  const manifestBytes = readFileSync(join(f.prepared.directory, 'manifest.json'));
+  const generatedBytes = readFileSync(join(f.prepared.directory, 'generated.json'));
+  const digest = (value) => createHash('sha256').update(value).digest('hex');
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', bootstrap], {
+    cwd: f.root,
+    encoding: 'utf8',
+    timeout: 10000,
+    env: {
+      ...process.env,
+      NODE_OPTIONS: '',
+      AF_COVERAGE_ROOT: f.root,
+      AF_COVERAGE_PREPARED: f.prepared.directory,
+      AF_COVERAGE_RAW: f.raw,
+      AF_COVERAGE_WORKFLOW: 'diagnostic',
+      AF_COVERAGE_MANIFEST_SHA: digest(manifestBytes),
+      AF_COVERAGE_GENERATED_SHA: digest(generatedBytes),
+    },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const rows = readdirSync(f.raw)
+    .filter((name) => name.startsWith('complete-'))
+    .map((name) => JSON.parse(readFileSync(join(f.raw, name))));
+  assert.equal(rows.length, 1);
+  assert.deepEqual(rows[0].sources, {});
+  assert.deepEqual(Object.values(mergeObserved(f.manifest, rows).coverage['choice.ts'].b), [[0, 0]]);
+});
+
 test('bounded real workflow preserves pass/failure and rejects missing execution logs', async (t) => {
   const f = await fixture(t);
   const options = {
@@ -137,9 +191,10 @@ test('bounded real workflow preserves pass/failure and rejects missing execution
   });
   assert.equal(replay.state, 'PASS');
   assert.ok(replay.observations.length >= 2);
+  const failedOptions = { ...options };
+  delete failedOptions.artifactFiles;
   const failed = await collectNodeWorkflow(f.root, f.prepared.directory, {
-    ...options,
-    artifactFiles: [],
+    ...failedOptions,
     id: 'qualified-failure',
     args: ['-e', 'process.exit(7)'],
   });
