@@ -653,14 +653,18 @@ function redactStaticBracketAssignments(value) {
   return value;
 }
 
-function containsAuthorizationCredential(payload) {
+function containsAuthorizationCredential(payload, scheme) {
+  // An isolated Basic/Bearer token is credential-shaped even when it is short
+  // or contains no punctuation. Multiword explanatory prose still uses the
+  // bounded challenge/opaque-token checks below.
+  if (/^(?:basic|bearer)$/i.test(scheme) && /^[ \t]*[-A-Za-z0-9._~+/]+={0,}[ \t]*$/.test(payload))
+    return true;
   if (authorizationChallengeAssignmentPattern.test(payload)) return true;
   authorizationOpaqueTokenPattern.lastIndex = 0;
   let match;
   while ((match = authorizationOpaqueTokenPattern.exec(payload)) !== null) {
     const token = match[1];
-    if (token.length >= 24 || (token.length >= 12 && /\d/.test(token) && /[-._~+/=]/.test(token)))
-      return true;
+    if (token.length >= 24 || (token.length >= 12 && /\d/.test(token))) return true;
   }
   return false;
 }
@@ -674,7 +678,7 @@ function redactStandaloneAuthorizationSchemes(value) {
       isStructuredAssignmentTail(match.slice(scheme.length))
     )
       return match;
-    if (!containsAuthorizationCredential(match.slice(scheme.length))) return match;
+    if (!containsAuthorizationCredential(match.slice(scheme.length), scheme)) return match;
     return `${scheme} [REDACTED]`;
   });
 }

@@ -1540,3 +1540,23 @@ test('snapshot PASS requires commit evidence even when the presentation omits an
   nonzero.tests.items[0].exitCode = 1;
   assert.throws(() => validateDashboardSnapshot(nonzero), /PASS requires exitCode 0/);
 });
+
+test('short standalone Basic and Bearer credentials are redacted with or without header labels', () => {
+  const basic = Buffer.from('user:pass').toString('base64');
+  const bearer = ['abcdef', '123456'].join('');
+  for (const [scheme, payload] of [
+    ['Basic', basic],
+    ['Basic', Buffer.from('a:').toString('base64')],
+    ['Bearer', bearer],
+    ['Bearer', 'abc'],
+  ]) {
+    for (const prefix of ['', 'upstream replied ', 'Authorization: ']) {
+      const output = sanitizeLog(`${prefix}${scheme} ${payload}`);
+      assert.equal(output.includes(payload), false, `${scheme} credential leaked without its header label`);
+      assert.match(output, /\[REDACTED\]/);
+    }
+  }
+  assert.equal(sanitizeLog(`upstream replied Bearer ${bearer} (401)`).includes(bearer), false);
+  for (const prose of ['Basic authentication remains disabled.', 'Bearer market conditions', 'OAuth x'])
+    assert.equal(sanitizeLog(prose), prose);
+});
