@@ -31,3 +31,9 @@ The three-file runtime/journal suite53/53, typecheck and lint passed locally. Th
 ## Main delivery work
 
 01 continues PR22 source integration, complete coverage measurement, C/R/S and handoff. User explicitly restored06 testing after Public visibility;06 checks the remote exact head separately. Neither this audit nor a local successful test removes hosted checks, external governance/review requirements or the need for applicable merge/deployment authorization.
+
+## AUDIT-003 full-suite regression and correction
+
+The actual7b00e9f management collector recorded10PASS/1FAIL/4NOT_RUN;744a206 preserves its unmodified manifest. The original injected flow failed because removal of the finished withdraw hint allowed an older deposit hint to replace the current operation, hiding a later reorg. A new reconnect assertion separately reproduced the same switch throughconnect. Both raw failures remain retained.
+
+Refresh and reconnect now retain the same Owner's current in-memory operation for continued canonical/reorg tracking. Older saved operations are registered and checked separately, with their hints removed only on product-ready or terminal evidence. A new Owner does not inherit the old transaction display. The four runtime/journal/selection/injected suites58/58, typecheck and lint passed after correction. These are bounded local results; new full collector, browser and coverage evidence are still required.06 independently passed the original53 tests and typecheck at7b00e9f, explicitly without accepting that full candidate.

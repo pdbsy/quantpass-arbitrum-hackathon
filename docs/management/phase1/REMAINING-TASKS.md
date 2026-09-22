@@ -1,16 +1,16 @@
 # 第一阶段全量剩余任务矩阵
 
-唯一仓库pdbsy/quantpass-arbitrum-hackathon，已实时核实PUBLIC；PR22仍Draft/3a78e34。最近完整本地候选979f4aa：844/844、五功能流程通过，覆盖率89.64/86.69/90.28/80.96未达标。后续审计修复需独立复验，06已完成远程旧头9/9任务、7/7必需检查，新候选另测。旧65%finish不是当前完成率。
+归属AlphaForge / Robinhood Chain Testnet / pdbsy/quantpass-arbitrum-hackathon / PR22；与Xlayer分开。最近完整S54540a7为847/847、五流程通过，覆盖率89.63/86.68/90.28/80.96未达标。后续7b00e9f的真实采集10PASS/1FAIL/4NOT_RUN已保留，修复后58项专项通过，待新C/R/S全量复验。远程旧头3a78e34的9/9 CI不继承到新候选。
 
 字段以[JSON矩阵](remaining-tasks.json)为事实源；见[证据索引](FINAL-EVIDENCE-INDEX.md)和[审计校准](AUDIT-CALIBRATION-2026-09-22.md)。
 
 | Task | Owner | 目标 | 当前状态 | 关闭条件 | 证据 / 阻塞 |
 | --- | --- | --- | --- | --- | --- |
-| PH1-01 | 01 | 固定基线、登记、文档/路线图/状态板同步 | IN_PROGRESS | 所有来源映射；真实 ACK；无旧状态冒充当前 | Cef3480a/Rbb32896/S979f4aa真实采集与看板完成；844/844和五流程通过。当前审计修复须新C/R/S与全量复验 / NONE |
+| PH1-01 | 01 | 固定基线、登记、文档/路线图/状态板同步 | IN_PROGRESS | 所有来源映射；真实 ACK；无旧状态冒充当前 | 最近完整S54540a7：847/847与五流程通过；7b00e9f管理采集10PASS/1FAIL/4NOT_RUN已保存744a206；修复后待新C/R/S / NONE |
 | PH1-02 | 02 | Pass 固定供应、策略绑定、完整权限/事件/ABI；只补缺 | PASS_AT_LOCAL_C0DFE08_CHECKPOINT | 25 Vault selectors/7 topics 等完整 compiler equality；发行/转账精度及异常 token 回归 | Sc0dfe08原生Mac合约入口PASS：134/134 Solidity、25/25 Python、离线部署演练2/2、ABI/manifest和Slither通过；无RPC/签名/广播 / FINAL_CANDIDATE_EQUIVALENCE_AND_ACCEPTANCE |
 | PH1-03 | 02 | 可重建构建、constructor/immutables/bytecode 清单和本地 VM 演练 | PASS_AT_LOCAL_C0DFE08_CHECKPOINT | 干净重建一致；重复运行不覆盖；明确无外部链广播 | Sc0dfe08原生Mac合约入口PASS：134/134 Solidity、25/25 Python、离线部署演练2/2、ABI/manifest和Slither通过；无RPC/签名/广播 / FINAL_CANDIDATE_EQUIVALENCE_AND_ACCEPTANCE |
 | PH1-04 | 03 | manifest、地址/字节码/ABI、三方链身份与调用目标校验 | PASS_AT_PR26_SOURCE_CHECKPOINT | 错链/错地址/错ABI/错owner失败关闭；真实参数缺失保持 NOT_DEPLOYED | PR26 a4d73bb；05独立643/643，冻结Chain/API关键授权会计分支清单已通过；整体13文件95.39%分支保持原值；统一3a78e34已独立711/711通过，旧关键子集不重新标OPEN；本轮差异需准确复验 / CANDIDATE_DEPENDENCY |
-| PH1-05 | 03 | 拒签/revert/replaced/dropped/断线/模糊提交/重复回调恢复 | KNOWN_HASH_RECOVERY_FIXED_TARGETED_PASS_FULL_RETEST_PENDING | SUBMISSION_AMBIGUOUS 不自动重发；刷新恢复不重复经济动作 | 01在54540a7独立复现；已知hash持久恢复、原identity登记重试和重复意图保护修复；53/53/typecheck/lint通过，新候选待全量与独立复验 / CANDIDATE_RETEST |
+| PH1-05 | 03 | 拒签/revert/replaced/dropped/断线/模糊提交/重复回调恢复 | RECOVERY_REORG_FIX_TARGETED_PASS_FULL_RETEST_PENDING | SUBMISSION_AMBIGUOUS 不自动重发；刷新恢复不重复经济动作 | 7b00e9f全量发现旧提示覆盖当前交易；refresh和connect修复后58/58/typecheck/lint通过；06原53/53仅限定范围，新完整候选待复验 / CANDIDATE_RETEST |
 | PH1-06 | 03 | 有界 catch-up、重组、跨进程所有权和多实体隔离 | DELIVERED_PENDING_FINAL_ACCEPTANCE | 同块多操作不丢失；无共同祖先保留证据且持久degraded | 原共享Pass/多Vault隔离验收保留；03新增事务内失租回滚379d9cc仅改测试，经理f67e26e独立55/55 PASS；准确统一候选全测待执行 / CANDIDATE_DEPENDENCY |
 | PH1-07 | 03 | 数据库迁移、备份恢复、健康/故障说明和演练 | AUDIT_001_INDEPENDENT_LOCAL_RETEST_PASS | 备份一致且不覆盖原库；恢复后身份和索引对账；实际 RPO/RTO | 06在b9283da独立124/124与额外5项v6/v7恢复/结构拒绝/迁移回滚检查通过；至54540a7实现相同，非hosted或外部安全批准 / CANDIDATE_RETEST |
 | PH1-08 | 04 | 暖色英文实际入口、六页信息和数据来源标签 | EXPANDED_BROWSER_PASS_AT_979F4AA | 主页/市场/详情/账户/用户论坛/排名准确；不改未使用React入口 | 04扩展四组真实页面交互已集成并在979f4aa完整浏览器实测PASS；不能继承为后续修复源码PASS / FINAL_CANDIDATE_ACCEPTANCE |

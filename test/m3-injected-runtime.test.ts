@@ -69,6 +69,9 @@ test('injected runtime drives wrong-network, owner read, mock submit and recover
   assert.equal(runtime.snapshot.onchain.readiness, 'SOFT_READY');
   assert.equal(runtime.snapshot.transaction.status, 'READY');
 
+  await runtime.connect();
+  assert.equal(runtime.snapshot.transaction.status, 'READY');
+
   await fixture.setReorged();
   assert.equal(runtime.snapshot.onchain.readiness, 'REORGED');
   assert.equal(runtime.snapshot.transaction.status, 'FAILED');

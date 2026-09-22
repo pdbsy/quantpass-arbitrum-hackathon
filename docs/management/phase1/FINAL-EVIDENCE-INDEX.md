@@ -1,8 +1,12 @@
-# 最新本地工作 — PH1-05 已发送交易恢复
+# 当前工作 — AlphaForge / Robinhood Chain Testnet / PR22
 
-54540a7完整847/847、五功能流程、Semgrep/Gitleaks/source-policy、156条LOCAL身份及正式fnm环境通过；覆盖率89.63/86.68/90.28/80.96仍未达标。06独立核验b9283da核心124/124及额外5项数据库迁移/恢复/拒绝/回滚探针，且确认至54540a7实现完全相同；这是LOCAL工程复验，不是外部安全批准。远程旧头3a78e34的9/9 CI仍独立列示。
+归属：pdbsy/quantpass-arbitrum-hackathon；负责人Macbeth01；任务M3-01-PHASE1-CLOSEOUT。Xlayer是独立工作线，不共享候选、运行结果或验收状态。
 
-后续PH1-05/AUDIT-003已由01复现并修复：Vault与Pass的已知hash在登记API等待前持久保留；刷新/重新打开后按原identity重试登记和查询，不自动再次发送；相同未解决意图阻止重发，不同Owner退出review保留。存储按chain/Vault/manifest/Owner隔离、严格解析并有界；53/53专项、typecheck、lint通过。准确新C/R/S和全量验收待执行，不能继承54540a7的PASS。AUDIT-002的Locker误转范围仍待校准。NOT_READY_TO_MERGE。
+最近完整测量仍为54540a7：847/847、五功能流程、Semgrep/Gitleaks/source-policy、156条LOCAL身份及正式fnm环境通过；覆盖率89.63/86.68/90.28/80.96未达标。06独立验证b9283da核心124/124及5项迁移/恢复探针，相关实现至54540a7相同。远程3a78e34的9/9 CI只证明该旧头。
+
+已知钱包hash恢复实现7b00e9f的完整管理采集实际为10 PASS / 1 FAIL / 4 NOT_RUN；失败清单原样保存在744a206。注入流程暴露旧journal记录覆盖当前交易，影响重组展示；新增重新连接断言同样先失败。当前修复在refresh和connect保留同Owner当前operation，旧提示单独核对清理；切换Owner不沿用旧交易展示。四文件58/58、typecheck、lint通过，准确新C/R/S和全量验收待执行。06原7b00e9f三文件53/53只作为有界结果，不标全候选通过。
+
+AUDIT-002 Locker误转救援仍OPEN；依据现有第一阶段close后Owner救援要求校准。01继续集成、覆盖率、看板和交付；06负责本线CI门禁。NOT_READY_TO_MERGE；未发布新候选、merge、部署或广播。
 
 ## 此前准确检查点
 

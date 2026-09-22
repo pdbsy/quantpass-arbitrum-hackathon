@@ -603,13 +603,16 @@ class M3BrowserRuntime implements M3ProductRuntime {
         this.#session = connected.session;
         this.#publish(await this.#connectedPresentation(connected.session, connected.snapshot));
         const restored = this.#journal!.read(connected.session.account).at(-1);
-        if (restored) {
-          this.#pendingOperation = restored;
+        if (!this.#pendingOperation || !sameAddress(this.#pendingOperation.owner, connected.session.account))
+          this.#pendingOperation = restored ?? null;
+        if (this.#pendingOperation) {
           this.#publish({
             ...this.#snapshot,
-            transaction: { status: 'SUBMISSION_AMBIGUOUS', txHash: restored.txHash },
+            transaction: { status: 'SUBMISSION_AMBIGUOUS', txHash: this.#pendingOperation.txHash },
           });
           await this.refresh();
+        } else {
+          this.#publish({ ...this.#snapshot, transaction: { status: 'IDLE' } });
         }
       } else {
         const session = await this.#connection.connect();
@@ -701,9 +704,35 @@ class M3BrowserRuntime implements M3ProductRuntime {
     if (this.#deployment && this.#reader && this.#session) {
       let snapshot = await this.#readFlowSnapshot(this.#session.account);
       let presentation = await this.#connectedPresentation(this.#session, snapshot);
-      const restored = this.#journal!.read(this.#session.account).at(-1);
-      if (restored) this.#pendingOperation = restored;
+      const saved = this.#journal!.read(this.#session.account);
+      const restored = saved.at(-1);
+      // A completed recovery hint must not replace the current transaction being
+      // watched for a later reorg with an older unresolved operation.
+      if (
+        restored &&
+        (!this.#pendingOperation || !sameAddress(this.#pendingOperation.owner, this.#session.account))
+      )
+        this.#pendingOperation = restored;
       const pending = this.#pendingOperation;
+      for (const previous of saved) {
+        if (previous.operationId === pending?.operationId) continue;
+        try {
+          if (!this.#registeredOperations.has(previous.operationId)) {
+            if (!this.#reader.registerSubmission) continue;
+            await this.#reader.registerSubmission(previous);
+            this.#registeredOperations.add(previous.operationId);
+          }
+          const evidence = await this.#reader.readOperationEvidence?.(previous.operationId, previous.owner);
+          if (
+            evidence &&
+            (evidence.productReady ||
+              ['REJECTED', 'REVERTED', 'REPLACED', 'DROPPED'].includes(evidence.lifecycle))
+          )
+            this.#journal!.remove(previous);
+        } catch {
+          // Keep unresolved older hints without hiding the current transaction.
+        }
+      }
       if (pending && sameAddress(pending.owner, this.#session.account)) {
         try {
           if (!this.#registeredOperations.has(pending.operationId)) {
