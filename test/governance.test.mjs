@@ -946,3 +946,49 @@ test('human-facing governance status must match the machine decision', () => {
     semanticReadmeDigest('Governance decision status: **accepted**.\n'),
   );
 });
+
+test('governance normalization rejects missing markers and keeps section boundaries exact', () => {
+  for (const document of ['# fixture', 'Governance decision status: **unknown**.'])
+    assert.throws(() => semanticReadmeDigest(document), /exactly one recognized governance status/);
+  for (const document of ['# fixture', '- 状态：未审阅'])
+    assert.throws(() => semanticAdrDigest(document), /exactly one recognized decision status/);
+  const section = '## Current work\n\nGovernance decision status: **independent review (not accepted)**.\n';
+  assert.equal(semanticReadmeGovernanceDigest(section), semanticReadmeDigest(section));
+  assert.equal(
+    semanticReadmeGovernanceDigest(`${section}\n## Historical notes\nUnrelated text`),
+    semanticReadmeDigest(section),
+  );
+});
+
+test('review dates reject invalid evidence clocks and preserve civil-date boundary rules', () => {
+  assert.throws(
+    () => validateReviewDateWindow('2026-09-08', 'invalid', new Date('2026-09-09T00:00:00Z')),
+    /commit timestamp is invalid/,
+  );
+  assert.throws(
+    () => validateReviewDateWindow('2026-09-08', '2026-09-08T00:00:00Z', new Date(NaN)),
+    /current time is invalid/,
+  );
+  assert.throws(
+    () => validateReviewDateWindow('2026-09-08', '2026-09-09T12:00:00Z', new Date('2026-09-10T00:00:00Z')),
+    /predates/,
+  );
+  assert.doesNotThrow(() =>
+    validateReviewDateWindow('2026-09-08', '2026-09-09T11:59:59.999Z', new Date('2026-09-10T00:00:00Z')),
+  );
+});
+
+test('governance review rendering retains each nonblocking qualification verbatim', () => {
+  const review = makeValidReview();
+  review.reviewers[0].nonBlockingNotes = ['fixture reviewer limitation'];
+  review.nonBlockingRecommendations = ['fixture recommendation'];
+  review.limitations = ['fixture scope limitation'];
+  validateGovernanceReview(review, boundary);
+  const html = renderGovernanceReview(review);
+  for (const expected of [
+    'fixture reviewer limitation',
+    'fixture recommendation',
+    'fixture scope limitation',
+  ])
+    assert.equal(html.split(expected).length - 1, 1);
+});

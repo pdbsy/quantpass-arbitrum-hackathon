@@ -100,3 +100,65 @@ test('reusable browser workflow rejects non-loopback origins before touching the
       /M3_BROWSER_REQUIRES_LOOPBACK_ORIGIN/,
     );
 });
+
+test('wallet evidence rejects malformed envelopes, nonzero native value, and mismatched token calldata', () => {
+  const options = { vaults: [VAULT_A, VAULT_B], pass: PASS, afUsdc: AF_USDC };
+  const valid = send(VAULT_A, encodeM3VaultCall('deposit(uint256)', [1n]));
+  for (const transaction of [
+    null,
+    1,
+    [],
+    {},
+    ...['to', 'from', 'data', 'value'].map((field) => {
+      const copy = { ...valid.params[0] };
+      delete copy[field];
+      return copy;
+    }),
+    ...Object.entries({ to: 'invalid', from: 'invalid', data: '0xnothex', value: '0x1' }).map(
+      ([key, value]) => ({ ...valid.params[0], [key]: value }),
+    ),
+  ]) {
+    assert.throws(
+      () => analyzeM3WalletRequests([{ method: 'eth_sendTransaction', params: [transaction] }], options),
+      /M3_BROWSER_INVALID_WALLET_SEND/,
+    );
+  }
+  for (const [to, data, code] of [
+    [PASS, '0x095ea7b3', 'INVALID_APPROVAL'],
+    [PASS, `0x095ea7b3${word(VAULT_A)}${amountWord(1n)}00`, 'INVALID_APPROVAL'],
+    [VAULT_A, `0x095ea7b3${word(VAULT_A)}${amountWord(1n)}`, 'INVALID_APPROVAL'],
+    [PASS, '0xa9059cbb', 'INVALID_PASS_TRANSFER'],
+    [PASS, `0xa9059cbb${word(RECIPIENT)}${amountWord(1n)}00`, 'INVALID_PASS_TRANSFER'],
+    [AF_USDC, `0xa9059cbb${word(RECIPIENT)}${amountWord(1n)}`, 'INVALID_PASS_TRANSFER'],
+    [PASS, '0x12345678', 'UNEXPECTED_TOKEN_CALL'],
+    [VAULT_A, '0x12345678', 'INVALID_VAULT_CALL'],
+    [VAULT_A, '0xb6b55f25', 'INVALID_VAULT_CALL'],
+  ]) {
+    assert.throws(
+      () => analyzeM3WalletRequests([send(to, asHexData(data))], options),
+      new RegExp(`M3_BROWSER_${code}`),
+    );
+  }
+  assert.deepEqual(analyzeM3WalletRequests([{ method: 'eth_accounts', params: [] }], options), []);
+});
+
+test('wallet evidence preserves exact withdraw and rescue identities and uint256 precision', () => {
+  const maximum = (1n << 256n) - 1n;
+  const requests = [
+    send(VAULT_A, encodeM3VaultCall('withdraw(uint256)', [maximum])),
+    send(VAULT_B, encodeM3VaultCall('rescueUntrackedToken(address)', [RECIPIENT])),
+    send(VAULT_B, encodeM3VaultCall('rescueNative()', [])),
+    send(PASS, asHexData(`0xa9059cbb${word(RECIPIENT)}${amountWord(maximum)}`)),
+  ];
+  const before = structuredClone(requests);
+  assert.deepEqual(
+    analyzeM3WalletRequests(requests, { vaults: [VAULT_A, VAULT_B], pass: PASS, afUsdc: AF_USDC }),
+    [
+      { kind: 'WITHDRAW', target: VAULT_A, amount: maximum },
+      { kind: 'RESCUE_UNTRACKED_TOKEN', target: VAULT_B, token: RECIPIENT },
+      { kind: 'RESCUE_NATIVE', target: VAULT_B },
+      { kind: 'TRANSFER_PASS', target: PASS, recipient: RECIPIENT, amount: maximum },
+    ],
+  );
+  assert.deepEqual(requests, before);
+});
