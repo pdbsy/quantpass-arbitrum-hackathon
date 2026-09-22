@@ -1,0 +1,15 @@
+{
+  "original": "bf54f914f02c09bbce22d19f8f57d5c20f3083c1",
+  "corrected": "1dd5ca0fb03682b5b487ab68be424b35e4386d77",
+  "tree": "8f611fd36a38c357a73949630b358b20cbdecf56",
+  "parent": "a10e921481d5a7200aa1602c1ec012b4a0cf60dd",
+  "preservedOriginalRef": "refs/archive/macbeth04/bf54f914-original-delivery",
+  "correctedBranch": "refs/heads/macbeth04/m3-phase1-product-visible-metadata",
+  "local_ref": "refs/remotes/local-macbeth04/m3-phase1-product-visible-metadata",
+  "onlyChange": "Append required Agent-ID and Task-ID message trailers",
+  "authorAuthorDateCommitterCommitterDatePreserved": true,
+  "treeDiffExitCode": 0,
+  "authorization": "User continue directly following the exact metadata-only decision request; 2026-09-22",
+  "workerWorkspaceModified": false,
+  "remoteMutation": false
+}

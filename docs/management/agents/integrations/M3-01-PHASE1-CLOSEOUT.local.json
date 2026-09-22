@@ -23,9 +23,9 @@
     {
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
-      "branch": "macbeth04/m3-phase1-product-race",
-      "head": "a10e921481d5a7200aa1602c1ec012b4a0cf60dd",
-      "local_ref": "refs/remotes/local-macbeth04/m3-phase1-product-race"
+      "branch": "macbeth04/m3-phase1-product-visible-metadata",
+      "head": "1dd5ca0fb03682b5b487ab68be424b35e4386d77",
+      "local_ref": "refs/remotes/local-macbeth04/m3-phase1-product-visible-metadata"
     },
     {
       "agent": "Macbeth05",
