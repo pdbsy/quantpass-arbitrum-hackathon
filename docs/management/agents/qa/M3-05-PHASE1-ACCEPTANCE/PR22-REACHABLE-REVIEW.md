@@ -114,3 +114,93 @@ tracked dependency bytes, optional alias inventory and rejection of a missing de
 Targeted results: 27 CLI/runtime tests, one additional default-prototype test and four real-browser
 tests pass. The earlier full qualified tests remain separate evidence. A fresh diagnostic is required
 after committing this batch; no previous raw counters are edited or promoted to final acceptance.
+
+## Original 74-row classification at 8b1f45e
+
+Exact diagnostic receipt: `delta-8b1f45e-1790118933684.json`, SHA-256 `b2ca91f5fc257e73e43291fd4769b3f25e4d6d6c63ae4febc4bde7b9aa34c1ec`.
+
+58 original gaps have observed counters on identical source digests and complete branch maps. Two retained gaps have the bounded proofs below. All 14 old browser-legacy positions changed source graph and are separately verified on the current graph; none is added to the 58. The corresponding expression and arm were checked against both commits. This is not a full candidate run or denominator reduction.
+
+| Original gap ID | Classification | Evidence |
+| --- | --- | --- |
+| `tools/coverage/browser-legacy.mjs::0::0` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 1 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::6::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 1 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::7::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 1 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::11::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 1 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::15::0` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 1 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::16::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 3 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::17::0` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 3 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::17::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 1 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::18::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 3 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::19::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 3 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::21::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 3 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::22::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 1 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::23::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 2 current-graph hits; old counter not reused |
+| `tools/coverage/browser-legacy.mjs::25::1` | CHANGED_GRAPH_SEPARATELY_VERIFIED | 3 current-graph hits; old counter not reused |
+| `tools/coverage/browser-lifecycle.mjs::5::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::6::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::7::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::9::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::10::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::11::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::12::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::12::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::13::1` | INACTIVE_UNDER_CURRENT_SYNCHRONOUS_LIFECYCLE | Source proof below; 0 hits |
+| `tools/coverage/browser-lifecycle.mjs::15::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 3 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::18::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::19::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 6 original-graph hits |
+| `tools/coverage/browser-lifecycle.mjs::21::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/browser.mjs::9::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 4 original-graph hits |
+| `tools/coverage/browser.mjs::13::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/browser.mjs::14::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 10 original-graph hits |
+| `tools/coverage/browser.mjs::14::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser.mjs::15::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser.mjs::16::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/browser.mjs::17::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/collect.mjs::4::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/inventory.mjs::5::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 3 original-graph hits |
+| `tools/coverage/inventory.mjs::6::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 3 original-graph hits |
+| `tools/coverage/inventory.mjs::6::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/launch.mjs::1::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/node-hook.mjs::4::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/node-hook.mjs::6::1` | INACTIVE_UNDER_ADMITTED_INSTRUMENTED_HOOK | Source proof below; 0 hits |
+| `tools/coverage/prepare.mjs::2::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 3 original-graph hits |
+| `tools/coverage/prepare.mjs::4::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 4 original-graph hits |
+| `tools/coverage/prepare.mjs::4::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 3 original-graph hits |
+| `tools/coverage/prepare.mjs::4::2` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/prototype-map.mjs::2::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 4 original-graph hits |
+| `tools/coverage/report.mjs::3::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/report.mjs::4::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/report.mjs::5::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/report.mjs::7::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/report.mjs::7::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/run-browser.mjs::7::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run-browser.mjs::13::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/run-browser.mjs::14::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run-browser.mjs::14::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/run.mjs::0::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 16 original-graph hits |
+| `tools/coverage/run.mjs::0::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 15 original-graph hits |
+| `tools/coverage/run.mjs::0::2` | VERIFIED_ORIGINAL_GRAPH_HIT | 14 original-graph hits |
+| `tools/coverage/run.mjs::1::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::1::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::2::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::2::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::3::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 4 original-graph hits |
+| `tools/coverage/run.mjs::3::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::4::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::4::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::5::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::5::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::6::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::6::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::7::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/run.mjs::7::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 2 original-graph hits |
+| `tools/coverage/toolchain.mjs::11::0` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+| `tools/coverage/toolchain.mjs::12::1` | VERIFIED_ORIGINAL_GRAPH_HIT | 1 original-graph hits |
+
+### Retained zero-count positions
+
+- `tools/coverage/browser-lifecycle.mjs::13::1`: The outer evidence-failure catch follows synchronous raw persistence/JSON parse/map validation. These cannot interleave page events. Its only await (counter reset) has an inner catch and identity checks that return immediately when the active interval changes. Successful complete clears active only at its last nonthrowing assignment. Under native filesystem/intrinsic objects and supported page callbacks, every error reaching the outer catch still has the same interval. The defensive false arm remains in the denominator. Adding an await before the outer catch, a new asynchronous mutation or custom reentrant persistence/object behavior invalidates this proof.
+- `tools/coverage/node-hook.mjs::6::1`: The collector verifies and executes the generated Istanbul hook, whose initializer establishes globalThis.__coverage__ before registering the exit callback. Current admitted workloads do not delete that object; no absent-global state reaches this fallback in that flow. A raw uninstrumented bootstrap has a genuine empty observation test, but it provides no generated-hook counter and is not admissible as a positive hit for this source. This is not a claim that arbitrary JavaScript cannot delete the global. A raw-hook entrypoint, instrumentation change, or workload that removes/replaces the global requires new review and evidence-integrity checks.
+
+The CLI protocol cases substitute expensive worker outcomes and prove receipt/exit behavior only. Real Chromium workflow, blocked-network and task-board behavior are verified by the separate qualified tests. The raw uninstrumented Node-hook case is diagnostic only. Macbeth06 independently passed the test-only batch at 8b1f45e; the two bounded proofs require its separate review.
