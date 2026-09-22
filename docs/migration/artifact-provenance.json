@@ -1980,9 +1980,9 @@
       "source_commit": "136abc8aecd8d08ae39efa75d4ba3be35b7ef19f",
       "source_agent": "Macbeth02",
       "target_path": "tools/verify-ui-browser.mjs",
-      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
+      "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; subsequent visible-browser assertion extension from Macbeth04 1dd5ca0fb03682b5b487ab68be424b35e4386d77 (metadata-only mapping from bf54f914), original source hash retained",
       "original_sha256": "4668e613f77c694aa66e8f43015c2d9f093fe8bf938f0d713e1baa6d627691e9",
-      "migrated_sha256": "4668e613f77c694aa66e8f43015c2d9f093fe8bf938f0d713e1baa6d627691e9"
+      "migrated_sha256": "2a96c3f47592327c48f46c01ebe51b89cb50362ba4b1c191b09d3b16512bb58c"
     }
   ]
 }
