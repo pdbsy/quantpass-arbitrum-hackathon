@@ -50,7 +50,7 @@
     "m3:recovery": "node tools/chain-recovery.ts",
     "verify:local-agent-integration": "node tools/check-local-agent-integration.mjs",
     "coverage:node": "node tools/coverage/run.mjs",
-    "coverage:qualify:browser": "node --test test/coverage-browser.qualified.test.mjs test/coverage-task-board.qualified.test.mjs"
+    "coverage:qualify:browser": "node --test test/coverage-browser.qualified.test.mjs test/coverage-task-board.qualified.test.mjs test/coverage-browser-paths.qualified.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -80,7 +80,11 @@ const qualification = {
     'test/coverage-preparation.qualified.test.mjs',
     'test/coverage-node-hook.qualified.test.mjs',
     ...(options.browserDirectory
-      ? ['test/coverage-browser.qualified.test.mjs', 'test/coverage-task-board.qualified.test.mjs']
+      ? [
+          'test/coverage-browser.qualified.test.mjs',
+          'test/coverage-task-board.qualified.test.mjs',
+          'test/coverage-browser-paths.qualified.test.mjs',
+        ]
       : []),
   ],
 };
