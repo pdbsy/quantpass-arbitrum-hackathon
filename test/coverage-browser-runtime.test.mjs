@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, statSync, existsSy
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
-import { prepareLegacyRuntime } from '../tools/coverage/browser-legacy.mjs';
+import { prepareLegacyRuntime, collectLegacyBrowserCoverage } from '../tools/coverage/browser-legacy.mjs';
 
 const git = (cwd, ...args) =>
   execFileSync('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args], {
@@ -88,6 +88,91 @@ test('browser runtime rejects a source candidate mismatch', async (t) => {
     }),
     /candidate/,
   );
+});
+
+test('runtime fallback copies caller dependencies independently and accepts an absent alias inventory', async (t) => {
+  const { root, base } = fixture(t);
+  const caller = resolve(base, 'caller');
+  mkdirSync(resolve(caller, 'node_modules'), { recursive: true });
+  writeFileSync(resolve(caller, 'node_modules', 'dependency.txt'), 'caller dependency');
+  const manifest = {
+    candidateCommit: git(root, 'rev-parse', 'HEAD'),
+    candidateTree: git(root, 'rev-parse', 'HEAD^{tree}'),
+    sources: {},
+  };
+  const prior = process.cwd();
+  try {
+    process.chdir(caller);
+    const { runtimeRoot } = await prepareLegacyRuntime({
+      root,
+      manifest,
+      generated: {},
+      workflow: 'management',
+      outputDirectory: resolve(base, 'fallback'),
+    });
+    const copied = resolve(runtimeRoot, 'node_modules', 'dependency.txt');
+    assert.equal(readFileSync(copied, 'utf8'), 'caller dependency');
+    assert.notEqual(statSync(copied).ino, statSync(resolve(caller, 'node_modules', 'dependency.txt')).ino);
+    writeFileSync(copied, 'runtime only');
+    assert.equal(
+      readFileSync(resolve(caller, 'node_modules', 'dependency.txt'), 'utf8'),
+      'caller dependency',
+    );
+    assert.equal(git(root, 'status', '--porcelain'), '');
+  } finally {
+    process.chdir(prior);
+  }
+});
+
+test('runtime preparation preserves tracked dependency bytes instead of overwriting candidate history', async (t) => {
+  const { root, base } = fixture(t);
+  mkdirSync(resolve(root, 'node_modules'));
+  writeFileSync(resolve(root, 'node_modules', 'dependency.txt'), 'tracked dependency');
+  git(root, 'add', '-f', 'node_modules/dependency.txt');
+  git(root, 'commit', '-m', 'tracked dependency fixture');
+  const manifest = {
+    candidateCommit: git(root, 'rev-parse', 'HEAD'),
+    candidateTree: git(root, 'rev-parse', 'HEAD^{tree}'),
+    sources: {},
+    aliases: {},
+  };
+  const { runtimeRoot } = await prepareLegacyRuntime({
+    root,
+    manifest,
+    generated: {},
+    workflow: 'management',
+    outputDirectory: resolve(base, 'tracked-dependency'),
+    nodeModulesDirectory: resolve(base, 'unused-override'),
+  });
+  assert.equal(
+    readFileSync(resolve(runtimeRoot, 'node_modules', 'dependency.txt'), 'utf8'),
+    'tracked dependency',
+  );
+  assert.equal(git(runtimeRoot, 'status', '--porcelain'), '');
+  assert.equal(git(runtimeRoot, 'rev-parse', 'HEAD'), manifest.candidateCommit);
+});
+
+test('the default legacy workflow rejects a missing prototype before any browser launch', async (t) => {
+  const { root, base } = fixture(t);
+  mkdirSync(resolve(root, 'node_modules'));
+  const manifest = {
+    candidateCommit: git(root, 'rev-parse', 'HEAD'),
+    candidateTree: git(root, 'rev-parse', 'HEAD^{tree}'),
+    sources: {},
+    aliases: {},
+  };
+  await assert.rejects(
+    collectLegacyBrowserCoverage({
+      root,
+      manifest,
+      generated: {},
+      tools: {},
+      outputDirectory: resolve(base, 'missing-prototype'),
+      nodeModulesDirectory: resolve(root, 'node_modules'),
+    }),
+    (error) => error.code === 'ENOENT' && /AlphaForge_v3_EN\.html/.test(error.path),
+  );
+  assert.equal(git(root, 'status', '--porcelain'), '');
 });
 
 test('browser runtime can use an ignored output under the source without copying itself', async (t) => {

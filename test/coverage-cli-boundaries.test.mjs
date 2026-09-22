@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,6 +20,74 @@ function run(script, args, options = {}) {
     ...options,
   });
 }
+
+// Exercise the real receipt writer and exit contract with controlled worker outcomes.
+// These are protocol tests; the qualified browser suites separately run real Chrome.
+for (const scenario of [
+  'default-pass',
+  'explicit-fail',
+  'default-throw',
+  'explicit-throw',
+  'management-missing-summary',
+])
+  test(`browser CLI preserves worker failure and workflow identity in its receipt: ${scenario}`, (t) => {
+    const directory = mkdtempSync(join(tmpdir(), 'alphaforge-browser-receipt-'));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    const raw = join(directory, 'raw');
+    mkdirSync(raw);
+    const manifest = { candidateCommit: 'a'.repeat(40), candidateTree: 'b'.repeat(40) };
+    const bytes = JSON.stringify(manifest) + '\n';
+    writeFileSync(join(directory, 'manifest.json'), bytes);
+    const throwing = scenario.endsWith('throw');
+    const state = scenario === 'default-pass' ? 'PASS' : 'FAIL';
+    const management = scenario.startsWith('management');
+    const result = management
+      ? { status: state, directory, driver: 'tools/verify-management-browser.mjs', collection: null }
+      : {
+          directory,
+          index: { file: 'fixture-index.json' },
+          workflowResult: { state, checks: ['fixture-worker-result'] },
+        };
+    const worker = throwing
+      ? `throw new Error('EXPECTED_WORKER_REJECTION');`
+      : `return ${JSON.stringify(result)};`;
+    const mocks = {
+      [pathToFileURL(resolve(root, 'tools/coverage/prepare.mjs')).href]:
+        `export async function verifyPrepared(){return {manifest:${JSON.stringify(manifest)},generated:{},tools:{}};}`,
+      [pathToFileURL(resolve(root, 'tools/coverage/browser.mjs')).href]:
+        `export async function collectBrowserCoverage(){${worker}}`,
+      [pathToFileURL(resolve(root, 'tools/coverage/browser-legacy.mjs')).href]:
+        `export async function collectLegacyBrowserCoverage(){${worker}}`,
+    };
+    const hook = join(directory, 'workers.mjs');
+    writeFileSync(
+      hook,
+      `import {registerHooks} from 'node:module';Object.assign(process.env,${JSON.stringify({ AF_COVERAGE_PREPARED: directory, AF_COVERAGE_RAW: raw })});const mocks=${JSON.stringify(mocks)};registerHooks({load(url,context,next){return Object.hasOwn(mocks,url)?{format:'module',source:mocks[url],shortCircuit:true}:next(url,context);}});`,
+    );
+    const args = [
+      '--import',
+      pathToFileURL(hook).href,
+      'tools/coverage/run-browser.mjs',
+      '--browser-tools',
+      directory,
+      '--chrome',
+      process.execPath,
+      '--base',
+      manifest.candidateCommit,
+    ];
+    if (!scenario.startsWith('default')) args.push('--workflow', management ? 'management' : 'm3');
+    const child = run(args[0], args.slice(1));
+    assert.equal(child.status, state === 'PASS' ? 0 : 1, child.stderr);
+    const receipt = JSON.parse(readFileSync(join(directory, 'browser-receipt.json')));
+    assert.equal(receipt.state, state);
+    assert.equal(receipt.workflow, management ? 'management' : 'm3');
+    assert.equal(receipt.candidateCommit, manifest.candidateCommit);
+    assert.equal(receipt.candidateTree, manifest.candidateTree);
+    assert.equal(receipt.manifestSha256, createHash('sha256').update(bytes).digest('hex'));
+    if (throwing) assert.equal(receipt.error, 'EXPECTED_WORKER_REJECTION');
+    if (management || throwing) assert.equal(receipt.index, undefined);
+    assert.equal(child.stdout, '');
+  });
 
 for (const script of ['prepare.mjs', 'run.mjs'])
   for (const args of [['--unknown', 'value'], ['--base'], ['--base', 'a', '--base', 'b']])
