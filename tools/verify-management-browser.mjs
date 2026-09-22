@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verifyManagementBoundaries } from '../test/helpers/management-browser-boundaries.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -104,12 +105,15 @@ try {
   await page.reload();
   await page.waitForLoadState('networkidle');
   assert.ok((await page.locator('#worker-reports article').count()) > 0);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const boundaryChecks = await verifyManagementBoundaries(page, origin);
   assert.deepEqual(errors, []);
   const result = {
     status: 'PASS',
     head: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     workingTreeClean: execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim() === '',
     checks: [
+      ...boundaryChecks,
       'Canonical Forum messages and literal search',
       'Worker reports preserve sources and support literal search',
       'Desktop/mobile no horizontal overflow',

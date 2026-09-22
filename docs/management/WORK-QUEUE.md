@@ -1,3 +1,11 @@
+# 当前队列覆盖 — 本地交付
+
+归属：AlphaForge / Robinhood Chain Testnet / PR #22；Macbeth01；与 Xlayer 分离。用户最新选择“暂不发布，保留本地交付”；下表早期派单不构成新一轮启动或发布授权。本轮01继续本地回归、看板修复、C/R/S、覆盖率与离线交付封存；没有启动新 worker。
+
+当前细节见 [边界回归](phase1/BOUNDARY-REGRESSIONS-2026-09-22.md)。此前06回传的独立回滚探针及覆盖方法有限复核保留原始范围，不视为新候选全量验收。NOT_READY_TO_MERGE。
+
+## 先前队列（原始记录保留）
+
 # 当前第一阶段工作队列 — 2026-09-20
 
 以 [22项全量矩阵及41项旧路线映射](phase1/REMAINING-TASKS.md) 和 [02–06准确任务](phase1/ASSIGNMENTS.md) 为当前队列。经理PR22，从实际master18f5352开始；全部worker问题统一返回01。

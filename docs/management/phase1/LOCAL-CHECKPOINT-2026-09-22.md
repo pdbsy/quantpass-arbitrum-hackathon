@@ -1,3 +1,15 @@
+# 当前本地收口 — 边界回归与看板修复
+
+归属：AlphaForge / Robinhood Chain Testnet / Hackathon / PR #22；Macbeth01。用户选择“暂不发布，保留本地交付”，本轮不操作远程或链，不涉及 Xlayer。
+
+最近完整检查点 c5247de 已通过858/858及8条工作流，141 Solidity/25 Python/2离线演练。其总体覆盖率为行91.06%、语句87.90%、函数91.27%、分支81.83%，完整分母保留；尚未达到保守四维90%。准确证据已封存在本地 c5247de-handoff。
+
+本轮新增安全模型62项、管理UI36项回归，合计115项通过；旧界面真实浏览器新增254条边界断言。发现并修复看板接受继承属性/数组状态的问题，保留 RED 及真实浏览器失败记录。完整新候选、C/R/S与覆盖率将重新执行，不能继承旧头 PASS。详见 [本轮记录](BOUNDARY-REGRESSIONS-2026-09-22.md)。
+
+NOT_READY_TO_MERGE。覆盖阈值、正式方法/关键语义、最终复核/治理与新头托管验证分别保留状态。公开发布限制由用户决定，本轮不重复请求批准。
+
+## 先前检查点（原始记录保留）
+
 # 当前已验证检查点 — 778f71a
 
 归属：AlphaForge / Robinhood Chain Testnet / Hackathon；pdbsy/quantpass-arbitrum-hackathon；PR #22；负责人 Macbeth01 / M3-01-PHASE1-CLOSEOUT。Xlayer 为独立工作线。

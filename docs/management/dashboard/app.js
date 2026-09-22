@@ -28,9 +28,9 @@ let taskView = 'board';
 let dashboardQuery = '';
 
 export function statusLabel(status) {
-  const label = STATUS_LABELS[status];
-  if (!label) throw new Error(`UNKNOWN_STATUS: ${String(status)}`);
-  return label;
+  if (typeof status !== 'string' || !Object.hasOwn(STATUS_LABELS, status))
+    throw new Error(`UNKNOWN_STATUS: ${String(status)}`);
+  return STATUS_LABELS[status];
 }
 
 export function severityClass(severity) {
@@ -786,7 +786,8 @@ function renderRecords(id, records, emptyMessage) {
     item.append(element('strong', null, `${record.id ?? '记录'} · ${record.title ?? record.source}`));
     if (record.severity && SEVERITIES.has(record.severity))
       item.append(element('span', `severity ${severityClass(record.severity)}`, record.severity));
-    if (record.status && STATUS_LABELS[record.status]) item.append(badge(record.status));
+    if (typeof record.status === 'string' && Object.hasOwn(STATUS_LABELS, record.status))
+      item.append(badge(record.status));
     list.append(item);
   }
   body.append(list);

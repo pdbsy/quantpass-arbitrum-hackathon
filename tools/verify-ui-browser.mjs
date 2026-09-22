@@ -1,5 +1,6 @@
 /* global window, document, innerWidth */
 import assert from 'node:assert/strict';
+import { verifyPrototypeBoundaries } from '../test/helpers/prototype-browser-boundaries.mjs';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -550,6 +551,15 @@ try {
   });
   checks.push(
     'Prototype Pass trading exposes chart controls, asset context, invalid input, reviewed buy and sell receipts, and account readback',
+  );
+
+  const boundaryCases = await verifyPrototypeBoundaries(page);
+  await writeFile(
+    resolve(evidence, 'prototype-boundaries.json'),
+    JSON.stringify({ scope: 'LOCAL_DEMO_MODEL', assertions: boundaryCases }, null, 2) + '\n',
+  );
+  checks.push(
+    `Prototype model: ${boundaryCases.length} rejection, atomicity, settlement, and corrupt-storage assertions`,
   );
 
   for (const route of [

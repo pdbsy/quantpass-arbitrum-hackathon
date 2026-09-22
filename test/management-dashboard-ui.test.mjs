@@ -271,3 +271,227 @@ test('task detail copies arrays and failed refresh retains the last valid snapsh
     generatedAt: 'new',
   });
 });
+
+test('status labels reject inherited Object properties as unknown statuses', () => {
+  for (const value of ['constructor', 'toString', '__proto__', 'hasOwnProperty', ['READY']])
+    assert.throws(() => statusLabel(value), /UNKNOWN_STATUS/);
+});
+
+const snapshotFixture = JSON.parse(await readFile(new URL('data/dashboard.json', dashboardRoot), 'utf8'));
+const invalidUiSnapshots = [
+  [
+    'array status',
+    (s) => {
+      s.project.status = ['READY'];
+      return s;
+    },
+  ],
+  ['null snapshot', () => null],
+  ...['project', 'integration', 'security', 'tests', 'build', 'hackathon', 'network', 'host'].map((field) => [
+    `invalid ${field} status`,
+    (s) => {
+      s[field].status = 'UNREGISTERED';
+      return s;
+    },
+  ]),
+  [
+    'inherited status',
+    (s) => {
+      s.project.status = 'constructor';
+      return s;
+    },
+  ],
+  [
+    'invalid manager status',
+    (s) => {
+      s.management.currentStatus.status = 'UNREGISTERED';
+      return s;
+    },
+  ],
+  ...['workers', 'tasks', 'knownIssues', 'blockers', 'links', 'sourceHealth', 'dashboardLog'].map((field) => [
+    `missing ${field} array`,
+    (s) => {
+      s[field] = null;
+      return s;
+    },
+  ]),
+  [
+    'extra worker',
+    (s) => {
+      s.workers.push({ ...s.workers[0] });
+      return s;
+    },
+  ],
+  [
+    'reordered workers',
+    (s) => {
+      s.workers.reverse();
+      return s;
+    },
+  ],
+  [
+    'invalid worker status',
+    (s) => {
+      s.workers[0].status = 'UNREGISTERED';
+      return s;
+    },
+  ],
+  [
+    'invalid task status',
+    (s) => {
+      s.tasks = [{ status: 'UNREGISTERED' }];
+      return s;
+    },
+  ],
+  [
+    'nonstring link path',
+    (s) => {
+      s.links = [{ status: 'READY', path: 1, label: 'fixture' }];
+      return s;
+    },
+  ],
+  [
+    'nonstring link label',
+    (s) => {
+      s.links = [{ status: 'READY', path: 'docs/fixture.md', label: 1 }];
+      return s;
+    },
+  ],
+  [
+    'invalid source status',
+    (s) => {
+      s.sourceHealth = [{ status: 'UNREGISTERED' }];
+      return s;
+    },
+  ],
+  [
+    'invalid diagnostic level',
+    (s) => {
+      s.dashboardLog = [{ level: 'info', code: 'fixture', source: 'fixture' }];
+      return s;
+    },
+  ],
+  [
+    'invalid diagnostic code',
+    (s) => {
+      s.dashboardLog = [{ level: 'error', code: 1, source: 'fixture' }];
+      return s;
+    },
+  ],
+  [
+    'invalid diagnostic source',
+    (s) => {
+      s.dashboardLog = [{ level: 'warning', code: 'fixture', source: 1 }];
+      return s;
+    },
+  ],
+  [
+    'null diagnostic',
+    (s) => {
+      s.dashboardLog = [null];
+      return s;
+    },
+  ],
+  [
+    'invalid check status',
+    (s) => {
+      s.tests.items = [{ status: 'UNREGISTERED' }];
+      return s;
+    },
+  ],
+  [
+    'invalid finding severity',
+    (s) => {
+      s.security.findings = [{ severity: 'UNREGISTERED' }];
+      return s;
+    },
+  ],
+];
+for (const [label, change] of invalidUiSnapshots)
+  test(`dashboard loading rejects ${label} without exposing source details`, async () => {
+    const result = await loadDashboard(async () => ({
+      ok: true,
+      json: async () => change(structuredClone(snapshotFixture)),
+    }));
+    assert.deepEqual(result, {
+      state: 'error',
+      status: 'DATA_SOURCE_ERROR',
+      message: '无法读取 Dashboard 数据。请运行本地生成命令后重试。',
+    });
+  });
+
+test('dashboard loading preserves a valid snapshot, rejects unavailable transport and malformed JSON', async () => {
+  const snapshot = structuredClone(snapshotFixture);
+  const requests = [];
+  const valid = await loadDashboard(async (...args) => {
+    requests.push(args);
+    return { ok: true, json: async () => snapshot };
+  });
+  assert.deepEqual(valid, { state: 'ready', data: snapshot });
+  assert.deepEqual(requests, [['./data/dashboard.json', { credentials: 'same-origin', cache: 'no-store' }]]);
+  for (const fetcher of [
+    null,
+    async () => null,
+    async () => ({ ok: false }),
+    async () => ({
+      ok: true,
+      json: async () => {
+        throw new Error('private fixture content');
+      },
+    }),
+  ]) {
+    const rejected = await loadDashboard(fetcher);
+    assert.equal(rejected.status, 'DATA_SOURCE_ERROR');
+    assert.doesNotMatch(JSON.stringify(rejected), /private fixture content/);
+  }
+});
+
+test('UI link policy rejects credentials, queries, overlong and malformed paths', () => {
+  const commit = 'a'.repeat(40);
+  for (const input of [
+    null,
+    1,
+    '',
+    'x'.repeat(513),
+    'http://user@127.0.0.1:4180/',
+    'http://:pass@127.0.0.1:4180/',
+    'http://127.0.0.1:4180/?q=1',
+    'http://127.0.0.1:4180/#hash',
+    'docs//file.md',
+    'docs/a:b',
+    'docs/<tag>',
+    '#1invalid',
+  ])
+    assert.equal(safeLink(input, commit), null, String(input));
+  assert.equal(safeLink('docs/file.md'), null);
+});
+
+test('worker projection and task detail retain safe missing-field fallbacks without mutating inputs', async () => {
+  const ui = await import('../docs/management/dashboard/app.js');
+  const workers = [
+    { id: 'empty' },
+    {
+      id: 'fixture',
+      label: 'Fixture',
+      activities: [
+        { timestamp: 'invalid' },
+        { title: 'Explicit title', action: 'Explicit action', timestamp: 'also invalid' },
+      ],
+    },
+  ];
+  const posts = ui.buildWorkerReportPosts(workers);
+  assert.equal(posts.length, 2);
+  assert.equal(posts[0].title, 'Worker 工作报告');
+  assert.equal(posts[0].body, '未记录结果。');
+  assert.equal(posts[1].title, 'Explicit title');
+  assert.equal(posts[1].body, 'Explicit action');
+  assert.throws(() => ui.filterWorkerReports(posts, null), /INVALID_REPORT_QUERY/);
+  assert.deepEqual(ui.buildTaskDetail({ id: 'fixture' }), {
+    id: 'fixture',
+    dependsOn: [],
+    acceptance: [],
+    evidence: [],
+  });
+  assert.equal(ui.matchesDashboardSearch(null, [null]), true);
+  assert.equal(ui.matchesDashboardSearch('missing', [null]), false);
+});
