@@ -322,9 +322,11 @@ test('only initial 404 permits legacy fallback; malformed pages and server/auth 
     assert.ok(!seen.includes('/strategies'));
   }
   const vault = fromCanonicalVault(fixture.vault, 'alice');
+  const fallbackPaths: string[] = [];
   const adapter = new ProductAdapter({
     storage: storage(),
     request: async <T>(path: string) => {
+      fallbackPaths.push(path);
       if (path === '/session') return { user: 'alice' } as T;
       if (path.startsWith('/v1/')) throw new ApiError('NOT_FOUND', 404);
       if (path === '/strategies')
@@ -344,6 +346,12 @@ test('only initial 404 permits legacy fallback; malformed pages and server/auth 
   });
   await adapter.client.refresh();
   assert.equal(adapter.mode, 'legacy');
+  assert.equal(adapter.snapshot.vaults[0]?.balances.deposits, undefined);
+  await adapter.client.refresh();
+  assert.equal(adapter.mode, 'legacy');
+  const strategies = await adapter.request<{ id: string }[]>('/strategies');
+  assert.equal(strategies[0]?.id, 'core-flow-demo');
+  assert.equal(fallbackPaths.filter((path) => path.startsWith('/v1/')).length, 1);
   assert.equal(adapter.snapshot.vaults[0]?.balances.deposits, undefined);
 });
 test('cursor cycles fail closed', async () => {
@@ -592,4 +600,50 @@ test('contract-minimum detail accepts a null relation and still rejects a foreig
   assert.equal(adapter.snapshot.details[0]?.accountStrategy, null);
   relation = { ...fixture.strategyDetail.accountStrategy, ownerId: 'bob' };
   await assert.rejects(adapter.client.refresh(), /CONTEXT/);
+});
+
+test('catalogue responses beyond the bounded item budget reject without exposing a partial account', async () => {
+  const seen: string[] = [];
+  const adapter = new ProductAdapter({
+    storage: storage(),
+    request: async <T>(path: string) => {
+      seen.push(path);
+      if (path === '/session') return { user: 'alice' } as T;
+      return { items: Array(100_001).fill(fixture.strategySummary), nextCursor: null } as T;
+    },
+  });
+  await assert.rejects(adapter.client.refresh(), /INVALID_PAGINATION_RESPONSE/);
+  assert.deepEqual(adapter.snapshot.vaults, []);
+  assert.deepEqual(adapter.snapshot.strategies, []);
+  assert.equal(adapter.snapshot.account, null);
+  assert.equal(seen.includes('/v1/product-snapshot'), false);
+  assert.throws(() => adapter.client.prepare(), /REFRESH_REQUIRED/);
+});
+
+test('an invalid session identity is rejected before any catalogue or private account read', async () => {
+  const seen: string[] = [];
+  const adapter = new ProductAdapter({
+    storage: storage(),
+    request: async <T>(path: string) => {
+      seen.push(path);
+      return { user: 'unrecognized-user' } as T;
+    },
+  });
+  await assert.rejects(adapter.client.refresh(), /RESPONSE_CONTEXT_MISMATCH/);
+  assert.deepEqual(seen, ['/session']);
+  assert.equal(adapter.snapshot.user, null);
+  assert.deepEqual(adapter.snapshot.vaults, []);
+});
+
+test('direct canonical requests cannot claim an owner before session initialization', async () => {
+  const adapter = new ProductAdapter({
+    storage: storage(),
+    request: async <T>(path: string) =>
+      (path.startsWith('/v1/strategies?')
+        ? { items: [fixture.strategySummary], nextCursor: null }
+        : fixture.vault) as T,
+  });
+  await assert.rejects(adapter.request('/vaults'), /RESPONSE_CONTEXT_MISMATCH/);
+  assert.equal(adapter.snapshot.user, null);
+  assert.deepEqual(adapter.snapshot.vaults, []);
 });

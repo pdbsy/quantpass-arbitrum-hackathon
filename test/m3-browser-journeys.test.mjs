@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { execFileSync } from 'node:child_process';
 import { asAddress, asHexData } from '../packages/chain-adapter/src/types.ts';
 import { encodeM3VaultCall } from '../packages/chain-adapter/src/vault-abi.ts';
 import {
@@ -14,6 +15,17 @@ const VAULT_A = asAddress('0x2222222222222222222222222222222222222222');
 const VAULT_B = asAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 const PASS = asAddress('0x4444444444444444444444444444444444444444');
 const AF_USDC = asAddress('0x3333333333333333333333333333333333333333');
+
+test('browser CLI help documents isolated tool and port inputs without launching a browser', () => {
+  const output = execFileSync(process.execPath, ['tools/verify-m3-browser.mjs', '--help'], {
+    encoding: 'utf8',
+    env: { ...process.env, AF_PLAYWRIGHT_PATH: '/unavailable/no-browser-import.mjs' },
+    timeout: 10000,
+  });
+  assert.match(output, /Usage: node tools\/verify-m3-browser\.mjs/);
+  assert.match(output, /AF_M3_BROWSER_PORT/);
+  assert.match(output, /AF_M3_BROWSER_EVIDENCE_ROOT/);
+});
 
 const word = (value) => value.slice(2).padStart(64, '0');
 const amountWord = (value) => value.toString(16).padStart(64, '0');

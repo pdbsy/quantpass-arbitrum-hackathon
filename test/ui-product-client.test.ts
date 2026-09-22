@@ -780,3 +780,27 @@ for (const stage of ['session', 'detail'] as const) {
     assert.equal(h.client.snapshot.pending, null);
   });
 }
+
+test('default browser dependencies load an empty owner account and cannot prepare a monetary command', async (t) => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { value: new MemoryStorage(), configurable: true });
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
+  });
+  const seen: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
+    seen.push(url);
+    assert.equal(init.method, 'GET');
+    assert.equal(init.credentials, 'same-origin');
+    assert.equal((init.headers as Record<string, string>)['x-quantpass-demo'], '1');
+    return Response.json(url === '/api/session' ? { user: 'alice' } : []);
+  });
+  const client = new ProductClient();
+  await client.refresh();
+  assert.equal(client.snapshot.phase, 'EMPTY');
+  assert.equal(client.snapshot.user, 'alice');
+  assert.equal(client.snapshot.selectedVaultId, null);
+  assert.throws(() => client.prepare(), /VAULT_REQUIRED/);
+  assert.deepEqual(seen.sort(), ['/api/session', '/api/strategies', '/api/vaults']);
+});

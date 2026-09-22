@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createM3InjectedRuntimeFixture } from '../apps/web/src/m3-injected-runtime-fixture.ts';
 import { asAddress } from '../packages/chain-adapter/src/types.ts';
+import { encodeM3VaultCall } from '../packages/chain-adapter/src/vault-abi.ts';
 
 test('injected runtime drives wrong-network, owner read, mock submit and recovery states', async () => {
   const fixture = createM3InjectedRuntimeFixture();
@@ -191,4 +192,51 @@ test('injected runtime prevents an unresolved duplicate but permits a new explic
   assert.equal(submitted.state, 'SUBMITTED');
   assert.equal(fixture.providerRequests.filter((row) => row.method === 'eth_sendTransaction').length, 2);
   assert.equal(fixture.runtime.snapshot.onchain.health, 'DEGRADED');
+});
+
+test('two reviewed transfers cannot overspend the DEV fixture balance after the first consumes it', async () => {
+  const fixture = createM3InjectedRuntimeFixture();
+  fixture.setCorrectNetwork();
+  await fixture.runtime.connect();
+  const request = {
+    recipient: asAddress('0x9999999999999999999999999999999999999999'),
+    passBaseUnits: '2000000000000000000',
+  };
+  const first = await fixture.runtime.reviewPassTransfer!(request);
+  const second = await fixture.runtime.reviewPassTransfer!({
+    ...request,
+    recipient: asAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+  });
+  await fixture.runtime.confirmPassTransfer!(first);
+  const rejected = await fixture.runtime.confirmPassTransfer!(second);
+  assert.equal(rejected.state, 'SUBMISSION_AMBIGUOUS');
+  assert.equal(rejected.txHash, null);
+  await fixture.runtime.refresh();
+  assert.equal(fixture.runtime.snapshot.onchain.passBalanceBaseUnits, '0');
+  assert.equal(fixture.providerRequests.filter((row) => row.method === 'eth_sendTransaction').length, 2);
+});
+
+test('a degraded closed second Vault retains its own owner and locker during direct-read rescue', async () => {
+  const fixture = createM3InjectedRuntimeFixture();
+  fixture.setCorrectNetwork();
+  await fixture.selectSecondVault();
+  await fixture.setSecondOwner();
+  await fixture.runtime.connect();
+  await fixture.setClosed();
+  await fixture.setDegraded();
+  assert.equal(fixture.runtime.snapshot.onchain.vaultAddress, '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+  assert.equal(fixture.runtime.snapshot.onchain.vaultClosed, true);
+  assert.equal(fixture.runtime.snapshot.onchain.owner, 'OWNER');
+  assert.equal(fixture.runtime.snapshot.onchain.health, 'DEGRADED');
+  const rescue = await fixture.runtime.reviewAction({ kind: 'rescue-native' });
+  const sent = await fixture.runtime.confirmAction(rescue);
+  assert.equal(sent.state, 'SUBMITTED');
+  const sends = fixture.providerRequests.filter((row) => row.method === 'eth_sendTransaction');
+  assert.equal(sends.length, 1);
+  assert.deepEqual(sends[0]!.params?.[0], {
+    from: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    data: encodeM3VaultCall('rescueNative()', []),
+    value: '0x0',
+  });
 });

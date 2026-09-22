@@ -494,3 +494,38 @@ test('invalid and mismatched identity selection clears private state without acc
   assert.equal(h.adapter.client.snapshot.user, 'bob');
   assert.equal(h.adapter.client.snapshot.vaults.length, 0);
 });
+
+for (const regression of ['lower-revision', 'same-revision-new-balances'] as const) {
+  test(`a coherent ${regression} account cannot replace the last accepted projection`, async (t) => {
+    const h = await setup(t);
+    let previous: Record<string, unknown> | undefined;
+    h.hooks.after = async (path, data) => {
+      if (path === '/v1/product-snapshot') previous = structuredClone(data);
+    };
+    await h.adapter.client.refresh();
+    delete h.hooks.after;
+    assert.ok(previous);
+    await h.deposit(h.a, '9');
+    if (regression === 'lower-revision') await h.adapter.client.refresh();
+    const accepted = projection(h.adapter.snapshot);
+    h.hooks.after = async (path, data) => {
+      if (path !== '/v1/product-snapshot') return;
+      if (regression === 'lower-revision') {
+        Object.assign(data, structuredClone(previous));
+        return;
+      }
+      const revisions = previous!.revisions as Record<string, number>;
+      const restoreRevision = (vaults: unknown) => {
+        for (const value of vaults as { vaultId: string; revision: number }[])
+          value.revision = revisions[value.vaultId]!;
+      };
+      restoreRevision(data.vaults);
+      restoreRevision((data.account as { vaults: unknown }).vaults);
+      data.revisions = structuredClone(revisions);
+      data.audit = structuredClone(previous!.audit);
+    };
+    await assert.rejects(h.adapter.client.refresh(), /RESPONSE_CONTEXT_MISMATCH/);
+    assert.deepEqual(projection(h.adapter.snapshot), accepted);
+    assert.throws(() => h.adapter.client.prepare(), /REFRESH_REQUIRED/);
+  });
+}
