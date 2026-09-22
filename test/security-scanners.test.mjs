@@ -24,6 +24,21 @@ import {
   readGitleaksExceptionProof,
 } from '../tools/security/gitleaks-disposition.mjs';
 import { assertNoSourceIgnore, historyCoverage } from '../tools/ci/check-gitleaks.mjs';
+import { fixtureExec } from './helpers/git-fixture.mjs';
+
+test('Gitleaks history qualification rejects a non-repository and detached history without refs', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'alphaforge-gitleaks-empty-refs-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  assert.throws(() => historyCoverage(root), /Git history prerequisite failed/);
+  const git = (...args) => fixtureExec('git', args, { cwd: root, encoding: 'utf8' }).trim();
+  git('init', '-q', '-b', 'main');
+  git('commit', '-qm', 'Initial fixture');
+  git('switch', '--detach', 'HEAD');
+  git('branch', '-D', 'main');
+  assert.equal(git('for-each-ref'), '');
+  assert.equal(git('rev-list', 'HEAD', '--count'), '1');
+  assert.throws(() => historyCoverage(root), /Empty Git history coverage/);
+});
 
 test('Gitleaks source ignore guard refuses every existing root path without disclosing its contents', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'alphaforge-gitleaks-ignore-'));

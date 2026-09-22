@@ -116,6 +116,49 @@ function rejects(result, pattern) {
   if (pattern) assert.match(result.stdout + result.stderr, pattern);
 }
 
+test('real Git record separators cannot make malformed worker or manager history admissible', async (t) => {
+  const s = fixture(t);
+  const before = s.git('rev-parse', 'HEAD');
+  s.git(
+    'commit',
+    '--allow-empty',
+    '-qm',
+    '[Macbeth01][AF-M3-CLOSEOUT] Delimiter fixture',
+    '-m',
+    'Agent-ID: Macbeth01\nTask-ID: AF-M3-CLOSEOUT\n\x1eSYNTHETIC_VALID_GIT_MESSAGE_FRAGMENT',
+  );
+  const head = s.git('rev-parse', 'HEAD');
+  const { verifyManagerIntegration } = await import('../tools/agent-integration-identity.mjs');
+  assert.throws(
+    () =>
+      verifyManagerIntegration(s.root, {
+        branch,
+        head,
+        prTitle: title,
+        pullBase: { ref: 'master', sha: s.base, repo },
+      }),
+    /subject|metadata|identity|Invalid/i,
+  );
+  const script = `
+    import assert from 'node:assert/strict';
+    import {commitsInRange} from ${JSON.stringify(new URL('../tools/check-agent-identity.mjs', import.meta.url).href)};
+    import {validateCommitSetIdentity} from ${JSON.stringify(new URL('../tools/agent-identity-set.mjs', import.meta.url).href)};
+    const commits=commitsInRange(${JSON.stringify(before)},${JSON.stringify(head)});
+    assert.equal(commits.length,2);
+    assert.equal(commits[1].sha,'SYNTHETIC_VALID_GIT_MESSAGE_FRAGMENT');
+    assert.equal(commits[1].subject,undefined);
+    assert.equal(commits[1].body,'');
+    assert.throws(()=>validateCommitSetIdentity({branch:${JSON.stringify(branch)},prTitle:${JSON.stringify(title)},commits}));
+  `;
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: s.root,
+    env: { ...s.env, GIT_DIR: join(s.root, '.git'), GIT_WORK_TREE: s.root },
+    encoding: 'utf8',
+    timeout: 15000,
+  });
+  assert.equal(child.status, 0, child.stderr);
+});
+
 test('registered integration accepts preserved mixed worker history and manager merge commits', (t) => {
   const s = fixture(t);
   succeeds(s.run());

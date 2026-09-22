@@ -17,6 +17,27 @@ function initializeRepository(root) {
   execFileSync('git', ['init', '--quiet', '-b', 'master'], { cwd: root });
 }
 
+test('static member parsing rechecks whitespace after repeated non-null assertions', () => {
+  const value = 'config.name!!' + ' '.repeat(65) + '= "sample";';
+  assert.ok(findOperationalMetadataKinds(value, 'fixture.ts').includes('structured-record-budget'));
+  assert.deepEqual(findOperationalMetadataKinds('const value = { ["title"]: "sample" };', 'fixture.ts'), []);
+});
+
+test('public metadata scanning works without an optional temporary-directory environment variable', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-metadata-no-temp-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  initializeRepository(root);
+  await writeFile(join(root, 'source.txt'), 'public source\n');
+  const previous = process.env.TMPDIR;
+  try {
+    delete process.env.TMPDIR;
+    await scanPublicMetadata(root);
+  } finally {
+    if (previous === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = previous;
+  }
+});
+
 test('public metadata scan rejects a tracked regular file replaced by a directory', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'alphaforge-metadata-kind-'));
   t.after(() => rm(root, { recursive: true, force: true }));
