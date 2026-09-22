@@ -1580,3 +1580,62 @@ test('standalone credential boundaries include quoted responses and diagnostic s
   assert.match(sanitizeLog('Bearer support'), /\[REDACTED\]/);
   assert.equal(sanitizeLog('authMethod=Bearer status=ok'), 'authMethod=Bearer status=ok');
 });
+
+test('redaction preserves safe values and rejects boundary-shaped credentials through both public APIs', () => {
+  const cases = [
+    {
+      id: 'safe-fragment',
+      input: 'https://service.example.test/#overview?view=public',
+      expected: 'https://service.example.test/#overview?view=public',
+    },
+    {
+      id: 'bare-cli-prefix',
+      input: 'command --tokenCount=2 --',
+      expected: 'command --[REDACTED KEY]=[REDACTED]',
+    },
+    {
+      id: 'empty-auth-key',
+      input: '=Bearer abcd1234-efgh',
+      expected: '=Bearer [REDACTED]',
+    },
+    {
+      id: 'nonword-auth-boundary',
+      input: '_authMethod=Bearer abcd1234-efgh',
+      expected: '_authMethod=Bearer [REDACTED]',
+    },
+    {
+      id: 'nonmetadata-key',
+      input: 'method=Bearer abcd1234-efgh',
+      expected: 'method=Bearer [REDACTED]',
+    },
+    {
+      id: 'cli-trailing-space',
+      input: 'command --tokenCount=2   ',
+      expected: 'command --tokenCount=2   ',
+    },
+    {
+      id: 'quoted-secret-container',
+      input: '"password"={not-json}',
+      expected: 'password= [REDACTED]',
+    },
+    {
+      id: 'empty-bracket-scalar',
+      input: 'object["password"]=',
+      expected: 'object["password"]=[REDACTED]',
+    },
+    {
+      id: 'short-punctuated-token',
+      input: 'Bearer abcd1234-efgh',
+      expected: 'Bearer [REDACTED]',
+    },
+    {
+      id: 'escaped-quoted-scalar',
+      input: '\\"password\\"=SYNTHETIC_REVIEW_MARKER',
+      expected: 'password= [REDACTED]',
+    },
+  ];
+  for (const { id, input, expected } of cases) {
+    assert.equal(sanitizeLog(input), expected, `${id}: log`);
+    assert.equal(redactValue(input, { maxStringLength: 262144 }), expected, `${id}: value`);
+  }
+});
