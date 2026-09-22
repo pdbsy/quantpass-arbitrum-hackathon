@@ -1,10 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, symlinkSync, rmSync, realpathSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  mkdtempSync,
+  writeFileSync,
+  symlinkSync,
+  rmSync,
+  realpathSync,
+  mkdirSync,
+  readFileSync,
+  copyFileSync,
+} from 'node:fs';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { verifyInstallation } from '../tools/coverage/toolchain.mjs';
+import { loadCoverageTools } from '../tools/coverage/toolchain.mjs';
 const hash = (v) => createHash('sha256').update(v).digest('hex');
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-coverage-tool-')));
@@ -56,4 +66,16 @@ test('split tool inventories retain exact file sets and reject altered or overla
   assert.throws(() => loadInstalledFileRecords(f.root, [...index, ...index]));
   writeFileSync(join(f.root, 'part.json'), JSON.stringify({}));
   assert.throws(() => loadInstalledFileRecords(f.root, index));
+});
+
+test('default coverage prerequisites fail closed when the reviewed install is absent', async (t) => {
+  const f = fixture(t);
+  const repository = resolve(import.meta.dirname, '..');
+  mkdirSync(join(f.root, 'planning'));
+  for (const file of ['coverage-toolchain.lock.json', 'coverage-instrumentation.package-lock.json'])
+    copyFileSync(join(repository, 'planning', file), join(f.root, 'planning', file));
+  const descriptor = JSON.parse(readFileSync(join(repository, 'planning/coverage-toolchain.lock.json')));
+  for (const chunk of descriptor.instrumentation.installedFileChunks)
+    copyFileSync(join(repository, chunk.path), join(f.root, chunk.path));
+  await assert.rejects(loadCoverageTools(f.root), { code: 'ENOENT' });
 });
