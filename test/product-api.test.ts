@@ -3,6 +3,106 @@ import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { productHarness } from './helpers/product-api.ts';
 
+test('versioned account pagination preserves whole-account totals and cursor owner scope', async (t) => {
+  const h = await productHarness();
+  t.after(() => h.app.close());
+  const alice = await h.login(),
+    bob = await h.login('bob');
+  await h.claim(alice);
+  await h.claim(alice, 'satellite-flow-demo');
+  const first = (await h.request(alice, '/api/v1/account?limit=1')).json();
+  assert.equal(first.vaultCount, 2);
+  assert.equal(first.vaults.length, 1);
+  assert.equal(typeof first.pagination.nextCursor, 'string');
+  const nextUrl = `/api/v1/account?limit=1&cursor=${encodeURIComponent(first.pagination.nextCursor)}`;
+  const next = (await h.request(alice, nextUrl)).json();
+  assert.equal(next.vaultCount, 2);
+  assert.notEqual(next.vaults[0].id, first.vaults[0].id);
+  assert.deepEqual(next.balances, first.balances);
+  assert.equal(next.pagination.nextCursor, null);
+  assert.equal((await h.request(bob, nextUrl)).statusCode, 400);
+  const filtered = await h.request(alice, '/api/v1/vaults?strategyId=satellite-flow-demo');
+  assert.equal(filtered.statusCode, 200);
+  assert.equal(filtered.json().items.length, 1);
+  assert.equal(filtered.json().items[0].strategyId, 'satellite-flow-demo');
+});
+
+test('snapshot refuses excess persisted vaults and resumes after the corrupt row is removed', async (t) => {
+  const h = await productHarness();
+  t.after(() => h.app.close());
+  const cookie = await h.login();
+  await h.claim(cookie);
+  await h.claim(cookie, 'satellite-flow-demo');
+  const excess = h.store.obtainTestPasses('alice', 'unregistered-fixture');
+  const failed = await h.request(cookie, '/api/v1/product-snapshot');
+  assert.equal(failed.statusCode, 500);
+  assert.deepEqual(failed.json(), { error: 'LOCAL_OPERATION_FAILED' });
+  assert.equal(h.store.db.isTransaction, false);
+  assert.equal(h.store.list('alice').length, 3);
+  h.store.db.prepare('DELETE FROM vaults WHERE id=?').run(excess.id);
+  const recovered = await h.request(cookie, '/api/v1/product-snapshot');
+  assert.equal(recovered.statusCode, 200);
+  assert.equal(recovered.json().vaults.length, 2);
+});
+
+test('snapshot rejects overflowing damaged audit history instead of returning a partial account', async (t) => {
+  const h = await productHarness();
+  t.after(() => h.app.close());
+  const cookie = await h.login(),
+    vault = await h.claim(cookie);
+  // The public command path cannot create these negative/out-of-state revisions.
+  // Seed database damage through SQLite, then verify the product read boundary.
+  h.store.db
+    .prepare(
+      `WITH RECURSIVE rows(n) AS (SELECT -1 UNION ALL SELECT n+1 FROM rows WHERE n<10000)
+    INSERT INTO audit_events SELECT ?,n,'fixture-'||n,'deposit','alice','2026-09-23T00:00:00.000Z' FROM rows`,
+    )
+    .run(vault.id);
+  const failed = await h.request(cookie, '/api/v1/product-snapshot');
+  assert.equal(failed.statusCode, 500);
+  assert.deepEqual(failed.json(), { error: 'LOCAL_OPERATION_FAILED' });
+  assert.equal(h.store.db.isTransaction, false);
+  assert.equal(h.store.db.prepare('SELECT count(*) AS n FROM audit_events').get()?.n, 10002);
+  h.store.db.exec('DELETE FROM audit_events');
+  const recovered = await h.request(cookie, '/api/v1/product-snapshot');
+  assert.equal(recovered.statusCode, 200);
+  assert.deepEqual(recovered.json().audit, []);
+});
+
+test('read failures after SQLite ends a transaction remain sanitized and the connection recovers', async (t) => {
+  const h = await productHarness();
+  t.after(() => h.app.close());
+  const cookie = await h.login();
+  const vault = await h.claim(cookie);
+  h.store.db.function('fixture_read_failure', () => {
+    if (h.store.db.isTransaction) h.store.db.exec('ROLLBACK');
+    throw new Error('private storage failure');
+  });
+  h.store.db.exec(`CREATE TEMP VIEW vaults AS
+    SELECT id,owner_id,strategy_id,revision,fixture_read_failure() AS state_json,digest FROM main.vaults`);
+  for (const url of [
+    '/api/account',
+    '/api/v1/account',
+    '/api/v1/product-snapshot',
+    '/api/v1/strategies/core-flow-demo',
+  ]) {
+    const failed = await h.request(cookie, url);
+    assert.equal(failed.statusCode, 500, url);
+    assert.deepEqual(failed.json(), { error: 'LOCAL_OPERATION_FAILED' });
+    assert.equal(h.store.db.isTransaction, false);
+  }
+  h.store.db.exec('DROP VIEW temp.vaults');
+  const response = await h.request(cookie, `/api/vaults/${vault.id}/commands`, {
+    id: 'after-read-failure',
+    type: 'deposit',
+    amount: '17',
+    expectedRevision: 0,
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().vault.idle, '17');
+  assert.equal(h.store.audit('alice', vault.id).length, 1);
+});
+
 // Catches disconnected detail/catalog definitions and arbitrary strategy claims.
 test('AF-BE01 versioned catalog supplies matching detail and only registered simulations', async (t) => {
   const h = await productHarness();

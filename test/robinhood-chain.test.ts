@@ -33,6 +33,15 @@ test('Robinhood Chain config accepts explicit HTTPS testnet endpoints', () => {
   assert.ok(Object.isFrozen(config));
 });
 
+test('missing endpoints fail explicitly without silently selecting a network default', () => {
+  for (const field of ['QP_RPC_URL', 'QP_EXPLORER_URL'])
+    for (const value of [undefined, ''])
+      assert.throws(() => readRobinhoodChainConfig({ ...valid, [field]: value }), {
+        message: `${field} is required`,
+      });
+  assert.equal(readRobinhoodChainConfig(valid).rpcUrl, valid.QP_RPC_URL);
+});
+
 test('Robinhood Chain config rejects wrong networks, insecure URLs and embedded credentials', () => {
   for (const env of [
     {},

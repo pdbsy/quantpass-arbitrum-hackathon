@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import { validateM3DeploymentTemplate } from '../tools/check-m3-deployment-template.mjs';
@@ -13,6 +15,65 @@ const template = JSON.parse(
 
 test('M3 deployment template is safe to prepare without claiming a deployment', () => {
   assert.equal(validateM3DeploymentTemplate(template), template);
+});
+
+test('M3 template rejects missing contract, constructor and Vault configuration shapes', () => {
+  for (const value of [null, undefined]) {
+    const contracts = { ...template, contracts: value };
+    assert.throws(() => validateM3DeploymentTemplate(contracts), /complete ordered M3 deployment set/);
+    const vaultConfig = { ...template, vaultConfig: value };
+    assert.throws(() => validateM3DeploymentTemplate(vaultConfig), /vaultConfig fields/);
+    for (const name of ['strategyPass', 'vault']) {
+      const candidate = structuredClone(template);
+      candidate.contracts[name].constructorInputs = value;
+      assert.throws(() => validateM3DeploymentTemplate(candidate), /constructor shape/);
+    }
+  }
+});
+
+test('optional empty evidence never turns an offline template into deployment evidence', () => {
+  for (const evidence of [null, undefined, {}]) {
+    const candidate = { ...structuredClone(template), evidence };
+    assert.equal(validateM3DeploymentTemplate(candidate), candidate);
+    assert.equal(candidate.deploymentStatus, 'NOT_DEPLOYED');
+    assert.equal(candidate.indexing.deploymentBlock, null);
+    assert.equal(candidate.indexing.finalityStatus, 'UNKNOWN');
+    for (const contract of Object.values(candidate.contracts)) assert.equal(contract.address, null);
+  }
+});
+
+test('deployment checker CLI reports offline success and fixture validation failure without mutating the template', async () => {
+  const script = resolve('tools/check-m3-deployment-template.mjs');
+  const actualTemplate = resolve('contracts/deployment/m3-robinhood-testnet.template.json');
+  const before = await readFile(actualTemplate);
+  const success = spawnSync(process.execPath, [script], { encoding: 'utf8', timeout: 10_000 });
+  assert.equal(success.status, 0, success.stderr);
+  assert.match(success.stdout, /8 contracts remain explicitly NOT_DEPLOYED/);
+  await mkdir('.checks', { recursive: true });
+  const directory = await mkdtemp(resolve('.checks/template-cli-'));
+  const fixturePath = resolve(directory, 'invalid-template.json');
+  await writeFile(fixturePath, JSON.stringify({ ...template, deploymentStatus: 'DEPLOYED' }));
+  const preload = resolve(directory, 'fixture-read.cjs');
+  // Route only this CLI's template read to an independent malformed JSON fixture;
+  // validation and the CLI error handler execute from the unchanged tracked file.
+  await writeFile(
+    preload,
+    `
+    const fs = require('node:fs/promises');
+    const { syncBuiltinESMExports } = require('node:module');
+    const readFile = fs.readFile;
+    fs.readFile = (path, ...args) => readFile(path === ${JSON.stringify(actualTemplate)} ? ${JSON.stringify(fixturePath)} : path, ...args);
+    syncBuiltinESMExports();
+  `,
+  );
+  const failure = spawnSync(process.execPath, ['--require', preload, script], {
+    encoding: 'utf8',
+    timeout: 10_000,
+  });
+  assert.equal(failure.status, 1);
+  assert.match(failure.stderr, /Invalid M3 deployment template: deploymentStatus must be NOT_DEPLOYED/);
+  assert.equal(failure.stdout, '');
+  assert.deepEqual(await readFile(actualTemplate), before);
 });
 
 test('M3 deployment template rejects premature deployment evidence', () => {

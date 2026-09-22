@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { startM3Server, type M3ServerStartupOptions } from '../apps/server/src/m3-startup.ts';
+import { buildM3App } from '../apps/server/src/m3-app.ts';
+import { composeM3ChainRuntime } from '../apps/server/src/m3-chain-runtime.ts';
+import { m3ChainSyncPolicy } from '../packages/chain-adapter/src/policy.ts';
 import {
   deploymentManifestDigest,
   type DeploymentManifestDocument,
@@ -405,6 +408,181 @@ test('default M3 server startup is executable and inert while deployment is NOT_
   await server.close();
   await assert.rejects(server.syncNow(), /M3_SERVER_CLOSED/);
 });
+
+test('single-runtime M3 app serves a supplied static root without changing the selected runtime', async (t) => {
+  const root = await directory();
+  const { writeFile } = await import('node:fs/promises');
+  await writeFile(resolve(root, 'index.html'), '<title>AlphaForge local fixture</title>');
+  const runtime = composeM3ChainRuntime(
+    {
+      deploymentStatus: 'DEPLOYED',
+      dbPath: resolve(root, 'chain.sqlite'),
+      rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com'],
+      manifestDocument: { ...manifestBody, manifestDigest },
+      expectedManifestDigest: manifestDigest,
+      expectedContractAddress: CONTRACT,
+      policy: m3ChainSyncPolicy({ softReadyDepth: 4, reorgSearchLimit: 64 }),
+    },
+    { createRpc: () => new StartupRpc() },
+  )!;
+  const { app } = await buildM3App({
+    dbPath: resolve(root, 'ledger.sqlite'),
+    env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+    origin: 'http://127.0.0.1:4180',
+    webRoot: root,
+    chainRuntime: runtime,
+  });
+  t.after(() => app.close());
+  const page = await app.inject({ url: '/', headers: { host: '127.0.0.1:4180' } });
+  assert.equal(page.statusCode, 200);
+  assert.match(page.body, /AlphaForge local fixture/);
+  const status = (
+    await app.inject({ url: '/api/v1/chain/runtime-status', headers: { host: '127.0.0.1:4180' } })
+  ).json();
+  assert.equal(status.lastAttempt, 'NOT_RUN');
+  assert.equal(status.errorCode, null);
+  assert.deepEqual(status.database, { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' });
+  assert.equal(status.deployment.contract, CONTRACT);
+  assert.equal(status.deployment.manifestDigest, manifestDigest);
+});
+
+test('startup listens only on its ephemeral socket and a busy bind closes its own database', async () => {
+  const root = await directory();
+  const options: M3ServerStartupOptions = {
+    deployment: { deploymentStatus: 'NOT_DEPLOYED' },
+    app: {
+      dbPath: resolve(root, 'ledger.sqlite'),
+      env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+      origin: 'http://127.0.0.1:4180',
+    },
+    listen: { host: '127.0.0.1', port: 0 },
+  };
+  const server = await startM3Server(options);
+  try {
+    const address = server.app.server.address();
+    assert.ok(address && typeof address === 'object' && address.port > 0);
+    assert.equal(address.address, '127.0.0.1');
+    await assert.rejects(
+      startM3Server({
+        ...options,
+        app: { ...options.app, dbPath: resolve(root, 'busy.sqlite') },
+        listen: { host: '127.0.0.1', port: address.port },
+      }),
+      { code: 'EADDRINUSE' },
+    );
+    const retry = await startM3Server({
+      ...options,
+      app: { ...options.app, dbPath: resolve(root, 'busy.sqlite') },
+    });
+    await retry.close();
+    assert.equal(
+      (await server.app.inject({ url: '/api/health', headers: { host: '127.0.0.1:4180' } })).statusCode,
+      200,
+    );
+  } finally {
+    await server.close();
+  }
+  assert.equal(server.app.server.listening, false);
+});
+
+test('default deployed timer is cancelled when the application is closed directly', async () => {
+  const root = await directory();
+  const server = await startM3Server(
+    {
+      deployment: {
+        deploymentStatus: 'DEPLOYED',
+        dbPath: resolve(root, 'chain.sqlite'),
+        rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com'],
+        manifestDocument: { ...manifestBody, manifestDigest },
+        expectedManifestDigest: manifestDigest,
+        expectedContractAddress: CONTRACT,
+      },
+      app: {
+        dbPath: resolve(root, 'ledger.sqlite'),
+        env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+        origin: 'http://127.0.0.1:4180',
+      },
+    },
+    { createRpc: () => new StartupRpc() },
+  );
+  assert.equal(server.runtime!.chainEvidence.syncStatus().lastAttempt, 'SUCCEEDED');
+  await server.app.close();
+  await assert.rejects(server.syncNow(), /M3_SERVER_CLOSED/);
+  assert.equal(server.runtime!.store.health().status, 'UNHEALTHY');
+  await server.close();
+});
+
+test(
+  'scheduled sync recurs and closing during a read waits for it without starting another cycle',
+  { timeout: 7000 },
+  async () => {
+    const root = await directory();
+    const rpc = new StartupRpc();
+    let latestReads = 0;
+    let nextRead: (() => void) | undefined;
+    let release: (() => void) | undefined;
+    let pause = false;
+    const original = rpc.block.bind(rpc);
+    rpc.block = async (number) => {
+      if (number === 'latest') {
+        latestReads++;
+        nextRead?.();
+        nextRead = undefined;
+        if (pause)
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+      }
+      return original(number);
+    };
+    const server = await startM3Server(
+      {
+        deployment: {
+          deploymentStatus: 'DEPLOYED',
+          dbPath: resolve(root, 'chain.sqlite'),
+          rpcEndpoints: ['https://rpc.testnet.chain.robinhood.com'],
+          manifestDocument: { ...manifestBody, manifestDigest },
+          expectedManifestDigest: manifestDigest,
+          expectedContractAddress: CONTRACT,
+        },
+        app: {
+          dbPath: resolve(root, 'ledger.sqlite'),
+          env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+          origin: 'http://127.0.0.1:4180',
+        },
+        syncIntervalMs: 1000,
+      },
+      { createRpc: () => rpc },
+    );
+    try {
+      await new Promise<void>((resolve) => {
+        nextRead = resolve;
+      });
+      // Let the timer's promise chain finish and schedule the following cycle.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      pause = true;
+      await new Promise<void>((resolve) => {
+        nextRead = resolve;
+      });
+      const reads = latestReads;
+      assert.ok(reads >= 3, 'initial read and two scheduled cycles');
+      let closed = false;
+      const closing = server.close().then(() => {
+        closed = true;
+      });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(closed, false, 'an in-flight sync owns the database until it completes');
+      release!();
+      await closing;
+      assert.equal(latestReads, reads);
+      await assert.rejects(server.syncNow(), /M3_SERVER_CLOSED/);
+      assert.equal(server.runtime!.store.health().status, 'UNHEALTHY');
+    } finally {
+      release?.();
+      await server.close();
+    }
+  },
+);
 
 test('deployed startup composes runtime, app, bounded sync and canonical API progression with injected RPC', async () => {
   const root = await directory();

@@ -629,6 +629,67 @@ test('Vault reconciliation rejects missing, duplicate and malformed owner event 
     );
 });
 
+test('withdraw, close and rescue reject missing or conflicting owner events before reading contract state', async () => {
+  const integration = new M3VaultContractIntegration();
+  for (const [calldata, canonicalEvent] of [
+    [
+      encodeM3VaultCall('withdraw(uint256)', [600n]),
+      event('Withdrawn', {
+        owner: OWNER,
+        usdcAmount: '600',
+        profitAmount: '100',
+        principalAmount: '500',
+        passRawUnlocked: '500000000000000',
+      }),
+    ],
+    [encodeM3VaultCall('close()', []), event('Closed', { owner: OWNER })],
+    [
+      encodeM3VaultCall('rescueUntrackedToken(address)', [USDC]),
+      event('UntrackedTokenRescued', { owner: OWNER, token: USDC }),
+    ],
+    [encodeM3VaultCall('rescueNative()', []), event('NativeRescued', { owner: OWNER })],
+  ] as const) {
+    const rpc = new ViewRpc();
+    rpc.principalBasis = 0n;
+    rpc.trackedUsdcBalance = 0n;
+    rpc.closed = true;
+    for (const events of [
+      [],
+      [canonicalEvent, { ...canonicalEvent, logIndex: 1 }],
+      [{ ...canonicalEvent, normalizedData: { ...canonicalEvent.normalizedData, owner: CREATOR } }],
+      ...(canonicalEvent.eventName === 'UntrackedTokenRescued'
+        ? [[{ ...canonicalEvent, normalizedData: { owner: OWNER, token: ETH } }]]
+        : []),
+    ]) {
+      assert.deepEqual(
+        await integration.reconcileOperation({
+          rpc,
+          manifest,
+          operation: submitted(calldata),
+          receipt: receipt(),
+          events,
+          block,
+        }),
+        { status: 'MISMATCH', errorCode: 'EVENT_EVIDENCE_MISMATCH' },
+      );
+      assert.equal(rpc.calls.length, 0);
+    }
+    if (canonicalEvent.eventName === 'Withdrawn') rpc.closed = false;
+    assert.deepEqual(
+      await integration.reconcileOperation({
+        rpc,
+        manifest,
+        operation: submitted(calldata),
+        receipt: receipt(),
+        events: [canonicalEvent],
+        block,
+      }),
+      { status: 'MATCH' },
+    );
+    assert.ok(rpc.calls.length > 0);
+  }
+});
+
 test('close and rescue reconciliation require exact owner events and closed contract state', async () => {
   const rpc = new ViewRpc();
   rpc.principalBasis = 0n;

@@ -26,6 +26,29 @@ function awaiting() {
   });
 }
 
+test('negative reverted block evidence is rejected without changing the submitted operation', () => {
+  const submitted = transitionOperation(awaiting(), {
+    state: 'SUBMITTED',
+    txHash: HASH,
+    submittedAt: SUBMITTED_AT,
+  });
+  const before = structuredClone(submitted);
+  const update = {
+    state: 'REVERTED',
+    blockNumber: -1n,
+    blockHash: BLOCK,
+    receiptStatus: 'REVERTED',
+    errorCode: 'TRANSACTION_REVERTED',
+  } as const;
+  assert.throws(() => transitionOperation(submitted, update), /INVALID_BLOCK_NUMBER/);
+  assert.deepEqual(submitted, before);
+  const reverted = transitionOperation(submitted, { ...update, blockNumber: 0n });
+  assert.equal(reverted.state, 'REVERTED');
+  assert.equal(reverted.blockNumber, 0n);
+  assert.equal(reverted.confirmations, 0);
+  assert.equal(reverted.reconciled, false);
+});
+
 test('chain values reject malformed data and compare addresses without changing identity', () => {
   assert.equal(asAddress(OWNER), OWNER);
   assert.equal(sameAddress(OWNER, asAddress(OWNER.toUpperCase().replace('0X', '0x'))), true);
