@@ -1,3 +1,15 @@
+# 当前收口 — 2026-09-22 Public 与本地候选复验
+
+用户重新确认仓库 Public；经理实时回读验证 PUBLIC、master 为默认分支、PR22 OPEN/Draft、远程 head `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8`。用户明确要求06恢复测试，已向06派发原有CI门禁核验；当前本地新代码尚未发布，旧远程头的检查不能证明新代码通过。
+
+最近完整候选 `979f4aa9f1169eedcf4252d67e952e71ee26c76f`（tree `c6be18cae3091ee42fed9e50ef8d9afea42c6d5d`）通过844/844、完整check、M3/扩展旧界面/管理看板/方法资格五类功能流程、151条LOCAL身份、Semgrep与Gitleaks。C/R/S为ef3480a/bb32896/979f4aa，真实管理采集11 PASS/0 FAIL/4 NOT_RUN。覆盖率行89.64%、语句86.69%、函数90.28%、分支80.96%；完整分母和2个不完整生命周期保留，阈值未达，正式方法准入仍PENDING。
+
+后续AUDIT-001已由经理独立复现并按失败回归修复：未验证的不同身份观察不占用最终交易归属；对账后的交易仍唯一，原operation身份不可改绑。迁移保留所有原始记录，版本6备份继续只读精确验证/恢复；核心124/124和typecheck通过，准确新候选仍需全量重跑。AUDIT-002/003已登记待校准，不能用旧测试通过关闭新发现。详见[AUDIT-CALIBRATION](AUDIT-CALIBRATION-2026-09-22.md)。
+
+NOT_READY_TO_MERGE。01继续集成、覆盖率、C/R/S和交付；06负责实际托管门禁。外部安全/治理/适格review、本轮merge授权和Testnet分别保留原状态；未merge、部署、签名或广播。
+
+## 历史检查点
+
 # Latest measured local checkpoint: c0dfe08
 
 C `e25231910007d75cf4274621dd186ab8926d125a`; R `6c39f69`; S `c0dfe0884894076bc2f5f5bf5077b53ec22aa9cf` / tree `146627240318fb410cdc345f193a6f92497cc725`. Full check 835/835 and all five functional workflows PASS; LOCAL identity 139 (101 imported, 38 manager). Coverage report `report-6c537cff-16d5-4ae4-9dbe-710147e58077.json` SHA-256 `67e80364e1bf7af85120f5718558575df29187c1572047b4281453d8594d3f3b`: lines 87.91%, statements 82.73%, functions 85.87%, branches 76.32%; 134 source entries, two incomplete npm-check lifecycles retained. Chain-store lines 96.39%, functions 100%, statements 94.65%, branches 91.91%.

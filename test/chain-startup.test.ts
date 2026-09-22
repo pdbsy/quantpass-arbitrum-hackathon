@@ -1118,7 +1118,7 @@ test('indexer connectivity failure does not prevent the product server starting 
     assert.deepEqual(status.json(), {
       lastAttempt: 'FAILED',
       errorCode: 'M3_INDEXER_SYNC_FAILED',
-      database: { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' },
+      database: { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' },
       deployment: {
         chainId: CHAIN_ID,
         contract: CONTRACT,
@@ -1144,7 +1144,7 @@ test('indexer connectivity failure does not prevent the product server starting 
     assert.deepEqual((await server.app.inject({ url: '/api/v1/chain/runtime-status', headers })).json(), {
       lastAttempt: 'SUCCEEDED',
       errorCode: null,
-      database: { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' },
+      database: { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' },
       deployment: {
         chainId: CHAIN_ID,
         contract: CONTRACT,

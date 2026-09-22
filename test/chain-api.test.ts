@@ -524,7 +524,7 @@ test('runtime status exposes fixed deployment identity and database health witho
   assert.deepEqual(response.json(), {
     lastAttempt: 'NOT_RUN',
     errorCode: null,
-    database: { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' },
+    database: { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' },
     deployment: {
       chainId: CHAIN_ID,
       contract: CONTRACT,
@@ -706,4 +706,59 @@ test('multi-Vault API isolates contract, wallet and strategy state and requires 
       .runtimes.map((status: { deployment: { contract: string } }) => status.deployment.contract),
     [CONTRACT, OTHER_CONTRACT],
   );
+});
+
+test('unverified owner and calldata reports cannot reserve a transaction across restart', async () => {
+  const directory = await folder();
+  const dbPath = resolve(directory, 'chain.sqlite');
+  const calldata = encodeM3VaultCall('deposit(uint256)', [1_000_000n]);
+  const base = { chainId: CHAIN_ID, owner: OWNER, target: CONTRACT, calldata, txHash: TX_HASH };
+  let runtime = new M3ChainRuntime({ dbPath, rpc: new InertRpc(), manifest });
+  runtime.recordSubmission({ ...base, operationId: 'unverified-owner', owner: OTHER_OWNER });
+  runtime.close();
+  runtime = new M3ChainRuntime({ dbPath, rpc: new InertRpc(), manifest });
+  const { app } = await buildApp({
+    dbPath: resolve(directory, 'ledger.sqlite'),
+    env,
+    origin,
+    chainRuntime: runtime,
+  });
+  try {
+    const send = (payload: Record<string, unknown>) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/v1/chain/operations',
+        headers: { ...headers, origin, 'x-quantpass-demo': '1' },
+        payload,
+      });
+    const incorrect = await send({
+      ...base,
+      operationId: 'unverified-calldata',
+      calldata: encodeM3VaultCall('deposit(uint256)', [2_000_000n]),
+    });
+    assert.equal(incorrect.statusCode, 202, incorrect.body);
+    const correct = await send({ ...base, operationId: 'correct-wallet-report' });
+    assert.equal(correct.statusCode, 202, correct.body);
+    assert.equal(correct.json().state, 'SUBMITTED');
+    assert.equal(correct.json().owner, OWNER);
+    assert.equal(correct.json().calldata, calldata);
+    assert.equal(runtime.store.operation('unverified-owner')?.owner, OTHER_OWNER);
+    assert.equal(runtime.store.operation('unverified-owner')?.state, 'SUBMITTED');
+    assert.equal(
+      runtime.store.operation('unverified-calldata')?.calldata,
+      encodeM3VaultCall('deposit(uint256)', [2_000_000n]),
+    );
+    const rebind = await send({ ...base, operationId: 'unverified-owner' });
+    assert.equal(rebind.statusCode, 409);
+    assert.deepEqual((await send({ ...base, operationId: 'correct-wallet-report' })).json(), correct.json());
+  } finally {
+    await app.close();
+  }
+  runtime = new M3ChainRuntime({ dbPath, rpc: new InertRpc(), manifest });
+  try {
+    assert.equal(runtime.store.operation('correct-wallet-report')?.owner, OWNER);
+    assert.equal(runtime.store.operation('unverified-owner')?.owner, OTHER_OWNER);
+  } finally {
+    runtime.close();
+  }
 });

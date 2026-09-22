@@ -92,25 +92,52 @@ async function largeRecoveryDatabase(): Promise<string> {
   return source;
 }
 
-test('transaction identity conflicts use a fixed store error', async () => {
+test('unverified observations coexist while reconciled transaction identity remains exclusive', async () => {
   const store = new ChainStore(await databasePath());
-  const submitted = transitionOperation(
-    createOperation({
-      operationId: 'transaction-owner',
-      chainId: CHAIN_ID,
-      owner: OWNER_A,
-      target: CONTRACT,
-      state: 'AWAITING_SIGNATURE',
-    }),
-    { state: 'SUBMITTED', txHash: TX_A, submittedAt: '2026-09-20T00:00:00.000Z' },
-  );
-  store.saveOperation(submitted);
-  assert.throws(
-    () => store.saveOperation({ ...submitted, operationId: 'transaction-collision' }),
-    /OPERATION_IDENTITY_CONFLICT/,
-  );
-  assert.equal(store.operationByTransaction(CHAIN_ID, TX_A)?.operationId, 'transaction-owner');
-  store.close();
+  try {
+    const observed = transitionOperation(
+      createOperation({
+        operationId: 'wrong-observation',
+        chainId: CHAIN_ID,
+        owner: OWNER_B,
+        target: CONTRACT,
+        state: 'AWAITING_SIGNATURE',
+      }),
+      { state: 'SUBMITTED', txHash: TX_A, submittedAt: '2026-09-20T00:00:00.000Z' },
+    );
+    store.saveOperation(observed);
+    const correct = { ...observed, operationId: 'correct-observation', owner: OWNER_A };
+    store.saveOperation(correct);
+    assert.equal(store.operationByTransaction(CHAIN_ID, TX_A), null);
+    const mined = transitionOperation(correct, {
+      state: 'MINED',
+      blockNumber: 100n,
+      blockHash: BLOCK_100,
+      receiptStatus: 'SUCCESS',
+      transactionIndex: 0,
+    });
+    store.saveOperation(mined);
+    assert.equal(store.operationByTransaction(CHAIN_ID, TX_A), null);
+    const reconciled = transitionOperation(mined, {
+      state: 'CONFIRMING',
+      confirmations: 1,
+      reconciled: true,
+    });
+    store.saveOperation(reconciled);
+    assert.equal(store.operationByTransaction(CHAIN_ID, TX_A)?.operationId, 'correct-observation');
+    assert.throws(
+      () => store.saveOperation({ ...reconciled, operationId: observed.operationId, owner: OWNER_B }),
+      /OPERATION_IDENTITY_CONFLICT/,
+    );
+    assert.throws(
+      () => store.saveOperation({ ...reconciled, operationId: 'second-confirmed-observation' }),
+      /OPERATION_IDENTITY_CONFLICT/,
+    );
+    assert.equal(store.operation(observed.operationId)?.state, 'SUBMITTED');
+    assert.equal(store.operation('second-confirmed-observation'), null);
+  } finally {
+    store.close();
+  }
 });
 
 test('an existing operation id cannot be rebound to another owner', async () => {
@@ -965,7 +992,7 @@ test('chain store refuses an unrelated database instead of mutating it', async (
 
 test('chain store migrates to sync leases and rejects forged confirmed operations', async () => {
   const store = new ChainStore(await databasePath());
-  assert.equal(store.db.prepare('PRAGMA user_version').get()?.user_version, 6);
+  assert.equal(store.db.prepare('PRAGMA user_version').get()?.user_version, 7);
   const submitted = transitionOperation(
     createOperation({
       operationId: 'forged-confirmed',
@@ -1014,7 +1041,7 @@ test('existing version-one chain database migrates without losing indexed eviden
   legacy.close();
 
   const store = new ChainStore(path);
-  assert.equal(store.db.prepare('PRAGMA user_version').get()?.user_version, 6);
+  assert.equal(store.db.prepare('PRAGMA user_version').get()?.user_version, 7);
   assert.deepEqual(store.checkpoint(CHAIN_ID, CONTRACT), {
     blockNumber: 100n,
     blockHash: BLOCK_100,
@@ -1051,7 +1078,7 @@ test('version-three incomplete targets remain authoritative after sync-lease mig
   legacy.close();
 
   const store = new ChainStore(path);
-  assert.equal(store.db.prepare('PRAGMA user_version').get()?.user_version, 6);
+  assert.equal(store.db.prepare('PRAGMA user_version').get()?.user_version, 7);
   assert.equal(store.syncTarget(CHAIN_ID, CONTRACT), 101n);
   assert.throws(
     () => store.claimSync(CHAIN_ID, CONTRACT, 100n, '00000000-0000-4000-8000-000000000001'),
@@ -1070,14 +1097,14 @@ test('chain store completes every supported migration and rolls back duplicate D
     '005-transaction-index.sql',
     '006-operation-calldata.sql',
   ];
-  for (const targetVersion of [2, 3, 4, 5]) {
+  for (const targetVersion of [2, 3, 4, 5, 6]) {
     const path = await databasePath();
     const legacy = new DatabaseSync(path);
     for (const name of migrationNames.slice(0, targetVersion))
       legacy.exec(readFileSync(new URL(`../apps/server/chain-migrations/${name}`, import.meta.url), 'utf8'));
     legacy.close();
     const store = new ChainStore(path);
-    assert.equal(store.db.prepare('PRAGMA user_version').get()?.user_version, 6);
+    assert.equal(store.db.prepare('PRAGMA user_version').get()?.user_version, 7);
     store.close();
   }
 
@@ -1104,7 +1131,7 @@ test('chain store completes every supported migration and rolls back duplicate D
 
   const unsupported = await databasePath();
   const database = new DatabaseSync(unsupported);
-  database.exec('PRAGMA user_version = 7');
+  database.exec('PRAGMA user_version = 8');
   database.close();
   assert.throws(() => new ChainStore(unsupported), /UNSUPPORTED_CHAIN_DATABASE/);
 });
@@ -1131,13 +1158,13 @@ test('chain projection online backup reopens independently and never overwrites 
     backupTo(targetPath: string): Promise<string>;
     health(): { status: string; schemaVersion: number | null; integrity: string };
   };
-  assert.deepEqual(recovery.health(), { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' });
+  assert.deepEqual(recovery.health(), { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' });
   assert.equal(await recovery.backupTo(target), target);
   await assert.rejects(recovery.backupTo(target), /BACKUP_TARGET_EXISTS/);
 
   const restored = new ChainStore(target);
   try {
-    assert.deepEqual(restored.health(), { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' });
+    assert.deepEqual(restored.health(), { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' });
     assert.deepEqual(restored.checkpoint(CHAIN_ID, CONTRACT), {
       blockNumber: 100n,
       blockHash: BLOCK_100,
@@ -1188,7 +1215,7 @@ test('chain recovery CLI creates and restores a validated independent database',
   assert.deepEqual(JSON.parse(backupResult.stdout), {
     operation: 'backup',
     status: 'HEALTHY',
-    schemaVersion: 6,
+    schemaVersion: 7,
     integrity: 'OK',
     content: 'MATCH',
   });
@@ -1198,7 +1225,7 @@ test('chain recovery CLI creates and restores a validated independent database',
   assert.deepEqual(JSON.parse(restoreResult.stdout), {
     operation: 'restore',
     status: 'HEALTHY',
-    schemaVersion: 6,
+    schemaVersion: 7,
     integrity: 'OK',
     content: 'MATCH',
   });
@@ -1208,7 +1235,7 @@ test('chain recovery CLI creates and restores a validated independent database',
 
   const restored = new ChainStore(restoredPath);
   try {
-    assert.deepEqual(restored.health(), { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' });
+    assert.deepEqual(restored.health(), { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' });
     assert.deepEqual(restored.checkpoint(CHAIN_ID, CONTRACT), {
       blockNumber: 100n,
       blockHash: BLOCK_100,
@@ -1342,7 +1369,7 @@ test('chain recovery CLI rejects forged version-six schema definitions', async (
           ])
             malformed.exec(`DROP TABLE ${table}; CREATE TABLE ${table} (unrelated TEXT)`);
         }
-        assert.equal(malformed.prepare('PRAGMA user_version').get()?.user_version, 6);
+        assert.equal(malformed.prepare('PRAGMA user_version').get()?.user_version, 7);
         assert.equal(malformed.prepare('PRAGMA quick_check').get()?.quick_check, 'ok');
       } finally {
         malformed.close();
@@ -1706,7 +1733,7 @@ test('local recovery drill measures backup, reopen and 128-block catch-up separa
       const restoredCheckpoint = restored.checkpoint(CHAIN_ID, CONTRACT);
       const reopenAndHealthMs = performance.now() - reopenStarted;
       try {
-        assert.deepEqual(restoredHealth, { status: 'HEALTHY', schemaVersion: 6, integrity: 'OK' });
+        assert.deepEqual(restoredHealth, { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' });
         assert.equal(restoredCheckpoint?.blockNumber, 1_000n);
         const catchup = new ChainSynchronizer({
           rpc,
@@ -2009,4 +2036,55 @@ test('chain store rejects malformed block and event evidence before changing the
     blockHash: BLOCK_100,
   });
   store.close();
+});
+
+test('version-six backups remain read-only recoverable and observations survive migration', async () => {
+  const source = await databasePath();
+  const old = new DatabaseSync(source);
+  for (const migration of [
+    '001-chain-projection.sql',
+    '002-projection-checkpoint.sql',
+    '003-sync-target.sql',
+    '004-sync-lease.sql',
+    '005-transaction-index.sql',
+    '006-operation-calldata.sql',
+  ])
+    old.exec(readFileSync(new URL(`../apps/server/chain-migrations/${migration}`, import.meta.url), 'utf8'));
+  old
+    .prepare(
+      `INSERT INTO chain_transactions
+    (operation_id, chain_id, tx_hash, owner_address, target_address, state, submitted_at, confirmations, canonical, reconciled, calldata)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)`,
+    )
+    .run(
+      'legacy-unverified-owner',
+      CHAIN_ID,
+      TX_A,
+      OWNER_B,
+      CONTRACT,
+      'SUBMITTED',
+      '2026-09-20T00:00:00.000Z',
+      '0x1234',
+    );
+  const beforeRows = old.prepare('SELECT * FROM chain_transactions').all();
+  old.close();
+  const before = readFileSync(source);
+  for (const operation of ['backup', 'restore'] as const) {
+    const destination = `${source}.${operation}`;
+    const result = runRecovery(operation, source, destination);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).schemaVersion, 6);
+    assert.deepEqual(readFileSync(source), before);
+    const store = new ChainStore(destination);
+    try {
+      assert.equal(store.health().schemaVersion, 7);
+      assert.deepEqual(store.db.prepare('SELECT * FROM chain_transactions').all(), beforeRows);
+      const observed = store.operation('legacy-unverified-owner')!;
+      store.saveOperation({ ...observed, operationId: 'correct-after-upgrade', owner: OWNER_A });
+      assert.equal(store.operation('correct-after-upgrade')?.owner, OWNER_A);
+      assert.equal(store.operation('legacy-unverified-owner')?.owner, OWNER_B);
+    } finally {
+      store.close();
+    }
+  }
 });

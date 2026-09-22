@@ -1,4 +1,4 @@
-import { closeSync, openSync } from 'node:fs';
+import { closeSync, openSync, readFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { DatabaseSync, backup } from 'node:sqlite';
@@ -17,7 +17,27 @@ function schemaDefinition(database: DatabaseSync): string {
   );
 }
 
-function canonicalSchemaDefinition(): string {
+function canonicalSchemaDefinition(version: number): string {
+  if (version !== 6 && version !== 7) throw new Error('CHAIN_RECOVERY_SOURCE_UNSUPPORTED');
+  if (version === 6) {
+    const reference = new DatabaseSync(':memory:');
+    try {
+      for (const migration of [
+        '001-chain-projection.sql',
+        '002-projection-checkpoint.sql',
+        '003-sync-target.sql',
+        '004-sync-lease.sql',
+        '005-transaction-index.sql',
+        '006-operation-calldata.sql',
+      ])
+        reference.exec(
+          readFileSync(new URL(`../apps/server/chain-migrations/${migration}`, import.meta.url), 'utf8'),
+        );
+      return schemaDefinition(reference);
+    } finally {
+      reference.close();
+    }
+  }
   // Only this independent in-memory reference is initialized; recovery inputs stay read-only.
   const reference = new ChainStore(':memory:');
   try {
@@ -43,9 +63,14 @@ function databaseSnapshot(database: DatabaseSync): string {
   );
 }
 
-function validatedSnapshot(database: DatabaseSync, expectedSchema: string, code: string): string {
+function validatedSnapshot(
+  database: DatabaseSync,
+  expectedSchema: string,
+  expectedVersion: number,
+  code: string,
+): string {
   const version = Number(database.prepare('PRAGMA user_version').get()?.user_version);
-  if (version !== 6 || schemaDefinition(database) !== expectedSchema) throw new Error(code);
+  if (version !== expectedVersion || schemaDefinition(database) !== expectedSchema) throw new Error(code);
   if (database.prepare('PRAGMA quick_check').get()?.quick_check !== 'ok') throw new Error(code);
   return databaseSnapshot(database);
 }
@@ -63,14 +88,16 @@ const operation = operationValue as RecoveryOperation;
 const source = resolve(sourceValue);
 const target = resolve(targetValue);
 if (source === target) throw new Error('CHAIN_RECOVERY_PATH_CONFLICT');
-const expectedSchema = canonicalSchemaDefinition();
 const sourceDatabase = new DatabaseSync(source, { readOnly: true });
 let targetCreated = false;
 try {
   sourceDatabase.exec('BEGIN');
+  const sourceVersion = Number(sourceDatabase.prepare('PRAGMA user_version').get()?.user_version);
+  const expectedSchema = canonicalSchemaDefinition(sourceVersion);
   const expectedSnapshot = validatedSnapshot(
     sourceDatabase,
     expectedSchema,
+    sourceVersion,
     'CHAIN_RECOVERY_SOURCE_UNSUPPORTED',
   );
   try {
@@ -85,14 +112,25 @@ try {
   await backup(sourceDatabase, target);
   const recovered = new DatabaseSync(target, { readOnly: true });
   try {
-    const recoveredSnapshot = validatedSnapshot(recovered, expectedSchema, 'CHAIN_RECOVERY_TARGET_UNHEALTHY');
+    const recoveredSnapshot = validatedSnapshot(
+      recovered,
+      expectedSchema,
+      sourceVersion,
+      'CHAIN_RECOVERY_TARGET_UNHEALTHY',
+    );
     if (recoveredSnapshot !== expectedSnapshot) throw new Error('CHAIN_RECOVERY_CONTENT_MISMATCH');
   } finally {
     recovered.close();
   }
   sourceDatabase.exec('COMMIT');
   console.log(
-    JSON.stringify({ operation, status: 'HEALTHY', schemaVersion: 6, integrity: 'OK', content: 'MATCH' }),
+    JSON.stringify({
+      operation,
+      status: 'HEALTHY',
+      schemaVersion: sourceVersion,
+      integrity: 'OK',
+      content: 'MATCH',
+    }),
   );
 } catch (error) {
   if (sourceDatabase.isTransaction) sourceDatabase.exec('ROLLBACK');

@@ -1,3 +1,7 @@
+# Latest measured checkpoint — 2026-09-22
+
+Exact 979f4aa passed all five functional workflows with 844 tests. Measured lower bound: lines89.64%, statements86.69%, functions90.28%, branches80.96%. Threshold remains NOT_MET; final method admission remains PENDING. Report SHA-256 `29be67a8b483c5f8fdab5b33a87c4cb75f61a653b5ae2b7538e8bcc3c1275de2`. The expanded visible product interactions and real environment probes are included. Subsequent audit remediation requires a new exact-candidate replay.
+
 # Source coverage qualification and current acceptance
 
 The versioned entrypoints use the qualified, isolated Istanbul instrumenter 6.0.3 graph and Node 24.21.0. `planning/coverage-toolchain.lock.json` binds tool sources, licenses, archives and every installed file. The complete installed-file inventory is stored in three SHA-256-bound chunks so each remains within the existing public-metadata scanner budget; no entry is omitted and the scanner limits are unchanged. The root product dependency graph is unchanged. The optional qualified suites fail when their explicit tool prerequisite is missing; they are not silently skipped or substituted by an ordinary unit-test PASS.

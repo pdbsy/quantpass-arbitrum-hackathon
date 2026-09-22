@@ -1193,3 +1193,33 @@ test('projection persistence failures and rollback failures remain observable to
   assert.equal(saveStore.operation('operation-save-failure')?.state, 'SUBMITTED');
   saveStore.close();
 });
+
+test('a wrong-owner observation cannot block canonical tracking of a later correct report', async () => {
+  const rpc = new FixtureRpc();
+  rpc.blocks.set(100n, block(100n, HASH_100, HASH_99));
+  rpc.receipts.set(TX_A, receipt(TX_A, 100n, HASH_100));
+  const store = new ChainStore(await databasePath());
+  try {
+    store.saveOperation({ ...submitted('wrong-owner-first', TX_A), owner: PASS });
+    store.saveOperation(submitted('correct-owner-later', TX_A));
+    const sync = createSynchronizer({ rpc, store, manifest, integration, softReadyDepth: 1 });
+    await assert.rejects(() => sync.trackOperation('wrong-owner-first'), {
+      code: 'RECEIPT_EVIDENCE_MISMATCH',
+    });
+    assert.equal(store.operationByTransaction(CHAIN_ID, TX_A), null);
+    const confirmed = await sync.trackOperation('correct-owner-later');
+    assert.equal(confirmed.state, 'CONFIRMED');
+    assert.equal(confirmed.owner, OWNER);
+    assert.equal(confirmed.reconciled, true);
+    assert.equal(store.operation('wrong-owner-first')?.owner, PASS);
+    assert.equal(store.operation('wrong-owner-first')?.state, 'SUBMITTED');
+    assert.equal(store.operationByTransaction(CHAIN_ID, TX_A)?.operationId, 'correct-owner-later');
+    assert.equal(store.canonicalEvents(CHAIN_ID, CONTRACT).length, 1);
+    assert.deepEqual(store.projection(CHAIN_ID, OWNER, CONTRACT, 'trend-vault')?.state, {
+      principal: '1000000',
+      strategyId: 'trend',
+    });
+  } finally {
+    store.close();
+  }
+});

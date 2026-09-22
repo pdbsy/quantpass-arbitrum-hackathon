@@ -204,7 +204,11 @@ export class M3ChainRuntime {
         throw new Error('OPERATION_IDENTITY_CONFLICT');
       return existing;
     }
-    const transaction = this.store.operationByTransaction(input.chainId, input.txHash);
+    // Unverified reports cannot reserve a hash for another identity. Keep exact
+    // observations idempotent and preserve the exclusive reconciled binding.
+    const transaction =
+      this.store.operationByTransaction(input.chainId, input.txHash) ??
+      this.store.operationBySubmission(input);
     if (transaction) throw new Error('OPERATION_IDENTITY_CONFLICT');
     const operation = transitionOperation(
       createOperation({

@@ -513,8 +513,23 @@ export class ChainStore {
           this.db.exec('ROLLBACK');
           throw error;
         }
-      } else if (version !== 6) {
+      } else if (version !== 6 && version !== 7) {
         throw new Error('UNSUPPORTED_CHAIN_DATABASE');
+      }
+      if (Number(this.db.prepare('PRAGMA user_version').get()?.user_version) === 6) {
+        this.db.exec('BEGIN IMMEDIATE');
+        try {
+          this.db.exec(
+            readFileSync(
+              new URL('../chain-migrations/007-observation-identity.sql', import.meta.url),
+              'utf8',
+            ),
+          );
+          this.db.exec('COMMIT');
+        } catch (error) {
+          this.db.exec('ROLLBACK');
+          throw error;
+        }
       }
     } catch (error) {
       this.db.close();
@@ -530,7 +545,7 @@ export class ChainStore {
     try {
       const schemaVersion = Number(this.db.prepare('PRAGMA user_version').get()?.user_version);
       const result = this.db.prepare('PRAGMA quick_check').get() as { quick_check: string } | undefined;
-      const healthy = schemaVersion === 6 && result?.quick_check === 'ok';
+      const healthy = schemaVersion === 7 && result?.quick_check === 'ok';
       return Object.freeze({
         status: healthy ? 'HEALTHY' : 'UNHEALTHY',
         schemaVersion: Number.isSafeInteger(schemaVersion) ? schemaVersion : null,
@@ -1179,8 +1194,35 @@ export class ChainStore {
 
   operationByTransaction(networkChainId: number, txHash: TransactionHash): ChainOperation | null {
     const row = this.db
-      .prepare('SELECT operation_id FROM chain_transactions WHERE chain_id = ? AND tx_hash = ?')
+      .prepare(
+        'SELECT operation_id FROM chain_transactions WHERE chain_id = ? AND tx_hash = ? AND reconciled = 1',
+      )
       .get(chainId(networkChainId), txHash.toLowerCase()) as { operation_id: string } | undefined;
+    return row ? this.operation(row.operation_id) : null;
+  }
+
+  operationBySubmission(
+    input: Readonly<{
+      chainId: number;
+      txHash: TransactionHash;
+      owner: Address;
+      target: Address;
+      calldata: HexData;
+    }>,
+  ): ChainOperation | null {
+    const row = this.db
+      .prepare(
+        `SELECT operation_id FROM chain_transactions
+       WHERE chain_id = ? AND tx_hash = ? AND owner_address = ? AND target_address = ? AND calldata = ?
+       ORDER BY operation_id LIMIT 1`,
+      )
+      .get(
+        chainId(input.chainId),
+        input.txHash.toLowerCase(),
+        normalizedAddress(input.owner),
+        normalizedAddress(input.target),
+        input.calldata.toLowerCase(),
+      ) as { operation_id: string } | undefined;
     return row ? this.operation(row.operation_id) : null;
   }
 
