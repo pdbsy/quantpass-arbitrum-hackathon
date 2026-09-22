@@ -1014,3 +1014,13 @@ test('roadmap rejects prematurely enabled write planes even when referenced task
   assert.throws(() => validateRoadmapAlignment(changed, completed), /deployment write plane enabled before/);
   assert.equal(boundary.environment.writePlanes.deployment.enabled, false);
 });
+
+test('review date admission uses the current clock when no override is supplied', () => {
+  const now = new Date();
+  assert.doesNotThrow(() => validateReviewDateWindow(now.toISOString().slice(0, 10), now.toISOString()));
+  const tomorrow = new Date(now.valueOf() + 86_400_000);
+  assert.throws(
+    () => validateReviewDateWindow(now.toISOString().slice(0, 10), tomorrow.toISOString()),
+    /commit timestamp is in the future/,
+  );
+});

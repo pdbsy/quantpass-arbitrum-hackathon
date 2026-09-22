@@ -1368,3 +1368,28 @@ test('source collection rejects real file replacement, growth, truncation and sa
     assert.match(run.stdout, /PASS actual source race rejected/);
   }
 });
+
+test('real source and directory symlink loops fail closed with bounded generic diagnostics', async (t) => {
+  const root = await createSourceFixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const relative of ['planning/roadmap.json', 'docs/management/tasks', 'docs/security']) {
+    const path = join(root, relative);
+    await rm(path, { recursive: true });
+    await symlink(path, path);
+  }
+  const sources = await collectRepositorySources(root, { observedAt });
+  for (const item of [sources.roadmap, sources.taskRecords[0], sources.documents.security]) {
+    assert.equal(item.status, 'DATA_SOURCE_ERROR');
+    assert.equal(item.error, 'READ_FAILED');
+    assert.equal('data' in item, false);
+  }
+  assert.equal(JSON.stringify(sources).includes(root), false);
+});
+
+test('worker current status without an activity section remains explicitly empty', async () => {
+  const original = await readFile(new URL('worker-valid.md', fixtureRoot), 'utf8');
+  const currentOnly = original.slice(0, original.indexOf('## Activity log')).trim();
+  const parsed = parseWorkerLog(currentOnly);
+  assert.deepEqual(parsed.activities, []);
+  assert.deepEqual(parsed.current, parseWorkerLog(original).current);
+});

@@ -215,6 +215,10 @@ test('check report requires terminal records and matching completed state', () =
   };
   assert.equal(validateCheckReport(report), report);
 
+  const missingCommit = structuredClone(report);
+  delete missingCommit.commit;
+  assert.throws(() => validateCheckReport(missingCommit), /check report commit/);
+
   const incomplete = structuredClone(report);
   incomplete.complete = false;
   assert.throws(() => validateCheckReport(incomplete), /complete.*true/i);
@@ -1514,4 +1518,25 @@ test('safe metadata exemptions require a complete bounded structured tail', () =
     'command --Bearer disabled --status ok',
   ])
     assert.equal(sanitizeLog(input), input, input);
+});
+
+test('snapshot PASS requires commit evidence even when the presentation omits an exit-code field', () => {
+  const snapshot = validSnapshot();
+  snapshot.tests.items = [
+    {
+      id: 'lint',
+      status: 'PASS',
+      source: '.checks/management/latest.json',
+      observedAt,
+      commit: 'a'.repeat(40),
+      evidence: '.checks/management/example/lint.log',
+    },
+  ];
+  assert.equal(validateDashboardSnapshot(snapshot), snapshot);
+  const missing = structuredClone(snapshot);
+  delete missing.tests.items[0].evidence;
+  assert.throws(() => validateDashboardSnapshot(missing), /PASS requires/);
+  const nonzero = structuredClone(snapshot);
+  nonzero.tests.items[0].exitCode = 1;
+  assert.throws(() => validateDashboardSnapshot(nonzero), /PASS requires exitCode 0/);
 });
