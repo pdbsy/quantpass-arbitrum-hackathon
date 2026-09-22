@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { root, git, inspect, assertUnchanged, run, emit, main, cleanEnvironment } from './context.mjs';
 import { installScanner } from '../security/bootstrap.mjs';
@@ -42,7 +42,21 @@ export function historyCoverage(cwd) {
   return { refs, commits, refsSha256: createHash('sha256').update(JSON.stringify(refs)).digest('hex') };
 }
 
+export function assertNoSourceIgnore(target) {
+  // Gitleaks 8.30.1 reads source/.gitleaksignore in addition to the explicit
+  // --gitleaks-ignore-path. The approved history disposition is applied only
+  // after complete, unsuppressed scanning; source-controlled ignores cannot apply.
+  try {
+    lstatSync(join(target, '.gitleaksignore'));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return;
+    throw new Error('Gitleaks source ignore path could not be verified', { cause: error });
+  }
+  throw new Error('Gitleaks source ignore files are not permitted');
+}
+
 function scan(tool, mode, target, reportName) {
+  assertNoSourceIgnore(target);
   const path = join(tool.directory, reportName);
   const args = [
     mode,
@@ -64,6 +78,7 @@ function scan(tool, mode, target, reportName) {
   if (mode === 'git') args.push('--log-opts=--all HEAD --full-history --root -m');
   args.push(target);
   const result = run(tool.binary, args, { cwd: tool.directory, env: tool.env, timeout: 330000 });
+  assertNoSourceIgnore(target);
   let text = '';
   try {
     text = readFileSync(path, 'utf8');

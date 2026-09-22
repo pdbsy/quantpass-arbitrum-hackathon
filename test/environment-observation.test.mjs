@@ -107,6 +107,20 @@ test('absent PATH and conflicting npm executable cannot be admitted as an aligne
   }
 });
 
+test('case-colliding tracked names and shallow history remain ineligible for environment evidence', (t) => {
+  const f = fixture(t);
+  const object = f.git('rev-parse', 'HEAD:source.txt');
+  f.git('update-index', '--add', '--cacheinfo', `100644,${object},SOURCE.txt`);
+  const collision = f.inspect();
+  assert.equal(status(collision, 'files'), 'FAIL');
+  assert.equal(collision.eligibleForEvidence, false);
+  f.git('update-index', '--force-remove', 'SOURCE.txt');
+  writeFileSync(join(f.root, '.git/shallow'), f.git('rev-parse', 'HEAD') + '\n');
+  const shallow = f.inspect();
+  assert.equal(status(shallow, 'history'), 'BLOCKED');
+  assert.equal(shallow.eligibleForEvidence, false);
+});
+
 test('real environment probes bind a clean fixture to exact source and local npm configuration', (t) => {
   const f = fixture(t);
   const report = f.inspect();

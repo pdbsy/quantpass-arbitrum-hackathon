@@ -13,8 +13,108 @@ import {
 import { compareLocks, classifyAudit, candidateRefs } from '../tools/ci/check-dependency-delta.mjs';
 import { validateCommitSetIdentity } from '../tools/agent-identity-set.mjs';
 import { verify } from '../tools/verify-ci.mjs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { fixtureExec } from './helpers/git-fixture.mjs';
 import { scanWorkspace } from '../tools/check-secrets.mjs';
+
+test('actual identity CLI refuses malformed events and empty protected ranges', (t) => {
+  const directory = mkdtempSync(join(tmpdir(), 'alphaforge-identity-entry-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const eventPath = join(directory, 'event.json');
+  const execute = (args, extra = {}) =>
+    spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL('../tools/check-agent-identity.mjs', import.meta.url)), ...args],
+      {
+        env: {
+          ...process.env,
+          GITHUB_EVENT_NAME: 'local',
+          GITHUB_EVENT_PATH: '',
+          GITHUB_REF: '',
+          GITHUB_SHA: '',
+          ...extra,
+        },
+        encoding: 'utf8',
+        timeout: 15000,
+      },
+    );
+  const args = ['--branch', 'ordinary-fixture', '--base', 'HEAD', '--head', 'HEAD'];
+  const ordinary = execute(args);
+  assert.equal(ordinary.status, 0, ordinary.stderr);
+  assert.match(ordinary.stdout, /skipped for non-worker branch: ordinary-fixture/);
+  for (const event of [null, [], 1]) {
+    writeFileSync(eventPath, JSON.stringify(event));
+    const child = execute(args, { GITHUB_EVENT_PATH: eventPath });
+    assert.equal(child.status, 1);
+    assert.match(child.stderr, /Invalid GitHub event/);
+    assert.equal(child.stdout, '');
+  }
+  writeFileSync(eventPath, '{}');
+  for (const name of ['pull_request', 'merge_group']) {
+    const child = execute(args, { GITHUB_EVENT_PATH: eventPath, GITHUB_EVENT_NAME: name });
+    assert.equal(child.status, 1);
+    assert.match(child.stderr, /identity context|protected merge_group context/);
+  }
+  const protectedRange = execute(['--branch', 'master', '--base', 'HEAD', '--head', 'HEAD']);
+  assert.equal(protectedRange.status, 1);
+  assert.match(protectedRange.stderr, /Invalid protected target range/);
+});
+
+test('actual gate entrypoints reject arguments before starting any scanner or installer', () => {
+  for (const path of [
+    'tools/ci/check-gitleaks.mjs',
+    'tools/ci/check-semgrep.mjs',
+    'tools/ci/check-source-policy.mjs',
+    'tools/ci/check-dependency-delta.mjs',
+    'tools/ci/verify-contracts.mjs',
+  ]) {
+    const child = spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL(`../${path}`, import.meta.url)), '--invalid'],
+      {
+        cwd: fileURLToPath(new URL('../', import.meta.url)),
+        env: process.env,
+        encoding: 'utf8',
+        timeout: 15000,
+      },
+    );
+    assert.equal(child.status, 2, path);
+    assert.equal(child.signal, null, path);
+    const report = JSON.parse(child.stdout);
+    assert.equal(report.state, 'BLOCKED', path);
+    assert.equal(report.reason, 'Gate accepts no command-line arguments', path);
+    assert.equal(child.stderr, '', path);
+  }
+});
+
+test('actual bootstrap and integration entrypoints reject malformed local invocation', () => {
+  for (const [path, args, status, message] of [
+    ['tools/bootstrap-ci-npm.mjs', ['--invalid'], 2, /BLOCKED at inputs/],
+    ['tools/check-environment.mjs', ['--ci', '--ci'], 2, /Environment check BLOCKED/],
+    ['tools/check-local-agent-integration.mjs', [], 1, /Require --branch, --base and --head/],
+    [
+      'tools/check-local-agent-integration.mjs',
+      ['--branch', 'fixture', '--branch', 'fixture', '--head', 'HEAD'],
+      1,
+      /Invalid LOCAL arguments/,
+    ],
+    ['tools/local-ci/run.mjs', [], 2, /Local CI BLOCKED/],
+  ]) {
+    const child = spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL(`../${path}`, import.meta.url)), ...args],
+      {
+        env: process.env,
+        encoding: 'utf8',
+        timeout: 15000,
+      },
+    );
+    assert.equal(child.status, status, path);
+    assert.match(child.stderr, message, path);
+    assert.equal(child.stdout, '', path);
+  }
+});
 
 test('secret baseline rejects environment files and read errors while retaining its explicit binary boundary', async (t) => {
   const root = mkdtempSync(join(tmpdir(), 'alphaforge-secret-boundary-'));

@@ -270,6 +270,58 @@ test('source mutation during execution invalidates the run', { skip: !available 
   });
   assert.equal(r.state, 'BLOCKED');
 });
+
+test(
+  'a command committing different source cannot bind its successful exit to the original tree',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const code = `
+    require('node:fs').writeFileSync('source.txt', 'committed replacement\\n');
+    const git = (...args) => require('node:child_process').execFileSync('/usr/bin/git', [
+      '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
+      '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args
+    ], {stdio:'pipe'});
+    git('add', 'source.txt'); git('commit', '-m', 'fixture source mutation');
+  `;
+    const report = await runLocal({ ...config, jobs: [job(code)] });
+    assert.equal(report.jobs[0].state, 'PASS');
+    assert.equal(report.state, 'BLOCKED');
+    assert.equal(verifyRun(report.directory, config.expected).state, 'BLOCKED');
+  },
+);
+
+test(
+  'replay refuses substituted log types and an empty job set even with recomputed digests',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const report = await runLocal({ ...config, jobs: [job('console.log("actual output")')] });
+    assert.equal(report.state, 'PASS');
+    const log = join(report.directory, report.jobs[0].stdout.file);
+    const original = readFileSync(log);
+    rmSync(log);
+    fs.symlinkSync(report.jobs[0].stderr.file, log);
+    assert.equal(verifyRun(report.directory, config.expected).state, 'BLOCKED');
+    rmSync(log);
+    mkdirSync(log);
+    assert.equal(verifyRun(report.directory, config.expected).state, 'BLOCKED');
+    rmSync(log, { recursive: true });
+    writeFileSync(log, original);
+    report.jobs = [];
+    report.manifest = [];
+    report.manifestSha256 = createHash('sha256')
+      .update(JSON.stringify([], null, 2) + '\n')
+      .digest('hex');
+    const bytes = JSON.stringify(report, null, 2) + '\n';
+    writeFileSync(join(report.directory, 'report.json'), bytes);
+    writeFileSync(
+      join(report.directory, 'report.sha256'),
+      createHash('sha256').update(bytes).digest('hex') + '\n',
+    );
+    assert.equal(verifyRun(report.directory, config.expected).state, 'BLOCKED');
+  },
+);
 test(
   'temporary non-repositories cannot inherit the enclosing checkout history',
   { skip: !available },
