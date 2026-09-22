@@ -407,3 +407,90 @@ test('catalogue malformed and duplicate entries never replace accepted strategie
     await h.adapter.client.refresh();
   }
 });
+
+test('HTTP-date Retry-After survives reload, expires exactly, and ignores past or malformed dates', async () => {
+  const start = Date.parse('2026-09-23T00:00:00Z');
+  for (const header of [
+    undefined,
+    '',
+    'not-a-date',
+    new Date(start - 1000).toUTCString(),
+    new Date(start + 2000).toUTCString(),
+  ]) {
+    let now = start;
+    let calls = 0;
+    const values = new Map<string, string>();
+    const options = {
+      now: () => now,
+      request: async () => {
+        calls++;
+        throw new ApiError('RATE_LIMITED', 429, header);
+      },
+      storage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          values.set(key, value);
+        },
+        removeItem: (key: string) => {
+          values.delete(key);
+        },
+      },
+    };
+    const adapter = new ProductAdapter(options);
+    await assert.rejects(adapter.request('/session'), /RATE_LIMITED/);
+    const future = header === new Date(start + 2000).toUTCString();
+    assert.equal(adapter.retryAfterSeconds, future ? 2 : 0);
+    const reloaded = new ProductAdapter(options);
+    await assert.rejects(reloaded.request('/session'), /RATE_LIMITED/);
+    assert.equal(calls, future ? 1 : 2, 'persisted future deadline prevents a second request');
+    now += 2000;
+    await assert.rejects(reloaded.request('/session'), /RATE_LIMITED/);
+    assert.equal(calls, future ? 2 : 3, 'at expiry the original endpoint may be retried');
+    assert.equal(reloaded.retryAfterSeconds, 0);
+  }
+});
+
+test('malformed command receipt cannot claim success; exact original retry reconciles one real ledger mutation', async (t) => {
+  const h = await setup(t);
+  const before = projection(h.adapter.snapshot);
+  const revision = h.store.get(h.a, 'alice').revision;
+  h.hooks.after = async (path, value) => {
+    if (path.endsWith('/commands')) value.replayed = 'false';
+  };
+  await assert.rejects(
+    h.adapter.client.command('deposit', { amount: '7' }, h.adapter.client.prepare()),
+    /INVALID/,
+  );
+  assert.deepEqual(projection(h.adapter.snapshot), before);
+  assert.equal(h.store.get(h.a, 'alice').revision, revision + 1);
+  assert.ok(h.adapter.snapshot.pending);
+  const commandId = h.adapter.snapshot.pending.command.id;
+  delete h.hooks.after;
+  await h.adapter.client.retry();
+  assert.equal(h.adapter.snapshot.phase, 'READY');
+  assert.equal(h.adapter.snapshot.pending, null);
+  assert.equal(h.store.get(h.a, 'alice').revision, revision + 1);
+  assert.equal(h.adapter.snapshot.vaults.find((v) => v.vaultId === h.a)?.balances.idle, '7');
+  assert.equal(h.adapter.snapshot.audit.filter((row) => row.commandId === commandId).length, 1);
+});
+
+test('invalid and mismatched identity selection clears private state without accepting another user', async (t) => {
+  const h = await setup(t);
+  const before = h.store.get(h.a, 'alice');
+  await assert.rejects(h.adapter.client.selectIdentity('mallory' as never), /INVALID_IDENTITY/);
+  assert.equal(h.adapter.client.snapshot.user, null);
+  assert.equal(h.adapter.client.snapshot.vaults.length, 0);
+  await h.adapter.client.selectIdentity('alice');
+  h.hooks.after = async (path, data) => {
+    if (path === '/demo/session') data.user = 'alice';
+  };
+  await assert.rejects(h.adapter.client.selectIdentity('bob'), /RESPONSE_CONTEXT_MISMATCH/);
+  assert.equal(h.adapter.client.snapshot.user, null);
+  assert.equal(h.adapter.client.snapshot.vaults.length, 0);
+  assert.equal(h.adapter.snapshot.user, null);
+  assert.deepEqual(h.store.get(h.a, 'alice'), before);
+  delete h.hooks.after;
+  await h.adapter.client.selectIdentity('bob');
+  assert.equal(h.adapter.client.snapshot.user, 'bob');
+  assert.equal(h.adapter.client.snapshot.vaults.length, 0);
+});

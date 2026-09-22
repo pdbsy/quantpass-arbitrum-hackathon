@@ -725,3 +725,115 @@ test('actual product page extension reads fresh onchain state on every render', 
   assert.match(pages.account('funds'), new RegExp(walletAddress));
   assert.match(pages.account('funds'), /INJECTED MOCK/);
 });
+
+test('pending transaction evidence never promotes signature or confirmation to product readiness', () => {
+  const base = {
+    ...operationEvidenceDefaults,
+    receipt: 'PENDING' as const,
+    confirmations: 0,
+    reconciliation: 'PENDING' as const,
+    projection: 'PENDING' as const,
+    productReady: false,
+  };
+  for (const [lifecycle, status] of [
+    ['AWAITING_SIGNATURE', 'WALLET_APPROVAL_REQUIRED'],
+    ['SUBMITTED', 'SUBMITTED'],
+    ['MINED', 'CONFIRMING'],
+  ] as const) {
+    const presentation = transactionPresentationFromEvidence({ ...base, lifecycle });
+    assert.equal(presentation.status, status);
+    assert.equal(presentation.txHash, undefined);
+    assert.notEqual(presentation.status, 'READY');
+  }
+});
+
+test('message-only provider failures are escaped and explicitly lack an error code', () => {
+  const html = renderM3AccountShell({
+    wallet: { status: 'CONNECTION_REJECTED', errorMessage: '<script>fixture</script>' },
+    transaction: { status: 'FAILED', errorMessage: 'transport & reconciliation unavailable' },
+  });
+  assert.equal((html.match(/UNSPECIFIED_ERROR/g) ?? []).length, 2);
+  assert.match(html, /&lt;script&gt;fixture&lt;\/script&gt;/);
+  assert.match(html, /transport &amp; reconciliation unavailable/);
+  assert.doesNotMatch(html, /<script>/);
+});
+
+test('closed-state and owner exit capability restrict every action even if advertised by the backend', () => {
+  const supportedActions = ['deposit', 'withdraw', 'close', 'rescue-token', 'rescue-native'] as const;
+  const base = {
+    deployment: 'CONFIGURED' as const,
+    health: 'LIVE' as const,
+    readiness: 'SOFT_READY' as const,
+    owner: 'OWNER' as const,
+    writeMode: 'INJECTED_MOCK' as const,
+    supportedActions,
+  };
+  for (const vaultClosed of [false, true]) {
+    for (const exitPath of ['LIVE_RPC', 'SIMULATION', 'UNAVAILABLE'] as const) {
+      const onchain = { ...base, vaultClosed, exitPath };
+      for (const action of supportedActions) {
+        const rescue = action.startsWith('rescue-');
+        const expected = rescue
+          ? vaultClosed && exitPath !== 'UNAVAILABLE'
+          : !vaultClosed && action !== 'deposit';
+        assert.equal(onchainActionEnabled(onchain, action), expected, `${vaultClosed}/${exitPath}/${action}`);
+      }
+      const html = renderM3AccountShell({ onchain });
+      assert.equal(
+        html.includes('Owner-only post-close rescue remains available'),
+        vaultClosed && exitPath !== 'UNAVAILABLE',
+      );
+    }
+  }
+  const degraded = renderM3AccountShell({
+    onchain: { ...base, health: 'DEGRADED', exitPath: 'UNAVAILABLE' },
+  });
+  assert.doesNotMatch(degraded, /Owner-only post-close rescue remains available/);
+  assert.match(degraded, /data-chain-action="withdraw"[^>]*disabled/);
+});
+
+test('unreviewed or cross-chain Vault selector metadata never becomes an actionable choice', () => {
+  const vaultA = asAddress('0x2222222222222222222222222222222222222222');
+  const vaultB = asAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+  const valid = { chainId: 46_630 as const, vaultAddress: vaultA };
+  const options = [valid];
+  const onchain = {
+    deployment: 'CONFIGURED' as const,
+    health: 'LIVE' as const,
+    readiness: 'SOFT_READY' as const,
+    owner: 'OWNER' as const,
+    writeMode: 'INJECTED_MOCK' as const,
+    exitPath: 'SIMULATION' as const,
+    supportedActions: [] as const,
+    passInitialSupplyBaseUnits: '1',
+  };
+  for (const selection of [
+    { selected: { ...valid, chainId: 1 }, options },
+    { selected: { ...valid, vaultAddress: 'bad-address' }, options },
+    { selected: valid, options: [{ ...valid, chainId: 1 }] },
+    { selected: valid, options: [{ ...valid, vaultAddress: 'bad-address' }] },
+    { selected: { ...valid, vaultAddress: vaultB }, options },
+  ]) {
+    const html = renderM3AccountShell({ onchain, vaultSelection: selection as never });
+    assert.doesNotMatch(html, /data-chain-vault-select/);
+    assert.match(html, /Unavailable until reviewed deployment constructor values are configured/);
+  }
+  const pages = extendM3ProductPages(
+    { account: () => '', trade: () => '' },
+    {
+      accountId: () => 'alice',
+      contentProvenance: () => 'FIXTURE',
+      chain: () => ({
+        wallet: { status: 'CONNECTED' },
+        network: { status: 'CORRECT' },
+        transaction: { status: 'IDLE' },
+        onchain,
+        vaultSelection: { selected: valid, options },
+      }),
+    },
+  );
+  for (const html of [pages.account('funds'), pages.trade('trend')]) {
+    assert.match(html, /data-chain-vault-select/);
+    assert.match(html, new RegExp(`value="46630:${vaultA}" selected`));
+  }
+});

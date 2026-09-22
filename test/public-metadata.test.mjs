@@ -1193,3 +1193,34 @@ test('static identity parsing bounds suffix whitespace and preserves harmless in
   ])
     assert.doesNotThrow(() => findOperationalMetadataKinds(source, 'src/input.ts'));
 });
+
+test('malformed static expressions cannot swallow a later concrete identity record', () => {
+  const field = ['host', 'name'].join('');
+  const later = `\nconst ${field} = "fictional-workstation";`;
+  for (const prefix of [
+    `const ${field} = "str\\\ning";`,
+    `const ${field} = "str\ring";`,
+    `const ${field} = ("str" + "ing";`,
+    `const ${field} = "\\u00xx";`,
+    `const ${field} = "\\xzz";`,
+    `const ${field} = "string\\`,
+    'profile?.["public"]. = "string";',
+    'profile["public" = "string";',
+  ])
+    assert.ok(findOperationalMetadataKinds(prefix + later, 'src/input.ts').includes('host-identity'));
+});
+
+test('escaped object wrappers retain sensitive records and preserve harmless scalar wrappers', () => {
+  const field = ['host', 'name'].join('');
+  const sensitive = JSON.stringify({ [field]: 'fictional-workstation' });
+  const escaped = sensitive.replaceAll('"', '\\"');
+  assert.ok(findOperationalMetadataKinds(escaped, 'record.txt').includes('host-identity'));
+  for (const value of ['null', 'false', '42', '[]', '{}', '"public"']) {
+    let encoded = value;
+    for (let depth = 0; depth < 4; depth++) encoded = JSON.stringify(encoded);
+    assert.deepEqual(findOperationalMetadataKinds(encoded, 'record.txt'), []);
+  }
+  let encoded = escaped;
+  for (let depth = 0; depth < 12; depth++) encoded = JSON.stringify(encoded);
+  assert.ok(findOperationalMetadataKinds(encoded, 'record.txt').includes('structured-record-budget'));
+});

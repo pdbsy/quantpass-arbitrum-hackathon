@@ -141,6 +141,42 @@ export async function verifyManagementBoundaries(page, origin) {
   assert.match(await page.locator('#raw-evidence').textContent(), /NO_DETAIL/);
   passed.push('Unknown gate states and absent check metadata remain explicit errors or NOT_RUN');
 
+  fixture.tasks[0].risk = 'unregistered';
+  fixture.tasks[1].risk = null;
+  fixture.workers[0].activities = [{ timestamp: 'fixture', title: 'Fallback activity title' }];
+  fixture.security.findings = [
+    {
+      id: 'TEST-FINDING',
+      title: 'Missing optional evidence',
+      severity: 'low',
+      status: 'OPEN',
+      owner: 'fixture',
+    },
+  ];
+  await refresh();
+  assert.match(await page.locator('#security-findings').textContent(), /NOT_AVAILABLE/);
+  assert.match(await page.locator('#worker-a').textContent(), /Fallback activity title/);
+  await page.locator('[data-filter="all"]').click();
+  await page.locator('#task-board').click({ position: { x: 2, y: 2 } });
+  await page.keyboard.press('/');
+  assert.equal(
+    await page.locator('#dashboard-search').evaluate((node) => node === node.ownerDocument.activeElement),
+    true,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#mobile-menu').click();
+  assert.equal(await page.locator('#mobile-menu').getAttribute('aria-expanded'), 'true');
+  assert.equal(
+    await page.locator('#mobile-menu').evaluate((node) => node === node.ownerDocument.activeElement),
+    true,
+  );
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#mobile-menu').getAttribute('aria-expanded'), 'false');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  passed.push(
+    'Missing optional security and activity fields remain explicit; keyboard search and mobile close work',
+  );
+
   fixture.project.status = 'constructor';
   await refresh();
   assert.match(await page.locator('#data-state').textContent(), /数据源错误/);
@@ -152,5 +188,91 @@ export async function verifyManagementBoundaries(page, origin) {
     globalThis.document.querySelector('#data-state').textContent.startsWith('快照：'),
   );
   assert.equal(await page.locator('#project-title').textContent(), original.project.name);
+  const forumResponse = await page.request.get(`${origin}/agent-forum.html`);
+  assert.equal(forumResponse.status(), 200);
+  const forumHtml = await forumResponse.text();
+  const snapshotPattern = /(<script[^>]*id="forum-snapshot"[^>]*>)([\s\S]*?)(<\/script>)/;
+  const embedded = snapshotPattern.exec(forumHtml);
+  assert.ok(embedded);
+  const forumFixture = JSON.parse(embedded[2]);
+  const message = forumFixture.messages[0];
+  assert.ok(message);
+  forumFixture.threads = [{ thread: 'fixture-a' }, { thread: 'fixture-b' }];
+  forumFixture.messages = [
+    {
+      ...message,
+      message_id: 'fixture-a',
+      agent: 'Macbeth01',
+      type: 'NOTICE',
+      thread: 'fixture-a',
+      body: '<b>Literal fixture</b>',
+      created_at: null,
+      updated_at: '',
+      related_pr: 'https://github.com/unrelated/repository/pull/1',
+      source_url: 'not-a-url',
+      reply_to_message: 'fixture-target',
+      ack_state: 'UNACKNOWLEDGED',
+    },
+    {
+      ...message,
+      message_id: 'fixture-b',
+      agent: 'Macbeth02',
+      type: 'ACK',
+      thread: 'fixture-b',
+      body: 'Fixture acknowledged',
+      ack_state: 'ACKNOWLEDGED',
+    },
+  ];
+  await page.route('**/agent-forum.html', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: forumHtml.replace(
+        snapshotPattern,
+        (_match, open, _json, close) =>
+          open + JSON.stringify(forumFixture).replaceAll('<', '\\u003c') + close,
+      ),
+    }),
+  );
+  try {
+    for (const state of ['ERROR', 'PARTIAL', 'READY']) {
+      forumFixture.source = {
+        ...forumFixture.source,
+        state,
+        last_sync_at: state === 'READY' ? new Date().toISOString() : null,
+        error: state === 'READY' ? null : 'TEST FIXTURE unavailable',
+      };
+      await page.goto(`${origin}/agent-forum.html`);
+      await page.locator('.message').first().waitFor();
+      assert.match(await page.locator('#source').textContent(), new RegExp(`SOURCE ${state}`));
+      assert.equal(
+        await page.locator('#source').getAttribute('class'),
+        state === 'READY' ? 'source' : 'source error',
+      );
+      assert.equal(await page.locator('.message b').count(), 0);
+      assert.match(await page.locator('.message').first().textContent(), /来源链接无效/);
+      assert.match(await page.locator('.message').first().textContent(), /Target fixture-target/);
+      for (const [selector, value] of [
+        ['#agent-filter', 'Macbeth01'],
+        ['#type-filter', 'NOTICE'],
+        ['#thread-filter', 'fixture-a'],
+      ]) {
+        await page.locator(selector).selectOption(value);
+        assert.equal(await page.locator('.message').count(), 1);
+        await page.locator(selector).selectOption('');
+        assert.equal(await page.locator('.message').count(), 2);
+      }
+      await page.locator('#agent-filter').selectOption('Macbeth06');
+      assert.equal(await page.locator('.message').count(), 0);
+    }
+    passed.push(
+      'Forum fixtures distinguish unavailable, partial and fresh sources; filter all identities and reject unsafe links',
+    );
+  } finally {
+    await page.unroute('**/agent-forum.html');
+    await page.goto(`${origin}/index.html`);
+    await page.locator('.task-card').first().waitFor();
+    assert.equal(await page.locator('#project-title').textContent(), original.project.name);
+  }
   return passed;
 }
