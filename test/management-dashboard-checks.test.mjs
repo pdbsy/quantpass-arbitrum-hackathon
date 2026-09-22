@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { fixtureExec } from './helpers/git-fixture.mjs';
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -422,4 +423,37 @@ test('runChecks defaults to full and binds automatic run IDs to the actual clean
   const evidence = result.checks.find((check) => check.id === 'lint').evidence;
   assert.match(evidence, /333333333333\/lint\.log$/);
   assert.equal(await readFile(join(root, evidence), 'utf8'), 'ok\n');
+});
+
+test('runChecks obtains source identity from actual Git when no collector override is supplied', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-check-real-git-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const git = (...args) =>
+    fixtureExec('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  git('init', '--quiet', '-b', 'master');
+  await writeFile(join(root, '.gitignore'), '.checks/\n');
+  git('add', '.gitattributes', '.gitignore');
+  git('commit', '--quiet', '-m', 'fixture');
+  const expectedCommit = git('rev-parse', 'HEAD');
+  const expectedTree = git('rev-parse', 'HEAD^{tree}');
+  const report = await runChecks({
+    root,
+    profile: 'quick',
+    runId: 'actual-git',
+    runProcess: async () => ({ exitCode: 0, stdout: 'fixture check result', stderr: '', timedOut: false }),
+  });
+  assert.equal(report.commit, expectedCommit);
+  assert.equal(report.tree, expectedTree);
+  assert.equal(report.branch, 'master');
+  assert.equal(git('status', '--porcelain'), '');
+  assert.deepEqual(JSON.parse(await readFile(join(root, '.checks/management/latest.json'), 'utf8')), report);
+});
+
+test('a missing process working directory yields failed evidence and a bounded generic error', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-check-missing-cwd-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const failed = await runCheck('lint', { root: join(root, 'absent'), commit, runId: 'missing-cwd' });
+  assert.equal(failed.record.status, 'FAIL');
+  assert.equal(failed.record.exitCode, 127);
+  assert.equal(failed.log, 'PROCESS_ERROR\n');
 });

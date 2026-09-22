@@ -992,3 +992,25 @@ test('governance review rendering retains each nonblocking qualification verbati
   ])
     assert.equal(html.split(expected).length - 1, 1);
 });
+
+test('governance review rejects noncanonical dates before their provenance can be trusted', () => {
+  for (const reviewedAt of ['2026/09/06', '2026-9-06', '', '2026-02-29']) {
+    const review = makeValidReview();
+    review.reviewedAt = reviewedAt;
+    assert.throws(() => validateGovernanceReview(review, boundary), /real YYYY-MM-DD calendar date/);
+  }
+  const leapDay = makeValidReview();
+  leapDay.reviewedAt = '2028-02-29';
+  assert.equal(validateGovernanceReview(leapDay, boundary), leapDay);
+});
+
+test('roadmap rejects prematurely enabled write planes even when referenced task IDs exist', () => {
+  const changed = structuredClone(boundary);
+  changed.environment.writePlanes.deployment.enabled = true;
+  assert.throws(() => validateRoadmapAlignment(changed, roadmap), /deployment write plane enabled before/);
+  const completed = structuredClone(roadmap);
+  const requiredTasks = changed.environment.writePlanes.deployment.requiresCompletedTasks;
+  for (const task of completed.tasks) if (requiredTasks.includes(task.id)) task.status = 'done';
+  assert.throws(() => validateRoadmapAlignment(changed, completed), /deployment write plane enabled before/);
+  assert.equal(boundary.environment.writePlanes.deployment.enabled, false);
+});

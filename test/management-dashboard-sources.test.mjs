@@ -1205,3 +1205,47 @@ test('snapshot closure rejects a merge even when all descendant files are otherw
   );
   assert.equal(actual.error, 'RECORDED_GIT_GRAPH_MISMATCH');
 });
+
+test('snapshot provenance accepts bounded closure but rejects excessive descendant history', async (t) => {
+  const fixture = await createRecordedGitFixture(t);
+  const path = 'docs/management/dashboard/data/dashboard.json';
+  for (let revision = 2; revision <= 16; revision++) {
+    await writeFile(join(fixture.root, path), JSON.stringify({ revision }) + '\n');
+    git(fixture.root, ['add', path]);
+    commit(fixture.root, `snapshot revision ${revision}`);
+  }
+  const recorded = recordedGit('macbeth/dashboard', fixture.recordedCommit, fixture.recordedTree);
+  const bounded = await collectRecordedGitState(fixture.root, 'master', recorded);
+  assert.equal(bounded.status, 'READY');
+  assert.equal(bounded.commit, fixture.recordedCommit);
+  assert.equal(bounded.tree, fixture.recordedTree);
+  await writeFile(join(fixture.root, path), '{"revision":17}\n');
+  git(fixture.root, ['add', path]);
+  commit(fixture.root, 'excessive snapshot closure');
+  const rejected = await collectRecordedGitState(fixture.root, 'master', recorded);
+  assert.equal(rejected.status, 'DATA_SOURCE_ERROR');
+  assert.equal(rejected.error, 'RECORDED_GIT_GRAPH_MISMATCH');
+  assert.equal('commit' in rejected, false);
+  assert.equal(git(fixture.root, ['status', '--porcelain']), '');
+});
+
+test('unsupported Git object identities never produce READY provenance', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-sha256-evidence-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  git(root, ['init', '--quiet', '--object-format=sha256', '-b', 'master']);
+  await writeFile(join(root, 'README.md'), 'isolated unsupported object format\n');
+  git(root, ['add', '.gitattributes', 'README.md']);
+  commit(root, 'fixture');
+  assert.equal(git(root, ['rev-parse', '--show-object-format']), 'sha256');
+  const actual = await collectGitState(root);
+  assert.equal(actual.status, 'DATA_SOURCE_ERROR');
+  assert.equal(actual.error, 'GIT_QUERY_FAILED');
+  const recorded = await collectRecordedGitState(
+    root,
+    'master',
+    recordedGit('master', '1'.repeat(40), '2'.repeat(40)),
+  );
+  assert.equal(recorded.status, 'DATA_SOURCE_ERROR');
+  assert.equal(recorded.error, 'RECORDED_GIT_QUERY_FAILED');
+  assert.equal('commit' in recorded, false);
+});
