@@ -863,6 +863,8 @@ export async function verifyPrototypeBoundaries(page) {
     'Responsive chart reflow preserves valid pointer and keyboard readouts; mobile navigation toggles both ways',
   );
 
+  cases.push(...(await verifyAdditionalReachableJourneys(page)));
+
   await page.evaluate((saved) => {
     localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(saved.local));
     localStorage.setItem('alphaforge.passmarket.v3', JSON.stringify(saved.exchange));
@@ -982,5 +984,72 @@ async function verifyApiLossAndThrottle(page) {
   return [
     'Visible API loss settles to zero equity with exact negative P&L and no phantom funds',
     'HTTP 429 disables writes, persists the original request across reload, re-establishes its owner, and retries exactly once after the real deadline',
+  ];
+}
+
+async function verifyAdditionalReachableJourneys(page) {
+  const origin = new URL(page.url()).origin;
+  // Exercise a supported persisted legacy profile through the real startup migration.
+  await page.evaluate(() => {
+    window.AF.store.reset();
+    const state = window.AF.store.read();
+    state.profile = { name: '工坊访客', bio: '保持好奇，认真研究。' };
+    state.history = [
+      { id: 'legacy-deposit', type: '添加演示余额', amount: 100, strategy: '', at: 'invalid-date' },
+    ];
+    state.passes.trend.at = '初始演示样例';
+    localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(state));
+  });
+  await page.reload();
+  const migrated = await page.evaluate(() => window.AF.store.read());
+  assert.equal(migrated.profile.name, 'Workshop Guest');
+  assert.equal(migrated.profile.bio, 'Stay curious. Research carefully.');
+  assert.equal(migrated.history[0].type, 'Add demo funds');
+  assert.equal(migrated.passes.trend.at, 'Initial demo sample');
+  await page.goto(`${origin}/#/account/funds`);
+  assert.match(await page.locator('main').textContent(), /Demo sample/);
+
+  // SPA navigation must retain active catalogue choices in the rebuilt controls.
+  await page.goto(`${origin}/#/market`);
+  await page.locator('#market-search').fill('Trend');
+  await page.locator('[data-market-category="Trend"]').click();
+  await page.locator('#market-sort').selectOption('name');
+  await page.locator('.nav-link[href="#/home"]').click();
+  await page.locator('.nav-link[href="#/market"]').click();
+  assert.equal(await page.locator('#market-search').inputValue(), 'Trend');
+  assert.equal(await page.locator('#market-sort').inputValue(), 'name');
+  assert.equal(await page.locator('[data-market-category="Trend"]').getAttribute('aria-pressed'), 'true');
+  assert.ok((await page.locator('#market-results .market-card').count()) > 0);
+  await page.locator('#market-search').fill('No matching strategy');
+  assert.equal(await page.locator('#market-results .market-card').count(), 0);
+  await page.locator('[data-action="market-reset"]').click();
+
+  await page.goto(`${origin}/#/trade/trend`);
+  const chart = page.locator('[data-v3-chart="returns"]');
+  await chart.focus();
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowRight');
+  const box = await chart.boundingBox();
+  assert.ok(box);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  assert.doesNotMatch(await page.locator('#returns-readout').textContent(), /NaN|undefined/);
+  await page.locator('#trade-panel [data-trade-pane="pass"]').click();
+  await page.locator('#trade-panel [data-trade-pane="funds"]').first().click();
+  await page.locator('#allocate-amount').fill('1');
+  await page.locator('#allocate-form [name="consent"]').uncheck();
+  const before = await page.evaluate(() => window.AF.store.read());
+  await page.locator('#allocate-form button[type="submit"]').click();
+  const consent = await page.locator('#allocate-form [name="consent"]').evaluate((input) => ({
+    valid: input.validity.valid,
+    message: input.validationMessage,
+  }));
+  assert.equal(consent.valid, false);
+  assert.ok(consent.message.length > 0);
+  assert.equal(await page.locator('#app-dialog[open]').count(), 0);
+  assert.deepEqual(await page.evaluate(() => window.AF.store.read()), before);
+  return [
+    'Persisted Chinese legacy profile and history migrate through startup without inventing balances; invalid history date stays an explicit demo sample',
+    'Real SPA catalogue navigation preserves selected filters, while return-chart keyboard and pointer controls retain finite values',
+    'Allocation without consent remains visibly rejected and leaves the local ledger unchanged',
   ];
 }
