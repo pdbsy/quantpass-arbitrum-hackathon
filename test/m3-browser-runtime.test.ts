@@ -1383,3 +1383,59 @@ test('unavailable durable storage fails before asking the wallet to send', async
     assert.equal(provider.requests.filter((item) => item.method === 'eth_sendTransaction').length, 0);
   }
 });
+
+test('every reviewed runtime identity binding independently blocks deposit approval on mismatch', async () => {
+  for (const field of [
+    'strategyPassAddress',
+    'manifestDigest',
+    'abiHash',
+    'runtimeBytecodeHash',
+    'strategyPassAbiHash',
+    'strategyPassRuntimeBytecodeHash',
+  ] as const) {
+    const provider = new ConfiguredProviderFixture();
+    const actual = {
+      chainId: 46_630 as const,
+      contract: VAULT,
+      strategyPassAddress: PASS,
+      manifestDigest: deployment.manifestDigest,
+      abiHash: deployment.abiHash,
+      runtimeBytecodeHash: deployment.runtimeBytecodeHash,
+      strategyPassAbiHash: deployment.strategyPassAbiHash,
+      strategyPassRuntimeBytecodeHash: deployment.strategyPassRuntimeBytecodeHash,
+    };
+    const altered = {
+      ...actual,
+      [field]: field === 'strategyPassAddress' ? AF_USDC : asBlockHash(`0x${'99'.repeat(32)}`),
+    };
+    const runtime = createM3BrowserRuntime({
+      provider,
+      deployment,
+      vaultReader: {
+        readSnapshot: async () => vaultSnapshot,
+        readRuntimeStatus: async () => ({
+          lastAttempt: 'SUCCEEDED',
+          errorCode: null,
+          database: { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' },
+          deployment: altered,
+        }),
+      },
+    });
+    await runtime.connect();
+    await assert.rejects(
+      runtime.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '1' }),
+      /M3_RUNTIME_STATUS_MISMATCH/,
+      field,
+    );
+    assert.equal(provider.requests.filter((request) => request.method === 'eth_sendTransaction').length, 0);
+  }
+});
+
+test('zero and aliased deployed token addresses cannot establish a writable runtime', () => {
+  const zero = asAddress(`0x${'0'.repeat(40)}`);
+  for (const patch of [{ vaultAddress: zero }, { strategyPassAddress: zero }, { strategyPassAddress: VAULT }])
+    assert.throws(
+      () => createM3BrowserRuntime({ deployment: { ...deployment, ...patch } }),
+      /INVALID_M3_DEPLOYMENT_CONFIG/,
+    );
+});

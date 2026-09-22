@@ -324,3 +324,57 @@ test('runCheck rejects unknown IDs instead of accepting an arbitrary command', a
     /unknown check/i,
   );
 });
+
+test('real check process bounds output, preserves failure and never exposes an inherited credential', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-check-process-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, 'package.json'), JSON.stringify({ scripts: { lint: 'node emit.mjs' } }));
+  await writeFile(
+    join(root, 'emit.mjs'),
+    "if (process.env.ALPHAFORGE_TEST_SECRET) process.exit(9); process.stdout.write('x'.repeat(200000)); process.stderr.write('y'.repeat(200000));",
+  );
+  const old = process.env.ALPHAFORGE_TEST_SECRET;
+  process.env.ALPHAFORGE_TEST_SECRET = 'synthetic-local-marker';
+  t.after(() => {
+    if (old === undefined) delete process.env.ALPHAFORGE_TEST_SECRET;
+    else process.env.ALPHAFORGE_TEST_SECRET = old;
+  });
+  const result = await runCheck('lint', { root, commit, runId: 'actual-process', maxLogBytes: 80 });
+  assert.equal(result.record.status, 'PASS');
+  assert.ok(Buffer.byteLength(result.log) <= 80);
+  assert.match(result.log, /TRUNCATED/);
+  assert.doesNotMatch(result.log, /synthetic-local-marker/);
+  await writeFile(join(root, 'emit.mjs'), 'process.exit(7);');
+  const failure = await runCheck('lint', { root, commit, runId: 'actual-failure' });
+  assert.equal(failure.record.status, 'FAIL');
+  assert.equal(failure.record.exitCode, 7);
+});
+
+test('check runner rejects missing identities and captures launcher exceptions as failed evidence', async () => {
+  for (const patch of [
+    { commit: undefined },
+    { commit: 'short' },
+    { runId: undefined },
+    { runId: '../escape' },
+  ])
+    await assert.rejects(runCheck('lint', { root: process.cwd(), commit, runId: 'fixture', ...patch }));
+  const failed = await runCheck('lint', {
+    root: process.cwd(),
+    commit,
+    runId: 'failed-launch',
+    runProcess: async () => {
+      throw Error('sensitive launcher detail');
+    },
+  });
+  assert.equal(failed.record.status, 'FAIL');
+  assert.equal(failed.record.exitCode, 127);
+  assert.match(failed.log, /PROCESS_ERROR/);
+  assert.doesNotMatch(failed.log, /sensitive/);
+  const silent = await runCheck('lint', {
+    root: process.cwd(),
+    commit,
+    runId: 'silent',
+    runProcess: async () => ({ exitCode: 0, stdout: '', stderr: '', timedOut: false }),
+  });
+  assert.equal(silent.log, '(no output)\n');
+});

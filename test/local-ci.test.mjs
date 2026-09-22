@@ -442,3 +442,92 @@ test(
     assert.equal(r.jobs.length, 0);
   },
 );
+
+test(
+  'runner refuses shallow history and tracked executable-mode drift before executing work',
+  { skip: !available },
+  async (t) => {
+    const { config, job, git } = fixture(t);
+    fs.chmodSync(join(config.cwd, 'source.txt'), 0o755);
+    git('config', 'core.filemode', 'false');
+    const changed = await runLocal({ ...config, jobs: [job('throw Error("must not execute")')] });
+    assert.equal(changed.state, 'BLOCKED');
+    assert.equal(changed.jobs.length, 0);
+    fs.chmodSync(join(config.cwd, 'source.txt'), 0o644);
+    const shallow = join(config.cwd, '.git/shallow');
+    writeFileSync(shallow, config.expected.head + '\n');
+    const incomplete = await runLocal({ ...config, jobs: [job('throw Error("must not execute")')] });
+    assert.equal(incomplete.state, 'BLOCKED');
+    assert.equal(incomplete.jobs.length, 0);
+  },
+);
+
+test(
+  'runner bounds real process logs and records a replayable blocked outcome',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const result = await runLocal({
+      ...config,
+      jobs: [job("process.stdout.write('x'.repeat(17 * 1024 * 1024));", { timeoutMs: 10000 })],
+    });
+    assert.equal(result.state, 'BLOCKED');
+    assert.equal(result.jobs[0].logFailure, true);
+    assert.equal(result.jobs[0].cleanup, 'PASS');
+    assert.equal(verifyRun(result.directory, config.expected).state, 'BLOCKED');
+  },
+);
+
+test(
+  'fixture evidence replay rejects contradictory states, signals and artifact identity even with a recalculated checksum',
+  { skip: !available },
+  async (t) => {
+    const { config, job } = fixture(t);
+    const result = await runLocal({ ...config, jobs: [job('process.exit(0)')] });
+    assert.equal(result.state, 'PASS');
+    for (const mutate of [
+      (r) => {
+        r.state = 'APPROVED';
+      },
+      (r) => {
+        r.jobs[0].state = 'FAIL';
+      },
+      (r) => {
+        r.jobs[0].signal = 'SIGTERM';
+      },
+      (r) => {
+        r.jobs[0].signal = 'INVALID';
+        r.jobs[0].exitCode = null;
+      },
+      (r) => {
+        r.jobs[0].exitCode = 256;
+      },
+      (r) => {
+        r.jobs[0].executableSha256 = '0'.repeat(64);
+      },
+      (r) => {
+        r.state = 'BLOCKED';
+        r.reason = '';
+        r.errorCode = 'INTERNAL';
+      },
+      (r) => {
+        r.state = 'BLOCKED';
+        r.reason = 'fixture';
+        r.errorCode = '';
+      },
+      (r) => {
+        r.state = 'FAIL';
+      },
+    ]) {
+      const altered = structuredClone(result);
+      mutate(altered);
+      const bytes = JSON.stringify(altered, null, 2) + '\n';
+      writeFileSync(join(result.directory, 'report.json'), bytes);
+      writeFileSync(
+        join(result.directory, 'report.sha256'),
+        createHash('sha256').update(bytes).digest('hex') + '\n',
+      );
+      assert.equal(verifyRun(result.directory, config.expected).state, 'BLOCKED');
+    }
+  },
+);

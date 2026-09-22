@@ -1686,7 +1686,7 @@
       "target_path": "test/agent-management.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable; user-authorized Macbeth06 CI/gate role registration (2026-09-20), historical source identity unchanged",
       "original_sha256": "f5c916f2f10f3fbc2e31e89bce0cf041bf091cae876b20490eac7f87140ebc42",
-      "migrated_sha256": "6471d437c7b743c619cb56d5058068468a2767c092ad34b033dec1e4d47b522b",
+      "migrated_sha256": "aab08f62d135578c0c859420cf949a9eb58cb7482838d002cfbae8fda9e79b4d",
       "subsequent_adaptations": [
         {
           "task": "AF-M3-IDENTITY",
@@ -1717,6 +1717,15 @@
           "base_commit": "3915c48dc25c4763f8b47b4b93834ae20113a9dd",
           "previous_sha256": "205012371ae9632225b8c9ff7faba08852376128a608a08869f6fc9ee19f12a0",
           "reason": "Align current worker bootstrap and assignment metadata with explicitly required Macbeth branch prefixes; preserve historical aliases and evidence."
+        }
+      ],
+      "subsequent_revisions": [
+        {
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "commit": "e59da4bfe83fec0b5a54df715334255fea753b34",
+          "previous_sha256": "6471d437c7b743c619cb56d5058068468a2767c092ad34b033dec1e4d47b522b",
+          "sha256": "aab08f62d135578c0c859420cf949a9eb58cb7482838d002cfbae8fda9e79b4d",
+          "reason": "Concentrated forum provenance and identity validation boundary tests. Preserve historical source and all prior adaptations."
         }
       ]
     },
