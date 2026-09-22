@@ -8,6 +8,10 @@ import { validateCheckReport } from './schema.mjs';
 import { collectGitState as collectRepositoryGitState } from './sources.mjs';
 
 const unitTests = [
+  'test/coverage-cli-boundaries.test.mjs',
+  'test/coverage-lifecycle-boundaries.test.mjs',
+  'test/management-cli-boundaries.test.mjs',
+
   'test/coverage-evidence.test.mjs',
   'test/coverage-prototype-map.test.mjs',
   'test/coverage-toolchain.test.mjs',

@@ -79,7 +79,9 @@ const qualification = {
     '--test',
     'test/coverage-preparation.qualified.test.mjs',
     'test/coverage-node-hook.qualified.test.mjs',
-    ...(options.browserDirectory ? ['test/coverage-browser.qualified.test.mjs'] : []),
+    ...(options.browserDirectory
+      ? ['test/coverage-browser.qualified.test.mjs', 'test/coverage-task-board.qualified.test.mjs']
+      : []),
   ],
 };
 const qualified = await collectNodeWorkflow(root, prepared.directory, {
