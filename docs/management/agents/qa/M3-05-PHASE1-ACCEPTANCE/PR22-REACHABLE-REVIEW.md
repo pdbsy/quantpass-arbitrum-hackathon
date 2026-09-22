@@ -66,3 +66,34 @@ the baseline copy, redact review and TAP logs. Subsequent diagnostic receipts mu
 report original-gap hits only when both source SHA-256 and branchMap are identical;
 changed graphs require separate measurement. No full check/dashboard/package or
 external publication is performed by this batch.
+
+## Measured first-batch delta and task-board correction
+
+Exact `3ecab4d5c8cdce332fecf65a94a7b837e8f39b91` targeted collection and raw replay
+passed:74 comparable original gaps,39 newly hit,35 still unhit, no changed production
+source graphs. The diagnostic receipt SHA-256 is
+`634931e2efc03be05723fad81015d07e75c5f17a52949259a4d416b3bb6b446f`.
+This is a local diagnostic increment, not a new aggregate acceptance percentage.
+
+Manager01 identified an active source that was retained in the denominator but
+not materialized for browser capture: `docs/task-board.html` loads
+`docs/task-board.js`, while the management adapter selected only dashboard assets.
+05 independently reproduced two RED assertions: runtime bytes stayed uninstrumented,
+and real Chrome filtering/reset behavior passed without any original task-board
+counter. A preceding sandbox run's loopback `EPERM` is retained separately and is
+not counted as product RED.
+
+The narrow fix includes exactly `docs/task-board.js` in management materialization.
+The existing source, generated-code and source-map verification still runs before
+the isolated runtime is written. No source is removed, no counter is seeded, and
+no product asset is changed. The two qualified tests pass after the fix, including
+generated-code/map tampering rejection and real browser raw replay with every
+task-board branch/function hit. The runtime/browser-child and first-batch regression
+tests also pass. Browser fixtures use their own ephemeral loopback ports.
+
+The change modifies `tools/coverage/browser-legacy.mjs`; its14 original assigned
+gap IDs must be tracked as a changed graph in subsequent comparisons.39 first-batch
+hits cannot simply be added to a later full percentage. New qualified test entry:
+`test/coverage-task-board.qualified.test.mjs`, requiring the same reviewed
+instrumentation/Playwright inputs and explicit Chromium as existing browser
+qualification. Manager01 owns shared script registration;06 reviews this05 fix.

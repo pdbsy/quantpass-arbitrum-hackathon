@@ -144,7 +144,9 @@ function sourceEntry(manifest, path) {
 async function materializeManagement({ root, manifest, generated }) {
   const candidates = [
     ...Object.keys(manifest.sources).filter(
-      (path) => path.startsWith('docs/management/dashboard/') && shouldTransformBrowserPath(path),
+      (path) =>
+        path === 'docs/task-board.js' ||
+        (path.startsWith('docs/management/dashboard/') && shouldTransformBrowserPath(path)),
     ),
     ...Object.keys(manifest.aliases || {}).filter((path) => path.startsWith('docs/management/dashboard/')),
   ];
