@@ -61,6 +61,21 @@ contract AlphaForgeVaultHarness is AlphaForgeVault {
         emit TrackedUsdcBalanceChanged(previous, updated);
     }
 
+    function seedAccountingForTest(uint256 principal, uint256 tracked)
+        external
+        onlyHarnessController
+    {
+        principalBasis = principal;
+        trackedUsdcBalance = tracked;
+    }
+
+    function setTrackedPositionForTest(address token, uint256 amount)
+        external
+        onlyHarnessController
+    {
+        _setTrackedPosition(token, amount);
+    }
+
     function openPosition(address token, uint256 amount)
         external
         onlyHarnessController

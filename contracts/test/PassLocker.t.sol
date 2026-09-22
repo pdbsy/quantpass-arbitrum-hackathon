@@ -4,6 +4,7 @@ pragma solidity 0.8.31;
 import { PassLocker } from "../src/PassLocker.sol";
 import { StrategyPass } from "../src/StrategyPass.sol";
 import { ReentrantPass } from "./mocks/ReentrantPass.sol";
+import { ConfigurableStrategyPass } from "./mocks/ConfigurableAsset.sol";
 
 interface LockerVm {
     function prank(address sender) external;
@@ -33,6 +34,29 @@ contract PassLockerTest {
         require(locker.lockedBalance() == 10 ether, "wrong locked accounting");
         require(pass.balanceOf(address(locker)) == 10 ether, "escrow did not receive Pass");
         require(pass.balanceOf(ALICE) == 90 ether, "owner free balance not reduced");
+    }
+
+    // Every immutable authority/custody dependency is required at construction.
+    function test_ConstructorRejectsZeroDependencies() public {
+        require(!_tryDeploy(address(0), ALICE, pass), "zero Vault accepted");
+        require(!_tryDeploy(address(this), address(0), pass), "zero owner accepted");
+        require(!_tryDeploy(address(this), ALICE, StrategyPass(address(0))), "zero Pass accepted");
+    }
+
+    // Real escrow balance may never fall below the amount already recorded as locked.
+    function test_EscrowDeficitRejectsAdditionalLockWithoutAccountingMutation() public {
+        ConfigurableStrategyPass burnable =
+            new ConfigurableStrategyPass("Burnable", "BURN", STRATEGY_ID, SUPPLY, ALICE);
+        PassLocker deficitLocker = new PassLocker(address(this), ALICE, burnable);
+        VM.prank(ALICE);
+        require(burnable.transfer(address(deficitLocker), 2 ether), "deficit funding failed");
+        deficitLocker.lock(2 ether);
+        burnable.forceBurn(address(deficitLocker), 1 ether);
+
+        (bool success,) = address(deficitLocker).call(abi.encodeCall(deficitLocker.lock, (1)));
+        require(!success, "deficit lock accepted");
+        require(deficitLocker.lockedBalance() == 2 ether, "deficit changed accounting");
+        require(burnable.balanceOf(address(deficitLocker)) == 1 ether, "deficit balance changed");
     }
 
     // Catches unlock paths that change accounting without returning the escrowed Pass.
@@ -159,5 +183,16 @@ contract PassLockerTest {
     function _fundEscrow(uint256 amount) private {
         VM.prank(ALICE);
         require(pass.transfer(address(locker), amount), "escrow funding failed");
+    }
+
+    function _tryDeploy(address vault_, address owner_, StrategyPass pass_)
+        private
+        returns (bool success)
+    {
+        try new PassLocker(vault_, owner_, pass_) returns (PassLocker) {
+            return true;
+        } catch {
+            return false;
+        }
     }
 }

@@ -1,0 +1,23 @@
+producer=Macbeth02
+task=M3-02-PHASE1-CONTRACTS
+evidence_type=LOCAL_REPORT_AND_SCOPE_VALIDATION
+executed_at_utc=2026-09-20T10:53:59+00:00
+source_head=a13052993b6f408b7be835ecd6f4b13ef6df367d
+manager_source=3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8
+command=git diff --cached --check
+exit=0
+command=verify three evidence SHA-256 values are present in Macbeth02-EVIDENCE-INDEX.md
+exit=0
+result=evidence_index_hashes=PASS
+command=scan Macbeth02 deliverables for machine-local user paths and trailing whitespace
+exit=0
+result=tracked_metadata_privacy=PASS; trailing_whitespace=PASS
+command=Node 24.21.0 / npm 11.19.1 npm run privacy:check
+exit=0
+result=Public metadata baseline passed: 522 bounded repository files; no prohibited operational profile.
+command=git diff --exit-code a130529... 3a78e34... -- contracts
+exit=0
+result=contracts_source_equivalence=PASS
+hosted_checks=NOT_QUERIED_OR_EXECUTED
+remote_writes=NONE
+deployment_signing_broadcast=NONE

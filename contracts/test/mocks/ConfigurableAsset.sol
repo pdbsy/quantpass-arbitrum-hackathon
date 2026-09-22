@@ -64,6 +64,10 @@ contract ConfigurableAsset is ERC20 {
     function setTransferFee(uint256 transferFee_) external {
         transferFee = transferFee_;
     }
+
+    function forceBurn(address account, uint256 amount) external {
+        _burn(account, amount);
+    }
 }
 
 contract ConfigurableStrategyPass is ConfigurableAsset {

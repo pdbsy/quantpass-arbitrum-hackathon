@@ -1,0 +1,1411 @@
+{
+  "contracts": {
+    "AlphaForgeSwapAdapter": {
+      "abiKeccak256": "0xccfcd65e70b2cef219b13690cb25085196bf0a743ba4b4a066a689990f1a76dd",
+      "artifact": "AlphaForgeSwapAdapter.sol/AlphaForgeSwapAdapter.json",
+      "compilerImmutableReferences": {
+        "groups": [
+          {
+            "compilerReferenceId": "7439",
+            "locations": [
+              {
+                "length": 32,
+                "start": 298
+              },
+              {
+                "length": 32,
+                "start": 932
+              },
+              {
+                "length": 32,
+                "start": 1008
+              },
+              {
+                "length": 32,
+                "start": 1227
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "7441",
+            "locations": [
+              {
+                "length": 32,
+                "start": 262
+              },
+              {
+                "length": 32,
+                "start": 1882
+              },
+              {
+                "length": 32,
+                "start": 2140
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "7443",
+            "locations": [
+              {
+                "length": 32,
+                "start": 1774
+              },
+              {
+                "length": 32,
+                "start": 1968
+              },
+              {
+                "length": 32,
+                "start": 2226
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "7445",
+            "locations": [
+              {
+                "length": 32,
+                "start": 334
+              },
+              {
+                "length": 32,
+                "start": 2053
+              },
+              {
+                "length": 32,
+                "start": 2311
+              }
+            ]
+          }
+        ],
+        "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
+      },
+      "compilerRuntimeTemplate": {
+        "keccak256": "0x28b5aa70edf9adf7da186df42c0337a7a4c42985c5e6a7b58c540a18c950bc24",
+        "lengthBytes": 4916,
+        "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
+      },
+      "constructor": [
+        {
+          "name": "venue_",
+          "type": "address"
+        },
+        {
+          "name": "afUsdc_",
+          "type": "address"
+        },
+        {
+          "name": "afEth_",
+          "type": "address"
+        },
+        {
+          "name": "afBtc_",
+          "type": "address"
+        }
+      ],
+      "creationBytecode": {
+        "keccak256": "0x1a3226a486fcf9e8a51511b2aa5f42555f275f3abfe6ceaee0b547643b50b1f3",
+        "lengthBytes": 5992
+      },
+      "deployedAddress": null,
+      "deployedRuntimeKeccak256": null,
+      "errors": [
+        {
+          "selector": "0x587daa30",
+          "signature": "DuplicateAsset()"
+        },
+        {
+          "selector": "0xaa2fd925",
+          "signature": "Expired(uint256,uint256)"
+        },
+        {
+          "selector": "0xd9a764d9",
+          "signature": "InvalidPair(address,address)"
+        },
+        {
+          "selector": "0x3ee5aeb5",
+          "signature": "ReentrancyGuardReentrantCall()"
+        },
+        {
+          "selector": "0x5274afe7",
+          "signature": "SafeERC20FailedOperation(address)"
+        },
+        {
+          "selector": "0x71c4efed",
+          "signature": "SlippageExceeded(uint256,uint256)"
+        },
+        {
+          "selector": "0xacb77497",
+          "signature": "UnexpectedBalanceDelta(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xd92e233d",
+          "signature": "ZeroAddress()"
+        },
+        {
+          "selector": "0x1f2a2005",
+          "signature": "ZeroAmount()"
+        }
+      ],
+      "events": [
+        {
+          "indexedMask": "1110000",
+          "signature": "SwapAdapted(address,bytes32,address,address,uint256,uint256,uint256)",
+          "topic0": "0xe232c48379cb4a995c4e55ac6a361a1ab18f6d86c0ddd1a9f5f81570e5fb4273"
+        }
+      ],
+      "immutableReferenceGroupCount": 4,
+      "immutables": [
+        {
+          "name": "venue",
+          "type": "ITestVenue"
+        },
+        {
+          "name": "afUsdc",
+          "type": "address"
+        },
+        {
+          "name": "afEth",
+          "type": "address"
+        },
+        {
+          "name": "afBtc",
+          "type": "address"
+        }
+      ],
+      "methodIdentifiers": {
+        "afBtc()": "0xa8d937e9",
+        "afEth()": "0xf20173bc",
+        "afUsdc()": "0x8b5a851f",
+        "swap((bytes32,address,address,uint256,uint256,uint256,uint256))": "0xb359e721",
+        "venue()": "0xa270a737"
+      },
+      "source": "src/AlphaForgeSwapAdapter.sol",
+      "sourceSha256": "0a4a4d42008f435aeb1c9a9acf4cdc947c6fceb409e3d403e0ca7522281faefa"
+    },
+    "AlphaForgeTestBTC": {
+      "abiKeccak256": "0x41799b765fe317c21f24b0a29ae158289298f1d290d8b5647914f8eec65665ee",
+      "artifact": "AlphaForgeTestAsset.sol/AlphaForgeTestBTC.json",
+      "compilerImmutableReferences": {
+        "groups": [],
+        "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
+      },
+      "compilerRuntimeTemplate": {
+        "keccak256": "0xd0c0edc9bd55314a44109254a22f9e77d3541a08c3fd3e4119bbd7cf21ba841b",
+        "lengthBytes": 3616,
+        "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
+      },
+      "constructor": [
+        {
+          "name": "fixedSupply_",
+          "type": "uint256"
+        },
+        {
+          "name": "recipient_",
+          "type": "address"
+        }
+      ],
+      "creationBytecode": {
+        "keccak256": "0xe6f95bf34a0b0d1a93f51291540b086706596a0e90c990859f0a0e15fdedee35",
+        "lengthBytes": 5786
+      },
+      "deployedAddress": null,
+      "deployedRuntimeKeccak256": null,
+      "errors": [
+        {
+          "selector": "0xfb8f41b2",
+          "signature": "ERC20InsufficientAllowance(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xe450d38c",
+          "signature": "ERC20InsufficientBalance(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xe602df05",
+          "signature": "ERC20InvalidApprover(address)"
+        },
+        {
+          "selector": "0xec442f05",
+          "signature": "ERC20InvalidReceiver(address)"
+        },
+        {
+          "selector": "0x96c6fd1e",
+          "signature": "ERC20InvalidSender(address)"
+        },
+        {
+          "selector": "0x94280d62",
+          "signature": "ERC20InvalidSpender(address)"
+        }
+      ],
+      "events": [
+        {
+          "indexedMask": "110",
+          "signature": "Approval(address,address,uint256)",
+          "topic0": "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+        },
+        {
+          "indexedMask": "110",
+          "signature": "Transfer(address,address,uint256)",
+          "topic0": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+        }
+      ],
+      "immutableReferenceGroupCount": 0,
+      "immutables": [],
+      "methodIdentifiers": {
+        "allowance(address,address)": "0xdd62ed3e",
+        "approve(address,uint256)": "0x095ea7b3",
+        "balanceOf(address)": "0x70a08231",
+        "decimals()": "0x313ce567",
+        "name()": "0x06fdde03",
+        "symbol()": "0x95d89b41",
+        "totalSupply()": "0x18160ddd",
+        "transfer(address,uint256)": "0xa9059cbb",
+        "transferFrom(address,address,uint256)": "0x23b872dd"
+      },
+      "source": "src/AlphaForgeTestAsset.sol",
+      "sourceSha256": "b97587fa4d173f35a5a28dfb52546692c62dbcd77bb2a5cfea27fabeee7f0b29"
+    },
+    "AlphaForgeTestETH": {
+      "abiKeccak256": "0x41799b765fe317c21f24b0a29ae158289298f1d290d8b5647914f8eec65665ee",
+      "artifact": "AlphaForgeTestAsset.sol/AlphaForgeTestETH.json",
+      "compilerImmutableReferences": {
+        "groups": [],
+        "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
+      },
+      "compilerRuntimeTemplate": {
+        "keccak256": "0xd0c0edc9bd55314a44109254a22f9e77d3541a08c3fd3e4119bbd7cf21ba841b",
+        "lengthBytes": 3616,
+        "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
+      },
+      "constructor": [
+        {
+          "name": "fixedSupply_",
+          "type": "uint256"
+        },
+        {
+          "name": "recipient_",
+          "type": "address"
+        }
+      ],
+      "creationBytecode": {
+        "keccak256": "0xfc319b79e2c49f1976ed044437d749cbc65d1606638cee41f52e24ccd335dc14",
+        "lengthBytes": 5786
+      },
+      "deployedAddress": null,
+      "deployedRuntimeKeccak256": null,
+      "errors": [
+        {
+          "selector": "0xfb8f41b2",
+          "signature": "ERC20InsufficientAllowance(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xe450d38c",
+          "signature": "ERC20InsufficientBalance(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xe602df05",
+          "signature": "ERC20InvalidApprover(address)"
+        },
+        {
+          "selector": "0xec442f05",
+          "signature": "ERC20InvalidReceiver(address)"
+        },
+        {
+          "selector": "0x96c6fd1e",
+          "signature": "ERC20InvalidSender(address)"
+        },
+        {
+          "selector": "0x94280d62",
+          "signature": "ERC20InvalidSpender(address)"
+        }
+      ],
+      "events": [
+        {
+          "indexedMask": "110",
+          "signature": "Approval(address,address,uint256)",
+          "topic0": "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+        },
+        {
+          "indexedMask": "110",
+          "signature": "Transfer(address,address,uint256)",
+          "topic0": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+        }
+      ],
+      "immutableReferenceGroupCount": 0,
+      "immutables": [],
+      "methodIdentifiers": {
+        "allowance(address,address)": "0xdd62ed3e",
+        "approve(address,uint256)": "0x095ea7b3",
+        "balanceOf(address)": "0x70a08231",
+        "decimals()": "0x313ce567",
+        "name()": "0x06fdde03",
+        "symbol()": "0x95d89b41",
+        "totalSupply()": "0x18160ddd",
+        "transfer(address,uint256)": "0xa9059cbb",
+        "transferFrom(address,address,uint256)": "0x23b872dd"
+      },
+      "source": "src/AlphaForgeTestAsset.sol",
+      "sourceSha256": "b97587fa4d173f35a5a28dfb52546692c62dbcd77bb2a5cfea27fabeee7f0b29"
+    },
+    "AlphaForgeTestUSDC": {
+      "abiKeccak256": "0x3752a148d6bf7582463092736b5418e31dcfadf3a7559d994dd08dd4c7b50268",
+      "artifact": "AlphaForgeTestAsset.sol/AlphaForgeTestUSDC.json",
+      "compilerImmutableReferences": {
+        "groups": [],
+        "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
+      },
+      "compilerRuntimeTemplate": {
+        "keccak256": "0xca65250d8e5606789ad09ce6a0293a01d21dda2a4dcda0a711d393e8cca29ab4",
+        "lengthBytes": 3616,
+        "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
+      },
+      "constructor": [
+        {
+          "name": "fixedSupply_",
+          "type": "uint256"
+        },
+        {
+          "name": "recipient_",
+          "type": "address"
+        }
+      ],
+      "creationBytecode": {
+        "keccak256": "0xaa15215a7d7cef59844829c46b8b6fc7fb348e2b97f1505509680e263bb00dac",
+        "lengthBytes": 5786
+      },
+      "deployedAddress": null,
+      "deployedRuntimeKeccak256": null,
+      "errors": [
+        {
+          "selector": "0xfb8f41b2",
+          "signature": "ERC20InsufficientAllowance(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xe450d38c",
+          "signature": "ERC20InsufficientBalance(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xe602df05",
+          "signature": "ERC20InvalidApprover(address)"
+        },
+        {
+          "selector": "0xec442f05",
+          "signature": "ERC20InvalidReceiver(address)"
+        },
+        {
+          "selector": "0x96c6fd1e",
+          "signature": "ERC20InvalidSender(address)"
+        },
+        {
+          "selector": "0x94280d62",
+          "signature": "ERC20InvalidSpender(address)"
+        }
+      ],
+      "events": [
+        {
+          "indexedMask": "110",
+          "signature": "Approval(address,address,uint256)",
+          "topic0": "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+        },
+        {
+          "indexedMask": "110",
+          "signature": "Transfer(address,address,uint256)",
+          "topic0": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+        }
+      ],
+      "immutableReferenceGroupCount": 0,
+      "immutables": [],
+      "methodIdentifiers": {
+        "allowance(address,address)": "0xdd62ed3e",
+        "approve(address,uint256)": "0x095ea7b3",
+        "balanceOf(address)": "0x70a08231",
+        "decimals()": "0x313ce567",
+        "name()": "0x06fdde03",
+        "symbol()": "0x95d89b41",
+        "totalSupply()": "0x18160ddd",
+        "transfer(address,uint256)": "0xa9059cbb",
+        "transferFrom(address,address,uint256)": "0x23b872dd"
+      },
+      "source": "src/AlphaForgeTestAsset.sol",
+      "sourceSha256": "b97587fa4d173f35a5a28dfb52546692c62dbcd77bb2a5cfea27fabeee7f0b29"
+    },
+    "AlphaForgeTestVenue": {
+      "abiKeccak256": "0x1e2e6a19fdc9a4da9f8e553acbd006cbe7111466886e447d5321122c16d1d316",
+      "artifact": "AlphaForgeTestVenue.sol/AlphaForgeTestVenue.json",
+      "compilerImmutableReferences": {
+        "groups": [
+          {
+            "compilerReferenceId": "8041",
+            "locations": [
+              {
+                "length": 32,
+                "start": 395
+              },
+              {
+                "length": 32,
+                "start": 2363
+              },
+              {
+                "length": 32,
+                "start": 2632
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8043",
+            "locations": [
+              {
+                "length": 32,
+                "start": 2254
+              },
+              {
+                "length": 32,
+                "start": 2449
+              },
+              {
+                "length": 32,
+                "start": 2718
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8045",
+            "locations": [
+              {
+                "length": 32,
+                "start": 1142
+              },
+              {
+                "length": 32,
+                "start": 2534
+              },
+              {
+                "length": 32,
+                "start": 2803
+              }
+            ]
+          }
+        ],
+        "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
+      },
+      "compilerRuntimeTemplate": {
+        "keccak256": "0xb4c65629f4344e8a5224d416fdb38ad50bafaeb99313dac6b8198e50357ff174",
+        "lengthBytes": 5845,
+        "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
+      },
+      "constructor": [
+        {
+          "name": "afUsdc_",
+          "type": "address"
+        },
+        {
+          "name": "afEth_",
+          "type": "address"
+        },
+        {
+          "name": "afBtc_",
+          "type": "address"
+        }
+      ],
+      "creationBytecode": {
+        "keccak256": "0x4f03a978a8adc3057ee55eaf23a977d7446f4d50f99a1a8744fd88775020cd71",
+        "lengthBytes": 6761
+      },
+      "deployedAddress": null,
+      "deployedRuntimeKeccak256": null,
+      "errors": [
+        {
+          "selector": "0x587daa30",
+          "signature": "DuplicateAsset()"
+        },
+        {
+          "selector": "0xaa2fd925",
+          "signature": "Expired(uint256,uint256)"
+        },
+        {
+          "selector": "0xbb55fd27",
+          "signature": "InsufficientLiquidity()"
+        },
+        {
+          "selector": "0xd9a764d9",
+          "signature": "InvalidPair(address,address)"
+        },
+        {
+          "selector": "0x3ee5aeb5",
+          "signature": "ReentrancyGuardReentrantCall()"
+        },
+        {
+          "selector": "0x5274afe7",
+          "signature": "SafeERC20FailedOperation(address)"
+        },
+        {
+          "selector": "0x71c4efed",
+          "signature": "SlippageExceeded(uint256,uint256)"
+        },
+        {
+          "selector": "0xacb77497",
+          "signature": "UnexpectedBalanceDelta(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xd92e233d",
+          "signature": "ZeroAddress()"
+        },
+        {
+          "selector": "0x1f2a2005",
+          "signature": "ZeroAmount()"
+        }
+      ],
+      "events": [
+        {
+          "indexedMask": "1100",
+          "signature": "LiquidityAdded(address,address,uint256,uint256)",
+          "topic0": "0x36f3b2e1a21c19137dd82ec243b0708a1d26b3d1fa1dc49c44c4c366a5878138"
+        },
+        {
+          "indexedMask": "111000",
+          "signature": "SwapSettled(address,address,address,address,uint256,uint256)",
+          "topic0": "0xbddfd4b0d33d1fcc84345b15fb0a1878375fcd24d1f3acb34dbf9f9abd228145"
+        }
+      ],
+      "immutableReferenceGroupCount": 3,
+      "immutables": [
+        {
+          "name": "afUsdc",
+          "type": "address"
+        },
+        {
+          "name": "afEth",
+          "type": "address"
+        },
+        {
+          "name": "afBtc",
+          "type": "address"
+        }
+      ],
+      "methodIdentifiers": {
+        "addLiquidity(address,address,uint256,uint256)": "0xcf6c62ea",
+        "afBtc()": "0xa8d937e9",
+        "afEth()": "0xf20173bc",
+        "afUsdc()": "0x8b5a851f",
+        "getReserves(address,address)": "0xd52bb6f4",
+        "quote(address,address,uint256)": "0xb6466384",
+        "swap(address,address,uint256,uint256,address,uint256)": "0x9908fc8b"
+      },
+      "source": "src/AlphaForgeTestVenue.sol",
+      "sourceSha256": "926b9827b2747029bb6326501229df764a4783a1fdfa5415681151692799e6bb"
+    },
+    "AlphaForgeVault": {
+      "abiKeccak256": "0x264b4498cf396008e4619664c59bf8d8eac0a04f04b80e760df3cfbc00846977",
+      "artifact": "AlphaForgeVault.sol/AlphaForgeVault.json",
+      "compilerImmutableReferences": {
+        "groups": [
+          {
+            "compilerReferenceId": "8781",
+            "locations": [
+              {
+                "length": 32,
+                "start": 1929
+              },
+              {
+                "length": 32,
+                "start": 2518
+              },
+              {
+                "length": 32,
+                "start": 2705
+              },
+              {
+                "length": 32,
+                "start": 2852
+              },
+              {
+                "length": 32,
+                "start": 3478
+              },
+              {
+                "length": 32,
+                "start": 3674
+              },
+              {
+                "length": 32,
+                "start": 3867
+              },
+              {
+                "length": 32,
+                "start": 4276
+              },
+              {
+                "length": 32,
+                "start": 4315
+              },
+              {
+                "length": 32,
+                "start": 4780
+              },
+              {
+                "length": 32,
+                "start": 4954
+              },
+              {
+                "length": 32,
+                "start": 5624
+              },
+              {
+                "length": 32,
+                "start": 6409
+              },
+              {
+                "length": 32,
+                "start": 6708
+              },
+              {
+                "length": 32,
+                "start": 6747
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8784",
+            "locations": [
+              {
+                "length": 32,
+                "start": 4497
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8787",
+            "locations": [
+              {
+                "length": 32,
+                "start": 4461
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8790",
+            "locations": [
+              {
+                "length": 32,
+                "start": 6335
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8793",
+            "locations": [
+              {
+                "length": 32,
+                "start": 4816
+              },
+              {
+                "length": 32,
+                "start": 6092
+              },
+              {
+                "length": 32,
+                "start": 8572
+              },
+              {
+                "length": 32,
+                "start": 8798
+              },
+              {
+                "length": 32,
+                "start": 8871
+              },
+              {
+                "length": 32,
+                "start": 9121
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8796",
+            "locations": [
+              {
+                "length": 32,
+                "start": 2485
+              },
+              {
+                "length": 32,
+                "start": 3445
+              },
+              {
+                "length": 32,
+                "start": 4744
+              },
+              {
+                "length": 32,
+                "start": 5758
+              },
+              {
+                "length": 32,
+                "start": 8015
+              },
+              {
+                "length": 32,
+                "start": 8177
+              },
+              {
+                "length": 32,
+                "start": 8250
+              },
+              {
+                "length": 32,
+                "start": 8468
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8799",
+            "locations": [
+              {
+                "length": 32,
+                "start": 3308
+              },
+              {
+                "length": 32,
+                "start": 5851
+              },
+              {
+                "length": 32,
+                "start": 6371
+              },
+              {
+                "length": 32,
+                "start": 7458
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8802",
+            "locations": [
+              {
+                "length": 32,
+                "start": 3351
+              },
+              {
+                "length": 32,
+                "start": 4852
+              },
+              {
+                "length": 32,
+                "start": 5936
+              },
+              {
+                "length": 32,
+                "start": 7545
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "8805",
+            "locations": [
+              {
+                "length": 32,
+                "start": 2565
+              },
+              {
+                "length": 32,
+                "start": 3160
+              },
+              {
+                "length": 32,
+                "start": 3526
+              },
+              {
+                "length": 32,
+                "start": 4888
+              },
+              {
+                "length": 32,
+                "start": 5485
+              },
+              {
+                "length": 32,
+                "start": 6175
+              },
+              {
+                "length": 32,
+                "start": 8632
+              },
+              {
+                "length": 32,
+                "start": 8764
+              },
+              {
+                "length": 32,
+                "start": 8931
+              }
+            ]
+          }
+        ],
+        "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
+      },
+      "compilerRuntimeTemplate": {
+        "keccak256": "0x84ba496c3b70467dda328768dc78e53820a94db9e19127b7d63f4b167f0c4908",
+        "lengthBytes": 11516,
+        "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
+      },
+      "constructor": [
+        {
+          "name": "owner_",
+          "type": "address"
+        },
+        {
+          "name": "strategyCreator_",
+          "type": "address"
+        },
+        {
+          "name": "strategyId_",
+          "type": "bytes32"
+        },
+        {
+          "name": "strategyRef_",
+          "type": "bytes32"
+        },
+        {
+          "name": "pass_",
+          "type": "address"
+        },
+        {
+          "name": "afUsdc_",
+          "type": "address"
+        },
+        {
+          "name": "afEth_",
+          "type": "address"
+        },
+        {
+          "name": "afBtc_",
+          "type": "address"
+        }
+      ],
+      "creationBytecode": {
+        "keccak256": "0x377b3ad4ed5a804d202d3461c2a6dc59045762351ce74086f7870a2def71b190",
+        "lengthBytes": 18835
+      },
+      "deployedAddress": null,
+      "deployedRuntimeKeccak256": null,
+      "errors": [
+        {
+          "selector": "0xff29cf0d",
+          "signature": "AmountOverflow(uint256)"
+        },
+        {
+          "selector": "0x437a40b1",
+          "signature": "DuplicateAsset(address)"
+        },
+        {
+          "selector": "0xd6bda275",
+          "signature": "FailedCall()"
+        },
+        {
+          "selector": "0xdab463a7",
+          "signature": "InexactPassAmount(uint256)"
+        },
+        {
+          "selector": "0xcf479181",
+          "signature": "InsufficientBalance(uint256,uint256)"
+        },
+        {
+          "selector": "0xf1e240c1",
+          "signature": "InsufficientTrackedUsdc(uint256,uint256)"
+        },
+        {
+          "selector": "0xd4ce6f3d",
+          "signature": "InvalidStrategyIdentity()"
+        },
+        {
+          "selector": "0xf4b3b1bc",
+          "signature": "NativeTransferFailed()"
+        },
+        {
+          "selector": "0xebbcde93",
+          "signature": "NoUntrackedExcess(address)"
+        },
+        {
+          "selector": "0x96d995dc",
+          "signature": "OpenTrackedPositions(uint256)"
+        },
+        {
+          "selector": "0x3ee5aeb5",
+          "signature": "ReentrancyGuardReentrantCall()"
+        },
+        {
+          "selector": "0x5274afe7",
+          "signature": "SafeERC20FailedOperation(address)"
+        },
+        {
+          "selector": "0xf73f4ac6",
+          "signature": "StrategyPassMismatch(address,bytes32,bytes32)"
+        },
+        {
+          "selector": "0x8259e2f5",
+          "signature": "TokenTransferAmountMismatch(address,uint256,uint256)"
+        },
+        {
+          "selector": "0x5f12aa59",
+          "signature": "TrackedBalanceDeficit(address,uint256,uint256)"
+        },
+        {
+          "selector": "0x8e4a23d6",
+          "signature": "Unauthorized(address)"
+        },
+        {
+          "selector": "0x91dfc113",
+          "signature": "UnexpectedDecimals(address,uint8,uint8)"
+        },
+        {
+          "selector": "0xf32b7061",
+          "signature": "UnsupportedTrackedAsset(address)"
+        },
+        {
+          "selector": "0x0f76440a",
+          "signature": "VaultActive()"
+        },
+        {
+          "selector": "0xdf23397a",
+          "signature": "VaultClosed()"
+        },
+        {
+          "selector": "0xd92e233d",
+          "signature": "ZeroAddress()"
+        },
+        {
+          "selector": "0x1f2a2005",
+          "signature": "ZeroAmount()"
+        }
+      ],
+      "events": [
+        {
+          "indexedMask": "100",
+          "signature": "Closed(address,uint256,uint256)",
+          "topic0": "0x792b1058d55c02122048f16ecbfdaab6be257e8c903a60a01f220960238aefc7"
+        },
+        {
+          "indexedMask": "10000",
+          "signature": "Deposited(address,uint256,uint256,uint256,uint256)",
+          "topic0": "0xe3b53cd1a44fbf11535e145d80b8ef1ed6d57a73bf5daa7e939b6b01657d6549"
+        },
+        {
+          "indexedMask": "10",
+          "signature": "NativeRescued(address,uint256)",
+          "topic0": "0xe3eb98b7fe2a0c1d490b92af73eeae611e9b00ab3c3f70b20bd7bb43f67a0f43"
+        },
+        {
+          "indexedMask": "100",
+          "signature": "TrackedPositionChanged(address,uint256,uint256)",
+          "topic0": "0xc918adb5da6f1094bf877bef10e664cd7ca5fb1216d89f807c19cdf60e5f1c88"
+        },
+        {
+          "indexedMask": "00",
+          "signature": "TrackedUsdcBalanceChanged(uint256,uint256)",
+          "topic0": "0x29a4ed269a24b639ce9313072bca1d8d408f35f61108737792b18153b9c5b470"
+        },
+        {
+          "indexedMask": "110",
+          "signature": "UntrackedTokenRescued(address,address,uint256)",
+          "topic0": "0x204874061edf1b61f01e55eb957ff789bf733451c43d111f54ba6d84122b7160"
+        },
+        {
+          "indexedMask": "1000000",
+          "signature": "Withdrawn(address,uint256,uint256,uint256,uint256,uint256,uint256)",
+          "topic0": "0x6b4651e8f4162f82274a25e57a29f7ed9156d17078e76dd4d05f04ba08831aa4"
+        }
+      ],
+      "immutableReferenceGroupCount": 9,
+      "immutables": [
+        {
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "name": "strategyCreator",
+          "type": "address"
+        },
+        {
+          "name": "strategyId",
+          "type": "bytes32"
+        },
+        {
+          "name": "strategyRef",
+          "type": "bytes32"
+        },
+        {
+          "name": "pass",
+          "type": "address"
+        },
+        {
+          "name": "afUsdc",
+          "type": "address"
+        },
+        {
+          "name": "afEth",
+          "type": "address"
+        },
+        {
+          "name": "afBtc",
+          "type": "address"
+        },
+        {
+          "name": "passLocker",
+          "type": "address"
+        }
+      ],
+      "methodIdentifiers": {
+        "afBtc()": "0xa8d937e9",
+        "afEth()": "0xf20173bc",
+        "afUsdc()": "0x8b5a851f",
+        "close()": "0x43d726d6",
+        "closed()": "0x597e1fb5",
+        "deposit(uint256)": "0xb6b55f25",
+        "openTrackedPositionCount()": "0x34dda870",
+        "owner()": "0x8da5cb5b",
+        "pass()": "0xa7a1ed72",
+        "passLocker()": "0xab88dc4b",
+        "passToUsdcRaw(uint256)": "0x18ba7fe2",
+        "principalBasis()": "0xad587035",
+        "realizedProfit()": "0x738b74f0",
+        "rescueNative()": "0xfc82f084",
+        "rescueUntrackedToken(address)": "0x45f5030f",
+        "reservedTrackedBalance(address)": "0xc0bdb971",
+        "strategyCreator()": "0x499bb2ab",
+        "strategyId()": "0x492f4e18",
+        "strategyRef()": "0xc288f3de",
+        "trackedPosition(address)": "0xb31ede63",
+        "trackedUsdcBalance()": "0x0510ca51",
+        "untrackedExcess(address)": "0x21f38bbd",
+        "usdcToPassRaw(uint256)": "0x643456f6",
+        "withdraw(uint256)": "0x2e1a7d4d",
+        "withdrawableUsdc()": "0x442ad6a0"
+      },
+      "source": "src/AlphaForgeVault.sol",
+      "sourceSha256": "7e56f20b0a43da8c7980af8307ec21886aea719e4e643eddb10e6641269d0857"
+    },
+    "PassLocker": {
+      "abiKeccak256": "0x3cd4ab8da2123200b3e4b931cb94a5cc11b5662360c4ed70d6643f173ff53b21",
+      "artifact": "PassLocker.sol/PassLocker.json",
+      "compilerImmutableReferences": {
+        "groups": [
+          {
+            "compilerReferenceId": "10055",
+            "locations": [
+              {
+                "length": 32,
+                "start": 1482
+              },
+              {
+                "length": 32,
+                "start": 1518
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "10057",
+            "locations": [
+              {
+                "length": 32,
+                "start": 436
+              },
+              {
+                "length": 32,
+                "start": 736
+              },
+              {
+                "length": 32,
+                "start": 864
+              },
+              {
+                "length": 32,
+                "start": 1358
+              },
+              {
+                "length": 32,
+                "start": 1785
+              },
+              {
+                "length": 32,
+                "start": 1916
+              },
+              {
+                "length": 32,
+                "start": 2082
+              }
+            ]
+          },
+          {
+            "compilerReferenceId": "10060",
+            "locations": [
+              {
+                "length": 32,
+                "start": 900
+              },
+              {
+                "length": 32,
+                "start": 1012
+              },
+              {
+                "length": 32,
+                "start": 1725
+              },
+              {
+                "length": 32,
+                "start": 1950
+              },
+              {
+                "length": 32,
+                "start": 2022
+              }
+            ]
+          }
+        ],
+        "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
+      },
+      "compilerRuntimeTemplate": {
+        "keccak256": "0x3a23133c185856bb68e825ae1ecac929de131bdcbaf2154c3c7e4e24098bc494",
+        "lengthBytes": 3296,
+        "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
+      },
+      "constructor": [
+        {
+          "name": "vault_",
+          "type": "address"
+        },
+        {
+          "name": "owner_",
+          "type": "address"
+        },
+        {
+          "name": "pass_",
+          "type": "address"
+        }
+      ],
+      "creationBytecode": {
+        "keccak256": "0xacc5aca165af774f0292aa7249567376e434e09712983be29dcfa33b0b9d2d68",
+        "lengthBytes": 4099
+      },
+      "deployedAddress": null,
+      "deployedRuntimeKeccak256": null,
+      "errors": [
+        {
+          "selector": "0xdd410871",
+          "signature": "EscrowBalanceDeficit(uint256,uint256)"
+        },
+        {
+          "selector": "0x2a58f6ba",
+          "signature": "InsufficientLockedPass(uint256,uint256)"
+        },
+        {
+          "selector": "0x9374cd3b",
+          "signature": "InsufficientUnaccountedPass(uint256,uint256)"
+        },
+        {
+          "selector": "0xd0795c01",
+          "signature": "PassTransferAmountMismatch(uint256,uint256)"
+        },
+        {
+          "selector": "0x3ee5aeb5",
+          "signature": "ReentrancyGuardReentrantCall()"
+        },
+        {
+          "selector": "0x5274afe7",
+          "signature": "SafeERC20FailedOperation(address)"
+        },
+        {
+          "selector": "0x82b42900",
+          "signature": "Unauthorized()"
+        },
+        {
+          "selector": "0xd92e233d",
+          "signature": "ZeroAddress()"
+        },
+        {
+          "selector": "0x1f2a2005",
+          "signature": "ZeroAmount()"
+        }
+      ],
+      "events": [
+        {
+          "indexedMask": "10",
+          "signature": "PassLocked(address,uint256)",
+          "topic0": "0x7224db65efb8221a958935a35b2f4ce0e42611db852d14b9fc0e150d932170b9"
+        },
+        {
+          "indexedMask": "10",
+          "signature": "PassUnlocked(address,uint256)",
+          "topic0": "0x7ccd4c691fc2c1b125ef78d8c9bedff4a837adbcdc018c5ea83c00ff62a85e99"
+        }
+      ],
+      "immutableReferenceGroupCount": 3,
+      "immutables": [
+        {
+          "name": "vault",
+          "type": "address"
+        },
+        {
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "name": "pass",
+          "type": "IERC20"
+        }
+      ],
+      "methodIdentifiers": {
+        "lock(uint256)": "0xdd467064",
+        "lockedBalance()": "0x7b80889b",
+        "owner()": "0x8da5cb5b",
+        "pass()": "0xa7a1ed72",
+        "releaseAll()": "0x5be7fde8",
+        "unlock(uint256)": "0x6198e339",
+        "vault()": "0xfbfa77cf"
+      },
+      "source": "src/PassLocker.sol",
+      "sourceSha256": "455cd7a0ef0de166af40080fb1a46959eb6cc277562f32197e2cb486a0067df4"
+    },
+    "StrategyPass": {
+      "abiKeccak256": "0xdd989644feeb7798baca69f7391ba75b6f9d09f47fb05bd90184f6072912923f",
+      "artifact": "StrategyPass.sol/StrategyPass.json",
+      "compilerImmutableReferences": {
+        "groups": [
+          {
+            "compilerReferenceId": "10359",
+            "locations": [
+              {
+                "length": 32,
+                "start": 802
+              }
+            ]
+          }
+        ],
+        "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
+      },
+      "compilerRuntimeTemplate": {
+        "keccak256": "0x1ecd66286e0c94cb5f8d98308f59f086103b5c95f2b07dc524bc5e2919b1435e",
+        "lengthBytes": 3745,
+        "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
+      },
+      "constructor": [
+        {
+          "name": "name_",
+          "type": "string"
+        },
+        {
+          "name": "symbol_",
+          "type": "string"
+        },
+        {
+          "name": "strategyId_",
+          "type": "bytes32"
+        },
+        {
+          "name": "fixedSupply_",
+          "type": "uint256"
+        },
+        {
+          "name": "recipient_",
+          "type": "address"
+        }
+      ],
+      "creationBytecode": {
+        "keccak256": "0x0fe405ceaf14c653995f488031f5e5efd3e9e11ecb946792ddb4f24d5d365541",
+        "lengthBytes": 6374
+      },
+      "deployedAddress": null,
+      "deployedRuntimeKeccak256": null,
+      "errors": [
+        {
+          "selector": "0xfb8f41b2",
+          "signature": "ERC20InsufficientAllowance(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xe450d38c",
+          "signature": "ERC20InsufficientBalance(address,uint256,uint256)"
+        },
+        {
+          "selector": "0xe602df05",
+          "signature": "ERC20InvalidApprover(address)"
+        },
+        {
+          "selector": "0xec442f05",
+          "signature": "ERC20InvalidReceiver(address)"
+        },
+        {
+          "selector": "0x96c6fd1e",
+          "signature": "ERC20InvalidSender(address)"
+        },
+        {
+          "selector": "0x94280d62",
+          "signature": "ERC20InvalidSpender(address)"
+        },
+        {
+          "selector": "0x9931e729",
+          "signature": "InvalidStrategyId()"
+        }
+      ],
+      "events": [
+        {
+          "indexedMask": "110",
+          "signature": "Approval(address,address,uint256)",
+          "topic0": "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+        },
+        {
+          "indexedMask": "110",
+          "signature": "Transfer(address,address,uint256)",
+          "topic0": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+        }
+      ],
+      "immutableReferenceGroupCount": 1,
+      "immutables": [
+        {
+          "name": "strategyId",
+          "type": "bytes32"
+        }
+      ],
+      "methodIdentifiers": {
+        "allowance(address,address)": "0xdd62ed3e",
+        "approve(address,uint256)": "0x095ea7b3",
+        "balanceOf(address)": "0x70a08231",
+        "decimals()": "0x313ce567",
+        "name()": "0x06fdde03",
+        "strategyId()": "0x492f4e18",
+        "symbol()": "0x95d89b41",
+        "totalSupply()": "0x18160ddd",
+        "transfer(address,uint256)": "0xa9059cbb",
+        "transferFrom(address,address,uint256)": "0x23b872dd"
+      },
+      "source": "src/StrategyPass.sol",
+      "sourceSha256": "3e1b685ce9405dab08294645af2b89ff7a299b57390c96c52909515f110d16ec"
+    }
+  },
+  "limitations": [
+    "No external RPC, key, signature, deployment, transaction, broadcast or finality evidence.",
+    "Compiler runtime template hashes contain zeroed immutable placeholders and are not deployed runtime hashes.",
+    "Compiler immutable reference IDs and offsets are preserved verbatim but are not mapped to source field names.",
+    "PassLocker is constructed by AlphaForgeVault; its deployed address and runtime depend on Vault parameters.",
+    "AlphaForgeTest assets and venue are TESTNET_ONLY and are not production asset representations."
+  ],
+  "networkTarget": {
+    "chainId": 46630,
+    "externalWritePerformed": false,
+    "name": "Robinhood Chain Testnet"
+  },
+  "schemaVersion": 2,
+  "status": "LOCAL_COMPILED_NOT_DEPLOYED",
+  "toolchain": {
+    "bytecodeHash": "none",
+    "cborMetadata": false,
+    "evmVersion": "paris",
+    "ffi": false,
+    "foundry": "1.5.1",
+    "foundryCommit": "b0a9dd9ceda36f63e2326ce530c10e6916f4b8a2",
+    "fsPermissions": [],
+    "offline": true,
+    "openzeppelinContracts": "5.4.0",
+    "optimizer": false,
+    "solc": "0.8.31+commit.fd3a2265",
+    "viaIR": false
+  }
+}
