@@ -61,6 +61,7 @@ class M3BrowserRuntimeSet implements M3SelectableProductRuntime {
       const runtime = createM3BrowserRuntime({
         ...(options.provider ? { provider: options.provider } : {}),
         deployment,
+        ...(options.submissionStorage ? { submissionStorage: options.submissionStorage } : {}),
         ...(reader ? { vaultReader: reader } : {}),
         ...(options.now ? { now: options.now } : {}),
         ...(options.transportProvenance ? { transportProvenance: options.transportProvenance } : {}),

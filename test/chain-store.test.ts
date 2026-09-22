@@ -1310,7 +1310,7 @@ test('chain recovery CLI rejects unrelated and damaged sources without creating 
   }
 });
 
-test('chain recovery CLI rejects forged version-six schema definitions', async (t) => {
+test('chain recovery CLI rejects forged current-version schema definitions', async (t) => {
   const fixtures: { name: string; sql?: string; replacement?: readonly [string, string] }[] = [
     { name: 'six unrelated single-column tables' },
     { name: 'wrong column type', replacement: ['block_number INTEGER', 'block_number TEXT'] },

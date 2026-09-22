@@ -1,3 +1,11 @@
+# 最新本地工作 — PH1-05 已发送交易恢复
+
+54540a7完整847/847、五功能流程、Semgrep/Gitleaks/source-policy、156条LOCAL身份及正式fnm环境通过；覆盖率89.63/86.68/90.28/80.96仍未达标。06独立核验b9283da核心124/124及额外5项数据库迁移/恢复/拒绝/回滚探针，且确认至54540a7实现完全相同；这是LOCAL工程复验，不是外部安全批准。远程旧头3a78e34的9/9 CI仍独立列示。
+
+后续PH1-05/AUDIT-003已由01复现并修复：Vault与Pass的已知hash在登记API等待前持久保留；刷新/重新打开后按原identity重试登记和查询，不自动再次发送；相同未解决意图阻止重发，不同Owner退出review保留。存储按chain/Vault/manifest/Owner隔离、严格解析并有界；53/53专项、typecheck、lint通过。准确新C/R/S和全量验收待执行，不能继承54540a7的PASS。AUDIT-002的Locker误转范围仍待校准。NOT_READY_TO_MERGE。
+
+## 此前准确检查点
+
 # 当前收口 — 2026-09-22 Public 与本地候选复验
 
 06已完成且经理回读核验：远程旧头3a78e34的Engineering run35499025043/attempt3（2026-09-22 09:27:29 UTC）9/9 SUCCESS，包含7/7 required；标准Linux/Windows/macOS。运行链接：https://github.com/pdbsy/quantpass-arbitrum-hackathon/actions/runs/35499025043/attempts/3 。该结果仅对应远程旧头；本地修复b9283da及后续候选未发布，不能继承。

@@ -20,6 +20,14 @@ Auditor reports134/134 existing contract tests plus a dedicated locked-tool repr
 
 Auditor reports that wallet send succeeds but backend registration fails; the prepared registration data is not retained, refresh does not retry registration, and a new runtime loses the warning. No automatic resend or real fund loss was established. This maps to the existing PH1-05 ambiguous-submission recovery requirement, not a new trading feature. Manager reproduction and remedy remainOPEN: recovery should reuse the known hash and exact identity, never resend the economic transaction automatically.
 
+## AUDIT-003 implementation checkpoint
+
+01 independently reproduced the issue at54540a7: after a known wallet hash, registration failed; refresh issued no retry, reconstruction displayedIDLE, and another explicit review could send again. New runtime regressions first failed for both Vault and Pass because no recovery record existed.
+
+The candidate now records the exact operation/chain/Owner/target/calldata/hash before awaiting backend registration. A bounded local browser journal is scoped by chain, reviewed Vault, manifest digest and Owner; these are recovery hints, never wallet authority or chain evidence. Reconnect and refresh can retry the same registration and query its evidence, with no wallet resend. An unresolved identical intent fails before send; a distinct Owner close review remains available. Runtime-set construction forwards the same storage boundary while retaining Vault selection invalidation. Storage corruption, cross-context identities, excess records and silently dropped writes fail closed; existing rows are not silently discarded. Product-ready or terminal evidence permits removing a finished hint. Unknown wallet outcomes without a returned hash remain ambiguous and are never invented as known submissions.
+
+The three-file runtime/journal suite53/53, typecheck and lint passed locally. This includes original selection/callback/Owner exit tests and new persistence/reload, exact registration identity, zero automatic send, identical intent guard, malformed storage, independent namespaces, capacity and write failure cases. The first typecheck caught two incomplete fields in the new test fixture; the fixture now uses the real HEALTHY/degradedReason schema and typecheck passes. Accurate full-candidate/browser/coverage and independent post-fix review remain pending. Browser storage is not a server backup or finality oracle; backend canonical evidence continues to control readiness.
+
 ## Main delivery work
 
 01 continues PR22 source integration, complete coverage measurement, C/R/S and handoff. User explicitly restored06 testing after Public visibility;06 checks the remote exact head separately. Neither this audit nor a local successful test removes hosted checks, external governance/review requirements or the need for applicable merge/deployment authorization.

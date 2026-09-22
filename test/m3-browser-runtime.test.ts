@@ -1266,3 +1266,120 @@ test('Pass submission without backend registration remains explicit and non-retr
   assert.equal(result.reason, 'LOCAL_EVIDENCE_INVALID');
   assert.equal(result.retryable, false);
 });
+
+for (const kind of ['vault', 'pass'] as const) {
+  test(`known ${kind} hash survives registration outage and reload without another wallet send`, async () => {
+    const provider = new ConfiguredProviderFixture();
+    provider.usdcAllowance = 100_000_000n;
+    provider.passAllowance = 100_000_000_000_000_000_000n;
+    const saved = new Map<string, string>();
+    const submissionStorage = {
+      getItem: (key: string) => saved.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        saved.set(key, value);
+      },
+    };
+    let available = false;
+    const registrations: Array<Record<string, unknown>> = [];
+    let reads = 0;
+    const reader = {
+      readSnapshot: async () => vaultSnapshot,
+      registerSubmission: async (input: Record<string, unknown>) => {
+        registrations.push({ ...input });
+        if (!available) throw new Error('LOCAL_API_OFFLINE');
+        return { state: 'SUBMITTED' };
+      },
+      readOperationEvidence: async (): Promise<ProductOperationEvidence> => {
+        reads++;
+        return {
+          lifecycle: 'SUBMITTED',
+          receipt: 'PENDING',
+          receiptCanonical: false,
+          confirmations: 0,
+          reconciliation: 'PENDING',
+          projection: 'PENDING',
+          chainStatus: 'PENDING',
+          l1Status: 'UNKNOWN',
+          finalityStatus: 'UNKNOWN',
+          indexerStatus: 'HEALTHY',
+          degradedReason: null,
+          productReady: false,
+        };
+      },
+    };
+    let runtime = createM3BrowserRuntime({ provider, deployment, vaultReader: reader, submissionStorage });
+    await runtime.connect();
+    const result =
+      kind === 'vault'
+        ? await runtime.confirmAction(await runtime.reviewAction({ kind: 'deposit', usdcBaseUnits: '1' }))
+        : await runtime.confirmPassTransfer!(
+            await runtime.reviewPassTransfer!({ recipient: VAULT, passBaseUnits: '1' }),
+          );
+    assert.equal(result.state, 'SUBMISSION_AMBIGUOUS');
+    assert.equal(result.txHash, TX_HASH);
+    assert.equal(provider.requests.filter((x) => x.method === 'eth_sendTransaction').length, 1);
+    assert.equal(saved.size, 1, 'known hash must be retained before awaiting registration');
+    runtime = createM3BrowserRuntime({ provider, deployment, vaultReader: reader, submissionStorage });
+    await runtime.connect();
+    assert.equal(runtime.snapshot.transaction.status, 'SUBMISSION_AMBIGUOUS');
+    assert.equal(runtime.snapshot.transaction.txHash, TX_HASH);
+    available = true;
+    await runtime.refresh();
+    assert.ok(registrations.length >= 2);
+    for (const input of registrations) assert.deepEqual(input, registrations[0]);
+    assert.equal(registrations[0]!.owner, OWNER);
+    assert.equal(registrations[0]!.target, kind === 'vault' ? VAULT : PASS);
+    assert.equal(registrations[0]!.chainId, 46_630);
+    assert.equal(registrations[0]!.txHash, TX_HASH);
+    assert.equal(reads, 1);
+    assert.equal(runtime.snapshot.transaction.status, 'SUBMITTED');
+    assert.equal(provider.requests.filter((x) => x.method === 'eth_sendTransaction').length, 1);
+  });
+}
+
+test('a known unresolved deposit cannot be resent and does not disable a distinct close review', async () => {
+  const provider = new ConfiguredProviderFixture();
+  provider.usdcAllowance = 100_000_000n;
+  provider.passAllowance = 100_000_000_000_000_000_000n;
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => vaultSnapshot,
+      registerSubmission: async () => {
+        throw new Error('LOCAL_API_OFFLINE');
+      },
+    },
+  });
+  await runtime.connect();
+  const request = { kind: 'deposit' as const, usdcBaseUnits: '1' };
+  await runtime.confirmAction(await runtime.reviewAction(request));
+  const duplicate = await runtime.reviewAction(request);
+  await assert.rejects(() => runtime.confirmAction(duplicate), /M3_SUBMISSION_RECOVERY_REQUIRED/);
+  assert.equal(provider.requests.filter((item) => item.method === 'eth_sendTransaction').length, 1);
+  await assert.doesNotReject(() => runtime.reviewAction({ kind: 'close' }));
+});
+
+test('unavailable durable storage fails before asking the wallet to send', async () => {
+  for (const storage of [
+    {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error('STORAGE_UNAVAILABLE');
+      },
+    },
+    { getItem: () => null, setItem: () => {} },
+  ]) {
+    const provider = new ConfiguredProviderFixture();
+    const runtime = createM3BrowserRuntime({
+      provider,
+      deployment,
+      submissionStorage: storage,
+      vaultReader: { readSnapshot: async () => vaultSnapshot, registerSubmission: async () => ({}) },
+    });
+    await runtime.connect();
+    const review = await runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' });
+    await assert.rejects(() => runtime.confirmAction(review));
+    assert.equal(provider.requests.filter((item) => item.method === 'eth_sendTransaction').length, 0);
+  }
+});

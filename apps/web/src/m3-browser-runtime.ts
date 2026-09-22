@@ -1,4 +1,9 @@
 import {
+  M3SubmissionJournal,
+  type PendingWalletSubmission,
+  type SubmissionStorage,
+} from './m3-submission-journal.ts';
+import {
   asAddress,
   asBlockHash,
   asHexData,
@@ -85,6 +90,7 @@ export interface M3BrowserRuntimeOptions {
   readonly vaultReader?: M3VaultReader;
   readonly now?: () => string;
   readonly transportProvenance?: 'DEV_MOCK';
+  readonly submissionStorage?: SubmissionStorage;
 }
 
 const supportedOpenActions = ['deposit', 'withdraw', 'close'] as const;
@@ -110,12 +116,6 @@ function deploymentHash(value: unknown): BlockHash {
   } catch {
     throw new Error('INVALID_M3_DEPLOYMENT_CONFIG');
   }
-}
-
-interface PendingOperation {
-  readonly operationId: string;
-  readonly owner: Address;
-  readonly txHash: TransactionHash;
 }
 
 function operationId(
@@ -247,13 +247,18 @@ class M3BrowserRuntime implements M3ProductRuntime {
   >();
   readonly #now: () => string;
   readonly #writeMode: 'INJECTED_MOCK' | 'LIVE_AUTHORIZED';
-  #pendingOperation: PendingOperation | null = null;
+  readonly #journal: M3SubmissionJournal | null;
+  readonly #registeredOperations = new Set<string>();
+  #pendingOperation: PendingWalletSubmission | null = null;
   #session: WalletSession | null = null;
   #snapshot: M3ProductChainPresentation;
 
   constructor(options: M3BrowserRuntimeOptions) {
     this.#provider = options.provider ?? null;
     this.#deployment = validDeployment(options.deployment);
+    this.#journal = this.#deployment
+      ? new M3SubmissionJournal(this.#deployment, options.submissionStorage)
+      : null;
     this.#reader = this.#deployment
       ? (options.vaultReader ??
         new M3VaultApiClient(undefined, {
@@ -325,42 +330,47 @@ class M3BrowserRuntime implements M3ProductRuntime {
           }
         },
         submitAction: async (prepared, port) => {
-          const submission = await port.submit(prepared);
-          if (submission.state !== 'SUBMITTED') return submission;
-          try {
-            if (!this.#reader?.registerSubmission) throw new Error('M3_SUBMISSION_REGISTRATION_UNAVAILABLE');
-            await this.#reader.registerSubmission({
-              operationId: prepared.operationId,
-              chainId: this.#deployment!.chainId,
-              owner: prepared.owner,
-              target: prepared.target,
-              calldata: prepared.data,
-              txHash: submission.txHash,
-            });
-            this.#pendingOperation = Object.freeze({
-              operationId: prepared.operationId,
-              owner: prepared.owner,
-              txHash: submission.txHash,
-            });
-            return submission;
-          } catch {
-            return Object.freeze({
-              operationId: prepared.operationId,
-              requestedChainId: prepared.chainId,
-              requestedOwner: prepared.owner,
-              target: prepared.target,
-              state: 'SUBMISSION_AMBIGUOUS',
-              txHash: submission.txHash,
-              observedAt: this.#now(),
-              reason: 'LOCAL_EVIDENCE_INVALID',
-              retryable: false,
-            });
-          }
+          this.#journal!.assertWritable(prepared.owner, prepared.target, prepared.data);
+          return this.#retainSubmission(prepared, await port.submit(prepared));
         },
       };
       this.#flow = new M3ChainActionFlow(adapter, wallet);
     } else {
       this.#flow = null;
+    }
+  }
+
+  async #retainSubmission(prepared: PreparedAction, submission: WalletSubmission): Promise<WalletSubmission> {
+    if (!submission.txHash) return submission;
+    const input: PendingWalletSubmission = Object.freeze({
+      operationId: prepared.operationId,
+      chainId: this.#deployment!.chainId,
+      owner: prepared.owner,
+      target: prepared.target,
+      calldata: prepared.data,
+      txHash: submission.txHash,
+    });
+    // Preserve the original wallet identity and known hash before any fallible API await.
+    this.#pendingOperation = input;
+    try {
+      this.#journal!.record(input);
+      if (submission.state !== 'SUBMITTED') return submission;
+      if (!this.#reader?.registerSubmission) throw new Error('M3_SUBMISSION_REGISTRATION_UNAVAILABLE');
+      await this.#reader.registerSubmission(input);
+      this.#registeredOperations.add(input.operationId);
+      return submission;
+    } catch {
+      return Object.freeze({
+        operationId: prepared.operationId,
+        requestedChainId: prepared.chainId,
+        requestedOwner: prepared.owner,
+        target: prepared.target,
+        state: 'SUBMISSION_AMBIGUOUS',
+        txHash: submission.txHash,
+        observedAt: this.#now(),
+        reason: 'LOCAL_EVIDENCE_INVALID',
+        retryable: false,
+      });
     }
   }
 
@@ -592,6 +602,15 @@ class M3BrowserRuntime implements M3ProductRuntime {
         const connected = await this.#flow.connect();
         this.#session = connected.session;
         this.#publish(await this.#connectedPresentation(connected.session, connected.snapshot));
+        const restored = this.#journal!.read(connected.session.account).at(-1);
+        if (restored) {
+          this.#pendingOperation = restored;
+          this.#publish({
+            ...this.#snapshot,
+            transaction: { status: 'SUBMISSION_AMBIGUOUS', txHash: restored.txHash },
+          });
+          await this.refresh();
+        }
       } else {
         const session = await this.#connection.connect();
         this.#session = session;
@@ -682,14 +701,27 @@ class M3BrowserRuntime implements M3ProductRuntime {
     if (this.#deployment && this.#reader && this.#session) {
       let snapshot = await this.#readFlowSnapshot(this.#session.account);
       let presentation = await this.#connectedPresentation(this.#session, snapshot);
+      const restored = this.#journal!.read(this.#session.account).at(-1);
+      if (restored) this.#pendingOperation = restored;
       const pending = this.#pendingOperation;
-      if (
-        pending &&
-        sameAddress(pending.owner, this.#session.account) &&
-        this.#reader.readOperationEvidence
-      ) {
+      if (pending && sameAddress(pending.owner, this.#session.account)) {
         try {
+          if (!this.#registeredOperations.has(pending.operationId)) {
+            if (!this.#reader.registerSubmission) throw new Error('M3_SUBMISSION_REGISTRATION_UNAVAILABLE');
+            await this.#reader.registerSubmission(pending);
+            this.#registeredOperations.add(pending.operationId);
+          }
+          presentation = { ...presentation, transaction: { status: 'SUBMITTED', txHash: pending.txHash } };
+          if (!this.#reader.readOperationEvidence) {
+            this.#publish(presentation);
+            return;
+          }
           const evidence = await this.#reader.readOperationEvidence(pending.operationId, pending.owner);
+          if (
+            evidence.productReady ||
+            ['REJECTED', 'REVERTED', 'REPLACED', 'DROPPED'].includes(evidence.lifecycle)
+          )
+            this.#journal!.remove(pending);
           if (evidence.indexerStatus === 'DEGRADED' && snapshot.source !== 'LIVE_EXIT') {
             snapshot = await this.#readLiveExitSnapshot();
             presentation = await this.#connectedPresentation(this.#session, snapshot);
@@ -709,6 +741,13 @@ class M3BrowserRuntime implements M3ProductRuntime {
             },
           };
         } catch {
+          if (!this.#registeredOperations.has(pending.operationId)) {
+            presentation = {
+              ...presentation,
+              transaction: { status: 'SUBMISSION_AMBIGUOUS', txHash: pending.txHash },
+            };
+            this.#publish(presentation);
+          }
           try {
             snapshot = await this.#readLiveExitSnapshot();
             presentation = {
@@ -961,40 +1000,12 @@ class M3BrowserRuntime implements M3ProductRuntime {
       this.#deployment!.strategyPassAddress,
       this.#deployment!.strategyPassRuntimeBytecodeHash,
     );
+    this.#journal!.assertWritable(pending.prepared.owner, pending.prepared.target, pending.prepared.data);
     let submission = await pending.wallet.submit(pending.prepared, () => {
       beforeSend?.();
       this.#publish({ ...this.#snapshot, transaction: { status: 'WALLET_PENDING' } });
     });
-    if (submission.state === 'SUBMITTED') {
-      try {
-        if (!this.#reader?.registerSubmission) throw new Error('M3_SUBMISSION_REGISTRATION_UNAVAILABLE');
-        await this.#reader.registerSubmission({
-          operationId: pending.prepared.operationId,
-          chainId: pending.prepared.chainId as 46_630,
-          owner: pending.prepared.owner,
-          target: pending.prepared.target,
-          calldata: pending.prepared.data,
-          txHash: submission.txHash,
-        });
-        this.#pendingOperation = Object.freeze({
-          operationId: pending.prepared.operationId,
-          owner: pending.prepared.owner,
-          txHash: submission.txHash,
-        });
-      } catch {
-        submission = Object.freeze({
-          operationId: pending.prepared.operationId,
-          requestedChainId: pending.prepared.chainId,
-          requestedOwner: pending.prepared.owner,
-          target: pending.prepared.target,
-          state: 'SUBMISSION_AMBIGUOUS',
-          txHash: submission.txHash,
-          observedAt: this.#now(),
-          reason: 'LOCAL_EVIDENCE_INVALID',
-          retryable: false,
-        });
-      }
-    }
+    submission = await this.#retainSubmission(pending.prepared, submission);
     this.#publish({
       ...this.#snapshot,
       transaction:
