@@ -1,3 +1,9 @@
+# Current integration — visible browser and environment probes
+
+04限定提交说明修正已完成并集成，原始bf54f914及修正版1dd5ca0记录见Macbeth04-METADATA-REPAIR-2026-09-22.json。此前66b14aa的837测试/五流程/扫描通过保留，不能继承为新候选验收。迁移摘要失败已保留并修正；真实隔离环境探针7/7通过，现接入完整测试与管理采集。下一步生成新C/R/S、准确覆盖率和扫描。正常PR验证授权保留；最后远程观察PRIVATE/Draft3a78e34。
+
+## Earlier records
+
 # 最新恢复点 — c0dfe08 全量复验及扫描整改
 
 c0dfe08全量835/835、五条功能流程、LOCAL身份139条和合约/OSV/Gitleaks通过；覆盖率87.91/82.73/85.87/76.32。Semgrep弱哈希调用正按不放宽规则的方案整改，执行器21/21回归通过，新源检查待执行。GitHub最新显示PRIVATE，PR22仍Draft/3a78e34；正常PR验证授权保留，当前额度可用性待核对。参见[索引](FINAL-EVIDENCE-INDEX.md)，不要继承旧候选PASS或公开状态。

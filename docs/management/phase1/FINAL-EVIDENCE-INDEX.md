@@ -1,3 +1,13 @@
+# Current integration update — 2026-09-22
+
+Last fully measured candidate 66b14aa passed 837 tests/full check, all five functional workflows, exact Semgrep/Gitleaks/source-policy scans and 142 LOCAL commit identities. Coverage 87.91/82.70/85.83/76.30 remains below the conservative threshold. Complete local handoff and original logs: outputs/phase1-local-closeout/66b14aa-handoff/DELIVERY.md. Subsequent changes require new evidence.
+
+The user continued after the exact 04 metadata-only request. Original bf54f914 is retained under refs/archive/macbeth04/bf54f914-original-delivery; corrected 1dd5ca0 changes only the two required message trailers. Tree, parent, author and both original timestamps match. No worker working directory or remote ref was modified. Four visible-browser groups were integrated. The stale migration digest correctly failed at168cae1; original failure remains committed atb534c73, and only the current artifact digest/source explanation changed in ce6ac1f. Its new collector result is11PASS/0FAIL/4NOT_RUN.
+
+Seven new tests exercise real isolated environment probes, including hidden Git changes, interpreter injection, unsafe config/grafts, shared data, malformed native dependencies, dirty non-hosted CI, bounded input/UTF-8. They passed7/7; this is fixture evidence, not machine or hosted admission. Production environment policy is unchanged. Accurate new full coverage, browser and scanner results are pending; not READY_TO_MERGE.
+
+## Earlier measured checkpoint
+
 # AlphaForge PR22 evidence index — in progress
 
 This index is a reproducible local checkpoint, not final acceptance or READY_TO_MERGE. Manager: Macbeth01. Exact measured S `c0dfe0884894076bc2f5f5bf5077b53ec22aa9cf`, tree `146627240318fb410cdc345f193a6f92497cc725`. Later commits need their own results or explicit source-equivalence limits.

@@ -66,6 +66,7 @@ const unitTests = [
   'test/environment.test.mjs',
   'test/environment-git.test.mjs',
   'test/environment-ci.test.mjs',
+  'test/environment-observation.test.mjs',
   'test/product-api.test.ts',
   'test/ui-product-client.test.ts',
   'test/ui-product-adapter.test.ts',
