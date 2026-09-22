@@ -684,6 +684,17 @@ function redactScalarAssignments(value) {
     .split(/(\r\n|\r|\n)/)
     .map((line, index) => {
       if (index % 2 === 1) return line;
+      // Each grammar scans left to right, but their matches can overlap in the same line.
+      // Keep the earliest sensitive assignment so a later CLI flag cannot preserve an
+      // earlier credential in its prefix. Each candidate already redacts the whole tail.
+      let redactionStart = line.length;
+      let redactedLine = line;
+      const retainEarliest = (start, candidate) => {
+        if (start < redactionStart) {
+          redactionStart = start;
+          redactedLine = candidate;
+        }
+      };
       let confirmedStructuredCliTail = false;
       const hasStructuredCliTail = (tail) => {
         if (confirmedStructuredCliTail) return true;
@@ -702,7 +713,11 @@ function redactScalarAssignments(value) {
           isSafeSecurityMetadataValue(key, argumentValue) && hasStructuredCliTail(cliTail);
         if ((!isSecretKey(key) || safeMetadataTail) && !schemeCredential) continue;
         const outputKey = safeSensitiveObjectKeyPattern.test(key) ? key : '[REDACTED KEY]';
-        return `${line.slice(0, cliEqualsMatch.index)}${prefix}--${outputKey}${separator}[REDACTED]`;
+        retainEarliest(
+          cliEqualsMatch.index,
+          `${line.slice(0, cliEqualsMatch.index)}${prefix}--${outputKey}${separator}[REDACTED]`,
+        );
+        break;
       }
       // The whitespace-form matcher restarts at the beginning of the line, so it cannot share
       // a suffix proof established by the equals-form matcher at a later offset.
@@ -719,7 +734,11 @@ function redactScalarAssignments(value) {
           isSafeSecurityMetadataValue(key, argumentValue) && hasStructuredCliTail(cliTail);
         if ((!isSecretKey(key) || safeMetadataTail) && !schemeCredential) continue;
         const outputKey = safeSensitiveObjectKeyPattern.test(key) ? key : '[REDACTED KEY]';
-        return `${line.slice(0, cliMatch.index)}${prefix}--${outputKey}${spacing}[REDACTED]`;
+        retainEarliest(
+          cliMatch.index,
+          `${line.slice(0, cliMatch.index)}${prefix}--${outputKey}${spacing}[REDACTED]`,
+        );
+        break;
       }
       let multiwordCursor = 0;
       while (multiwordCursor < line.length) {
@@ -732,7 +751,11 @@ function redactScalarAssignments(value) {
             safeSensitiveObjectKeyPattern.test(key.slice(word.index).replace(/[ \t]+/g, '_')),
           );
           const outputKey = recognizedSuffix ? key : '[REDACTED KEY]';
-          return `${line.slice(0, multiwordCursor + match.index)}${match[1]}${outputKey}${match[3]} [REDACTED]`;
+          retainEarliest(
+            multiwordCursor + match.index,
+            `${line.slice(0, multiwordCursor + match.index)}${match[1]}${outputKey}${match[3]} [REDACTED]`,
+          );
+          break;
         }
         multiwordCursor += match.index + match[0].length;
       }
@@ -776,11 +799,15 @@ function redactScalarAssignments(value) {
         if (metadataCredential || schemeCredential) {
           const prefix = match[1] ?? '';
           const outputKey = safeSensitiveObjectKeyPattern.test(key) ? key : '[REDACTED KEY]';
-          return `${line.slice(0, cursor + match.index)}${prefix}${outputKey}${match[6]} [REDACTED]`;
+          retainEarliest(
+            cursor + match.index,
+            `${line.slice(0, cursor + match.index)}${prefix}${outputKey}${match[6]} [REDACTED]`,
+          );
+          break;
         }
         cursor += match.index + match[0].length;
       }
-      return line;
+      return redactedLine;
     })
     .join('');
 }

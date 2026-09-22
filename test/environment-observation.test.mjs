@@ -307,3 +307,53 @@ test('real inspection rejects malformed local-mode defaults and misaligned npm P
   assert.notEqual(status(report, 'platform'), 'PASS');
   assert.equal(report.eligibleForEvidence, false);
 });
+
+test('real file admission bounds tracked count and aggregate bytes independently', (t) => {
+  const f = fixture(t);
+  const bulk = join(f.root, 'bulk');
+  mkdirSync(bulk);
+  for (let n = 0; n < 4097; n++) writeFileSync(join(bulk, `item-${n}.txt`), 'fixture\n');
+  f.git('add', '.');
+  assert.equal(status(f.inspect(), 'files'), 'FAIL');
+  f.git('reset', '--mixed', 'HEAD');
+  rmSync(bulk, { recursive: true });
+  mkdirSync(bulk);
+  for (let n = 0; n < 17; n++) writeFileSync(join(bulk, `item-${n}.bin`), Buffer.alloc(2 * 1024 * 1024));
+  f.git('add', '.');
+  const report = f.inspect();
+  assert.equal(status(report, 'files'), 'FAIL');
+  assert.equal(report.eligibleForEvidence, false);
+});
+
+test('data isolation rejects excessive directory depth and entry count while preserving shallow private data', async (t) => {
+  const { dataRootIsolated } = await import('../tools/environment/observe.mjs');
+  const f = fixture(t);
+  const data = join(f.root, '.data');
+  mkdirSync(data);
+  writeFileSync(join(data, 'local.sqlite'), 'isolated fixture');
+  assert.equal(dataRootIsolated(f.root), true);
+  let nested = data;
+  for (let n = 0; n < 9; n++) {
+    nested = join(nested, 'nested');
+    mkdirSync(nested);
+  }
+  assert.equal(dataRootIsolated(f.root), false);
+  rmSync(join(data, 'nested'), { recursive: true });
+  for (let n = 0; n < 1024; n++) writeFileSync(join(data, `entry-${n}`), 'fixture');
+  assert.equal(dataRootIsolated(f.root), false);
+  assert.equal(readFileSync(join(data, 'local.sqlite'), 'utf8'), 'isolated fixture');
+});
+
+test('toolchain input aliases and runtime overrides cannot qualify local mock evidence', (t) => {
+  const f = fixture(t);
+  const target = join(f.parent, 'node-version');
+  copyFileSync(join(f.root, '.node-version'), target);
+  rmSync(join(f.root, '.node-version'));
+  symlinkSync(target, join(f.root, '.node-version'));
+  assert.throws(() => readInputs(f.root), /Environment input unavailable/);
+  rmSync(join(f.root, '.node-version'));
+  copyFileSync(target, join(f.root, '.node-version'));
+  const report = f.inspect({ environment: { ...f.environment, QP_MODE: 'live' } });
+  assert.equal(status(report, 'local-mock'), 'FAIL');
+  assert.equal(report.eligibleForEvidence, false);
+});

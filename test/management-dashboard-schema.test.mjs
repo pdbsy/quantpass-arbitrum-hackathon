@@ -1424,3 +1424,67 @@ test('nested URL and malformed JSON boundaries never reveal embedded credentials
     assert.match(output, /REDACTED/);
   }
 });
+
+test('credential redaction survives malformed CLI tails and quoted assignments without leaking payloads', () => {
+  const marker = 'local_fixture_payload_73';
+  for (const tail of [
+    '',
+    ' ',
+    ' --',
+    ' --9bad value',
+    ` --${'x'.repeat(257)} value`,
+    ' --status',
+    ' --status="ok"joined',
+    ' status=',
+    ` ${'x'.repeat(257)}=ok`,
+    ' status="ok" next="ok"',
+  ]) {
+    for (const prefix of [
+      '--token ',
+      '--token=',
+      "['token'] = ",
+      "'token' = ",
+      'token = ',
+      'authorization: Bearer ',
+    ]) {
+      const result = sanitizeLog(`${prefix}${marker}${tail}`);
+      assert.doesNotMatch(result, new RegExp(marker), `${prefix} + ${tail}`);
+      assert.match(result, /REDACTED/);
+    }
+  }
+  for (const input of [
+    "['bearer'] = '' status=PASS",
+    "['authEnabled'] = true status=PASS",
+    "['authEnabled'] = true unstructured trailing payload",
+    'authMethod=bearer --status ok --mode public',
+  ])
+    assert.doesNotMatch(sanitizeLog(input), /undefined|\uFFFD/);
+  const nested = Array.from(
+    { length: 33 },
+    (_, n) => `https://service.example.test/${n}?token=${marker}`,
+  ).join(' ');
+  const result = sanitizeLog(`https://service.example.test/?next=${encodeURIComponent(nested)}`);
+  assert.doesNotMatch(result, new RegExp(marker));
+  assert.match(decodeURIComponent(result), /REDACTED/);
+});
+
+test('mixed assignment grammars redact the earliest credential regardless of matcher order', () => {
+  const forms = [
+    (value) => `--token=${value}`,
+    (value) => `--password ${value}`,
+    (value) => `'token' = ${value}`,
+    (value) => `"password": "${value}"`,
+    (value) => `token = ${value}`,
+    (value) => `client secret = ${value}`,
+    (value) => `['token'] = ${value}`,
+  ];
+  for (const first of forms) {
+    for (const second of forms) {
+      const input = `result=PASS ${first('fixture_payload_first_73')} ${second('fixture_payload_second_74')}`;
+      const output = sanitizeLog(input);
+      assert.doesNotMatch(output, /fixture_payload_(?:first_73|second_74)/, input);
+      assert.match(output, /^result=PASS /);
+      assert.match(output, /REDACTED/);
+    }
+  }
+});

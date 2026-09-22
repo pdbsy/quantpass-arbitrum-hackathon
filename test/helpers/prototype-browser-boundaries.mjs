@@ -692,6 +692,77 @@ export async function verifyPrototypeBoundaries(page) {
   );
 
   // Restore the earlier visible-journey fixture, preserving the original six strategies.
+  // Visit each current strategy through actual routes and controls. This does not
+  // invoke obsolete chart implementations or rewrite fixture/coverage functions.
+  const strategyIds = await page.evaluate(() => window.AF.strategies.map((item) => item.id));
+  for (const id of strategyIds) {
+    await page.goto(`${address}#/trade/${id}`);
+    await page.locator('#trade-panel').waitFor();
+    for (const [tab, text] of [
+      ['discussion', 'discuss'],
+      ['rights', 'separate trial flow'],
+      ['fills', 'No trades yet.'],
+      ['assets', 'Related assets'],
+    ]) {
+      await page.locator(`[data-trade-tab="${tab}"]`).click();
+      assert.match(
+        (await page.locator('#trade-content').textContent()).toLowerCase(),
+        new RegExp(text.toLowerCase()),
+      );
+    }
+    for (const range of ['24h', '7d', '30d', '90d']) {
+      await page.locator(`[data-price-range="${range}"]`).click();
+      assert.equal(await page.locator(`[data-price-range="${range}"]`).getAttribute('aria-pressed'), 'true');
+      assert.match(
+        await page.locator('[data-v3-chart="price"]').getAttribute('aria-label'),
+        new RegExp(range),
+      );
+    }
+    for (const range of ['7d', '30d', '90d']) {
+      await page.locator(`[data-return-range="${range}"]`).click();
+      assert.equal(await page.locator(`[data-return-range="${range}"]`).getAttribute('aria-pressed'), 'true');
+      const chart = page.locator('[data-v3-chart="returns"]');
+      await chart.focus();
+      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('ArrowLeft');
+      assert.match(await page.locator('#returns-readout').textContent(), /Strategy|Reference/i);
+      const box = await chart.boundingBox();
+      await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2);
+      assert.doesNotMatch(await page.locator('#returns-readout').textContent(), /NaN|undefined/);
+    }
+    await page.locator('[data-price-style="candle"]').click();
+    await page.locator('[data-pass-shortcut="max"]').click();
+    assert.match(await page.locator('#pass-qty').inputValue(), /^[1-9][0-9]*$/);
+    await page.locator('[data-pass-shortcut="10"]').click();
+    assert.equal(await page.locator('#pass-qty').inputValue(), '10');
+    await page.locator('[data-trade-pane="pass"]').click();
+    assert.match(
+      await page.locator('#trade-panel').textContent(),
+      /Trial allocations and Pass trading use separate demo ledgers/,
+    );
+    await page.locator('[data-trade-pane="market"]').click();
+    cases.push(
+      `Visible strategy ${id}: all current chart ranges, readouts, empty fills and separate trial scope`,
+    );
+  }
+  await page.evaluate(() => {
+    const { store } = window.AF;
+    store.dispatch({ type: 'favorite', strategy: 'trend' });
+    store.dispatch({ type: 'allocate', strategy: 'trend', amount: 100000 });
+    store.dispatch({ type: 'withdraw', amount: 10000 });
+  });
+  await page.goto(`${address}#/account/funds`);
+  assert.equal(await page.locator('.pending-row').count(), 1);
+  assert.equal(await page.locator('.allocation-row').count(), 1);
+  await page.goto(`${address}#/market`);
+  await page.locator('#market-sort').selectOption('saved');
+  assert.equal(await page.locator('.market-card [data-save]').first().getAttribute('data-save'), 'trend');
+  await page.locator('[data-save="trend"]').click();
+  assert.equal(await page.locator('[data-save="trend"]').getAttribute('aria-pressed'), 'false');
+  cases.push(
+    'Visible saved-first sorting reacts to bookmark removal; pending and allocated demo balances remain distinct',
+  );
+
   await page.evaluate((saved) => {
     localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(saved.local));
     localStorage.setItem('alphaforge.passmarket.v3', JSON.stringify(saved.exchange));

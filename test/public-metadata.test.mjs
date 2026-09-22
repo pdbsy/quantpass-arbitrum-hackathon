@@ -1160,3 +1160,36 @@ test('file identity comparison rejects unavailable, zero, negative, and differen
   ])
     assert.equal(sameFileIdentity(valid, second), false);
 });
+
+test('structured arrays and free-text properties do not hide host and SSH evidence from the privacy scan', () => {
+  const samples = [
+    [`${['host', 'name'].join('')}: fictional-workstation`, 'host-identity'],
+    [`${['S', 'SH'].join('')} enabled: true`, 'ssh-exposure'],
+    [`${['SHA', '256'].join('')}:${'A'.repeat(43)}`, 'ssh-fingerprint'],
+    [`${['ssh', 'ed25519'].join('-')} ${'A'.repeat(48)}`, 'ssh-public-key'],
+  ];
+  for (const [marker, kind] of samples) {
+    for (const record of [JSON.stringify([marker]), JSON.stringify({ publicDescription: marker })])
+      assert.ok(findOperationalMetadataKinds(record, 'record.json').includes(kind), `${kind}: ${record}`);
+  }
+});
+
+test('static identity parsing bounds suffix whitespace and preserves harmless incomplete expressions', () => {
+  const field = ['host', 'name'].join('');
+  const gap = ' '.repeat(65);
+  for (const source of [
+    `profile.member${gap}= "string";`,
+    `profile!.member!${gap}= "string";`,
+    `profile["${field}"${gap}] = "string";`,
+    `const value = { ["${field}"${gap}]: "string" };`,
+  ])
+    assert.ok(findOperationalMetadataKinds(source, 'src/input.ts').includes('structured-record-budget'));
+  for (const source of [
+    `const ${field} = ("str" + "ing";`,
+    `const ${field} = "str\ning";`,
+    `const ${field} = "\\u00xx";`,
+    `const ${field} = "\\xzz";`,
+    `const ${field} = "string\\`,
+  ])
+    assert.doesNotThrow(() => findOperationalMetadataKinds(source, 'src/input.ts'));
+});
