@@ -604,63 +604,63 @@
             "locations": [
               {
                 "length": 32,
-                "start": 1929
+                "start": 2244
               },
               {
                 "length": 32,
-                "start": 2518
+                "start": 2833
               },
               {
                 "length": 32,
-                "start": 2705
+                "start": 3020
               },
               {
                 "length": 32,
-                "start": 2852
+                "start": 3167
               },
               {
                 "length": 32,
-                "start": 3478
+                "start": 3793
               },
               {
                 "length": 32,
-                "start": 3674
+                "start": 3989
               },
               {
                 "length": 32,
-                "start": 3867
+                "start": 4182
               },
               {
                 "length": 32,
-                "start": 4276
+                "start": 4846
               },
               {
                 "length": 32,
-                "start": 4315
+                "start": 4886
               },
               {
                 "length": 32,
-                "start": 4780
+                "start": 5352
               },
               {
                 "length": 32,
-                "start": 4954
+                "start": 5526
               },
               {
                 "length": 32,
-                "start": 5624
+                "start": 6196
               },
               {
                 "length": 32,
-                "start": 6409
+                "start": 6981
               },
               {
                 "length": 32,
-                "start": 6708
+                "start": 7280
               },
               {
                 "length": 32,
-                "start": 6747
+                "start": 7319
               }
             ]
           },
@@ -669,7 +669,7 @@
             "locations": [
               {
                 "length": 32,
-                "start": 4497
+                "start": 5069
               }
             ]
           },
@@ -678,7 +678,7 @@
             "locations": [
               {
                 "length": 32,
-                "start": 4461
+                "start": 5033
               }
             ]
           },
@@ -687,7 +687,7 @@
             "locations": [
               {
                 "length": 32,
-                "start": 6335
+                "start": 6907
               }
             ]
           },
@@ -696,27 +696,35 @@
             "locations": [
               {
                 "length": 32,
-                "start": 4816
+                "start": 1893
               },
               {
                 "length": 32,
-                "start": 6092
+                "start": 4592
               },
               {
                 "length": 32,
-                "start": 8572
+                "start": 5388
               },
               {
                 "length": 32,
-                "start": 8798
+                "start": 6664
               },
               {
                 "length": 32,
-                "start": 8871
+                "start": 9144
               },
               {
                 "length": 32,
-                "start": 9121
+                "start": 9370
+              },
+              {
+                "length": 32,
+                "start": 9443
+              },
+              {
+                "length": 32,
+                "start": 9693
               }
             ]
           },
@@ -725,35 +733,35 @@
             "locations": [
               {
                 "length": 32,
-                "start": 2485
+                "start": 2800
               },
               {
                 "length": 32,
-                "start": 3445
+                "start": 3760
               },
               {
                 "length": 32,
-                "start": 4744
+                "start": 5316
               },
               {
                 "length": 32,
-                "start": 5758
+                "start": 6330
               },
               {
                 "length": 32,
-                "start": 8015
+                "start": 8587
               },
               {
                 "length": 32,
-                "start": 8177
+                "start": 8749
               },
               {
                 "length": 32,
-                "start": 8250
+                "start": 8822
               },
               {
                 "length": 32,
-                "start": 8468
+                "start": 9040
               }
             ]
           },
@@ -762,19 +770,19 @@
             "locations": [
               {
                 "length": 32,
-                "start": 3308
+                "start": 3623
               },
               {
                 "length": 32,
-                "start": 5851
+                "start": 6423
               },
               {
                 "length": 32,
-                "start": 6371
+                "start": 6943
               },
               {
                 "length": 32,
-                "start": 7458
+                "start": 8030
               }
             ]
           },
@@ -783,19 +791,19 @@
             "locations": [
               {
                 "length": 32,
-                "start": 3351
+                "start": 3666
               },
               {
                 "length": 32,
-                "start": 4852
+                "start": 5424
               },
               {
                 "length": 32,
-                "start": 5936
+                "start": 6508
               },
               {
                 "length": 32,
-                "start": 7545
+                "start": 8117
               }
             ]
           },
@@ -804,39 +812,47 @@
             "locations": [
               {
                 "length": 32,
-                "start": 2565
+                "start": 2031
               },
               {
                 "length": 32,
-                "start": 3160
+                "start": 2880
               },
               {
                 "length": 32,
-                "start": 3526
+                "start": 3475
               },
               {
                 "length": 32,
-                "start": 4888
+                "start": 3841
               },
               {
                 "length": 32,
-                "start": 5485
+                "start": 4675
               },
               {
                 "length": 32,
-                "start": 6175
+                "start": 5460
               },
               {
                 "length": 32,
-                "start": 8632
+                "start": 6057
               },
               {
                 "length": 32,
-                "start": 8764
+                "start": 6747
               },
               {
                 "length": 32,
-                "start": 8931
+                "start": 9204
+              },
+              {
+                "length": 32,
+                "start": 9336
+              },
+              {
+                "length": 32,
+                "start": 9503
               }
             ]
           }
@@ -844,8 +860,8 @@
         "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
       },
       "compilerRuntimeTemplate": {
-        "keccak256": "0x84ba496c3b70467dda328768dc78e53820a94db9e19127b7d63f4b167f0c4908",
-        "lengthBytes": 11516,
+        "keccak256": "0xcb61ca0137bad802557906cc795482281ed83f6562a0626783408cf955f5a1fc",
+        "lengthBytes": 12088,
         "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
       },
       "constructor": [
@@ -883,8 +899,8 @@
         }
       ],
       "creationBytecode": {
-        "keccak256": "0x377b3ad4ed5a804d202d3461c2a6dc59045762351ce74086f7870a2def71b190",
-        "lengthBytes": 18835
+        "keccak256": "0x589de14f130bfa38c2974b174e7e1fefc608b2d196c675ddfb3d48df032f84f1",
+        "lengthBytes": 19899
       },
       "deployedAddress": null,
       "deployedRuntimeKeccak256": null,
@@ -1082,81 +1098,89 @@
         "withdrawableUsdc()": "0x442ad6a0"
       },
       "source": "src/AlphaForgeVault.sol",
-      "sourceSha256": "7e56f20b0a43da8c7980af8307ec21886aea719e4e643eddb10e6641269d0857"
+      "sourceSha256": "ed0ea81003742573f7837ec38e06f5d62ab690a26488ac8ee9898df71ee41145"
     },
     "PassLocker": {
-      "abiKeccak256": "0x3cd4ab8da2123200b3e4b931cb94a5cc11b5662360c4ed70d6643f173ff53b21",
+      "abiKeccak256": "0xa5018b66fb3eeabbeb90281ec0b8e10b8059e9758309bfbb199d5a1796d914dd",
       "artifact": "PassLocker.sol/PassLocker.json",
       "compilerImmutableReferences": {
         "groups": [
           {
-            "compilerReferenceId": "10055",
+            "compilerReferenceId": "10109",
             "locations": [
               {
                 "length": 32,
-                "start": 1482
+                "start": 1932
               },
               {
                 "length": 32,
-                "start": 1518
+                "start": 1968
               }
             ]
           },
           {
-            "compilerReferenceId": "10057",
+            "compilerReferenceId": "10111",
             "locations": [
               {
                 "length": 32,
-                "start": 436
+                "start": 664
               },
               {
                 "length": 32,
-                "start": 736
+                "start": 886
               },
               {
                 "length": 32,
-                "start": 864
+                "start": 1186
               },
               {
                 "length": 32,
-                "start": 1358
+                "start": 1314
               },
               {
                 "length": 32,
-                "start": 1785
+                "start": 1808
               },
               {
                 "length": 32,
-                "start": 1916
+                "start": 2235
               },
               {
                 "length": 32,
-                "start": 2082
+                "start": 2366
+              },
+              {
+                "length": 32,
+                "start": 2532
               }
             ]
           },
           {
-            "compilerReferenceId": "10060",
+            "compilerReferenceId": "10114",
             "locations": [
               {
                 "length": 32,
-                "start": 900
+                "start": 399
               },
               {
                 "length": 32,
-                "start": 1012
+                "start": 1350
               },
               {
                 "length": 32,
-                "start": 1725
+                "start": 1462
               },
               {
                 "length": 32,
-                "start": 1950
+                "start": 2175
               },
               {
                 "length": 32,
-                "start": 2022
+                "start": 2400
+              },
+              {
+                "length": 32,
+                "start": 2472
               }
             ]
           }
@@ -1164,8 +1188,8 @@
         "mappingStatus": "COMPILER_REFERENCE_IDS_NOT_SOURCE_FIELD_MAPPED"
       },
       "compilerRuntimeTemplate": {
-        "keccak256": "0x3a23133c185856bb68e825ae1ecac929de131bdcbaf2154c3c7e4e24098bc494",
-        "lengthBytes": 3296,
+        "keccak256": "0x53d31f8482495ee7b0c1e8334bd9208f9903dc5313b6d7bf196d90581c161646",
+        "lengthBytes": 3746,
         "note": "Immutable slots are compiler placeholders; deployed runtime is verified separately."
       },
       "constructor": [
@@ -1183,8 +1207,8 @@
         }
       ],
       "creationBytecode": {
-        "keccak256": "0xacc5aca165af774f0292aa7249567376e434e09712983be29dcfa33b0b9d2d68",
-        "lengthBytes": 4099
+        "keccak256": "0x67f4a76d42576fbfa04dc7b093557c6f01538aaefed9dc2b92fd71e0fb967262",
+        "lengthBytes": 4563
       },
       "deployedAddress": null,
       "deployedRuntimeKeccak256": null,
@@ -1236,6 +1260,11 @@
           "indexedMask": "10",
           "signature": "PassUnlocked(address,uint256)",
           "topic0": "0x7ccd4c691fc2c1b125ef78d8c9bedff4a837adbcdc018c5ea83c00ff62a85e99"
+        },
+        {
+          "indexedMask": "10",
+          "signature": "UntrackedPassRescued(address,uint256)",
+          "topic0": "0x885bd7c12b0419b8bb1d77404283286bfbade7be801001d4efa1c135d459e748"
         }
       ],
       "immutableReferenceGroupCount": 3,
@@ -1259,11 +1288,12 @@
         "owner()": "0x8da5cb5b",
         "pass()": "0xa7a1ed72",
         "releaseAll()": "0x5be7fde8",
+        "rescueUntrackedPass()": "0x1fb36447",
         "unlock(uint256)": "0x6198e339",
         "vault()": "0xfbfa77cf"
       },
       "source": "src/PassLocker.sol",
-      "sourceSha256": "455cd7a0ef0de166af40080fb1a46959eb6cc277562f32197e2cb486a0067df4"
+      "sourceSha256": "441a82fd4cfa9b986f19a869be61357b49eb40ba01acb1661e7c6c07033cf522"
     },
     "StrategyPass": {
       "abiKeccak256": "0xdd989644feeb7798baca69f7391ba75b6f9d09f47fb05bd90184f6072912923f",
@@ -1271,7 +1301,7 @@
       "compilerImmutableReferences": {
         "groups": [
           {
-            "compilerReferenceId": "10359",
+            "compilerReferenceId": "10467",
             "locations": [
               {
                 "length": 32,

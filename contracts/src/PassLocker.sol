@@ -20,6 +20,7 @@ contract PassLocker is ReentrancyGuard {
 
     event PassLocked(address indexed owner, uint256 amount);
     event PassUnlocked(address indexed owner, uint256 amount);
+    event UntrackedPassRescued(address indexed owner, uint256 amount);
 
     address public immutable vault;
     address public immutable owner;
@@ -66,6 +67,19 @@ contract PassLocker is ReentrancyGuard {
         lockedBalance = 0;
         _transferToOwnerExact(amount);
         emit PassUnlocked(owner, amount);
+    }
+
+    /// @notice The Vault permits this only through its Owner's post-close rescue path.
+    /// @dev Accounted locks are never reduced; unsolicited Pass uses its own raw units.
+    function rescueUntrackedPass() external onlyVault nonReentrant returns (uint256 amount) {
+        uint256 balance = pass.balanceOf(address(this));
+        uint256 accounted = lockedBalance;
+        if (balance < accounted) revert EscrowBalanceDeficit(balance, accounted);
+        amount = balance - accounted;
+        if (amount != 0) {
+            _transferToOwnerExact(amount);
+            emit UntrackedPassRescued(owner, amount);
+        }
     }
 
     function _checkVault() private view {

@@ -1,12 +1,12 @@
 # 当前工作 — AlphaForge / Robinhood Chain Testnet / PR22
 
-归属：pdbsy/quantpass-arbitrum-hackathon；负责人Macbeth01；任务M3-01-PHASE1-CLOSEOUT。Xlayer是独立工作线，不共享候选、运行结果或验收状态。
+归属：pdbsy/quantpass-arbitrum-hackathon；负责人Macbeth01；任务M3-01-PHASE1-CLOSEOUT。Xlayer保持独立工作线。
 
-最近完整测量仍为54540a7：847/847、五功能流程、Semgrep/Gitleaks/source-policy、156条LOCAL身份及正式fnm环境通过；覆盖率89.63/86.68/90.28/80.96未达标。06独立验证b9283da核心124/124及5项迁移/恢复探针，相关实现至54540a7相同。远程3a78e34的9/9 CI只证明该旧头。
+C195efd5/Rcf97868/Sc933e85已完成真实管理11PASS/0FAIL/4NOT_RUN与看板生成。c933e85完整npm check857/857、Semgrep/Gitleaks通过；M3浏览器原脚本重复请求未决提款被正确拒绝，因此总体未验收，原FAIL保留。新驱动已断言重复请求零发送，确认首笔后再主动提款，实际9组/9mock请求PASS。06独立195efd5复验58/58+5补充探针/typecheck通过。
 
-已知钱包hash恢复实现7b00e9f的完整管理采集实际为10 PASS / 1 FAIL / 4 NOT_RUN；失败清单原样保存在744a206。注入流程暴露旧journal记录覆盖当前交易，影响重组展示；新增重新连接断言同样先失败。当前修复在refresh和connect保留同Owner当前operation，旧提示单独核对清理；切换Owner不沿用旧交易展示。四文件58/58、typecheck、lint通过，准确新C/R/S和全量验收待执行。06原7b00e9f三文件53/53只作为有界结果，不标全候选通过。
+AUDIT-002按既有第一阶段救援要求补齐：关闭后由Owner通过原Vault选择器取回其Locker未锁定Pass和Vault内余量，锁定余额、正常close、权限和Vault ABI不变。新用例先失败，修复后完整离线入口140 Solidity（含fuzz/invariant）/25 Python/2演练、Slither与ABI/制品清单匹配通过；没有部署或广播。新准确统一候选、C/R/S、完整覆盖率和独立最终复核待完成。
 
-AUDIT-002 Locker误转救援仍OPEN；依据现有第一阶段close后Owner救援要求校准。01继续集成、覆盖率、看板和交付；06负责本线CI门禁。NOT_READY_TO_MERGE；未发布新候选、merge、部署或广播。
+覆盖率最近完整值仍为54540a7的89.63/86.68/90.28/80.96，阈值未达；c933e85因失败receipt缺少workflow绑定字段使聚合停止，没有新完整百分比。远程3a78e34的9/9 CI只证明旧头；新候选未发布。NOT_READY_TO_MERGE。详见AUDIT-CALIBRATION-2026-09-22.md及remaining-tasks.json。
 
 ## 此前准确检查点
 

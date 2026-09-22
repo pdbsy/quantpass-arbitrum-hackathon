@@ -1,16 +1,16 @@
 # 第一阶段全量剩余任务矩阵
 
-归属AlphaForge / Robinhood Chain Testnet / pdbsy/quantpass-arbitrum-hackathon / PR22；与Xlayer分开。最近完整S54540a7为847/847、五流程通过，覆盖率89.63/86.68/90.28/80.96未达标。后续7b00e9f的真实采集10PASS/1FAIL/4NOT_RUN已保留，修复后58项专项通过，待新C/R/S全量复验。远程旧头3a78e34的9/9 CI不继承到新候选。
+归属AlphaForge / Robinhood Chain Testnet / pdbsy/quantpass-arbitrum-hackathon / PR22；与Xlayer分开。c933e85完整857/857与扫描通过，但真实M3浏览器FAIL，未生成完整覆盖率。已修订未决重复请求场景并实际9组/9mock请求通过；Locker救援完整离线140 Solidity/25 Python/2演练及Slither通过，待新统一候选复验。远程旧头3a78e34的9/9 CI不继承。
 
 字段以[JSON矩阵](remaining-tasks.json)为事实源；见[证据索引](FINAL-EVIDENCE-INDEX.md)和[审计校准](AUDIT-CALIBRATION-2026-09-22.md)。
 
 | Task | Owner | 目标 | 当前状态 | 关闭条件 | 证据 / 阻塞 |
 | --- | --- | --- | --- | --- | --- |
-| PH1-01 | 01 | 固定基线、登记、文档/路线图/状态板同步 | IN_PROGRESS | 所有来源映射；真实 ACK；无旧状态冒充当前 | 最近完整S54540a7：847/847与五流程通过；7b00e9f管理采集10PASS/1FAIL/4NOT_RUN已保存744a206；修复后待新C/R/S / NONE |
-| PH1-02 | 02 | Pass 固定供应、策略绑定、完整权限/事件/ABI；只补缺 | PASS_AT_LOCAL_C0DFE08_CHECKPOINT | 25 Vault selectors/7 topics 等完整 compiler equality；发行/转账精度及异常 token 回归 | Sc0dfe08原生Mac合约入口PASS：134/134 Solidity、25/25 Python、离线部署演练2/2、ABI/manifest和Slither通过；无RPC/签名/广播 / FINAL_CANDIDATE_EQUIVALENCE_AND_ACCEPTANCE |
-| PH1-03 | 02 | 可重建构建、constructor/immutables/bytecode 清单和本地 VM 演练 | PASS_AT_LOCAL_C0DFE08_CHECKPOINT | 干净重建一致；重复运行不覆盖；明确无外部链广播 | Sc0dfe08原生Mac合约入口PASS：134/134 Solidity、25/25 Python、离线部署演练2/2、ABI/manifest和Slither通过；无RPC/签名/广播 / FINAL_CANDIDATE_EQUIVALENCE_AND_ACCEPTANCE |
+| PH1-01 | 01 | 固定基线、登记、文档/路线图/状态板同步 | IN_PROGRESS | 所有来源映射；真实 ACK；无旧状态冒充当前 | C195efd5/Rcf97868/Sc933e85已生成；857/857通过但M3浏览器未决重复提款被正确拒绝，驱动修复后9组/9mock发送通过；新C/R/S待采集 / NONE |
+| PH1-02 | 02 | Pass 固定供应、策略绑定、完整权限/事件/ABI；只补缺 | LOCKER_EXCESS_RESCUE_LOCAL_PASS_FINAL_RETEST_PENDING | 25 Vault selectors/7 topics 等完整 compiler equality；发行/转账精度及异常 token 回归 | 按既有close后Owner救援规范补齐Locker未锁定Pass；完整离线入口140 Solidity/25 Python/2演练、ABI/manifest/Slither通过；待准确统一候选复验 / FINAL_CANDIDATE_EQUIVALENCE_AND_ACCEPTANCE |
+| PH1-03 | 02 | 可重建构建、constructor/immutables/bytecode 清单和本地 VM 演练 | PASS_AT_LOCAL_C0DFE08_CHECKPOINT | 干净重建一致；重复运行不覆盖；明确无外部链广播 | 新Locker修复使创建/运行字节码变化；实际完整构建后生成制品清单并检查匹配，2/2离线演练通过；无部署或真实地址声明 / FINAL_CANDIDATE_EQUIVALENCE_AND_ACCEPTANCE |
 | PH1-04 | 03 | manifest、地址/字节码/ABI、三方链身份与调用目标校验 | PASS_AT_PR26_SOURCE_CHECKPOINT | 错链/错地址/错ABI/错owner失败关闭；真实参数缺失保持 NOT_DEPLOYED | PR26 a4d73bb；05独立643/643，冻结Chain/API关键授权会计分支清单已通过；整体13文件95.39%分支保持原值；统一3a78e34已独立711/711通过，旧关键子集不重新标OPEN；本轮差异需准确复验 / CANDIDATE_DEPENDENCY |
-| PH1-05 | 03 | 拒签/revert/replaced/dropped/断线/模糊提交/重复回调恢复 | RECOVERY_REORG_FIX_TARGETED_PASS_FULL_RETEST_PENDING | SUBMISSION_AMBIGUOUS 不自动重发；刷新恢复不重复经济动作 | 7b00e9f全量发现旧提示覆盖当前交易；refresh和connect修复后58/58/typecheck/lint通过；06原53/53仅限定范围，新完整候选待复验 / CANDIDATE_RETEST |
+| PH1-05 | 03 | 拒签/revert/replaced/dropped/断线/模糊提交/重复回调恢复 | RECOVERY_INDEPENDENT_LOCAL_PASS_BROWSER_SEQUENCING_FIXED | SUBMISSION_AMBIGUOUS 不自动重发；刷新恢复不重复经济动作 | 06准确195efd5独立58/58+5探针/typecheck通过；c933e85完整857/857通过；M3旧驱动重复未决提款FAIL保留，修订后真实9组/9mock发送PASS；新统一候选待测 / CANDIDATE_RETEST |
 | PH1-06 | 03 | 有界 catch-up、重组、跨进程所有权和多实体隔离 | DELIVERED_PENDING_FINAL_ACCEPTANCE | 同块多操作不丢失；无共同祖先保留证据且持久degraded | 原共享Pass/多Vault隔离验收保留；03新增事务内失租回滚379d9cc仅改测试，经理f67e26e独立55/55 PASS；准确统一候选全测待执行 / CANDIDATE_DEPENDENCY |
 | PH1-07 | 03 | 数据库迁移、备份恢复、健康/故障说明和演练 | AUDIT_001_INDEPENDENT_LOCAL_RETEST_PASS | 备份一致且不覆盖原库；恢复后身份和索引对账；实际 RPO/RTO | 06在b9283da独立124/124与额外5项v6/v7恢复/结构拒绝/迁移回滚检查通过；至54540a7实现相同，非hosted或外部安全批准 / CANDIDATE_RETEST |
 | PH1-08 | 04 | 暖色英文实际入口、六页信息和数据来源标签 | EXPANDED_BROWSER_PASS_AT_979F4AA | 主页/市场/详情/账户/用户论坛/排名准确；不改未使用React入口 | 04扩展四组真实页面交互已集成并在979f4aa完整浏览器实测PASS；不能继承为后续修复源码PASS / FINAL_CANDIDATE_ACCEPTANCE |
@@ -23,7 +23,7 @@
 | PH1-15 | 01 | 仓库外不可被受检diff替换的治理验证与独立身份 | BLOCKED_EXTERNAL_AUTHORITY | 不可仅改JSON verified；外部修订/摘要/强制规则/失败样本均可验证 | docs/security/SUPPLY-CHAIN.md；组织准备方案 / EXTERNAL_DEPENDENCY_AND_AUTHORIZATION |
 | PH1-16 | 用户 | 首发分配与转账纳入；付费销售和真实Buy/Sell由用户明确移出第一阶段 | USER_DECIDED_OUT_OF_PHASE_FOR_PAID_TRADING | 不实现付费机制；不重复询问已确认范围 | docs/management/phase1/DECISIONS.md；用户本轮异步答复 / NONE |
 | PH1-17 | 01 | 旧PR15–20覆盖与superseded关系；Dependabot12/13单列 | SOURCE_RECONCILED | 不凭非祖先判断缺失；不重复merge；不删除来源refs；未覆盖差异保留任务 | PR-SUPERSESSION.json / PR-SUPERSESSION.md；PR15–20 已按准确来源覆盖证据关闭，原 refs 保留 / NONE |
-| PH1-18 | 01 | 4项合约NOT_RUN采集边界 | LOCAL_CONTRACT_EVIDENCE_LINKED | 不得手填PASS；若阶段硬门槛则真实解决；否则明确两套证据覆盖 | Sc0dfe08真实contract入口包含Foundry/fuzz/invariant/Slither；管理collector的四项未注册NOT_RUN原样保留；FINAL-EVIDENCE-INDEX.md分别列明 / FINAL_CANDIDATE_ACCEPTANCE |
+| PH1-18 | 01 | 4项合约NOT_RUN采集边界 | LOCAL_CONTRACT_EVIDENCE_LINKED | 不得手填PASS；若阶段硬门槛则真实解决；否则明确两套证据覆盖 | 新救援修复完整contract入口140 Solidity含fuzz/invariant、25 Python、2离线演练和Slither/ABI/manifest通过；collector四项未注册NOT_RUN不手填PASS / FINAL_CANDIDATE_ACCEPTANCE |
 | PH1-19 | 01 | 统一候选、干净环境复现、演示/恢复和交付包 | MUST_COMPLETE | 实现/本地/CI/QA/review/merge/testnet各状态分列；所有限制留存 | 本轮最终PR/交付报告 / DEPENDENCIES |
 | PH1-20 | 01 | 正常PR审批与本轮合并 | REVIEW_BLOCKED_MERGE_NOT_AUTHORIZED | 不复用21例外、不降规则；实际merge后master验证 | ruleset22507334；本轮最终PR / GITHUB_REVIEW_AND_MERGE_AUTHORIZATION |
 | PH1-21 | 01 | 真实部署参数、Owner/Creator/策略、资产与交易清单 | PREPARE_THEN_REQUEST_AUTHORIZATION | 先完整方案再批准；不向聊天索要私钥助记词；无自动重发 | 新02部署方案；新03smoke；01审批包 / DEPLOYMENT_PARAMETERS_AND_AUTHORIZATION |

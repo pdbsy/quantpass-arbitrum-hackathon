@@ -119,6 +119,82 @@ contract AlphaForgeVaultRescueTest {
         require(vault.untrackedExcess(address(pass)) == 50 ether, "closed Pass dust not excess");
     }
 
+    // Direct Locker dust is not a recorded lock and needs a separate post-close exit.
+    function test_PostCloseRescueReturnsDirectLockerPassAndVaultDust() public {
+        VM.startPrank(ALICE);
+        require(pass.transfer(vault.passLocker(), 1), "Locker dust transfer failed");
+        require(pass.transfer(address(vault), 7), "Vault dust transfer failed");
+        (bool active,) =
+            address(vault).call(abi.encodeCall(vault.rescueUntrackedToken, (address(pass))));
+        require(!active, "active Locker rescue accepted");
+        vault.close();
+        VM.stopPrank();
+        require(PassLocker(vault.passLocker()).lockedBalance() == 0, "close retained recorded lock");
+        require(pass.balanceOf(vault.passLocker()) == 1, "close consumed untracked Locker dust");
+        require(vault.untrackedExcess(address(pass)) == 8, "Locker dust missing from excess");
+        VM.prank(BOB);
+        (bool unauthorized,) =
+            address(vault).call(abi.encodeCall(vault.rescueUntrackedToken, (address(pass))));
+        require(!unauthorized, "non-owner rescued Locker dust");
+        uint256 beforeBalance = pass.balanceOf(ALICE);
+        VM.prank(ALICE);
+        require(vault.rescueUntrackedToken(address(pass)) == 8, "wrong combined rescue amount");
+        require(pass.balanceOf(ALICE) == beforeBalance + 8, "wrong rescue recipient or raw units");
+        require(pass.balanceOf(vault.passLocker()) == 0, "Locker dust remained");
+        require(pass.balanceOf(address(vault)) == 0, "Vault dust remained");
+        VM.prank(ALICE);
+        (bool replay,) =
+            address(vault).call(abi.encodeCall(vault.rescueUntrackedToken, (address(pass))));
+        require(!replay, "empty rescue replay accepted");
+    }
+
+    function testFuzz_PostCloseLockerOnlyRescueUsesExactRawUnits(uint256 candidate) public {
+        uint256 dustAmount = (candidate % 1 ether) + 1;
+        VM.startPrank(ALICE);
+        require(pass.transfer(vault.passLocker(), dustAmount), "Locker dust transfer failed");
+        vault.close();
+        uint256 beforeBalance = pass.balanceOf(ALICE);
+        require(vault.untrackedExcess(address(pass)) == dustAmount, "wrong Locker-only excess");
+        require(vault.rescueUntrackedToken(address(pass)) == dustAmount, "wrong Locker-only rescue");
+        require(pass.balanceOf(ALICE) == beforeBalance + dustAmount, "raw rescue amount changed");
+        require(pass.balanceOf(vault.passLocker()) == 0, "Locker dust remained");
+        require(pass.transfer(vault.passLocker(), 1), "post-close transfer failed");
+        require(vault.rescueUntrackedToken(address(pass)) == 1, "later post-close dust stuck");
+        VM.stopPrank();
+        require(vault.principalBasis() == 0, "rescue changed principal");
+        require(vault.trackedUsdcBalance() == 0, "rescue changed tracked assets");
+    }
+
+    // A failed excess transfer must not undo the already completed close or move part of the dust.
+    function test_FailedLockerExcessRescuePreservesCompletedClose() public {
+        ConfigurableStrategyPass feePass =
+            new ConfigurableStrategyPass("Fee Pass", "FEE-PASS", STRATEGY_ID, 1_000 ether, ALICE);
+        AlphaForgeVault feeVault = _deploy(ALICE, address(feePass), address(usdc));
+        _approveAndDeposit(feeVault, feePass, usdc, ALICE, 10e6);
+        VM.startPrank(ALICE);
+        require(feePass.transfer(feeVault.passLocker(), 3), "Locker funding failed");
+        require(feePass.transfer(address(feeVault), 5), "Vault funding failed");
+        feeVault.close();
+        VM.stopPrank();
+        uint256 beforeBalance = feePass.balanceOf(ALICE);
+        feePass.setTransferFee(1);
+        VM.prank(ALICE);
+        (bool success,) = address(feeVault)
+            .call(abi.encodeCall(feeVault.rescueUntrackedToken, (address(feePass))));
+        require(!success, "short Locker rescue accepted");
+        require(feeVault.closed(), "failed rescue reopened Vault");
+        require(feeVault.principalBasis() == 0, "failed rescue restored principal");
+        require(
+            PassLocker(feeVault.passLocker()).lockedBalance() == 0, "failed rescue restored lock"
+        );
+        require(feePass.balanceOf(ALICE) == beforeBalance, "failed rescue moved owner funds");
+        require(feePass.balanceOf(feeVault.passLocker()) == 3, "failed rescue moved Locker dust");
+        require(feePass.balanceOf(address(feeVault)) == 5, "failed rescue moved Vault dust");
+        feePass.setTransferFee(0);
+        VM.prank(ALICE);
+        require(feeVault.rescueUntrackedToken(address(feePass)) == 8, "healthy retry failed");
+    }
+
     // Catches a zero-value rescue emitting success or changing closed accounting.
     function test_ZeroExcessRescueRevertsWithoutAccountingMutation() public {
         VM.prank(ALICE);

@@ -166,7 +166,9 @@ contract AlphaForgeVault is IAlphaForgeVault, ReentrancyGuard {
         if (token == address(0)) revert ZeroAddress();
         amount = untrackedExcess(token);
         if (amount < 1) revert NoUntrackedExcess(token);
-        _safeTransferExact(token, owner, amount);
+        uint256 vaultAmount = amount;
+        if (token == pass) vaultAmount -= PassLocker(passLocker).rescueUntrackedPass();
+        if (vaultAmount != 0) _safeTransferExact(token, owner, vaultAmount);
         emit UntrackedTokenRescued(token, owner, amount);
     }
 
@@ -218,6 +220,10 @@ contract AlphaForgeVault is IAlphaForgeVault, ReentrancyGuard {
         if (token == address(0)) revert ZeroAddress();
         uint256 actual = IERC20(token).balanceOf(address(this));
         uint256 reserved = reservedTrackedBalance(token);
+        if (token == pass && closed) {
+            uint256 lockerActual = IERC20(token).balanceOf(passLocker);
+            return actual + (lockerActual > reserved ? lockerActual - reserved : 0);
+        }
         return actual > reserved ? actual - reserved : 0;
     }
 

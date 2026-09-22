@@ -171,3 +171,24 @@ test('injected runtime isolates two Vault owners and allowances while both selec
     '1000000000000',
   );
 });
+
+test('injected runtime prevents an unresolved duplicate but permits a new explicit exit after confirmation', async () => {
+  const fixture = createM3InjectedRuntimeFixture();
+  fixture.setCorrectNetwork();
+  await fixture.runtime.connect();
+  const request = { kind: 'withdraw' as const, usdcBaseUnits: '1' };
+  const first = await fixture.runtime.reviewAction(request);
+  await fixture.runtime.confirmAction(first);
+  const duplicate = await fixture.runtime.reviewAction(request);
+  await assert.rejects(fixture.runtime.confirmAction(duplicate), /M3_SUBMISSION_RECOVERY_REQUIRED/);
+  assert.equal(fixture.providerRequests.filter((row) => row.method === 'eth_sendTransaction').length, 1);
+  await fixture.setSoftReady();
+  assert.equal(fixture.runtime.snapshot.transaction.status, 'READY');
+  await fixture.setDegraded();
+  const next = await fixture.runtime.reviewAction(request);
+  assert.notEqual(next.operationId, first.operationId);
+  const submitted = await fixture.runtime.confirmAction(next);
+  assert.equal(submitted.state, 'SUBMITTED');
+  assert.equal(fixture.providerRequests.filter((row) => row.method === 'eth_sendTransaction').length, 2);
+  assert.equal(fixture.runtime.snapshot.onchain.health, 'DEGRADED');
+});

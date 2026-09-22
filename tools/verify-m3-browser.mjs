@@ -1,4 +1,4 @@
-/* global window */
+/* global window, document */
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -383,6 +383,25 @@ export async function runM3BrowserJourneys(page, { origin, evidenceDirectory }) 
     await confirmAction('deposit', { amount: '1.000001' });
     await confirmAction('withdraw', { amount: '0.000001' });
     checks.push('Exact finite two-token approvals, deposit and withdraw reached wallet submission');
+
+    previous = await sendCount();
+    await openAction('withdraw', { amount: '0.000001' });
+    await page.locator('dialog[open] [data-chain-confirm]').click();
+    await page.waitForFunction(() =>
+      document
+        .querySelector('dialog[open] [data-product-dialog-error]')
+        ?.textContent?.startsWith('M3_SUBMISSION_RECOVERY_REQUIRED.'),
+    );
+    assert.equal(await sendCount(), previous, 'unresolved identical withdrawal must not be resent');
+    await page.locator('dialog[open] [data-close]').click();
+    await fixtureAction('soft-ready');
+    await waitEvidence('first withdrawal confirmed before a new explicit withdrawal', (value) => {
+      assert.equal(value.snapshot.transaction.status, 'READY');
+      assert.equal(value.snapshot.onchain.readiness, 'SOFT_READY');
+    });
+    checks.push(
+      'Blocked identical unresolved withdrawal; canonical mock evidence completed the first operation',
+    );
 
     await fixtureAction('degraded');
     await waitEvidence('degraded owner exit', (value) => {
