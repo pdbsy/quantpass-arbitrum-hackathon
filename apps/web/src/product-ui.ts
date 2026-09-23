@@ -576,14 +576,14 @@ document.addEventListener('click', (event) => {
         claimId = null;
         void run(async () => {
           await client.claim(id);
-          AF.app.closeDialog();
+          if (currentDialog(target)) AF.app.closeDialog();
         });
       } else if (draft?.fields) {
         const captured = draft;
         draft = null;
         void run(async () => {
           await client.command(captured.type, captured.fields!, captured.review);
-          AF.app.closeDialog();
+          if (currentDialog(target)) AF.app.closeDialog();
         });
       } else throw Error('REVIEW_REQUIRED');
     }

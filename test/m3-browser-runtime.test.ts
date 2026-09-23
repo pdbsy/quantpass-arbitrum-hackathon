@@ -299,6 +299,32 @@ test('configured runtime preserves owner exits through provider reads when the i
   assert.equal(review.request.kind, 'withdraw');
 });
 
+test('live exit rejects a Pass address outside the reviewed deployment without wallet submission', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const request = provider.request.bind(provider);
+  provider.request = (input) =>
+    input.method === 'eth_call' &&
+    (input.params?.[0] as { data?: unknown } | undefined)?.data === encodeM3VaultCall('pass()', [])
+      ? Promise.resolve(addressResult(AF_USDC))
+      : request(input);
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: {
+      readSnapshot: async () => {
+        throw Error('INDEXER_UNAVAILABLE');
+      },
+    },
+  });
+
+  await assert.rejects(runtime.connect(), /M3_STRATEGY_PASS_MISMATCH/);
+  assert.equal(runtime.snapshot.onchain.writeMode, 'DISABLED');
+  assert.equal(
+    provider.requests.some((item) => item.method === 'eth_sendTransaction'),
+    false,
+  );
+});
+
 test('configured runtime disables writes when the connected provider changes to a wrong network', async () => {
   const provider = new ConfiguredProviderFixture();
   const runtime = createM3BrowserRuntime({
@@ -658,6 +684,41 @@ test('runtime status identity mismatch fails closed before canonical deposit app
   await assert.rejects(
     runtime.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '1' }),
     /M3_RUNTIME_STATUS_MISMATCH/,
+  );
+});
+
+test('matching runtime status permits a canonical approval review without submitting a transaction', async () => {
+  const provider = new ConfiguredProviderFixture();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: {
+      readRuntimeStatus: async () => ({
+        lastAttempt: 'SUCCEEDED',
+        errorCode: null,
+        database: { status: 'HEALTHY', schemaVersion: 7, integrity: 'OK' },
+        deployment: {
+          chainId: deployment.chainId,
+          contract: deployment.vaultAddress,
+          strategyPassAddress: deployment.strategyPassAddress,
+          manifestDigest: deployment.manifestDigest,
+          abiHash: deployment.abiHash,
+          runtimeBytecodeHash: deployment.runtimeBytecodeHash,
+          strategyPassAbiHash: deployment.strategyPassAbiHash,
+          strategyPassRuntimeBytecodeHash: deployment.strategyPassRuntimeBytecodeHash,
+        },
+      }),
+      readSnapshot: async () => vaultSnapshot,
+    },
+  });
+
+  await runtime.connect();
+  const review = await runtime.reviewDepositApprovals!({ kind: 'deposit', usdcBaseUnits: '1' });
+  assert.equal(review.owner, OWNER);
+  assert.equal(runtime.snapshot.onchain.writeMode, 'LIVE_AUTHORIZED');
+  assert.equal(
+    provider.requests.some((item) => item.method === 'eth_sendTransaction'),
+    false,
   );
 });
 
@@ -1438,6 +1499,55 @@ test('zero and aliased deployed token addresses cannot establish a writable runt
       () => createM3BrowserRuntime({ deployment: { ...deployment, ...patch } }),
       /INVALID_M3_DEPLOYMENT_CONFIG/,
     );
+});
+
+test('refresh discovers a journal hint written after connect by another local runtime without resending', async () => {
+  const { M3SubmissionJournal } = await import('../apps/web/src/m3-submission-journal.ts');
+  const provider = new ConfiguredProviderFixture();
+  const values = new Map<string, string>();
+  const submissionStorage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+  };
+  const registrations: string[] = [];
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    submissionStorage,
+    vaultReader: {
+      readSnapshot: async () => vaultSnapshot,
+      registerSubmission: async (input) => {
+        registrations.push(input.operationId);
+        return {};
+      },
+    },
+  });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.transaction.status, 'IDLE');
+  const journal = new M3SubmissionJournal(
+    {
+      chainId: deployment.chainId,
+      manifestDigest: deployment.manifestDigest,
+      vaultAddress: deployment.vaultAddress,
+      strategyPassAddress: deployment.strategyPassAddress,
+    },
+    submissionStorage,
+  );
+  journal.record({
+    operationId: 'second-tab-withdraw',
+    chainId: deployment.chainId,
+    owner: OWNER,
+    target: VAULT,
+    calldata: encodeM3VaultCall('withdraw(uint256)', [1n]),
+    txHash: asTransactionHash(TX_HASH),
+  });
+
+  await runtime.refresh();
+  assert.deepEqual(runtime.snapshot.transaction, { status: 'SUBMITTED', txHash: TX_HASH });
+  assert.deepEqual(registrations, ['second-tab-withdraw']);
+  assert.equal(provider.requests.filter((item) => item.method === 'eth_sendTransaction').length, 0);
 });
 
 for (const outcome of [
