@@ -1922,7 +1922,17 @@
       "target_path": "apps/web/src/product-adapter.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "c95ffad4bab8130593980a3d8810b57df944f2dd53124e7a0a209490c322c737",
-      "migrated_sha256": "6cafad19335160e3a9af2107e3feedd1484434df70f7c4e4b802fc561ab2ba0f"
+      "migrated_sha256": "5adf61f5e6250d76de9b82851ee6b04980e68773718c9fa53f49e0a0553627e9",
+      "subsequent_revisions": [
+        {
+          "commit": "ab16a84d4442bb8fe48e90c460758a158db2e2a0",
+          "agent": "Macbeth04",
+          "task": "M3-04-PHASE1-PRODUCT",
+          "previous_sha256": "6cafad19335160e3a9af2107e3feedd1484434df70f7c4e4b802fc561ab2ba0f",
+          "current_sha256": "5adf61f5e6250d76de9b82851ee6b04980e68773718c9fa53f49e0a0553627e9",
+          "reason": "Reject canonical Pass balance rows outside the strategy catalogue before account projection replacement; retain original source, author and prior migrated hash."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
