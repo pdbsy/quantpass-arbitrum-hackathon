@@ -26,6 +26,7 @@ const { app } = await buildApp({
 const checks = [];
 let browser;
 let page;
+let cleanupFailure;
 try {
   await app.listen({ host: '127.0.0.1', port });
   browser = await chromium.launch({
@@ -616,14 +617,16 @@ try {
   checks.push(
     'Original six strategy pages and all account sections preserved; mobile pages no horizontal overflow; fixture market unchanged; no page/CSP errors',
   );
-  await writeFile(resolve(evidence, 'result.json'), JSON.stringify({ status: 'PASSED', checks }, null, 2));
-  console.log(JSON.stringify({ status: 'PASSED', evidence, checks }, null, 2));
 } catch (error) {
   if (page) {
     await page
       .screenshot({ path: resolve(evidence, 'failure.png'), fullPage: true, animations: 'disabled' })
       .catch(() => {});
-    await writeFile(resolve(evidence, 'failure.txt'), await page.locator('body').innerText()).catch(() => {});
+    try {
+      await writeFile(resolve(evidence, 'failure.txt'), await page.locator('body').innerText());
+    } catch {
+      // A closed page must not hide the original failure or prevent its report.
+    }
   }
   await writeFile(
     resolve(evidence, 'result.json'),
@@ -632,6 +635,18 @@ try {
   console.error('Browser evidence:', evidence);
   throw error;
 } finally {
-  if (browser) await browser.close();
-  await app.close();
+  const cleanup = await Promise.allSettled([
+    Promise.resolve().then(() => browser?.close()),
+    Promise.resolve().then(() => app.close()),
+  ]);
+  cleanupFailure = cleanup.find((result) => result.status === 'rejected');
 }
+if (cleanupFailure) {
+  await writeFile(
+    resolve(evidence, 'result.json'),
+    JSON.stringify({ status: 'FAILED', checks, error: String(cleanupFailure.reason) }, null, 2),
+  );
+  throw cleanupFailure.reason;
+}
+await writeFile(resolve(evidence, 'result.json'), JSON.stringify({ status: 'PASSED', checks }, null, 2));
+console.log(JSON.stringify({ status: 'PASSED', evidence, checks }, null, 2));
