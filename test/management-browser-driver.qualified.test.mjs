@@ -71,11 +71,20 @@ async function runDriver(f, env) {
   let stdout = '';
   let stderr = '';
   let timedOut = false;
-  const terminate = () => {
+  let cleanupRetired = false;
+  const terminateOnce = () => {
+    if (cleanupRetired) return;
+    // Retire the numeric process identity before attempting cleanup, including ESRCH
+    // and other failures. A later finally must never target a potentially reused PID.
+    cleanupRetired = true;
     if (!child.pid) return;
     if (process.platform === 'win32') {
       if (child.exitCode === null && child.signalCode === null)
-        execFileSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore' });
+        execFileSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
+          stdio: 'ignore',
+          timeout: 5_000,
+          killSignal: 'SIGKILL',
+        });
     } else {
       try {
         process.kill(-child.pid, 'SIGKILL');
@@ -84,23 +93,31 @@ async function runDriver(f, env) {
       }
     }
   };
-  const timer = setTimeout(() => {
-    timedOut = true;
-    terminate();
-  }, 100_000);
   child.stdout.on('data', (data) => (stdout += data));
   child.stderr.on('data', (data) => (stderr += data));
+  let rejectCompletion;
+  const completion = new Promise((done, reject) => {
+    rejectCompletion = reject;
+    child.once('error', reject);
+    child.once('close', (status, signal) => done({ status, signal }));
+  });
+  const timer = setTimeout(() => {
+    timedOut = true;
+    try {
+      terminateOnce();
+    } catch (error) {
+      // Return cleanup failures through the awaited test, never as timer exceptions.
+      rejectCompletion(error);
+    }
+  }, 100_000);
   try {
-    const result = await new Promise((done, reject) => {
-      child.once('error', reject);
-      child.once('close', (status, signal) => done({ status, signal }));
-    });
+    const result = await completion;
     assert.equal(timedOut, false, `driver timed out\n${stderr}`);
     assert.equal(result.signal, null, stderr);
     return { ...result, stdout, stderr };
   } finally {
     clearTimeout(timer);
-    terminate();
+    terminateOnce();
   }
 }
 
