@@ -166,6 +166,21 @@ test(
     assert.throws(s.check, /symbolic/);
   },
 );
+test('local verifier propagates a real Git symbolic-ref failure beyond ordinary exit one', (t) => {
+  const s = fixture(t);
+  const ref = s.sources[0].local_ref;
+  writeFileSync(join(s.root, '.git', ref), 'ref: refs/heads/..\n');
+  const probe = spawnSync('git', ['symbolic-ref', '-q', ref], {
+    cwd: s.root,
+    env: s.env,
+    encoding: 'utf8',
+  });
+  assert.equal(probe.status, 128);
+  assert.throws(s.check, (error) => {
+    assert.equal(error.status, 128);
+    return true;
+  });
+});
 test('advanced local ref cannot stand in for its pinned source head', { skip: !available }, (t) => {
   const s = fixture(t),
     src = s.sources[0];

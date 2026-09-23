@@ -329,6 +329,24 @@ test('environment CLI writes the bounded report only after validation', (t) => {
   assert.deepEqual(JSON.parse(readFileSync(reportPath, 'utf8')), report);
 });
 
+test('environment CLI rejects malformed source JSON without writing a report or disclosing values', (t) => {
+  const root = isolatedCheckout(t);
+  const reportPath = join(root, '.checks/environment/report.json');
+  writeFileSync(join(root, 'planning/development-environment.json'), '{"synthetic":');
+  const child = spawnSync(process.execPath, [join(root, 'tools/check-environment.mjs'), '--write-report'], {
+    cwd: root,
+    env: process.env,
+    encoding: 'utf8',
+    timeout: 15000,
+  });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 1, child.stderr);
+  assert.equal(child.stdout, '');
+  assert.match(child.stderr, /^Environment check BLOCKED:/);
+  assert.doesNotMatch(child.stderr, /synthetic/);
+  assert.equal(existsSync(reportPath), false);
+});
+
 test('actual bootstrap and integration entrypoints reject malformed local invocation', () => {
   for (const [path, args, status, message] of [
     ['tools/bootstrap-ci-npm.mjs', ['--invalid'], 2, /BLOCKED at inputs/],

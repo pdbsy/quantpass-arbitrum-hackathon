@@ -6,6 +6,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
   findOperationalMetadataKinds,
@@ -16,6 +17,28 @@ import {
 function initializeRepository(root) {
   execFileSync('git', ['init', '--quiet', '-b', 'master'], { cwd: root });
 }
+
+test('public metadata CLI exits nonzero and withholds a detected operational value', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'alphaforge-metadata-cli-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const source = fileURLToPath(new URL('../', import.meta.url));
+  const checkout = join(directory, 'repo');
+  execFileSync('git', ['clone', '--quiet', '--no-hardlinks', source, checkout], { cwd: directory });
+  const root = await fsPromises.realpath(checkout);
+  await writeFile(join(root, 'synthetic-ssh.txt'), 'sshd enabled: true\n');
+
+  const child = spawnSync(process.execPath, [join(root, 'tools/check-public-metadata.mjs')], {
+    cwd: root,
+    env: process.env,
+    encoding: 'utf8',
+    timeout: 15000,
+  });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 1, child.stderr);
+  assert.equal(child.stdout, '');
+  assert.match(child.stderr, /synthetic-ssh\.txt: ssh-exposure/);
+  assert.doesNotMatch(child.stderr, /sshd enabled: true/);
+});
 
 test('static member parsing rechecks whitespace after repeated non-null assertions', () => {
   const value = 'config.name!!' + ' '.repeat(65) + '= "sample";';
