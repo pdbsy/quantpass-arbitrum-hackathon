@@ -2094,7 +2094,7 @@
       "target_path": "tools/verify-ui-browser.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; subsequent visible-browser assertion extension from Macbeth04 1dd5ca0fb03682b5b487ab68be424b35e4386d77 (metadata-only mapping from bf54f914), original source hash retained",
       "original_sha256": "4668e613f77c694aa66e8f43015c2d9f093fe8bf938f0d713e1baa6d627691e9",
-      "migrated_sha256": "6303530216bb0bb5a83b45239019092b22a4f57794e9f228b435f92c9652d3b5",
+      "migrated_sha256": "bf48923a9698049d679cf55cd0d3da09978118be214c481137931c989def6085",
       "subsequent_revisions": [
         {
           "commit": "dafb30d260769c19c940a54fde20b9bf97b7d5a2",
@@ -2119,6 +2119,30 @@
           "previous_sha256": "94d08463d2b4ff59ecda0f4dec276c3d613ee28033f9bf3dd6b8ea412ca380c2",
           "current_sha256": "6303530216bb0bb5a83b45239019092b22a4f57794e9f228b435f92c9652d3b5",
           "reason": "Run browser claim and command late-confirmation isolation against the local v1 API with a single POST and a preserved newer dialog."
+        },
+        {
+          "commit": "406502ac4b81ab1c35e7bafd3ecaa70b1bff9be6",
+          "agent": "Macbeth03",
+          "task": "M3-03-PHASE1-RECOVERY",
+          "previous_sha256": "6303530216bb0bb5a83b45239019092b22a4f57794e9f228b435f92c9652d3b5",
+          "current_sha256": "75173ecaf032d795dd6c4c5ab1a32d98c5e13c872a1f1f55bd48a319e3b1347c",
+          "reason": "Preserve the original browser failure when diagnostics lose the page; attempt backend cleanup even when browser close fails and emit success only after cleanup."
+        },
+        {
+          "commit": "7513a72c00f0d7ca6399fdd090f47d87359ea005",
+          "agent": "Macbeth03",
+          "task": "M3-03-PHASE1-RECOVERY",
+          "previous_sha256": "75173ecaf032d795dd6c4c5ab1a32d98c5e13c872a1f1f55bd48a319e3b1347c",
+          "current_sha256": "3362b86b7dfa4b82bb86c9993058516e2dd0e599563e963647eb7c279c502346",
+          "reason": "Integrate Macbeth02 assertion-bearing public journeys into the shipped product UI while preserving source authors and the original collector."
+        },
+        {
+          "commit": "f403942b8f4aff1aac8e94588f1748f82413e67d",
+          "agent": "Macbeth03",
+          "task": "M3-03-PHASE1-RECOVERY",
+          "previous_sha256": "3362b86b7dfa4b82bb86c9993058516e2dd0e599563e963647eb7c279c502346",
+          "current_sha256": "bf48923a9698049d679cf55cd0d3da09978118be214c481137931c989def6085",
+          "reason": "Run the native storage-disabled browser with its own backend and SQLite state, and attempt all owned cleanup. Independent exact-source review retained separately."
         }
       ]
     }
