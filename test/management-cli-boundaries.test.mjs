@@ -141,14 +141,21 @@ test(
   },
 );
 
-test('governance CLI reports real malformed and unreadable input failures without publishing success', async (t) => {
+test('planning, governance and threat CLIs reject real input failures without publishing success', async (t) => {
   const temporary = await mkdtemp(join(tmpdir(), 'alphaforge-governance-cli-boundary-'));
   t.after(() => rm(temporary, { recursive: true, force: true }));
   const malformed = join(temporary, 'malformed.json');
   await writeFile(malformed, '{ invalid json');
-  for (const [relative, fixture, message] of [
-    ['planning/security-boundary.json', malformed, /JSON|property name/],
-    ['docs/reviews/GOV-001.json', temporary, /governance review record cannot be read/],
+  for (const [script, relative, fixture, message] of [
+    ['tools/check-governance-v2.mjs', 'planning/security-boundary.json', malformed, /JSON|property name/],
+    [
+      'tools/check-governance-v2.mjs',
+      'docs/reviews/GOV-001.json',
+      temporary,
+      /governance review record cannot be read/,
+    ],
+    ['tools/build-planning.mjs', 'planning/roadmap.json', malformed, /JSON|property name/],
+    ['tools/check-threat-model.mjs', 'planning/risk-register.json', malformed, /JSON|property name/],
   ]) {
     const target = resolve(root, relative);
     const before = await readFile(target).catch((error) => {
@@ -162,11 +169,7 @@ test('governance CLI reports real malformed and unreadable input failures withou
       fs.readFile = (path, ...args) => original(path === ${JSON.stringify(target)} ? ${JSON.stringify(fixture)} : path, ...args);
       syncBuiltinESMExports();
     `;
-    const run = execute([
-      '--import',
-      `data:text/javascript,${encodeURIComponent(hook)}`,
-      'tools/check-governance-v2.mjs',
-    ]);
+    const run = execute(['--import', `data:text/javascript,${encodeURIComponent(hook)}`, script]);
     assert.equal(run.error, undefined);
     assert.equal(run.status, 1, run.stderr);
     assert.equal(run.stdout, '');
