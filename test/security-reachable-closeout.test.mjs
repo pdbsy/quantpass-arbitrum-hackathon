@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+  rmSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { classifySemgrep, classifyOSV, packageKey } from '../tools/security/results.mjs';
@@ -20,6 +29,35 @@ import { scanWorkspace } from '../tools/check-secrets.mjs';
 import { emit, inspect } from '../tools/ci/context.mjs';
 import { installScanner } from '../tools/security/bootstrap.mjs';
 import { verifySecretCanary } from '../tools/ci/check-gitleaks.mjs';
+
+const repository = fileURLToPath(new URL('../', import.meta.url));
+
+function isolatedCheckout(t, { yaml = false } = {}) {
+  const directory = mkdtempSync(join(tmpdir(), 'alphaforge-gate-checkout-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const root = join(directory, 'repo');
+  const head = fixtureExec('git', ['rev-parse', 'HEAD'], { cwd: repository, encoding: 'utf8' }).trim();
+  fixtureExec('git', ['clone', '--quiet', '--no-hardlinks', '--no-checkout', repository, root], {
+    cwd: directory,
+  });
+  const canonicalRoot = realpathSync(root);
+  fixtureExec('git', ['-C', canonicalRoot, 'checkout', '--quiet', '--detach', head], { cwd: directory });
+  fixtureExec('git', ['-C', canonicalRoot, 'update-ref', 'refs/remotes/origin/master', head], {
+    cwd: directory,
+  });
+  if (yaml)
+    cpSync(join(repository, 'node_modules/yaml'), join(canonicalRoot, 'node_modules/yaml'), {
+      recursive: true,
+    });
+  assert.equal(
+    fixtureExec('git', ['status', '--porcelain', '--untracked-files=no'], {
+      cwd: canonicalRoot,
+      encoding: 'utf8',
+    }),
+    '',
+  );
+  return canonicalRoot;
+}
 
 test('real environment and CI entrypoints reject injected interpreter settings before starting tools', () => {
   for (const [path, args, mode] of [
@@ -181,24 +219,22 @@ test('actual gate entrypoints reject arguments before starting any scanner or in
 });
 
 test('dependency delta blocks malformed event ranges before invoking npm audit', (t) => {
+  const root = isolatedCheckout(t, { yaml: true });
   const directory = mkdtempSync(join(tmpdir(), 'alphaforge-dependency-event-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const eventPath = join(directory, 'event.json');
   writeFileSync(eventPath, JSON.stringify({ before: 'invalid', after: 'a'.repeat(40) }));
-  const child = spawnSync(
-    process.execPath,
-    [fileURLToPath(new URL('../tools/ci/check-dependency-delta.mjs', import.meta.url))],
-    {
-      env: {
-        ...process.env,
-        GITHUB_EVENT_NAME: 'push',
-        GITHUB_EVENT_PATH: eventPath,
-      },
-      encoding: 'utf8',
-      timeout: 15000,
+  const child = spawnSync(process.execPath, [join(root, 'tools/ci/check-dependency-delta.mjs')], {
+    cwd: root,
+    env: {
+      ...process.env,
+      GITHUB_EVENT_NAME: 'push',
+      GITHUB_EVENT_PATH: eventPath,
     },
-  );
-  assert.equal(child.status, 2);
+    encoding: 'utf8',
+    timeout: 15000,
+  });
+  assert.equal(child.status, 2, JSON.stringify({ stdout: child.stdout, stderr: child.stderr }));
   assert.equal(child.signal, null);
   assert.equal(child.stderr, '');
   const report = JSON.parse(child.stdout);
@@ -208,34 +244,31 @@ test('dependency delta blocks malformed event ranges before invoking npm audit',
 });
 
 test('contract gate blocks before toolchain stages when native Python is unavailable', (t) => {
-  const directory = mkdtempSync(join(tmpdir(), 'alphaforge-contract-python-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const child = spawnSync(
-    process.execPath,
-    [fileURLToPath(new URL('../tools/ci/verify-contracts.mjs', import.meta.url))],
-    {
-      env: { ...process.env, PATH: '/usr/bin:/bin' },
-      encoding: 'utf8',
-      timeout: 15000,
-    },
-  );
-  assert.equal(child.status, 2);
+  const root = isolatedCheckout(t);
+  const child = spawnSync(process.execPath, [join(root, 'tools/ci/verify-contracts.mjs')], {
+    cwd: root,
+    env: { ...process.env, PATH: '/usr/bin:/bin' },
+    encoding: 'utf8',
+    timeout: 15000,
+  });
+  assert.equal(child.status, 2, JSON.stringify({ stdout: child.stdout, stderr: child.stderr }));
   assert.equal(child.signal, null);
   assert.equal(child.stderr, '');
+  assert.notEqual(child.stdout, '', JSON.stringify({ status: child.status, stderr: child.stderr }));
   const report = JSON.parse(child.stdout);
   assert.equal(report.state, 'BLOCKED');
   assert.equal(report.reason, 'Native Python prerequisite unavailable');
 });
 
 test('environment CLI writes the bounded report only after validation', (t) => {
-  const reportPath = fileURLToPath(new URL('../.checks/environment/report.json', import.meta.url));
-  rmSync(reportPath, { force: true });
-  t.after(() => rmSync(reportPath, { force: true }));
-  const child = spawnSync(
-    process.execPath,
-    [fileURLToPath(new URL('../tools/check-environment.mjs', import.meta.url)), '--write-report'],
-    { env: process.env, encoding: 'utf8', timeout: 30000 },
-  );
+  const root = isolatedCheckout(t);
+  const reportPath = join(root, '.checks/environment/report.json');
+  const child = spawnSync(process.execPath, [join(root, 'tools/check-environment.mjs'), '--write-report'], {
+    cwd: root,
+    env: process.env,
+    encoding: 'utf8',
+    timeout: 30000,
+  });
   assert.equal(child.error, undefined);
   assert.ok([0, 1, 2].includes(child.status));
   const report = JSON.parse(child.stdout);
