@@ -39,13 +39,25 @@
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "b0f5f038e8e8593f07eff35a91c064e1c376270d"
+      "head": "84cc4edc3a86009eaf7cace88c9d241d5c8b3b14"
     },
     {
       "agent": "Macbeth02",
       "task": "M3-02-CONTRACT-REVIEW",
       "branch": "macbeth02/m3-prototype69-native",
-      "head": "1b64ea488fdfd1e31a9fdd597a915899f5366c35"
+      "head": "2faa354d0723ef48d700924f0b34b5bed6b700c6"
+    },
+    {
+      "agent": "Macbeth03",
+      "task": "M3-03-PHASE1-RECOVERY",
+      "branch": "macbeth03/pr22-windows-test-boundaries",
+      "head": "368796c2877c94f882c39e57a67af9fd09ac9a46"
+    },
+    {
+      "agent": "Macbeth06",
+      "task": "M3-06-CI-GATES",
+      "branch": "macbeth06/m3-pr22-windows-platform",
+      "head": "d317c41d04115f8ec2f06346adb743f5e130b8e7"
     }
   ]
 }
