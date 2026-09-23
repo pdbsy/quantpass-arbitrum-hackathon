@@ -1942,7 +1942,7 @@
       "target_path": "apps/web/src/product-ui.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3-04-PRODUCT-UI adds the manifest-bound Vault runtime, finite approval review and canonical evidence readback",
       "original_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38",
-      "migrated_sha256": "4ec78d4ed748ee886a44e915c5a91dcab24f641b9e741ab4b6ff2f18efff40de",
+      "migrated_sha256": "25ad00be374caa83679a8ba5766187c3664d6eb7d0fa63d07018db7854474546",
       "subsequent_adaptations": [
         {
           "task": "M3-01-PHASE1-CLOSEOUT",
@@ -1973,6 +1973,14 @@
           "previous_sha256": "db0a19114ecf66ed1dcdbf85d7d85e89abe4d7ce53ed2117ab0126166c06cd4e",
           "current_sha256": "4ec78d4ed748ee886a44e915c5a91dcab24f641b9e741ab4b6ff2f18efff40de",
           "reason": "Bind late confirmation UI updates to the original live dialog while allowing the original approved request to complete once; preserve all original migration history."
+        },
+        {
+          "commit": "d9640fdc76debcf74e3842b068706a556b54c5d2",
+          "agent": "Macbeth04",
+          "task": "M3-04-PHASE1-PRODUCT",
+          "previous_sha256": "4ec78d4ed748ee886a44e915c5a91dcab24f641b9e741ab4b6ff2f18efff40de",
+          "current_sha256": "25ad00be374caa83679a8ba5766187c3664d6eb7d0fa63d07018db7854474546",
+          "reason": "Keep a later browser dialog open when a previously confirmed local API claim or command completes; preserve the original request and migration history."
         }
       ]
     },
@@ -2076,7 +2084,7 @@
       "target_path": "tools/verify-ui-browser.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; subsequent visible-browser assertion extension from Macbeth04 1dd5ca0fb03682b5b487ab68be424b35e4386d77 (metadata-only mapping from bf54f914), original source hash retained",
       "original_sha256": "4668e613f77c694aa66e8f43015c2d9f093fe8bf938f0d713e1baa6d627691e9",
-      "migrated_sha256": "94d08463d2b4ff59ecda0f4dec276c3d613ee28033f9bf3dd6b8ea412ca380c2",
+      "migrated_sha256": "6303530216bb0bb5a83b45239019092b22a4f57794e9f228b435f92c9652d3b5",
       "subsequent_revisions": [
         {
           "commit": "dafb30d260769c19c940a54fde20b9bf97b7d5a2",
@@ -2093,6 +2101,14 @@
           "previous_sha256": "f2bf3b38f2f0e569f4ba56a486d27bde06612a62d3bf2d684ab50a00b88a48f6",
           "current_sha256": "94d08463d2b4ff59ecda0f4dec276c3d613ee28033f9bf3dd6b8ea412ca380c2",
           "reason": "Require matching audit recovery to send zero duplicate POST requests; preserve the full original migration history."
+        },
+        {
+          "commit": "d9640fdc76debcf74e3842b068706a556b54c5d2",
+          "agent": "Macbeth04",
+          "task": "M3-04-PHASE1-PRODUCT",
+          "previous_sha256": "94d08463d2b4ff59ecda0f4dec276c3d613ee28033f9bf3dd6b8ea412ca380c2",
+          "current_sha256": "6303530216bb0bb5a83b45239019092b22a4f57794e9f228b435f92c9652d3b5",
+          "reason": "Run browser claim and command late-confirmation isolation against the local v1 API with a single POST and a preserved newer dialog."
         }
       ]
     }
