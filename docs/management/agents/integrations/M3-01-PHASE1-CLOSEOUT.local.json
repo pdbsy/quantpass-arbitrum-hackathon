@@ -16,16 +16,16 @@
     {
       "agent": "Macbeth03",
       "task": "M3-03-PHASE1-RECOVERY",
-      "branch": "macbeth03/m3-pr22-runner-closeout-corrected",
-      "head": "68c307dcc46c21f16fe50d3ddaf9a53162ad59e7",
-      "local_ref": "refs/remotes/local-macbeth03/m3-pr22-runner-closeout-corrected"
+      "branch": "macbeth03/m3-pr22-browser-failures",
+      "head": "f403942b8f4aff1aac8e94588f1748f82413e67d",
+      "local_ref": "refs/remotes/local-macbeth03/m3-pr22-browser-failures"
     },
     {
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
-      "branch": "macbeth04/m3-pr22-reachable-closeout",
-      "head": "ed0ab288466f7e5b1ec69101e2f4e8199c10f24d",
-      "local_ref": "refs/remotes/local-macbeth04/m3-pr22-reachable-closeout"
+      "branch": "macbeth04/m3-pr22-error-batch",
+      "head": "ab16a84d4442bb8fe48e90c460758a158db2e2a0",
+      "local_ref": "refs/remotes/local-macbeth04/m3-pr22-error-batch"
     },
     {
       "agent": "Macbeth05",
@@ -37,23 +37,23 @@
     {
       "agent": "Macbeth06",
       "task": "M3-06-CI-GATES",
-      "branch": "macbeth06/m3-pr22-reachable-closeout",
-      "head": "4c27677d39dcad88966d09a2af7aa14879a9a08a",
-      "local_ref": "refs/remotes/local-macbeth06/m3-pr22-reachable-closeout"
+      "branch": "macbeth06/m3-pr22-privacy-capacity",
+      "head": "14a213c76682dfcc33f66b0d704f79cd8193d812",
+      "local_ref": "refs/remotes/local-macbeth06/m3-pr22-privacy-capacity"
     },
     {
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "a57f70b8949666a3da47b927c59a26a23f35ca89",
+      "head": "b0f5f038e8e8593f07eff35a91c064e1c376270d",
       "local_ref": "refs/remotes/local-macbeth01/pr22-source-checkpoint"
     },
     {
       "agent": "Macbeth02",
       "task": "M3-02-CONTRACT-REVIEW",
-      "branch": "macbeth02/M3-02-CONTRACT-REVIEW",
-      "head": "a837728bea915d6d63924254552a554c1db4edcc",
-      "local_ref": "refs/remotes/local-macbeth02/M3-02-CONTRACT-REVIEW"
+      "branch": "macbeth02/m3-prototype69-native",
+      "head": "1b64ea488fdfd1e31a9fdd597a915899f5366c35",
+      "local_ref": "refs/remotes/local-macbeth02/m3-prototype69-native"
     }
   ]
 }
