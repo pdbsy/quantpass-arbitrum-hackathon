@@ -1,3 +1,9 @@
+# 当前 PR22 收口证据入口 — 2026-09-23
+
+[AlphaForge][Robinhood][PR22-READY][Macbeth01]。最新授权、缺口基线、局部复核和最终C/R/S要求以[本轮记录](PR22-READY-CLOSEOUT-2026-09-23.md)及[任务矩阵](REMAINING-TASKS.md)为准。当前正常公开发布和标准CI已授权；最终候选尚未冻结，不能引用下方旧SHA或旧测试数判断Ready。锚点001保留，到Ready停止，不merge或部署。
+
+## 历史完整候选与当时结论（保留原证据绑定）
+
 # 当前已验证检查点 — 778f71a
 
 归属：AlphaForge / Robinhood Chain Testnet / Hackathon；pdbsy/quantpass-arbitrum-hackathon；PR #22；负责人 Macbeth01 / M3-01-PHASE1-CLOSEOUT。Xlayer 为独立工作线。

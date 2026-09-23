@@ -31,3 +31,14 @@ The user separately approved the two new Macbeth03 subject corrections and their
 | 068bdbb337ffc9f06d4e4f9551326ed2a9a38de8 | 002ff73544211d15cb1cbbec593cd2675d80b9a2 | 6306636c4e752ee38bb9abe463d1ac6910384fcf | False |
 
 The source subject must include the registered Agent-ID before admission, in addition to both body trailers. All later incoming ranges are validated before integration. No rule or required check was weakened; Anchor001 is unchanged.
+
+
+## Additional single UI source repair
+
+The user explicitly approved this separate one-commit exception during the current closeout. Only the missing `Agent-ID: Macbeth04` and `Task-ID: M3-04-PHASE1-PRODUCT` body trailers were appended. The entire commit header is byte-identical, including tree, parent, author, committer and all timestamps. There are no reconnected descendants. The original remains under `refs/alphaforge/metadata-repair/pr22-ui-20260923-original-source`; Anchor001 is unchanged.
+
+| Original | Corrected | Tree | Parent |
+| --- | --- | --- | --- |
+| 14b4bb0e28702fd52c5dbc4e0df7b0f01ca73025 | 04372fc9658c946db756b56aa1c2d38d65c063d7 | 3884ea2d8eab633080e25a9d01a1995a1d4587f7 | f0108b41ecbf848f2d23a0bcb695ff7cd97dd3dc |
+
+The original strict identity check failed with `body is required`; the corrected three-commit range from `7e683e7` passes unchanged rules. Macbeth05 independently verified the object mapping and the identical code tree, preserving its actual code-test binding rather than relabeling it as hosted CI. No force push or remote mutation was part of the repair.
