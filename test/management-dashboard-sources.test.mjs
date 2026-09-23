@@ -1404,3 +1404,21 @@ test('document collection keeps only regular Markdown entries and records ignore
   assert.equal(sources.documents.architecture.status, 'READY');
   assert.deepEqual(sources.documents.architecture.data, ['docs/adr/valid.md']);
 });
+
+test('task collection ignores ordinary non-Markdown files and Markdown-named directories', async (t) => {
+  const root = await createSourceFixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const directory = join(root, 'docs/management/tasks');
+  await writeFile(join(directory, 'ignored.txt'), 'not a task record\n');
+  await mkdir(join(directory, 'nested.md'));
+  await writeFile(
+    join(directory, 'valid.md'),
+    '# Task record\n\nTask ID: `T1`\n\nTitle: `Fixture`\n\nWorker: `Macbeth01`\n\nStart: `2026-09-08T22:00:00Z`\n\nFinish: `NOT_FINISHED`\n\nStatus: `IN_PROGRESS`\n',
+  );
+  const sources = await collectRepositorySources(root, { observedAt });
+  assert.equal(sources.taskRecords.length, 1);
+  assert.equal(sources.taskRecords[0].source, 'docs/management/tasks/valid.md');
+  assert.equal(sources.taskRecords[0].status, 'READY');
+  assert.equal(sources.taskRecords[0].data.id, 'T1');
+  assert.equal(sources.taskRecords[0].data.status, 'IN_PROGRESS');
+});

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { fixtureExec as execFileSync } from './helpers/git-fixture.mjs';
 import { unlinkSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -489,6 +489,38 @@ test('artifact writer records READY when a fully populated snapshot has no diagn
   assert.deepEqual(buildLog.diagnostics, []);
 });
 
+test('artifact comparison rejects a missing output directory without creating it', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-dashboard-absent-output-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const snapshot = buildDashboardSnapshot({ sources: fixtureSources(), git: gitState(), observedAt });
+  assert.equal(await checkDashboardArtifacts(root, snapshot), false);
+  assert.deepEqual(await readdir(root), []);
+});
+
+test(
+  'artifact writes preserve an unwritable parent and recover after permissions return',
+  {
+    skip: process.platform === 'win32' || process.getuid?.() === 0,
+  },
+  async (t) => {
+    const root = await mkdtemp(join(tmpdir(), 'alphaforge-dashboard-parent-permission-'));
+    t.after(async () => {
+      await chmod(root, 0o700);
+      await rm(root, { recursive: true, force: true });
+    });
+    const snapshot = buildDashboardSnapshot({ sources: fixtureSources(), git: gitState(), observedAt });
+    await chmod(root, 0o500);
+    await assert.rejects(
+      () => writeDashboardArtifacts(root, snapshot),
+      (error) => ['EACCES', 'EPERM'].includes(error.code),
+    );
+    assert.deepEqual(await readdir(root), []);
+    await chmod(root, 0o700);
+    await writeDashboardArtifacts(root, snapshot);
+    assert.equal(await checkDashboardArtifacts(root, snapshot), true);
+  },
+);
+
 test('artifact writer rejects a symlinked output directory without touching external files', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'quantpass-dashboard-build-symlink-'));
   const outside = await mkdtemp(join(tmpdir(), 'quantpass-dashboard-build-target-'));
@@ -688,6 +720,8 @@ test('Dashboard operations guide documents only implemented package commands', a
 test('check mode remains reproducible after the generated snapshot is committed', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'quantpass-dashboard-check-mode-'));
   t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, 'docs/adr'), { recursive: true });
+  await writeFile(join(root, 'docs/adr/valid.md'), '# Reviewed architecture fixture\n');
   await mkdir(join(root, 'planning'), { recursive: true });
   await writeFile(
     join(root, 'planning/roadmap.json'),
@@ -740,7 +774,8 @@ test('check mode remains reproducible after the generated snapshot is committed'
     { cwd: root },
   );
 
-  await main([`--observed-at=${observedAt}`], { root });
+  const generated = await main([`--observed-at=${observedAt}`], { root });
+  assert.equal(generated.links.find((item) => item.path === 'docs/adr/valid.md')?.status, 'READY');
   execFileSync('git', ['add', '--all'], { cwd: root });
   execFileSync(
     'git',
@@ -758,6 +793,22 @@ test('check mode remains reproducible after the generated snapshot is committed'
   );
 
   await assert.doesNotReject(() => main(['--check'], { root, environment: {} }));
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith('GITHUB_')),
+  );
+  execFileSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '--eval',
+      `
+    import assert from 'node:assert/strict';
+    const {main} = await import(${JSON.stringify(new URL('../tools/build-management-dashboard.mjs', import.meta.url).href)});
+    await assert.doesNotReject(() => main(['--check'], {root: ${JSON.stringify(root)}}));
+  `,
+    ],
+    { env: environment, encoding: 'utf8', timeout: 30000 },
+  );
 });
 
 test('check mode reports a missing versioned check report after a clean artifact commit', async (t) => {
@@ -1364,6 +1415,8 @@ test('reachable dashboard branches preserve explicit statuses and defensive sect
   const risk = make();
   delete risk.riskRegister.data.risks[0].boundaries;
   assert.deepEqual(snapshotFor(risk).security.findings[0].component, []);
+  risk.riskRegister.data.risks[0].boundaries = ['runtime', 'wallet'];
+  assert.deepEqual(snapshotFor(risk).security.findings[0].component, ['runtime', 'wallet']);
 
   const links = make();
   const linked = snapshotFor(links);
