@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { asAddress, asHexData, sameAddress } from '../packages/chain-adapter/src/types.ts';
 import { decodeM3VaultCalldata } from '../packages/chain-adapter/src/vault-abi.ts';
+import { verifyM3FixtureNonOwnerTransfer } from '../test/helpers/m3-browser-fixture-boundaries.mjs';
 import { verifyM3LateConfirmIsolation } from '../test/helpers/m3-browser-late-confirm.mjs';
 import { verifyM3LateReviewCancellation } from '../test/helpers/m3-browser-late-review.mjs';
 import { importUserUI } from './import-user-ui.mjs';
@@ -262,6 +263,27 @@ export async function runM3BrowserJourneys(page, { origin, evidenceDirectory }) 
     let current = await evidence();
     assert.equal(current.snapshot.vaultSelection.selected.vaultAddress, VAULT_A);
     assert.equal(current.snapshot.network.status, 'UNAVAILABLE');
+    const untouched = current.snapshot.vaultSelection.selected;
+    await controls.locator('strong').click();
+    current = await evidence();
+    assert.deepEqual(current.snapshot.vaultSelection.selected, untouched);
+    assert.equal(
+      current.providerRequests.filter((request) => request.method === 'eth_sendTransaction').length,
+      0,
+    );
+    await fixtureAction('vault-b');
+    await waitEvidence('fixture Vault B button', (value) => {
+      assert.equal(value.snapshot.vaultSelection.selected.vaultAddress, VAULT_B);
+    });
+    await fixtureAction('vault-a');
+    await waitEvidence('fixture Vault A button', (value) => {
+      assert.equal(value.snapshot.vaultSelection.selected.vaultAddress, VAULT_A);
+      assert.equal(
+        value.providerRequests.filter((request) => request.method === 'eth_sendTransaction').length,
+        0,
+      );
+    });
+    checks.push('DEV fixture label click is inert and Vault A/B buttons select only reviewed records');
     await fixtureAction('network');
     await page.locator('[data-chain-connect]').click();
     current = await waitEvidence('connect owner A', (value) => {
@@ -471,6 +493,7 @@ export async function runM3BrowserJourneys(page, { origin, evidenceDirectory }) 
     );
     checks.push(...(await verifyM3LateReviewCancellation(page, origin)));
     checks.push(...(await verifyM3LateConfirmIsolation(page, origin)));
+    checks.push(await verifyM3FixtureNonOwnerTransfer(page, origin));
 
     current = await evidence();
     for (const request of current.providerRequests) {

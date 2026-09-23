@@ -10,6 +10,7 @@ const cases = [
   { kind: 'vault', outcome: 'reject' },
   { kind: 'approval', outcome: 'success' },
   { kind: 'approval', outcome: 'reject' },
+  { kind: 'approval', outcome: 'success', secondApproval: true },
 ];
 
 async function exercise(parent, origin, scenario) {
@@ -135,6 +136,30 @@ async function exercise(parent, origin, scenario) {
           : 'dialog[open] [data-chain-approve="af-usdc"]';
     await page.locator(confirmSelector).click();
     await page.waitForFunction(() => window.__confirmEntered === true);
+    if (scenario.secondApproval) {
+      await page.locator('dialog[open] [data-chain-approve="pass"]').click();
+      await page
+        .locator('dialog[open] [data-product-dialog-error]')
+        .filter({ hasText: 'DEPOSIT_APPROVAL_REVIEW_REQUIRED' })
+        .waitFor();
+      assert.equal(await page.evaluate(() => window.__confirmCalls), 1);
+      assert.equal(
+        await page.evaluate(
+          () => window.__fixtureRequests.filter((request) => request.method === 'eth_sendTransaction').length,
+        ),
+        0,
+      );
+      await page.evaluate(() => window.__releaseConfirm());
+      await page.locator('dialog[open]').waitFor({ state: 'hidden' });
+      const sends = await page.evaluate(() =>
+        window.__fixtureRequests.filter((request) => request.method === 'eth_sendTransaction'),
+      );
+      assert.equal(sends.length, 1);
+      assert.equal(sends[0].params[0].to, '0x3333333333333333333333333333333333333333');
+      assert.deepEqual(errors, []);
+      assert.deepEqual(blocked, []);
+      return;
+    }
     if (scenario.keepOpen) {
       await page.evaluate(() => window.__releaseConfirm());
       await page
@@ -186,9 +211,11 @@ export async function verifyM3LateConfirmIsolation(page, origin) {
   for (const scenario of cases) {
     await exercise(page, origin, scenario);
     checks.push(
-      scenario.keepOpen
-        ? 'Active Pass confirmation rejection stays visible, disables retry and sends no wallet request'
-        : `Slow ${scenario.kind} ${scenario.outcome} after Cancel preserves the new review and exact wallet send count`,
+      scenario.secondApproval
+        ? 'Second token approval while the first is pending requires a fresh review and makes no extra send'
+        : scenario.keepOpen
+          ? 'Active Pass confirmation rejection stays visible, disables retry and sends no wallet request'
+          : `Slow ${scenario.kind} ${scenario.outcome} after Cancel preserves the new review and exact wallet send count`,
     );
   }
   return checks;
