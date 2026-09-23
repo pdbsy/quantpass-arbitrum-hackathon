@@ -23,6 +23,7 @@ const unitTests = [
   'test/coverage-browser-child.test.mjs',
   'test/m3-browser-journeys.test.mjs',
   'test/local-ci.test.mjs',
+  'test/local-ci-runner-closeout.test.mjs',
   'test/local-agent-integration.test.mjs',
 
   'test/m3-browser-runtime-set.test.ts',
