@@ -606,6 +606,60 @@ async function runPrototype69Cases({
       '({rank7d:AF.marketData.ranking({mode:"price",range:"7d"}).map(s=>({id:s.id,change:s.market.change})),artKeys:AF.strategies.map(s=>({id:s.id,art:s.art,present:!!AF.art[s.art],short:s.short})),topicReplies:AF.topics.map(p=>({id:p.id,hasReplies:Array.isArray(p.replies)}))})',
     );
     write('fixed-inputs.json', fixedInputs);
+    const dialogState = await page.evaluate(
+      '({trial:AF.store.read(),exchange:AF.exchange.read(),trialStorage:localStorage.getItem("alphaforge.prototype.v3"),exchangeStorage:localStorage.getItem("alphaforge.passmarket.v3")})',
+    );
+    const shipped = (await page.locator('[data-product-state]').count()) === 1;
+    const backendSnapshot = async () => {
+      const response = await page.request.get(new URL('/api/vaults', page.url()).href);
+      assert.equal(response.status(), 200, 'read the actual local backend vaults');
+      return response.json();
+    };
+    const backendBefore = shipped ? await backendSnapshot() : null;
+    const backendWrites = [];
+    const onRequest = (request) => {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()))
+        backendWrites.push({ method: request.method(), pathname: new URL(request.url()).pathname });
+    };
+    page.on('request', onRequest);
+    try {
+      await page.locator('#strategy-search').focus();
+      await page.evaluate(
+        'AF.app.openDialog(\'<p data-prototype-api-dialog>Public API content without a heading.</p><button type="button" data-close>Close API dialog</button>\')',
+      );
+      assert.equal(await page.locator('#app-dialog').isVisible(), true);
+      assert.equal(await page.locator('#app-dialog').getAttribute('open'), '');
+      assert.equal(await page.locator('#dialog-body h2').count(), 0);
+      assert.equal(
+        await page.locator('[data-prototype-api-dialog]').innerText(),
+        'Public API content without a heading.',
+      );
+      assert.equal(
+        await page.evaluate('document.activeElement === document.querySelector("#close-dialog")'),
+        true,
+        'without autofocus content, the public method focuses the real dialog close button',
+      );
+      await page.evaluate('AF.app.closeDialog()');
+      await page.locator('#app-dialog').waitFor({ state: 'hidden' });
+      await page.waitForFunction(
+        () =>
+          globalThis.document.activeElement === globalThis.document.querySelector('#strategy-search') &&
+          globalThis.document.body.style.overflow === '',
+      );
+      assert.equal(await page.evaluate('document.body.style.overflow'), '');
+      assert.deepEqual(
+        await page.evaluate(
+          '({trial:AF.store.read(),exchange:AF.exchange.read(),trialStorage:localStorage.getItem("alphaforge.prototype.v3"),exchangeStorage:localStorage.getItem("alphaforge.passmarket.v3")})',
+        ),
+        dialogState,
+        'opening and closing the public dialog preserves both ledgers and exact stored bytes',
+      );
+      if (shipped) assert.deepEqual(await backendSnapshot(), backendBefore);
+      assert.deepEqual(backendWrites, [], 'public dialog operations send no backend mutations');
+      assert.deepEqual(s.errors, [], 'public dialog operations cause no uncaught page error');
+    } finally {
+      page.off('request', onRequest);
+    }
     await capture(
       s,
       'exported-apis',
@@ -614,6 +668,7 @@ async function runPrototype69Cases({
         ['165', 0],
         ['219', 0],
         ['334', 1],
+        ['385', 1],
       ],
       { inputClass: 'EXPORTED_API_ONLY', fixedInputs },
     );
