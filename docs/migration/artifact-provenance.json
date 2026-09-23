@@ -1747,7 +1747,23 @@
       "target_path": "test/agent-tooling.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "8ea91af803dc35a566ab7f1e63c16536a473fdecf77729efe07cc4352f57a707",
-      "migrated_sha256": "ecbc2925c1d9d661b82edb01c87b05381dbcd95c348d6ad3c59390b7ca684f36"
+      "migrated_sha256": "bb756b92e672357e2e4b72f7fdbfd025fe91087771a6f6ce2871f4a4da63c423",
+      "subsequent_revisions": [
+        {
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "commit": "4110c839490c1c1236183d4eb3110b120c36e2ee",
+          "previous_sha256": "ecbc2925c1d9d661b82edb01c87b05381dbcd95c348d6ad3c59390b7ca684f36",
+          "sha256": "752d02d178d6fad2d5b0ce97c10645c063badedd137c9769f01efe7c9e7e66e3",
+          "reason": "Add assertions for malformed or missing Forum snapshots and bounded page responses. Preserve the historical source and prior migrated digest."
+        },
+        {
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "commit": "bf1de371c9617267a60013657c484f25952504d9",
+          "previous_sha256": "752d02d178d6fad2d5b0ce97c10645c063badedd137c9769f01efe7c9e7e66e3",
+          "sha256": "bb756b92e672357e2e4b72f7fdbfd025fe91087771a6f6ce2871f4a4da63c423",
+          "reason": "Add assertions for complete message headers and retention of newer stale Forum records. Preserve the historical source and prior migrated digest."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1857,7 +1873,16 @@
       "target_path": "test/product-api.test.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "8b3a473750525b7b1f5f62361b1296c8780504aa01c2cae98811cf3e2dc5e619",
-      "migrated_sha256": "b20171a6d73e69572756fc826cd49bc6fb24305f163817038b2640450ff08264"
+      "migrated_sha256": "c9d4002d4302644a678bea4b1adf1206bb7890b40b90463ebb01e9359341c709",
+      "subsequent_revisions": [
+        {
+          "task": "M3-03-PHASE1-RECOVERY",
+          "commit": "b9ba92c378440b692eb0a2ad78d04eeeb1e9b3ed",
+          "previous_sha256": "b20171a6d73e69572756fc826cd49bc6fb24305f163817038b2640450ff08264",
+          "sha256": "c9d4002d4302644a678bea4b1adf1206bb7890b40b90463ebb01e9359341c709",
+          "reason": "Register reviewed assertion-bearing recovery or product boundary tests; preserve the original source and all previous revision hashes."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1951,7 +1976,16 @@
       "target_path": "test/ui-import.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
-      "migrated_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69"
+      "migrated_sha256": "391b35bfebfada32b1e493d619379e700aff09a5146ba4ad838a330b3861835a",
+      "subsequent_revisions": [
+        {
+          "task": "M3-04-PHASE1-PRODUCT",
+          "commit": "92a79ef9550b4f09b0cc221296cbc5a966703ae2",
+          "previous_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
+          "sha256": "391b35bfebfada32b1e493d619379e700aff09a5146ba4ad838a330b3861835a",
+          "reason": "Register reviewed assertion-bearing recovery or product boundary tests; preserve the original source and all previous revision hashes."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1961,7 +1995,16 @@
       "target_path": "test/ui-product-adapter.test.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "58e98d6eb7a1e9f7c9356448b830666e10576aa2b6997c671040e913507e4d77",
-      "migrated_sha256": "abfe391bec2be602eae84c3c42f9292f2ae86efe6a8e3dd5f5fa4da4f9f7acb1"
+      "migrated_sha256": "0b25d29604accf8f71762e9eb828ff0ecefebab6a886631f6b6ffa690fa8bd99",
+      "subsequent_revisions": [
+        {
+          "task": "M3-04-PHASE1-PRODUCT",
+          "commit": "96c617b3c7e88bd51135716fbdaa683e27e2e3e2",
+          "previous_sha256": "abfe391bec2be602eae84c3c42f9292f2ae86efe6a8e3dd5f5fa4da4f9f7acb1",
+          "sha256": "0b25d29604accf8f71762e9eb828ff0ecefebab6a886631f6b6ffa690fa8bd99",
+          "reason": "Register reviewed assertion-bearing recovery or product boundary tests; preserve the original source and all previous revision hashes."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1971,7 +2014,7 @@
       "target_path": "test/ui-product-client.test.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
       "original_sha256": "b80e4a0f1f80068203b88ee285bae260b2c9e90b9d06e437107e3404f8c9a263",
-      "migrated_sha256": "f11683b2d63378569b2be2a2797e76c40060ef75a8b2fc1676245035fd90a4c2",
+      "migrated_sha256": "104750f20ceb326f1043d855c6536fa46b46405d9f088b7a905dd5d6c5d5b827",
       "subsequent_revisions": [
         {
           "commit": "12455fd1be46d88082f2b047417261d59760f4cc",
@@ -1980,6 +2023,20 @@
           "previous_sha256": "f5c8146a6a1f19a66e7e8912b0a8b0c197563829681bdece50ddebeb1ddfec56",
           "current_sha256": "f11683b2d63378569b2be2a2797e76c40060ef75a8b2fc1676245035fd90a4c2",
           "reason": "Add assertion-bearing pending recovery and response-context boundaries; retain original Macbeth02 source, authorship and digest."
+        },
+        {
+          "task": "M3-04-PHASE1-PRODUCT",
+          "commit": "92a79ef9550b4f09b0cc221296cbc5a966703ae2",
+          "previous_sha256": "f11683b2d63378569b2be2a2797e76c40060ef75a8b2fc1676245035fd90a4c2",
+          "sha256": "65d93b7c1b4c0c9013ae69ef29c236c3490024d8e6a31a2fe969bc34d4098965",
+          "reason": "Register reviewed assertion-bearing recovery or product boundary tests; preserve the original source and all previous revision hashes."
+        },
+        {
+          "task": "M3-04-PHASE1-PRODUCT",
+          "commit": "96c617b3c7e88bd51135716fbdaa683e27e2e3e2",
+          "previous_sha256": "65d93b7c1b4c0c9013ae69ef29c236c3490024d8e6a31a2fe969bc34d4098965",
+          "sha256": "104750f20ceb326f1043d855c6536fa46b46405d9f088b7a905dd5d6c5d5b827",
+          "reason": "Register reviewed assertion-bearing recovery or product boundary tests; preserve the original source and all previous revision hashes."
         }
       ]
     },
