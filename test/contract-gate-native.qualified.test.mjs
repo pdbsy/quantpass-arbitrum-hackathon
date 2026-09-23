@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { fixtureExec } from './helpers/git-fixture.mjs';
 
+// Native qualification requires the approved Python and network access to the
+// hash-pinned Slither index. A copied cache alone is not an offline wheelhouse.
 const repository = fileURLToPath(new URL('../', import.meta.url));
 
 test(
@@ -68,10 +70,14 @@ test(
     assert.equal(report.contractLockSha256, createHash('sha256').update(fixtureLock).digest('hex'));
     assert.equal(report.state, 'BLOCKED');
     assert.equal(report.abi, 'NOT_RUN');
-    assert.deepEqual(report.stages, [
-      { stage: 'bootstrap', state: 'PASS', exitCode: 0, incomplete: false },
-      { stage: 'compiler-probe', state: 'BLOCKED', exitCode: 2, incomplete: true },
-    ]);
+    assert.deepEqual(
+      report.stages,
+      [
+        { stage: 'bootstrap', state: 'PASS', exitCode: 0, incomplete: false },
+        { stage: 'compiler-probe', state: 'BLOCKED', exitCode: 2, incomplete: true },
+      ],
+      child.stderr.slice(-6000),
+    );
     assert.match(child.stdout, /Verified and installed solc 0\.8\.31/);
     assert.doesNotMatch(child.stdout, /Phase One contract manifest matches/);
     assert.equal(git(root, 'status', '--porcelain', '--untracked-files=no'), '');
