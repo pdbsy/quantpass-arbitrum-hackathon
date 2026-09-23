@@ -103,3 +103,40 @@ test('artifact checkers reject stale, missing and unreadable assets without rewr
     }
   }
 });
+
+test(
+  'management collector records a real npm signal termination without TMPDIR as failure',
+  {
+    skip: process.platform === 'win32',
+  },
+  async (t) => {
+    const directory = await mkdtemp(join(tmpdir(), 'alphaforge-management-signal-'));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    await writeFile(
+      join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'alphaforge-signal-fixture',
+        private: true,
+        scripts: { lint: 'kill -TERM $$' },
+      }),
+    );
+    const program = `
+    import { runCheck } from ${JSON.stringify(new URL('../tools/management-dashboard/checks.mjs', import.meta.url).href)};
+    const result = await runCheck('lint', {
+      root: process.argv[1], commit: 'a'.repeat(40), runId: 'native-signal',
+    });
+    console.log(JSON.stringify(result));
+  `;
+    const env = { ...process.env };
+    delete env.TMPDIR;
+    const run = execute(['--input-type=module', '--eval', program, directory], env);
+    assert.equal(run.error, undefined);
+    assert.equal(run.signal, null);
+    assert.equal(run.status, 0, run.stderr);
+    const result = JSON.parse(run.stdout);
+    assert.equal(result.record.status, 'FAIL');
+    assert.equal(result.record.exitCode, 127);
+    assert.match(result.log, /kill -TERM/);
+    assert.doesNotMatch(result.log, /PROCESS_ERROR|TIMEOUT/);
+  },
+);
