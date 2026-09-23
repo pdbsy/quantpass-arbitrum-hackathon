@@ -176,13 +176,13 @@ try {
   });
   await page.locator('[data-product-retry]').click();
   await waitReady();
-  if (requests.length) assert.deepEqual(requests.at(-1), lostBody);
+  assert.deepEqual(requests, [], 'matching audit receipt must reconcile without a second POST');
   const auditResponse = await page.request.get(`${origin}/api/vaults/${aliceVault}/audit`);
   const audit = await auditResponse.json();
   assert.ok(audit.some((event) => event.command_id === lostBody.id));
   assert.equal(await page.evaluate(() => localStorage.getItem('quantpass.local.pending-command.v1')), null);
   assert.equal((await state())[0].idle, '7000000');
-  checks.push('Lost POST response + page reload + exact original retry does not duplicate deposit');
+  checks.push('Lost POST response + page reload + audit reconciliation sends no second POST or deposit');
   // A second actor in the same account advances the server after this page reviewed.
   await page.locator('[data-product-command="deposit"]').first().click();
   await page.locator('dialog[open] [name="amount"]').fill('5');
