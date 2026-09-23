@@ -1302,8 +1302,8 @@ test('source collection rejects a real symlink replacement between canonicalizat
   assert.match(run.stdout, /PASS real source replacement rejected/);
 });
 
-test('source collection rejects real file replacement, growth, truncation and same-size writes at the read boundary', async (t) => {
-  for (const scenario of ['replace', 'grow', 'truncate', 'same-size']) {
+test('source collection rejects real file and directory replacement, growth, truncation and same-size writes', async (t) => {
+  for (const scenario of ['replace', 'directory', 'grow', 'truncate', 'same-size']) {
     const root = await createSourceFixture();
     t.after(() => rm(root, { recursive: true, force: true }));
     const program = `
@@ -1319,12 +1319,13 @@ test('source collection rejects real file replacement, growth, truncation and sa
       fs.open = async function(path, ...args) {
         if (path !== target || changed) return originalOpen.call(this, path, ...args);
         changed = true;
-        if (scenario === 'replace') {
+        if (scenario === 'replace' || scenario === 'directory') {
           await fs.rename(target, target + '.original');
-          await fs.writeFile(target, original);
+          if (scenario === 'directory') await fs.mkdir(target);
+          else await fs.writeFile(target, original);
         }
         const handle = await originalOpen.call(this, path, ...args);
-        if (scenario !== 'replace') {
+        if (scenario !== 'replace' && scenario !== 'directory') {
           const originalStat = handle.stat.bind(handle);
           let sampled = false;
           handle.stat = async (...statArgs) => {
@@ -1348,7 +1349,11 @@ test('source collection rejects real file replacement, growth, truncation and sa
       const result = await collectRepositorySources(root, { observedAt: '2026-09-23T00:00:00.000Z' });
       assert.equal(changed, true);
       assert.equal(result.roadmap.status, 'DATA_SOURCE_ERROR');
-      assert.equal(result.roadmap.error, 'SOURCE_CHANGED_DURING_READ');
+      if (scenario === 'directory') {
+        // Windows may reject opening a directory before handle.stat is reached.
+        if (process.platform === 'win32') assert.ok(['NOT_A_FILE', 'READ_FAILED'].includes(result.roadmap.error));
+        else assert.equal(result.roadmap.error, 'NOT_A_FILE');
+      } else assert.equal(result.roadmap.error, 'SOURCE_CHANGED_DURING_READ');
       assert.equal('data' in result.roadmap, false);
       console.log('PASS actual source race rejected: ' + scenario);
     `;
