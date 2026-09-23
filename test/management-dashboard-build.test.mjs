@@ -1493,3 +1493,17 @@ test('reachable dashboard branches preserve explicit statuses and defensive sect
   );
   assert.notEqual(defensiveSnapshot.integration.status, 'DATA_SOURCE_ERROR');
 });
+
+test('raw reports missing completion time cannot borrow the observation time as passing evidence', () => {
+  const valid = completeCheckReport(currentCommit);
+  const context = { sources: fixtureSources(), git: gitState(), observedAt };
+  for (const value of [undefined, null, '']) {
+    const malformed = structuredClone(valid);
+    if (value === undefined) delete malformed.finishedAt;
+    else malformed.finishedAt = value;
+    const before = structuredClone(malformed);
+    assert.throws(() => buildDashboardSnapshot({ ...context, checkReport: malformed }), /finishedAt/);
+    assert.deepEqual(malformed, before);
+  }
+  assert.equal(buildDashboardSnapshot({ ...context, checkReport: valid }).tests.status, 'PASS');
+});
