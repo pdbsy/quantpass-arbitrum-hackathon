@@ -207,6 +207,21 @@ test('injected interpreter settings stop real environment probes before launchin
   assert.doesNotMatch(JSON.stringify(report), /synthetic-never-executed/);
 });
 
+test('default environment inspection rejects inherited interpreter injection before probes', () => {
+  const previous = process.env.NODE_OPTIONS;
+  process.env.NODE_OPTIONS = '--require=synthetic-never-executed';
+  try {
+    const report = inspectEnvironment();
+    assert.equal(status(report, 'overrides'), 'FAIL');
+    assert.equal(report.eligibleForEvidence, false);
+    assert.deepEqual(report.commands, []);
+    assert.doesNotMatch(JSON.stringify(report), /synthetic-never-executed/);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = previous;
+  }
+});
+
 test('real Git hidden-index and origin changes cannot produce eligible source evidence', (t) => {
   const f = fixture(t);
   f.git('update-index', '--assume-unchanged', 'source.txt');
