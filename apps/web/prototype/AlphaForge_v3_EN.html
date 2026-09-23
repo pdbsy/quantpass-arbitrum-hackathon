@@ -756,7 +756,8 @@ AF.strategy=id=>AF.strategies.find(s=>s.id===id);
 (() => {
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const icon=(name,cls='')=>`<svg class="icon ${cls}" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
- const date=value=>{const d=new Date(value);return Number.isNaN(d.getTime())?'Demo sample':new Intl.DateTimeFormat('en-US',{month:'2-digit',day:'2-digit'}).format(d);};
+ const dateTime=value=>{if(typeof value!=='string'&&typeof value!=='number')return null;const time=new Date(value).getTime();return Number.isFinite(time)?time:null;};
+ const date=value=>{const time=dateTime(value);return time===null?'Date unavailable':new Intl.DateTimeFormat('en-US',{month:'2-digit',day:'2-digit'}).format(time);};
  const empty=(title,text,link='/market',label='Explore strategies')=>`<div class="empty-note sketch-box"><span class="empty-alpha" aria-hidden="true">α</span><h3>${esc(title)}</h3><p>${esc(text)}</p>${link?`<a class="text-link" href="#${link}">${esc(label)} ↗</a>`:''}</div>`;
  const saved=id=>AF.store.read().favorites.includes(id);
  const save=(id,label=false)=>`<button class="${label?'outline-btn':'save-button'}" data-save="${id}" aria-label="${saved(id)?'Remove bookmark: ':'Bookmark: '}${esc(AF.strategy(id)?.name)}" aria-pressed="${saved(id)}">${icon('star')}${label?`<span>${saved(id)?'Bookmarked':'Save this idea'}</span>`:''}</button>`;
@@ -764,7 +765,7 @@ AF.strategy=id=>AF.strategies.find(s=>s.id===id);
  const ticket=(s,compact=false)=>`<article class="pass-folio sketch-box ${compact?'compact':''}" style="--cover:${s.cover};--s-ink:${s.ink}"><div class="pass-kicker mono"><span>ALPHAFORGE / AF—${s.num}</span><span>DEMO ONLY</span></div><div class="pass-center"><span class="pass-alpha" aria-hidden="true">α</span><div><span class="micro">STRATEGY ACCESS</span><h3>${s.name}</h3><p>Sample only · v${s.version} · 1,000 DEMO allocation limit</p></div></div><div class="pass-end"><span>Access ≠ funds</span><span class="barcode" aria-hidden="true"></span></div></article>`;
  const art=s=>AF.art[s.art]||AF.art.trend;
  function card(s,compare=false){return `<article class="market-card sketch-box" style="--cover:${s.cover};--s-ink:${s.ink}"><div class="m-card-top"><span class="mono">AF—${s.num} / RESEARCH SERIES</span>${save(s.id)}</div><a class="m-card-story" href="#/trade/${s.id}" aria-label="About ${s.name}"><h3>${s.title}</h3><div class="m-card-art">${art(s)}</div></a><div class="m-card-body"><div class="inline-between"><a href="#/trade/${s.id}" class="m-name">${s.name}</a><span class="micro">v${s.version}</span></div><p>${s.summary}</p><div class="m-card-byline">${avatar(s.author)}<span>${s.author} <span class="muted">/ Sample author</span></span><span class="m-frequency">${s.frequency}</span></div></div><div class="catalogue-market-quote"><span>Pass <b>${AF.marketData.fmt(AF.marketData.metrics(s.id).price)}</b> <small>DEMO</small></span><span class="${AF.marketData.metrics(s.id,'7d').change>=0?'up':'down'}">${AF.marketData.pct(AF.marketData.metrics(s.id,'7d').change)} <small>7D sample</small></span></div><div class="m-card-foot"><span class="tag">${s.category}</span>${compare?`<label class="check compact-check"><input type="checkbox" data-compare="${s.id}" ${AF.view.compare.includes(s.id)?'checked':''}><span>Compare </span></label>`:'<span class="micro">Method illustration · Not a return record</span>'}<a class="round-arrow" href="#/trade/${s.id}" aria-label="Open ${s.name}">↗</a></div></article>`;}
- function posts(){return [...AF.store.read().posts,...AF.topics].sort((a,b)=>new Date(b.date)-new Date(a.date));}
+ function posts(){return [...AF.store.read().posts,...AF.topics].sort((a,b)=>{const first=dateTime(a.date),second=dateTime(b.date);return first===null?(second===null?0:1):second===null?-1:second-first;});}
  function replies(p){return [...(p.replies||[]),...AF.store.read().comments.filter(x=>x.post===p.id)];}
  function postRow(p){return `<article class="journal-row"><div class="journal-number">${p.local?'✎':String(AF.topics.findIndex(x=>x.id===p.id)+1).padStart(2,'0')}</div><div class="journal-content"><div class="post-meta"><span class="tag">${esc(p.category)}</span><span>${esc(p.author)} · ${date(p.date)}</span><span class="sample-label">${p.local?'Local only':'Sample discussion'}</span></div><a href="#/forum/post/${encodeURIComponent(p.id)}"><h3>${esc(p.title)}</h3></a><p>${esc(p.excerpt)}</p><div class="post-bottom"><span>${replies(p).length} ${replies(p).length===1?'reply':'replies'}</span><span>${AF.store.read().likes.includes(p.id)?'Liked':'Make the question clearer, together.'}</span><a href="#/forum/post/${encodeURIComponent(p.id)}" class="read-link">Read the note ↗</a></div></div></article>`;}
  AF.ui={esc,icon,date,empty,save,avatar,ticket,art,card,posts,replies,postRow};
@@ -909,6 +910,7 @@ AF.homeHtml = "<section aria-labelledby=\"hero-title\" class=\"hero wrap\"><div 
  function parseRoute(){let hash=location.hash.replace(/^#\/?/,'');if(!hash)hash='home';let parts;try{parts=hash.split('/').map(decodeURIComponent);}catch{parts=['not-found'];}if(parts[0]==='forum'&&parts[1]==='post')return {name:'post',id:parts[2]||''};return {name:parts[0],id:parts[1]||''};}
  function render(options={}){
   if(rendering)return;rendering=true;
+  try{
   const y=scrollY,active=document.activeElement,focusKey=active?.getAttribute('data-save');
   route=parseRoute();AF.route=route;let html='';
   if(route.name==='home')html=AF.homeHtml+AF.rankings.teaser();
@@ -928,7 +930,7 @@ AF.homeHtml = "<section aria-labelledby=\"hero-title\" class=\"hero wrap\"><div 
   if(route.name==='home'){applyHomeFilter('all','');if(store.read().samplePass)$('#machine')?.classList.add('issued');}
   if(options.preserve){window.scrollTo({top:y,behavior:'instant'});if(focusKey)main.querySelector(`[data-save="${CSS.escape(focusKey)}"]`)?.focus({preventScroll:true});}
   else{window.scrollTo({top:0,behavior:'instant'});if(options.focus!==false)main.querySelector('h1')?.focus({preventScroll:true});}
-  rendering=false;
+  }finally{rendering=false;}
  }
  function navigate(path){if(dialog.open)closeDialog();const next='#'+path;if(location.hash===next)render();else location.hash=next;}
  function openDialog(html){if(!dialog.open)focusReturn=document.activeElement;body.innerHTML=html;const heading=body.querySelector("h2");if(heading)heading.id="dialog-title";if(!dialog.open)dialog.showModal();document.body.style.overflow='hidden';dialog.scrollTop=0;const focus=body.querySelector('[autofocus]')||$('#close-dialog');focus?.focus();}
