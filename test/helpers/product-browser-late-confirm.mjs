@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 
 export async function verifyProductLateConfirmIsolation(parent, origin) {
-  const context = await parent
-    .context()
-    .browser()
-    .newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
+  const page = await parent.context().newPage();
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   const checks = [];
@@ -64,8 +60,10 @@ export async function verifyProductLateConfirmIsolation(parent, origin) {
       await page.locator('nav a[href="#/market"]').click();
       await page.locator('[data-product-strategy="satellite-flow-demo"]').first().click();
     }
+    await page.locator('[data-product-login="alice"]').click();
+    await page.locator('[data-product-state]').filter({ hasText: 'READY' }).waitFor();
     return checks;
   } finally {
-    await context.close();
+    await page.close();
   }
 }
