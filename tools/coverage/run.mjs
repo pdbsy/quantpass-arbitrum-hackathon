@@ -84,6 +84,7 @@ const qualification = {
           'test/coverage-browser.qualified.test.mjs',
           'test/coverage-task-board.qualified.test.mjs',
           'test/coverage-browser-paths.qualified.test.mjs',
+          'test/management-browser-driver.qualified.test.mjs',
         ]
       : []),
   ],
