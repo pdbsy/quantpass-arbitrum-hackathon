@@ -26,7 +26,10 @@ test('real supply-chain entrypoint validates the repository without mutating the
 });
 
 test('workflow parser admits bounded null nodes and read access under a write ceiling', () => {
-  const withNullEnvironment = valid.replace('permissions:\n  contents: read', 'env:\npermissions:\n  contents: read');
+  const withNullEnvironment = valid.replace(
+    'permissions:\n  contents: read',
+    'env:\npermissions:\n  contents: read',
+  );
   assert.doesNotThrow(() => validateWorkflowText(ciPath, withNullEnvironment, policy));
   const readOnlyCodeQL = codeqlWorkflow.replace('security-events: write', 'security-events: read');
   assert.doesNotThrow(() => validateWorkflowText('.github/workflows/codeql.yml', readOnlyCodeQL, policy));
