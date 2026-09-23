@@ -144,10 +144,16 @@ async function observeRealBrowser(f, mode) {
     observer,
     `import assert from 'node:assert/strict';
 import {writeFileSync} from 'node:fs';
+import {Server} from 'node:http';
 import {chromium as realChromium} from ${JSON.stringify(realModule)};
 const observation = {mode: ${JSON.stringify(mode)}, consoleMessages: [], closed: false};
 const coverageBootstrap = ${JSON.stringify(bootstrap)};
 const save = () => writeFileSync(${JSON.stringify(observation)}, JSON.stringify(observation));
+const originalListen = Server.prototype.listen;
+Server.prototype.listen = function(...args) {
+  this.once('close', () => { observation.serverClosed = true; save(); });
+  return originalListen.apply(this, args);
+};
 export const chromium = {launch: async (options) => {
   observation.executablePath = options.executablePath;
   save();
@@ -158,6 +164,7 @@ export const chromium = {launch: async (options) => {
     await close(...args);
     observation.closed = !browser.isConnected();
     save();
+    if (observation.mode.endsWith('close-error')) throw new Error('FIXTURE_BROWSER_CLOSE_FAILURE');
   };
   const newPage = browser.newPage.bind(browser);
   browser.newPage = async (...args) => {
@@ -167,7 +174,7 @@ export const chromium = {launch: async (options) => {
       observation.consoleMessages.push({type: message.type(), text: message.text()});
       save();
     });
-    if (observation.mode === 'csp') {
+    if (observation.mode.startsWith('csp')) {
       const goto = page.goto.bind(page);
       let injected = false;
       page.goto = async (...navigation) => {
@@ -284,5 +291,61 @@ test(
     assert.equal(existsSync(f.receipt), false);
     assert.equal(observation.closed, true);
     t.diagnostic(`Real CSP rejection: ${observation.violation.text}`);
+  },
+);
+
+// A late cleanup failure must invalidate success, and must not hide an earlier
+// real CSP rejection. The browser is actually closed before injecting the error.
+test(
+  'management driver refuses PASS on cleanup failure and preserves a prior real CSP rejection',
+  { timeout: 180_000 },
+  async (t) => {
+    assert.ok(process.env.CHROMIUM_PATH, 'CHROMIUM_PATH is required for qualified cleanup journeys');
+    for (const mode of ['close-error', 'csp-close-error']) {
+      const f = fixture(t);
+      const observed = await observeRealBrowser(f, mode);
+      const child = await runDriver(f, {
+        ...f.env,
+        AF_PLAYWRIGHT_PATH: observed.observer,
+        AF_CHROME_PATH: process.env.CHROMIUM_PATH,
+      });
+      const observation = JSON.parse(readFileSync(observed.observation));
+      assert.equal(child.status, 1, child.stderr);
+      assert.equal(child.stdout, '', 'cleanup failure must never publish a success result');
+      assert.equal(existsSync(f.receipt), false, 'cleanup failure must never leave a PASS receipt');
+      assert.equal(observation.closed, true, 'real Chrome must be closed');
+      assert.equal(observation.serverClosed, true, 'server close must still run after browser close throws');
+      if (mode === 'close-error') assert.match(child.stderr, /FIXTURE_BROWSER_CLOSE_FAILURE/);
+      else {
+        assert.equal(observation.markerAbsent, true);
+        assert.equal(observation.violation.blocked, 'inline');
+        assert.match(child.stderr, /Executing inline script violates/);
+        assert.match(child.stderr, /AssertionError/);
+        assert.doesNotMatch(child.stderr, /FIXTURE_BROWSER_CLOSE_FAILURE/);
+      }
+    }
+  },
+);
+
+test(
+  'management driver closes its real server when the configured Chrome executable is unavailable',
+  { timeout: 120_000 },
+  async (t) => {
+    const f = fixture(t);
+    const observed = await observeRealBrowser(f, 'launch-error');
+    const missing = join(f.root, 'missing-chrome');
+    assert.equal(existsSync(missing), false);
+    const child = await runDriver(f, {
+      ...f.env,
+      AF_PLAYWRIGHT_PATH: observed.observer,
+      AF_CHROME_PATH: missing,
+    });
+    assert.equal(child.status, 1, child.stderr);
+    assert.match(child.stderr, /executable doesn't exist/);
+    assert.equal(child.stdout, '');
+    assert.equal(existsSync(f.receipt), false);
+    const observation = JSON.parse(readFileSync(observed.observation));
+    assert.equal(observation.executablePath, missing);
+    assert.equal(observation.serverClosed, true);
   },
 );
