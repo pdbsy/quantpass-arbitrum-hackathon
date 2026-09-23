@@ -27,6 +27,7 @@ function inspectOwnedPid(identity, terminate = false) {
   const encodedIdentity = Buffer.from(JSON.stringify(identity)).toString('base64');
   const script = `
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 $expected = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedIdentity}')) | ConvertFrom-Json
 $ownedProcess = Get-Process -Id $expected.pid -ErrorAction SilentlyContinue
 if ($null -eq $ownedProcess) { exit 0 }
@@ -35,12 +36,16 @@ try {
   if ($ownedProcess.HasExited) { exit 0 }
   $metadata = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $expected.pid)
   if ($ownedProcess.HasExited) { exit 0 }
-  if ($null -eq $metadata -or
-      $metadata.ParentProcessId -ne $expected.parentPid -or
-      $ownedProcess.StartTime.ToUniversalTime() -lt [DateTime]::Parse($expected.startedAfter).ToUniversalTime() -or
-      -not $metadata.CommandLine.Contains($expected.commandPart) -or
-      [IO.Path]::GetFullPath($metadata.ExecutablePath) -ine [IO.Path]::GetFullPath($expected.executable)) {
-    throw 'Fixture process identity changed; refusing PID cleanup'
+  $checks = [ordered]@{
+    metadataPresent = $null -ne $metadata
+    parentMatches = $null -ne $metadata -and $metadata.ParentProcessId -eq $expected.parentPid
+    startedAfterMatches = $ownedProcess.StartTime.ToUniversalTime() -ge [DateTime]::Parse($expected.startedAfter).ToUniversalTime()
+    commandMatches = $null -ne $metadata -and $null -ne $metadata.CommandLine -and $metadata.CommandLine.Contains($expected.commandPart)
+    executableMatches = $null -ne $metadata -and $null -ne $metadata.ExecutablePath -and [IO.Path]::GetFullPath($metadata.ExecutablePath) -ieq [IO.Path]::GetFullPath($expected.executable)
+  }
+  if ($checks.Values -contains $false) {
+    # Emit only booleans, never a process command line or executable path.
+    throw ('Fixture process identity changed; refusing PID cleanup; checks=' + ($checks | ConvertTo-Json -Compress))
   }
   $startTicks = $ownedProcess.StartTime.ToUniversalTime().Ticks.ToString()
   if (${terminate ? '$true' : '$false'}) {
