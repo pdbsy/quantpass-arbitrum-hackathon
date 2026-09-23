@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { asAddress, asHexData, sameAddress } from '../packages/chain-adapter/src/types.ts';
 import { decodeM3VaultCalldata } from '../packages/chain-adapter/src/vault-abi.ts';
+import { verifyM3LateReviewCancellation } from '../test/helpers/m3-browser-late-review.mjs';
 import { importUserUI } from './import-user-ui.mjs';
 
 const OWNER_A = asAddress('0x1111111111111111111111111111111111111111');
@@ -467,6 +468,7 @@ export async function runM3BrowserJourneys(page, { origin, evidenceDirectory }) 
     checks.push(
       'Existing prototype chart controls, bookmark state and separate demo Pass trade changed only their local ledgers',
     );
+    checks.push(...(await verifyM3LateReviewCancellation(page, origin)));
 
     current = await evidence();
     for (const request of current.providerRequests) {

@@ -346,20 +346,30 @@ function showOnchainDialogError(message: string): void {
   const output = document.querySelector('[data-product-dialog-error]');
   if (output) output.textContent = message;
 }
-async function reviewOnchainAction(): Promise<void> {
-  if (!onchainRuntime || !onchainDraft) throw Error('CHAIN_REVIEW_REQUIRED');
+async function reviewOnchainAction(control: HTMLElement): Promise<void> {
+  const draft = onchainDraft;
+  if (!onchainRuntime || !draft) throw Error('CHAIN_REVIEW_REQUIRED');
+  const stillCurrent = () =>
+    onchainDraft === draft && control.isConnected && !!control.closest('dialog')?.open;
   const amountInput = document.querySelector<HTMLInputElement>('dialog[open] [name="chainAmount"]');
   const tokenInput = document.querySelector<HTMLInputElement>('dialog[open] [name="chainToken"]');
   const request =
-    onchainDraft.action === 'rescue-token' || onchainDraft.action === 'rescue-native'
-      ? parseM3RescueAction(onchainDraft.action, tokenInput?.value)
-      : parseM3ProductAction(onchainDraft.action, amountInput?.value);
+    draft.action === 'rescue-token' || draft.action === 'rescue-native'
+      ? parseM3RescueAction(draft.action, tokenInput?.value)
+      : parseM3ProductAction(draft.action, amountInput?.value);
   if (request.kind === 'deposit') {
     if (onchainRuntime.reviewDepositApprovals) {
-      const approval = await onchainRuntime.reviewDepositApprovals(request);
+      let approval;
+      try {
+        approval = await onchainRuntime.reviewDepositApprovals(request);
+      } catch (error) {
+        if (!stillCurrent()) return;
+        throw error;
+      }
+      if (!stillCurrent()) return;
       const required = approval.requirements.filter((requirement) => !requirement.sufficient);
       if (required.length > 0) {
-        onchainDraft = { action: onchainDraft.action, request, approval };
+        onchainDraft = { action: draft.action, request, approval };
         AF.app.openDialog(renderM3DepositApprovalDialog(approval));
         return;
       }
@@ -378,9 +388,16 @@ async function reviewOnchainAction(): Promise<void> {
       if (check.status !== 'READY') throw Error('DEPOSIT_ALLOWANCES_UNAVAILABLE');
     }
   }
-  const review = await onchainRuntime.reviewAction(request);
+  let review;
+  try {
+    review = await onchainRuntime.reviewAction(request);
+  } catch (error) {
+    if (!stillCurrent()) return;
+    throw error;
+  }
+  if (!stillCurrent()) return;
   if (!sameM3ProductAction(request, review.request)) throw Error('CHAIN_ACTION_REVIEW_MISMATCH');
-  onchainDraft = { action: onchainDraft.action, request, review };
+  onchainDraft = { action: draft.action, request, review };
   const amount =
     request.kind === 'deposit' || request.kind === 'withdraw'
       ? `${request.usdcBaseUnits} AF-USDC base units`
@@ -401,13 +418,23 @@ function openPassTransfer(): void {
     '<span class="section-label">TESTNET / PASS TRANSFER</span><h2>Review Pass transfer.</h2><label>Recipient address<input name="passRecipient" autocomplete="off" autofocus></label><label>Pass amount<input name="passAmount" inputmode="decimal" autocomplete="off"></label><p>Pass uses 18 decimals. Paid Buy and Sell are outside Phase One.</p><p data-product-dialog-error class="form-error" role="alert"></p><div class="inline-actions"><button class="primary-btn" data-pass-review>Read and simulate ↗</button><button class="text-link" data-close>Cancel</button></div>',
   );
 }
-async function reviewPassTransfer(): Promise<void> {
-  if (!onchainRuntime?.reviewPassTransfer || !passTransferDraft) throw Error('PASS_TRANSFER_REVIEW_REQUIRED');
+async function reviewPassTransfer(control: HTMLElement): Promise<void> {
+  const draft = passTransferDraft;
+  if (!onchainRuntime?.reviewPassTransfer || !draft) throw Error('PASS_TRANSFER_REVIEW_REQUIRED');
   const recipient = document.querySelector<HTMLInputElement>('dialog[open] [name="passRecipient"]')?.value;
   const amount = document.querySelector<HTMLInputElement>('dialog[open] [name="passAmount"]')?.value;
   if (recipient === undefined || amount === undefined) throw Error('PASS_TRANSFER_INPUT_REQUIRED');
   const request = parseM3PassTransfer(recipient, amount);
-  const review = await onchainRuntime.reviewPassTransfer(request);
+  const stillCurrent = () =>
+    passTransferDraft === draft && control.isConnected && !!control.closest('dialog')?.open;
+  let review;
+  try {
+    review = await onchainRuntime.reviewPassTransfer(request);
+  } catch (error) {
+    if (!stillCurrent()) return;
+    throw error;
+  }
+  if (!stillCurrent()) return;
   if (
     review.request.recipient.toLowerCase() !== request.recipient.toLowerCase() ||
     review.request.passBaseUnits !== request.passBaseUnits
@@ -475,7 +502,7 @@ document.addEventListener('click', (event) => {
       void runM3DialogAction(
         'review',
         target as HTMLButtonElement,
-        reviewPassTransfer,
+        () => reviewPassTransfer(target as HTMLButtonElement),
         showOnchainDialogError,
       );
     } else if (target.hasAttribute('data-pass-confirm')) {
@@ -496,7 +523,7 @@ document.addEventListener('click', (event) => {
       void runM3DialogAction(
         'review',
         target as HTMLButtonElement,
-        reviewOnchainAction,
+        () => reviewOnchainAction(target as HTMLButtonElement),
         showOnchainDialogError,
       );
     } else if (target.hasAttribute('data-chain-confirm')) {
