@@ -180,6 +180,53 @@ test('actual gate entrypoints reject arguments before starting any scanner or in
   }
 });
 
+test('dependency delta blocks malformed event ranges before invoking npm audit', (t) => {
+  const directory = mkdtempSync(join(tmpdir(), 'alphaforge-dependency-event-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const eventPath = join(directory, 'event.json');
+  writeFileSync(eventPath, JSON.stringify({ before: 'invalid', after: 'a'.repeat(40) }));
+  const child = spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL('../tools/ci/check-dependency-delta.mjs', import.meta.url))],
+    {
+      env: {
+        ...process.env,
+        GITHUB_EVENT_NAME: 'push',
+        GITHUB_EVENT_PATH: eventPath,
+      },
+      encoding: 'utf8',
+      timeout: 15000,
+    },
+  );
+  assert.equal(child.status, 2);
+  assert.equal(child.signal, null);
+  assert.equal(child.stderr, '');
+  const report = JSON.parse(child.stdout);
+  assert.equal(report.state, 'BLOCKED');
+  assert.match(report.reason, /Missing exact base\/head/);
+  assert.doesNotMatch(child.stdout, /invalid/);
+});
+
+test('contract gate blocks before toolchain stages when native Python is unavailable', (t) => {
+  const directory = mkdtempSync(join(tmpdir(), 'alphaforge-contract-python-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const child = spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL('../tools/ci/verify-contracts.mjs', import.meta.url))],
+    {
+      env: { ...process.env, PATH: '/usr/bin:/bin' },
+      encoding: 'utf8',
+      timeout: 15000,
+    },
+  );
+  assert.equal(child.status, 2);
+  assert.equal(child.signal, null);
+  assert.equal(child.stderr, '');
+  const report = JSON.parse(child.stdout);
+  assert.equal(report.state, 'BLOCKED');
+  assert.equal(report.reason, 'Native Python prerequisite unavailable');
+});
+
 test('actual bootstrap and integration entrypoints reject malformed local invocation', () => {
   for (const [path, args, status, message] of [
     ['tools/bootstrap-ci-npm.mjs', ['--invalid'], 2, /BLOCKED at inputs/],
