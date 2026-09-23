@@ -436,6 +436,23 @@ async function git(root, args) {
   return stdout.trimEnd();
 }
 
+// A failed probe must not release its repository while sibling Git children
+// still own cwd handles. Keep parallel execution and the first original failure;
+// each probe retains git()'s existing timeout and output bound.
+async function settledGitQueries(queries) {
+  let firstFailure;
+  const outcomes = await Promise.allSettled(
+    queries.map((query) =>
+      query.catch((error) => {
+        firstFailure ??= { error };
+        throw error;
+      }),
+    ),
+  );
+  if (firstFailure) throw firstFailure.error;
+  return outcomes.map((outcome) => outcome.value);
+}
+
 function localBranchRef(branch) {
   return `refs/heads/${branch}`;
 }
@@ -537,7 +554,7 @@ async function requireRestrictedDescendant(root, ancestor, descendant, allowedPa
 export async function isGitCommitAncestor(root, ancestor, descendant) {
   if (!gitCommitPattern.test(ancestor ?? '') || !gitCommitPattern.test(descendant ?? '')) return false;
   try {
-    await Promise.all([resolveExactCommit(root, ancestor), resolveExactCommit(root, descendant)]);
+    await settledGitQueries([resolveExactCommit(root, ancestor), resolveExactCommit(root, descendant)]);
     await requireRecordedAncestor(root, ancestor, descendant);
     return true;
   } catch {
@@ -557,7 +574,7 @@ export async function isGitCommitTree(root, commit, tree) {
 export async function isManagementReportCommitFresh(root, reportCommit, sourceCommit) {
   if (!gitCommitPattern.test(reportCommit ?? '') || !gitCommitPattern.test(sourceCommit ?? '')) return false;
   try {
-    await Promise.all([resolveExactCommit(root, reportCommit), resolveExactCommit(root, sourceCommit)]);
+    await settledGitQueries([resolveExactCommit(root, reportCommit), resolveExactCommit(root, sourceCommit)]);
     await requireRestrictedDescendant(
       root,
       reportCommit,
@@ -582,7 +599,7 @@ export async function collectGitState(root, baseRef = 'master', options = {}) {
   const excludedDirtyPaths = validateDirtyPathExclusions(options.excludeDirtyPaths);
   const observedAt = new Date().toISOString();
   try {
-    const [branch, commit, tree, statusOutput, indexOutput, logOutput, base] = await Promise.all([
+    const [branch, commit, tree, statusOutput, indexOutput, logOutput, base] = await settledGitQueries([
       git(root, ['branch', '--show-current']),
       resolveExactCommit(root, 'HEAD'),
       resolveExactTree(root, 'HEAD'),
@@ -591,7 +608,7 @@ export async function collectGitState(root, baseRef = 'master', options = {}) {
       git(root, ['log', '--max-count=20', '--date=iso-strict', '--format=%H%x1f%an%x1f%aI%x1f%s']),
       resolveBaseCommit(root, validatedBase, { kind: 'local' }),
     ]);
-    const [, counts] = await Promise.all([
+    const [, counts] = await settledGitQueries([
       mergeBase(root, base.commit, commit),
       git(root, ['rev-list', '--left-right', '--count', `${base.commit}...${commit}`]),
     ]);
@@ -642,7 +659,7 @@ export async function collectRecordedGitState(root, baseRef, recorded, options =
   }
 
   try {
-    const [currentBranch, head, base, statusOutput, indexOutput] = await Promise.all([
+    const [currentBranch, head, base, statusOutput, indexOutput] = await settledGitQueries([
       git(root, ['branch', '--show-current']),
       resolveExactCommit(root, 'HEAD'),
       resolveBaseCommit(root, validatedBase, context),
@@ -658,7 +675,7 @@ export async function collectRecordedGitState(root, baseRef, recorded, options =
       if (currentBranch !== '') throw new SourceError('RECORDED_GIT_BRANCH_MISMATCH');
       if (context.sha !== head) throw new SourceError('RECORDED_GIT_HEAD_MISMATCH');
       const mergeRef = `refs/remotes/pull/${context.number}/merge`;
-      const [mergeRefCommit, parentOutput, sourceHead] = await Promise.all([
+      const [mergeRefCommit, parentOutput, sourceHead] = await settledGitQueries([
         resolveExactCommit(root, mergeRef),
         git(root, ['rev-list', '--parents', '--max-count=1', 'HEAD']),
         resolveExactCommit(root, remoteBranchRef(recordedBranch)),
@@ -678,12 +695,12 @@ export async function collectRecordedGitState(root, baseRef, recorded, options =
       if (![context.branch, ''].includes(currentBranch))
         throw new SourceError('RECORDED_GIT_BRANCH_MISMATCH');
       if (context.sha !== head) throw new SourceError('RECORDED_GIT_HEAD_MISMATCH');
-      const [queueHead, sourceHead] = await Promise.all([
+      const [queueHead, sourceHead] = await settledGitQueries([
         resolveExactCommit(root, remoteBranchRef(context.branch)),
         resolveExactCommit(root, remoteBranchRef(recordedBranch)),
       ]);
       if (queueHead !== head) throw new SourceError('RECORDED_GIT_GRAPH_MISMATCH');
-      await Promise.all([
+      await settledGitQueries([
         requireRecordedAncestor(root, base.commit, head),
         requireRecordedAncestor(root, sourceHead, head),
       ]);
@@ -696,13 +713,13 @@ export async function collectRecordedGitState(root, baseRef, recorded, options =
       if ((context.kind === 'integrated_branch' && context.sha !== head) || base.commit !== head)
         throw new SourceError('RECORDED_GIT_HEAD_MISMATCH');
       const sourceHead = await resolveExactCommit(root, remoteBranchRef(recordedBranch));
-      const [headTree, sourceTree, commonBase] = await Promise.all([
+      const [headTree, sourceTree, commonBase] = await settledGitQueries([
         resolveExactTree(root, head),
         resolveExactTree(root, sourceHead),
         mergeBase(root, sourceHead, head),
       ]);
       if (headTree !== sourceTree) throw new SourceError('RECORDED_GIT_GRAPH_MISMATCH');
-      await Promise.all([
+      await settledGitQueries([
         requireRecordedAncestor(root, commonBase, sourceHead),
         requireRecordedAncestor(root, commonBase, head),
       ]);
@@ -726,7 +743,7 @@ export async function collectRecordedGitState(root, baseRef, recorded, options =
       generatedSnapshotClosurePaths,
       'RECORDED_GIT_DESCENDANT_PATH_MISMATCH',
     );
-    const [recordedTree, logOutput, counts] = await Promise.all([
+    const [recordedTree, logOutput, counts] = await settledGitQueries([
       resolveExactTree(root, recorded.commit),
       git(root, [
         'log',

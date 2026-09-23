@@ -455,7 +455,7 @@ test('real check process bounds output, preserves failure and never exposes an i
   await writeFile(join(root, 'package.json'), JSON.stringify({ scripts: { lint: 'node emit.mjs' } }));
   await writeFile(
     join(root, 'emit.mjs'),
-    "if (process.env.ALPHAFORGE_TEST_SECRET) process.exit(9); process.stdout.write('x'.repeat(200000)); process.stderr.write('y'.repeat(200000));",
+    "import { writeFileSync } from 'node:fs'; if (process.env.ALPHAFORGE_TEST_SECRET) process.exit(9); writeFileSync('runtime.json', JSON.stringify({ executable: process.execPath, node: process.versions.node })); process.stdout.write('x'.repeat(200000)); process.stderr.write('y'.repeat(200000));",
   );
   const old = process.env.ALPHAFORGE_TEST_SECRET;
   process.env.ALPHAFORGE_TEST_SECRET = 'synthetic-local-marker';
@@ -473,6 +473,10 @@ test('real check process bounds output, preserves failure and never exposes an i
       log: result.log,
     }),
   );
+  assert.deepEqual(JSON.parse(await readFile(join(root, 'runtime.json'), 'utf8')), {
+    executable: process.execPath,
+    node: process.versions.node,
+  });
   assert.ok(Buffer.byteLength(result.log) <= 80);
   assert.match(result.log, /TRUNCATED/);
   assert.doesNotMatch(result.log, /synthetic-local-marker/);
