@@ -111,6 +111,16 @@ test('absent PATH and conflicting npm executable cannot be admitted as an aligne
   }
 });
 
+test('missing PATH rejects an otherwise available exact npm runtime', (t) => {
+  const f = fixture(t);
+  const environment = { ...f.environment };
+  delete environment.PATH;
+  const report = f.inspect({ environment });
+  assert.ok(report.commands.some((command) => command.id === 'npm-version' && command.exitCode === 0));
+  assert.notEqual(status(report, 'platform'), 'PASS');
+  assert.equal(report.eligibleForEvidence, false);
+});
+
 test('an exact Node copy without adjacent npm rejects the native npm prerequisite', (t) => {
   assert.equal(process.versions.node, readFileSync(join(repository, '.node-version'), 'utf8').trim());
   const directory = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-node-no-npm-')));
@@ -195,6 +205,21 @@ test('injected interpreter settings stop real environment probes before launchin
   assert.equal(report.eligibleForEvidence, false);
   assert.deepEqual(report.commands, []);
   assert.doesNotMatch(JSON.stringify(report), /synthetic-never-executed/);
+});
+
+test('default environment inspection rejects inherited interpreter injection before probes', () => {
+  const previous = process.env.NODE_OPTIONS;
+  process.env.NODE_OPTIONS = '--require=synthetic-never-executed';
+  try {
+    const report = inspectEnvironment();
+    assert.equal(status(report, 'overrides'), 'FAIL');
+    assert.equal(report.eligibleForEvidence, false);
+    assert.deepEqual(report.commands, []);
+    assert.doesNotMatch(JSON.stringify(report), /synthetic-never-executed/);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = previous;
+  }
 });
 
 test('real Git hidden-index and origin changes cannot produce eligible source evidence', (t) => {
