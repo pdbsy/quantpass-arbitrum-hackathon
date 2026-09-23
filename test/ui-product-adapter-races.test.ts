@@ -16,6 +16,35 @@ function projection(snapshot: CanonicalSnapshot) {
   const { user, strategies, vaults, account, details, audit } = snapshot;
   return { user, strategies, vaults, account, details, audit };
 }
+
+test('an identity change from a loading subscriber cancels the superseded read before HTTP', async (t) => {
+  const h = await setup(t);
+  const aliceVault = structuredClone(h.store.get(h.a, 'alice'));
+  const paths: string[] = [];
+  h.hooks.after = async (path) => {
+    paths.push(path);
+  };
+  let switched: Promise<void> | undefined;
+  let armed = true;
+  const unsubscribe = h.adapter.client.subscribe((snapshot) => {
+    if (armed && snapshot.phase === 'LOADING') {
+      armed = false;
+      switched = h.adapter.client.selectIdentity('bob');
+    }
+  });
+  t.after(unsubscribe);
+  await h.adapter.client.refresh();
+  assert.ok(switched);
+  await switched;
+  assert.equal(paths.filter((path) => path === '/session').length, 1);
+  assert.equal(paths.filter((path) => path === '/v1/product-snapshot').length, 1);
+  assert.equal(h.adapter.snapshot.user, 'bob');
+  assert.equal(h.adapter.snapshot.account?.ownerId, 'bob');
+  assert.equal(h.adapter.snapshot.phase, 'EMPTY');
+  assert.deepEqual(h.adapter.snapshot.vaults, []);
+  assert.throws(() => h.adapter.client.prepare(), /VAULT_REQUIRED/);
+  assert.deepEqual(h.store.get(h.a, 'alice'), aliceVault);
+});
 async function setup(t: TestContext) {
   const h = await productHarness();
   t.after(() => h.app.close());
@@ -494,3 +523,38 @@ test('invalid and mismatched identity selection clears private state without acc
   assert.equal(h.adapter.client.snapshot.user, 'bob');
   assert.equal(h.adapter.client.snapshot.vaults.length, 0);
 });
+
+for (const regression of ['lower-revision', 'same-revision-new-balances'] as const) {
+  test(`a coherent ${regression} account cannot replace the last accepted projection`, async (t) => {
+    const h = await setup(t);
+    let previous: Record<string, unknown> | undefined;
+    h.hooks.after = async (path, data) => {
+      if (path === '/v1/product-snapshot') previous = structuredClone(data);
+    };
+    await h.adapter.client.refresh();
+    delete h.hooks.after;
+    assert.ok(previous);
+    await h.deposit(h.a, '9');
+    if (regression === 'lower-revision') await h.adapter.client.refresh();
+    const accepted = projection(h.adapter.snapshot);
+    h.hooks.after = async (path, data) => {
+      if (path !== '/v1/product-snapshot') return;
+      if (regression === 'lower-revision') {
+        Object.assign(data, structuredClone(previous));
+        return;
+      }
+      const revisions = previous!.revisions as Record<string, number>;
+      const restoreRevision = (vaults: unknown) => {
+        for (const value of vaults as { vaultId: string; revision: number }[])
+          value.revision = revisions[value.vaultId]!;
+      };
+      restoreRevision(data.vaults);
+      restoreRevision((data.account as { vaults: unknown }).vaults);
+      data.revisions = structuredClone(revisions);
+      data.audit = structuredClone(previous!.audit);
+    };
+    await assert.rejects(h.adapter.client.refresh(), /RESPONSE_CONTEXT_MISMATCH/);
+    assert.deepEqual(projection(h.adapter.snapshot), accepted);
+    assert.throws(() => h.adapter.client.prepare(), /REFRESH_REQUIRED/);
+  });
+}

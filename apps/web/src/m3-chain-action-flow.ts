@@ -37,10 +37,14 @@ export class M3ChainActionFlow<Snapshot, Action, Observation> {
     this.#wallet = wallet;
   }
 
-  async connect(): Promise<{ readonly session: WalletSession; readonly snapshot: Snapshot }> {
+  async connect(
+    assertCurrent: () => void = () => {},
+  ): Promise<{ readonly session: WalletSession; readonly snapshot: Snapshot }> {
     this.#session = null;
     const session = await this.#wallet.connect();
+    assertCurrent();
     const snapshot = await this.#adapter.readSnapshot({ wallet: session.account });
+    assertCurrent();
     this.#session = session;
     return Object.freeze({ session, snapshot });
   }

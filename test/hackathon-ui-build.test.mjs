@@ -41,3 +41,32 @@ test('Hackathon build ships the original UI and keeps the existing Chinese task 
   );
   assert.ok((await readFile(join(out, 'user-ui.js'), 'utf8')).includes('data-user-style'));
 });
+
+test('actual development middleware serves imported CSS and JavaScript and passes other requests to Vite', async (t) => {
+  const { createServer } = await import('vite');
+  const { default: config } = await import('../apps/web/vite.config.ts');
+  const { resolve } = await import('node:path');
+  execFileSync(process.execPath, ['tools/import-user-ui.mjs'], { stdio: 'pipe' });
+  const server = await createServer({
+    ...config,
+    configFile: false,
+    root: resolve('apps/web'),
+    logLevel: 'silent',
+    server: { host: '127.0.0.1', port: 0, strictPort: true },
+  });
+  t.after(() => server.close());
+  await server.listen();
+  const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+  for (const [name, type] of [
+    ['user-ui.css', 'text/css; charset=utf-8'],
+    ['user-ui.js', 'text/javascript; charset=utf-8'],
+  ]) {
+    const response = await fetch(`${origin}/${name}`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), type);
+    assert.equal(await response.text(), await readFile(`build/ui-import/${name}`, 'utf8'));
+  }
+  const response = await fetch(origin + '/');
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /\/src\/product-ui\.ts/);
+});

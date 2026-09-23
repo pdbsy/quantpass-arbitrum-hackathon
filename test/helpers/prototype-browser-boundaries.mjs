@@ -1,6 +1,8 @@
 /* global window, document */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { verifyRuntimePortJourneys } from './product-runtime-boundaries.mjs';
+import { verifyLegacyApiJourneys, verifyRecoveryJourneys } from './product-recovery-journeys.mjs';
 
 // Exercise the actual loaded browser model. All values are fictional DEMO fixtures;
 // these checks are separate from visible journeys and never certify chain accounting.
@@ -863,6 +865,12 @@ export async function verifyPrototypeBoundaries(page) {
     'Responsive chart reflow preserves valid pointer and keyboard readouts; mobile navigation toggles both ways',
   );
 
+  cases.push(...(await verifyAdditionalReachableJourneys(page)));
+  cases.push(...(await verifyConfiguredBootstrapJourneys(page)));
+  cases.push(...(await verifyRuntimePortJourneys(page)));
+  cases.push(...(await verifyRecoveryJourneys(page)));
+  cases.push(...(await verifyLegacyApiJourneys(page)));
+
   await page.evaluate((saved) => {
     localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(saved.local));
     localStorage.setItem('alphaforge.passmarket.v3', JSON.stringify(saved.exchange));
@@ -983,4 +991,203 @@ async function verifyApiLossAndThrottle(page) {
     'Visible API loss settles to zero equity with exact negative P&L and no phantom funds',
     'HTTP 429 disables writes, persists the original request across reload, re-establishes its owner, and retries exactly once after the real deadline',
   ];
+}
+
+export async function verifyAdditionalReachableJourneys(page) {
+  const origin = new URL(page.url()).origin;
+  // Exercise a supported persisted legacy profile through the real startup migration.
+  await page.evaluate(() => {
+    window.AF.store.reset();
+    const state = window.AF.store.read();
+    state.profile = { name: '工坊访客', bio: '保持好奇，认真研究。' };
+    state.history = [
+      { id: 'legacy-deposit', type: '添加演示余额', amount: 100, strategy: '', at: 'invalid-date' },
+    ];
+    state.passes.trend.at = '初始演示样例';
+    localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(state));
+  });
+  await page.reload();
+  const migrated = await page.evaluate(() => window.AF.store.read());
+  assert.equal(migrated.profile.name, 'Workshop Guest');
+  assert.equal(migrated.profile.bio, 'Stay curious. Research carefully.');
+  assert.equal(migrated.history[0].type, 'Add demo funds');
+  assert.equal(migrated.passes.trend.at, 'Initial demo sample');
+  await page.goto(`${origin}/#/account/funds`);
+  assert.match(await page.locator('main').textContent(), /Demo sample/);
+
+  // SPA navigation must retain active catalogue choices in the rebuilt controls.
+  await page.goto(`${origin}/#/market`);
+  await page.locator('#market-search').fill('Trend');
+  await page.locator('[data-market-category="Trend"]').click();
+  await page.locator('#market-sort').selectOption('name');
+  await page.locator('.nav-link[href="#/home"]').click();
+  await page.locator('.nav-link[href="#/market"]').click();
+  assert.equal(await page.locator('#market-search').inputValue(), 'Trend');
+  assert.equal(await page.locator('#market-sort').inputValue(), 'name');
+  assert.equal(await page.locator('[data-market-category="Trend"]').getAttribute('aria-pressed'), 'true');
+  assert.ok((await page.locator('#market-results .market-card').count()) > 0);
+  await page.locator('#market-search').fill('No matching strategy');
+  assert.equal(await page.locator('#market-results .market-card').count(), 0);
+  await page.locator('[data-action="market-reset"]').click();
+
+  await page.goto(`${origin}/#/trade/trend`);
+  const chart = page.locator('[data-v3-chart="returns"]');
+  await chart.focus();
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowRight');
+  const box = await chart.boundingBox();
+  assert.ok(box);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  assert.doesNotMatch(await page.locator('#returns-readout').textContent(), /NaN|undefined/);
+  await page.locator('#trade-panel [data-trade-pane="pass"]').click();
+  await page.locator('#trade-panel [data-trade-pane="funds"]').first().click();
+  await page.locator('#allocate-amount').fill('1');
+  await page.locator('#allocate-form [name="consent"]').uncheck();
+  const before = await page.evaluate(() => window.AF.store.read());
+  await page.locator('#allocate-form button[type="submit"]').click();
+  const consent = await page.locator('#allocate-form [name="consent"]').evaluate((input) => ({
+    valid: input.validity.valid,
+    message: input.validationMessage,
+  }));
+  assert.equal(consent.valid, false);
+  assert.ok(consent.message.length > 0);
+  assert.equal(await page.locator('#app-dialog[open]').count(), 0);
+  assert.deepEqual(await page.evaluate(() => window.AF.store.read()), before);
+  await page.locator('#allocate-form [name="consent"]').check();
+  await page.locator('[data-amount="250"]').click();
+  assert.equal(await page.locator('#allocate-amount').inputValue(), '250');
+  for (const [amount, message] of [
+    ['1000.01', /1,000 DEMO allocation limit/],
+    ['10000.01', /Insufficient idle demo balance/],
+  ]) {
+    await page.locator('#allocate-amount').fill(amount);
+    await page.locator('#allocate-form button[type="submit"]').click();
+    assert.match(await page.locator('#allocate-error').textContent(), message);
+    assert.equal(await page.locator('#app-dialog[open]').count(), 0);
+    assert.deepEqual(await page.evaluate(() => window.AF.store.read()), before);
+  }
+  await page.goto(`${origin}/#/account/funds`);
+  for (const [kind, amount, message] of [
+    ['withdraw', '10000.01', /Only idle demo funds/],
+    ['deposit', '999999.99', /prototype demo balance limit/],
+  ]) {
+    await page.locator(`[data-cash="${kind}"]`).click();
+    await page.locator('#cash-amount').fill(amount);
+    await page.locator('#cash-form button[type="submit"]').click();
+    assert.match(await page.locator('#cash-error').textContent(), message);
+    assert.deepEqual(await page.evaluate(() => window.AF.store.read()), before);
+    await page.locator('#app-dialog[open] [data-close]').click();
+  }
+  await page.goto(`${origin}/#/trade/trend`);
+  await page.locator('#trade-panel [data-trade-pane="market"]').click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const reducedMotion of ['reduce', 'no-preference']) {
+    await page.emulateMedia({ reducedMotion });
+    await page.locator('.mobile-order-dock [data-v3-action="jump-order"]').click();
+    assert.equal(await page.locator('#pass-qty').evaluate((input) => input === document.activeElement), true);
+  }
+  await page.emulateMedia({ reducedMotion: null });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  return [
+    'Persisted Chinese legacy profile and history migrate through startup without inventing balances; invalid history date stays an explicit demo sample',
+    'Real SPA catalogue navigation preserves selected filters, while return-chart keyboard and pointer controls retain finite values',
+    'Allocation without consent remains visibly rejected and leaves the local ledger unchanged',
+    'Visible allocation, withdrawal and deposit budget rejections preserve the ledger exactly',
+    'Mobile order navigation focuses the real quantity input with either reduced-motion preference',
+  ];
+}
+
+export async function verifyConfiguredBootstrapJourneys(parent) {
+  const origin = new URL(parent.url()).origin;
+  const deployment = {
+    source: 'reviewed-deployment-manifest',
+    chainId: 46630,
+    vaultAddress: '0x2222222222222222222222222222222222222222',
+    deploymentBlock: '1',
+    abiVersion: 'm3-vault-db620d6',
+    abiHash: '0x264b4498cf396008e4619664c59bf8d8eac0a04f04b80e760df3cfbc00846977',
+    manifestDigest: '0x' + '12'.repeat(32),
+    runtimeBytecodeHash: '0x' + '34'.repeat(32),
+    strategyPassAddress: '0x4444444444444444444444444444444444444444',
+    strategyPassDeploymentBlock: '2',
+    strategyPassAbiHash: '0xdd989644feeb7798baca69f7391ba75b6f9d09f47fb05bd90184f6072912923f',
+    strategyPassRuntimeBytecodeHash: '0x' + '56'.repeat(32),
+  };
+  const cases = [];
+  for (const scenario of [
+    { name: 'allowlist without provider', many: true, provider: false, configured: true },
+    { name: 'allowlist with unavailable RPC', many: true, provider: true, configured: true },
+    { name: 'single deployment with unavailable RPC', many: false, provider: true, configured: true },
+    { name: 'wallet without deployment', many: false, provider: true, configured: false },
+  ]) {
+    const page = await parent.context().newPage();
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    try {
+      await page.addInitScript(
+        ({ scenario, deployment }) => {
+          // Boundary fixture only: no provider method can sign or broadcast.
+          window.bootstrapRequests = [];
+          window.AF = scenario.many
+            ? { m3Deployments: [deployment] }
+            : scenario.configured
+              ? { m3Deployment: deployment }
+              : {};
+          if (scenario.provider)
+            window.ethereum = {
+              on() {},
+              removeListener() {},
+              async request(input) {
+                window.bootstrapRequests.push(input.method);
+                if (input.method === 'eth_chainId') return '0xb626';
+                if (input.method === 'eth_accounts' || input.method === 'eth_requestAccounts')
+                  return ['0x1111111111111111111111111111111111111111'];
+                throw Error('LOCAL_MOCK_RPC_UNAVAILABLE');
+              },
+            };
+        },
+        { scenario, deployment },
+      );
+      await page.goto(`${origin}/#/trade/trend`);
+      await page.locator('[data-product-login="alice"]').click();
+      await page.waitForFunction(() =>
+        /^(READY|EMPTY)$/.test(document.querySelector('[data-product-state]')?.textContent ?? ''),
+      );
+      await page.locator('[aria-label="M3 product chain status"]').waitFor();
+      assert.equal(await page.locator('[data-chain-vault-select]').count(), scenario.many ? 1 : 0);
+      await page.locator('[data-chain-connect]').click();
+      if (scenario.configured) {
+        await page.waitForFunction(
+          () => document.querySelector('[data-product-state]')?.textContent === 'ERROR',
+        );
+        assert.match(
+          await page.locator('[role="alert"]').first().textContent(),
+          scenario.provider ? /M3_LIVE_READ_FAILED/ : /WALLET_PROVIDER_UNAVAILABLE/,
+        );
+      } else {
+        await page.waitForFunction(() =>
+          document
+            .querySelector('[aria-label="M3 product chain status"]')
+            ?.textContent.includes('Connected to the required Robinhood Chain Testnet.'),
+        );
+        assert.match(
+          await page.locator('[aria-label="M3 product chain status"]').textContent(),
+          /NOT DEPLOYED/,
+        );
+      }
+      for (const button of await page.locator('[data-chain-action], [data-pass-transfer]').all())
+        assert.equal(await button.isEnabled(), false);
+      assert.equal(
+        (await page.evaluate(() => window.bootstrapRequests)).includes('eth_sendTransaction'),
+        false,
+      );
+      assert.deepEqual(errors, []);
+      cases.push(
+        `Configured startup ${scenario.name}: real product module keeps writes disabled and sends no transaction`,
+      );
+    } finally {
+      await page.close();
+    }
+  }
+  return cases;
 }

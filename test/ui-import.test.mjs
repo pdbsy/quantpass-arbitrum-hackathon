@@ -43,3 +43,18 @@ test('mechanical style normalization preserves escaped JSON and unrelated attrib
     ' data-user-style=\\"color:red\\" data-price-style="x" font-style="italic"',
   );
 });
+
+test('UI importer refuses ambiguous or absent executable blocks before writing output', async (t) => {
+  const { rm, readdir } = await import('node:fs/promises');
+  const out = await mkdtemp(join(tmpdir(), 'af-import-invalid-'));
+  t.after(() => rm(out, { recursive: true, force: true }));
+  for (const source of [
+    '<style>a{}</style>',
+    '<script>void 0</script>',
+    '<style>a{}</style><style>b{}</style><script>void 0</script>',
+    '<style>a{}</style><script>void 0</script><script>void 1</script>',
+  ]) {
+    await assert.rejects(importUserUI(source, out), /EXPECTED_ONE_STYLE_AND_SCRIPT/);
+    assert.deepEqual(await readdir(out), []);
+  }
+});

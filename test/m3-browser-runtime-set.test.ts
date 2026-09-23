@@ -419,3 +419,32 @@ test('selection changes after wallet send starts preserve the original Vault sub
   await runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT_A });
   assert.equal(runtime.snapshot.transaction.status, 'SUBMITTED');
 });
+
+test('reselecting the same Vault preserves review identity and records the hash in caller-owned storage', async () => {
+  const provider = new Provider();
+  const saved = new Map<string, string>();
+  const reader = new Reader(
+    snapshot(VAULT_A, OWNER_A, asAddress('0x8888888888888888888888888888888888888888')),
+  );
+  const runtime = createM3BrowserRuntimeSet({
+    provider,
+    deployments: [DEPLOYMENT_A],
+    vaultReader: () => reader,
+    submissionStorage: {
+      getItem: (key) => saved.get(key) ?? null,
+      setItem: (key, value) => {
+        saved.set(key, value);
+      },
+    },
+  });
+  await runtime.connect();
+  const review = await runtime.reviewAction({ kind: 'withdraw', usdcBaseUnits: '1' });
+  await runtime.selectVault({ chainId: 46_630, vaultAddress: VAULT_A });
+  const submitted = await runtime.confirmAction(review);
+  assert.equal(submitted.state, 'SUBMITTED');
+  assert.equal(submitted.txHash, TX_HASH);
+  assert.deepEqual(provider.sentTargets, [VAULT_A]);
+  assert.ok([...saved.values()].some((value) => value.includes(TX_HASH) && value.includes(VAULT_A)));
+  await assert.rejects(runtime.confirmAction(review), /INVALID_PRODUCT_REVIEW/);
+  assert.deepEqual(provider.sentTargets, [VAULT_A]);
+});

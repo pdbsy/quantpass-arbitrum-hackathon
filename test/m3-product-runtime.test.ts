@@ -131,3 +131,8 @@ test('deposit allowance checks fail closed on either insufficient token, malform
     assert.notEqual(depositAllowanceCheck(request, authorization).status, 'READY');
   }
 });
+
+test('amount-bearing wallet actions cannot be reviewed with an omitted amount', () => {
+  for (const action of ['deposit', 'withdraw'] as const)
+    assert.throws(() => parseM3ProductAction(action), /AMOUNT_REQUIRED/);
+});
