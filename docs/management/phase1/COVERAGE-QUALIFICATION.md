@@ -1,3 +1,11 @@
+# Current bounded scan capacity correction — 2026-09-24
+
+[AlphaForge][Robinhood][PR22-READY][Macbeth01]. Source commit `14a213c76682dfcc33f66b0d704f79cd8193d812` increases the public-metadata scanner's fixed aggregate text capacity from 8 MiB to 10 MiB (25%). The preceding complete tracked input had grown to 8,450,172 bytes across 744 files; the original capacity failure remains recorded. This is a bounded input-capacity correction: every repository file remains in scope, all finding rules remain enforced, and the 2 MiB per-file, 10,000-file and 4 MiB Git-output limits are unchanged. It adds no exception or ignore rule.
+
+The source tests account for the real `.gitattributes` bytes and assert all ten files are scanned at exactly 10 MiB; a synthetic private-network canary beyond the former 8 MiB limit must be detected without echoing its value or emitting PASS; 10 MiB plus one byte must fail closed. The existing larger-overflow and per-file tests remain. Macbeth05 independently executed all 60 privacy tests and the original repository CLI on the exact source, reviewed the two-file diff and validated commit identity. The final integrated candidate still requires fresh full acceptance. The changed scanner source invalidates automatic reuse of older coverage counters or scoped proofs; counters will be recollected and proofs independently rebound to the new complete map.
+
+All earlier measured checkpoints and scanner-limit statements below describe their historical sources, not the current candidate.
+
 # Measured checkpoint 778f71a and next bounded collection
 
 Workstream: AlphaForge / Robinhood Chain Testnet / Hackathon / PR22; owner Macbeth01. Exact 778f71a passed all seven collected functional workflows and 858 ordinary tests. Lines11476/12641=90.78%, statements13460/15354=87.66%, functions2142/2350=91.14%, branches8780/10741=81.74%. Two incomplete Node lifecycles contribute zero; the complete static denominator remains. Threshold NOT_MET; method admission PENDING_INDEPENDENT_REVIEW. Report SHA-256339b4736c1cf7e6b45065dce4a978e1e2ad774145def067ba0961707e30e89b6. This is a measured source checkpoint, not a prediction for a later candidate.
