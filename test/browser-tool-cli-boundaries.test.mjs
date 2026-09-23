@@ -31,6 +31,7 @@ test('original browser CLIs reject missing tools and launch failures through the
   await mkdir(join(directory, 'apps/web/dist'), { recursive: true });
   const optionalTool = resolve(
     process.env.AF_PLAYWRIGHT_PATH ||
+      (process.env.AF_QUALIFIED_BROWSER_TOOLS && join(process.env.AF_QUALIFIED_BROWSER_TOOLS, 'index.mjs')) ||
       join(root, '.checks/browser-tools/node_modules/playwright-core/index.mjs'),
   );
   const env = { ...process.env };

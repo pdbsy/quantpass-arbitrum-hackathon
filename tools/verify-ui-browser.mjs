@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { verifyPrototypeBoundaries } from '../test/helpers/prototype-browser-boundaries.mjs';
 import { verifyProductLateConfirmIsolation } from '../test/helpers/product-browser-late-confirm.mjs';
+import { verifyPrototype69Shipped } from '../test/prototype69-native.qualified.test.mjs';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -564,6 +565,7 @@ try {
     `Prototype model: ${boundaryCases.length} rejection, atomicity, settlement, and corrupt-storage assertions`,
   );
   checks.push(...(await verifyProductLateConfirmIsolation(page, origin)));
+  checks.push(...(await verifyPrototype69Shipped(page, { origin })));
 
   for (const route of [
     'home',

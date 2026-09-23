@@ -11,6 +11,9 @@ import { qualifiedBrowserBootstrap } from './helpers/qualified-browser-bootstrap
 import { runM3BrowserJourneys } from '../tools/verify-m3-browser.mjs';
 
 const root = resolve(import.meta.dirname, '..');
+const approvedBrowserTool =
+  process.env.AF_PLAYWRIGHT_PATH ||
+  (process.env.AF_QUALIFIED_BROWSER_TOOLS && join(process.env.AF_QUALIFIED_BROWSER_TOOLS, 'index.mjs'));
 
 async function executeDriver(options, timeoutMs) {
   return new Promise((done) => {
@@ -53,7 +56,7 @@ test(
   'real legacy browser journey reports success only after cleanup and preserves injected failures',
   { concurrency: 2 },
   async (t) => {
-    const tool = process.env.AF_PLAYWRIGHT_PATH;
+    const tool = approvedBrowserTool;
     const chrome = process.env.CHROMIUM_PATH;
     assert.ok(
       tool && existsSync(tool),
@@ -181,11 +184,11 @@ test(
 );
 
 test('FAULT_INJECTED real M3 page rejects missing serialized evidence and removes its handlers', async (t) => {
-  assert.ok(process.env.AF_PLAYWRIGHT_PATH, 'Approved browser tool is required');
+  assert.ok(approvedBrowserTool, 'Approved browser tool is required');
   assert.ok(process.env.CHROMIUM_PATH, 'Approved browser executable is required');
   const directory = await mkdtemp(join(tmpdir(), 'alphaforge-m3-evidence-failure-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const { chromium } = await import(pathToFileURL(resolve(process.env.AF_PLAYWRIGHT_PATH)).href);
+  const { chromium } = await import(pathToFileURL(resolve(approvedBrowserTool)).href);
   const { createServer: createViteServer } = await import('vite');
   const server = await createViteServer({
     root: join(root, 'apps/web'),
