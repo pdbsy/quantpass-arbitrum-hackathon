@@ -627,3 +627,26 @@ test('a late definitive rejection keeps Alice pending while an in-flight identit
   assert.equal(h.store.get(review.vaultId, 'alice').idle, '1');
   assert.equal(h.store.audit('alice', review.vaultId).length, 1);
 });
+
+test('canonical Pass rows outside the catalogue cannot replace an accepted account projection', async (t) => {
+  const h = await setup(t);
+  const accepted = projection(h.adapter.snapshot);
+  const beforeVault = structuredClone(h.store.get(h.a, 'alice'));
+  h.hooks.after = async (path, value) => {
+    if (path !== '/v1/product-snapshot') return;
+    const account = value.account as { passBalances: Array<Record<string, unknown>> };
+    account.passBalances[0] = {
+      strategyId: 'unknown-strategy',
+      total: '0',
+      allowance: '0',
+    };
+  };
+  await assert.rejects(h.adapter.client.refresh(), /RESPONSE_CONTEXT_MISMATCH/);
+  assert.deepEqual(projection(h.adapter.snapshot), accepted);
+  assert.deepEqual(h.store.get(h.a, 'alice'), beforeVault);
+  assert.throws(() => h.adapter.client.prepare(), /REFRESH_REQUIRED/);
+  delete h.hooks.after;
+  await h.adapter.client.refresh();
+  assert.deepEqual(projection(h.adapter.snapshot), accepted);
+  assert.equal(h.adapter.client.prepare().vaultId, h.a);
+});

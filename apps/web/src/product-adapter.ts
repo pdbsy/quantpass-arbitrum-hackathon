@@ -431,11 +431,12 @@ export class ProductAdapter {
     }
     for (const pass of account.passBalances as unknown[]) {
       const p = object(pass);
-      string(p.strategyId);
+      const strategyId = string(p.strategyId);
       money(p.total);
       money(p.allowance);
       const vault = [...vaults.values()].find((v) => v.strategyId === p.strategyId);
       if (
+        !relations.has(strategyId) ||
         p.total !== (vault?.passBalance.total ?? '0') ||
         p.allowance !== (vault?.passBalance.allowance ?? '0')
       )
