@@ -180,3 +180,19 @@ test('governance CLI reports real malformed and unreadable input failures withou
     );
   }
 });
+
+test('importing the management collector from eval does not execute checks or rewrite evidence', async () => {
+  const target = resolve(root, '.checks/management/latest.json');
+  const before = await readFile(target);
+  const program = `
+    import assert from 'node:assert/strict';
+    assert.equal(process.argv[1], undefined);
+    const collector = await import(${JSON.stringify(new URL('../tools/run-management-checks.mjs', import.meta.url).href)});
+    assert.equal(typeof collector.main, 'function');
+  `;
+  const run = execute(['--input-type=module', '--eval', program]);
+  assert.equal(run.error, undefined);
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.stdout, '');
+  assert.deepEqual(await readFile(target), before);
+});
