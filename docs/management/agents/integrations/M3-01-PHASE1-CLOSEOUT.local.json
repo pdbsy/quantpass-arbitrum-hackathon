@@ -9,44 +9,51 @@
     {
       "agent": "Macbeth02",
       "task": "M3-02-PHASE1-CONTRACTS",
-      "branch": "macbeth02/m3-phase1-contracts",
-      "head": "f91391d8369a931ee58bd0844847f38d99635845",
-      "local_ref": "refs/remotes/local-macbeth02/m3-phase1-contracts"
+      "branch": "macbeth02/m3-pr22-reachable-closeout",
+      "head": "552d53aacee266fb46e8b2c35379b4965e7f9711",
+      "local_ref": "refs/remotes/local-macbeth02/m3-pr22-reachable-closeout"
     },
     {
       "agent": "Macbeth03",
       "task": "M3-03-PHASE1-RECOVERY",
-      "branch": "macbeth03/m3-pr22-lease-regressions",
-      "head": "379d9cc9a8f10c5b57b5552bbe11313d52fe2c28",
-      "local_ref": "refs/remotes/local-macbeth03/m3-pr22-lease-regressions"
+      "branch": "macbeth03/m3-pr22-reachable-closeout",
+      "head": "0f1cdea8c4052631a01a3c45f24337b95ddc1d8b",
+      "local_ref": "refs/remotes/local-macbeth03/m3-pr22-reachable-closeout"
     },
     {
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
-      "branch": "macbeth04/m3-phase1-product-visible-metadata",
-      "head": "1dd5ca0fb03682b5b487ab68be424b35e4386d77",
-      "local_ref": "refs/remotes/local-macbeth04/m3-phase1-product-visible-metadata"
+      "branch": "macbeth04/m3-pr22-reachable-closeout",
+      "head": "f46f14d9fc857a31e46b058e6b2e872531eeb7b7",
+      "local_ref": "refs/remotes/local-macbeth04/m3-pr22-reachable-closeout"
     },
     {
       "agent": "Macbeth05",
       "task": "M3-05-PHASE1-ACCEPTANCE",
-      "branch": "macbeth05/m3-phase1-acceptance",
-      "head": "b1f7aa657f44e99f31eb989bbc5da4121457bfd0",
-      "local_ref": "refs/remotes/local-macbeth05/m3-phase1-acceptance"
+      "branch": "macbeth05/m3-pr22-reachable-closeout",
+      "head": "1bf321cd6baca404b4d831c902e9fcc1bdd07eef",
+      "local_ref": "refs/remotes/local-macbeth05/m3-pr22-reachable-closeout"
     },
     {
       "agent": "Macbeth06",
       "task": "M3-06-CI-GATES",
-      "branch": "macbeth06/m3-phase1-gates",
-      "head": "553fbc3172b1e4202e8b693ec1c5fb904333b70b",
-      "local_ref": "refs/remotes/local-macbeth06/m3-phase1-gates"
+      "branch": "macbeth06/m3-pr22-reachable-closeout",
+      "head": "da14f0582b3859430ecbcc7a8cb1671df5d07888",
+      "local_ref": "refs/remotes/local-macbeth06/m3-pr22-reachable-closeout"
     },
     {
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "head": "232fb795c79926d40ba9819ca817cf2351046ee6",
       "local_ref": "refs/remotes/local-macbeth01/pr22-source-checkpoint"
+    },
+    {
+      "agent": "Macbeth02",
+      "task": "M3-02-CONTRACT-REVIEW",
+      "branch": "macbeth02/M3-02-CONTRACT-REVIEW",
+      "head": "a837728bea915d6d63924254552a554c1db4edcc",
+      "local_ref": "refs/remotes/local-macbeth02/M3-02-CONTRACT-REVIEW"
     }
   ]
 }
