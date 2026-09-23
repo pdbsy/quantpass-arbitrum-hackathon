@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import { syncBuiltinESMExports } from 'node:module';
 import { performance } from 'node:perf_hooks';
 import test from 'node:test';
 
@@ -1695,4 +1697,41 @@ test('redaction preserves explicit truncation and maximum-depth boundaries', () 
   const bounded = redactValue(nested);
   assert.match(JSON.stringify(bounded), /\[MAX_DEPTH\]/);
   assert.doesNotMatch(JSON.stringify(bounded), /SYNTHETIC_DEPTH_MARKER/);
+});
+
+test('quoted Basic noncredentials retain prose while explicit authorization remains private', () => {
+  const harmless = Buffer.from('hello').toString('base64');
+  // This noncanonical encoding decodes a colon but fails canonical roundtrip.
+  const noncanonical = 'Oh==';
+  assert.equal(Buffer.from(noncanonical, 'base64').toString(), ':');
+  assert.notEqual(Buffer.from(noncanonical, 'base64').toString('base64'), noncanonical);
+  for (const token of [harmless, noncanonical]) {
+    for (const quote of ['"', "'", '`']) {
+      const prose = `Basic ${quote}${token}${quote} diagnostic`;
+      for (const sanitize of [sanitizeLog, redactValue]) {
+        assert.equal(sanitize(prose), prose);
+        assert.equal(sanitize(`Authorization: ${prose}`), 'Authorization: [REDACTED]');
+      }
+    }
+  }
+});
+
+test('a controlled URL marker nonce collision fails closed without inventing a URL', () => {
+  const original = crypto.randomUUID;
+  const nonce = 'c7d5c665-3083-48ae-af19-216941ceea52';
+  // Fault injection controls only the entropy boundary. Actual public parsing,
+  // marker lookup and redaction run unchanged; no coverage state is modified.
+  try {
+    crypto.randomUUID = () => nonce;
+    syncBuiltinESMExports();
+    const collision = `\0QUANTPASS_URL_${nonce}_S999\0`;
+    const input = `prefix ${collision} https://public.example.test/path`;
+    const expected = 'prefix [REDACTED URL] https://public.example.test/path';
+    assert.equal(sanitizeLog(input), expected);
+    assert.equal(redactValue(input), expected);
+  } finally {
+    crypto.randomUUID = original;
+    syncBuiltinESMExports();
+  }
+  assert.equal(crypto.randomUUID, original);
 });
