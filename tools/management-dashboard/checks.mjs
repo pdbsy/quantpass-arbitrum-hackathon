@@ -145,16 +145,31 @@ function appendBounded(current, chunk, maximum) {
   return sanitizeLog(combined, { maxBytes: maximum });
 }
 
+const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+
+async function groupDisappeared(groupExists) {
+  for (let attempt = 0; attempt < 40 && groupExists(); attempt++) await delay(25);
+  return !groupExists();
+}
+
+// Trusted local command supervision, not OS isolation: detached descendants can escape this group.
 async function spawnProcess({ file, args, cwd, timeoutMs, maxOutputBytes }) {
   return new Promise((resolveProcess) => {
     let stdout = '';
     let stderr = '';
     let settled = false;
     let timedOut = false;
+    let closed = false;
+    let signalFailed = false;
+    let groupRetired = false;
+    let escalation;
+    let hardDeadline;
+    const nativeGroup = process.platform !== 'win32';
     const child = spawn(file, args, {
       cwd,
       env: safeEnvironment(),
       shell: false,
+      detached: nativeGroup,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
@@ -162,12 +177,50 @@ async function spawnProcess({ file, args, cwd, timeoutMs, maxOutputBytes }) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(escalation);
+      clearTimeout(hardDeadline);
+      if (!closed) {
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        child.unref();
+      }
       resolveProcess(result);
+    };
+    const groupExists = () => {
+      if (!child.pid || groupRetired) return false;
+      try {
+        process.kill(-child.pid, 0);
+        return true;
+      } catch (error) {
+        if (error.code === 'ESRCH') {
+          // Never signal a numeric process-group ID after its first observed disappearance.
+          groupRetired = true;
+          return false;
+        }
+        // EPERM or an unexpected OS error leaves cleanup unconfirmed.
+        return true;
+      }
+    };
+    const signalProcess = (signal) => {
+      if (!child.pid) return;
+      try {
+        if (nativeGroup) {
+          if (groupExists()) process.kill(-child.pid, signal);
+        } else if (child.exitCode === null && child.signalCode === null && !child.kill(signal))
+          signalFailed = true;
+      } catch (error) {
+        if (error.code === 'ESRCH') groupRetired = true;
+        else signalFailed = true;
+      }
     };
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGTERM');
-      setTimeout(() => child.kill('SIGKILL'), 1000).unref();
+      signalProcess('SIGTERM');
+      escalation = setTimeout(() => signalProcess('SIGKILL'), 1000);
+      hardDeadline = setTimeout(() => {
+        signalProcess('SIGKILL');
+        finish({ exitCode: 124, stdout, stderr, timedOut: true, cleanupConfirmed: false });
+      }, 2000);
     }, timeoutMs);
     child.stdout.on('data', (chunk) => {
       stdout = appendBounded(stdout, chunk.toString('utf8'), maxOutputBytes);
@@ -175,12 +228,42 @@ async function spawnProcess({ file, args, cwd, timeoutMs, maxOutputBytes }) {
     child.stderr.on('data', (chunk) => {
       stderr = appendBounded(stderr, chunk.toString('utf8'), maxOutputBytes);
     });
-    child.once('error', () =>
-      finish({ exitCode: 127, stdout, stderr: `${stderr}PROCESS_ERROR`, timedOut: false }),
-    );
-    child.once('close', (code) =>
-      finish({ exitCode: timedOut ? 124 : (code ?? 127), stdout, stderr, timedOut }),
-    );
+    child.once('error', () => {
+      if (child.pid) signalProcess('SIGKILL');
+      finish({
+        exitCode: 127,
+        stdout,
+        stderr: `${stderr}PROCESS_ERROR`,
+        timedOut: false,
+        cleanupConfirmed: !child.pid,
+      });
+    });
+    child.once('exit', () => {
+      if (nativeGroup) groupExists();
+    });
+    child.once('close', (code) => {
+      closed = true;
+      if (settled) return;
+      void (async () => {
+        let cleanupConfirmed = !signalFailed;
+        if (nativeGroup && child.pid) {
+          if (!(await groupDisappeared(groupExists))) {
+            if (settled) return;
+            signalProcess('SIGKILL');
+            await groupDisappeared(groupExists);
+            cleanupConfirmed = false;
+          }
+        } else if (timedOut) cleanupConfirmed = false;
+        if (settled) return;
+        finish({
+          exitCode: timedOut ? 124 : (code ?? 127),
+          stdout,
+          stderr,
+          timedOut,
+          cleanupConfirmed: cleanupConfirmed && !signalFailed,
+        });
+      })().catch(() => finish({ exitCode: 127, stdout, stderr, timedOut, cleanupConfirmed: false }));
+    });
   });
 }
 
@@ -195,6 +278,7 @@ function duration(startedAt, finishedAt) {
 function normalizedLog(result, maximum) {
   const parts = [];
   if (result.timedOut) parts.push('TIMEOUT');
+  if (result.cleanupConfirmed === false) parts.push('CLEANUP_UNCONFIRMED');
   if (result.stdout) parts.push(result.stdout.trimEnd());
   if (result.stderr) parts.push(result.stderr.trimEnd());
   const text = parts.filter(Boolean).join('\n') || '(no output)';
@@ -249,20 +333,29 @@ export async function runCheck(id, context) {
       maxOutputBytes: context.maxLogBytes ?? 65_536,
     });
   } catch {
-    result = { exitCode: 127, stdout: '', stderr: 'PROCESS_ERROR', timedOut: false };
+    result = {
+      exitCode: 127,
+      stdout: '',
+      stderr: 'PROCESS_ERROR',
+      timedOut: false,
+      cleanupConfirmed: false,
+    };
   }
   const finishedAt = iso(clock);
+  const cleanupConfirmed = result.cleanupConfirmed !== false;
+  const exitCode = result.timedOut ? 124 : !cleanupConfirmed && result.exitCode === 0 ? 127 : result.exitCode;
   return {
     record: {
       id: check.id,
-      status: result.exitCode === 0 && !result.timedOut ? 'PASS' : 'FAIL',
+      status: exitCode === 0 && cleanupConfirmed ? 'PASS' : 'FAIL',
       startedAt,
       finishedAt,
       durationMs: duration(startedAt, finishedAt),
-      exitCode: result.timedOut ? 124 : result.exitCode,
+      exitCode,
       evidence,
     },
     log: normalizedLog(result, context.maxLogBytes ?? 65_536),
+    cleanupConfirmed,
   };
 }
 
@@ -369,6 +462,10 @@ export async function runChecks(context) {
   const logs = [];
   for (const check of selected) {
     const result = await runCheck(check.id, { ...context, commit: initialGit.commit, clock, runId });
+    if (result.cleanupConfirmed === false) {
+      await atomicWrite(evidenceDirectory.root, evidenceDirectory.directory, `${check.id}.log`, result.log);
+      throw new Error('CHECK_PROCESS_CLEANUP_UNCONFIRMED');
+    }
     records.push(result.record);
     logs.push({ id: check.id, text: result.log });
     requireUnchangedGitState(initialGit, await collectGit(context.root, 'master'));
