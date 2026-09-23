@@ -15,3 +15,19 @@ Original chain retained at `refs/alphaforge/metadata-repair/pr22-20260923-origin
 | 1f1bee0a32092fd804b7ff55cd69f02f397f9993 | b4723a74c4a6b8d364fa93da4a3cafd27812afec | 2c6979acabca5b523bd4a47fa22fc2d5a775045a | False |
 
 The old remote head `3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8` remains an ancestor. Original scan and diagnostic reports retain their original commit bindings; code-identical repair does not relabel them as final-head CI.
+
+## Additional runner source repair
+
+The user separately approved the two new Macbeth03 subject corrections and their two manager successors. The original bodies, trees, author/committer identities and timestamps remain byte-equivalent; only the subjects and required parent links changed. Original worker checkout and branch are preserved. Corrected source branch: `macbeth03/m3-pr22-runner-closeout-corrected`.
+
+- `refs/alphaforge/metadata-repair/pr22-runner-20260923-original-manager` → `068bdbb337ffc9f06d4e4f9551326ed2a9a38de8`
+- `refs/alphaforge/metadata-repair/pr22-runner-20260923-original-source` → `bccc22ec3f9b5025ac80573c86dac8b1a63f10a0`
+
+| Original | Corrected | Tree | Message changed |
+| --- | --- | --- | --- |
+| 4513a20d47a4db86dfdd873b061ad34972b3074c | 8dd163cf916dfc4daa230360bcc9375f966b93f2 | 3257db2a53075489e458b37cfb56f8375f7d24d9 | True |
+| bccc22ec3f9b5025ac80573c86dac8b1a63f10a0 | 68c307dcc46c21f16fe50d3ddaf9a53162ad59e7 | 1c250d1eabe4531ba8579816ce6afb2877c5dfb2 | True |
+| 7d956a0f79e160ae9bf68d80c8550c4941e55abb | 24177578e0415771619109bfc16d3df53fc07eac | 7e4dfd3ba3d93f74fcb070b03244620f9877988f | False |
+| 068bdbb337ffc9f06d4e4f9551326ed2a9a38de8 | 002ff73544211d15cb1cbbec593cd2675d80b9a2 | 6306636c4e752ee38bb9abe463d1ac6910384fcf | False |
+
+The source subject must include the registered Agent-ID before admission, in addition to both body trailers. All later incoming ranges are validated before integration. No rule or required check was weakened; Anchor001 is unchanged.
