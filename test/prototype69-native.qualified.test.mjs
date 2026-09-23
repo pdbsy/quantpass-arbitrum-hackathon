@@ -192,10 +192,97 @@ export async function verifyPrototype69Shipped(page, { origin: shippedOrigin }) 
       },
       write: (name) => assert.equal(name, 'fixed-inputs.json', 'only read-only API diagnostics are omitted'),
     });
+    // Temp-A's native sequence uses the existing 650ms press delay unchanged.
+    const staleSession = await session({ reducedMotion: 'no-preference' });
+    const backendSnapshot = async () => {
+      const response = await page.request.get(shippedOrigin + '/api/vaults');
+      assert.equal(response.status(), 200);
+      return response.json();
+    };
+    const backendBefore = await backendSnapshot();
+    const writes = [];
+    const onRequest = (request) => {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()))
+        writes.push({ method: request.method(), pathname: new URL(request.url()).pathname });
+    };
+    page.on('request', onRequest);
+    const other = await staleSession.context.newPage();
+    extraPages.add(other);
+    other.on('pageerror', onError);
+    other.on('request', onRequest);
+    try {
+      await navigate(page, '/account/funds', '[data-cash="withdraw"]');
+      await page.locator('[data-cash="withdraw"]').click();
+      await page.locator('#cash-amount').fill('3');
+      await page.locator('#cash-form [type="submit"]').click();
+      await page.locator('[data-action="commit"]').click();
+      await page
+        .locator('#dialog-body h2')
+        .filter({ hasText: /Request recorded/ })
+        .waitFor();
+      await closeDialog(page);
+      const pending = await page.evaluate('AF.store.read()');
+      assert.equal(pending.pending.length, 1);
+      await other.goto(shippedOrigin + '/#/account/funds');
+      await ready(other);
+      await other.locator('[data-withdraw-confirm]').click();
+      await other.locator('[data-action="commit"]').click();
+      await other
+        .locator('#dialog-body h2')
+        .filter({ hasText: /recorded/ })
+        .waitFor();
+      await closeDialog(other);
+      assert.equal(await other.evaluate('AF.store.read().pending.length'), 0);
+      assert.equal(
+        await page.evaluate('AF.store.read().pending.length'),
+        1,
+        'the storage event does not itself synchronize the first window ledger',
+      );
+      await navigate(page, '/home', '#press-button');
+      await page.locator('#press-button').click();
+      await navigate(page, '/account/funds', '[data-withdraw-confirm]');
+      assert.equal(await page.locator('[data-withdraw-confirm]').count(), 1);
+      await page.waitForFunction(
+        () =>
+          globalThis.AF.store.read().samplePass === true && globalThis.AF.store.read().pending.length === 0,
+        undefined,
+        { timeout: 5000 },
+      );
+      assert.equal(
+        await page.locator('[data-withdraw-confirm]').count(),
+        1,
+        'the delayed native press syncs state without rebuilding the funds page',
+      );
+      const beforeClick = await page.evaluate('({trial:AF.store.read(),exchange:AF.exchange.read()})');
+      await page.locator('[data-withdraw-confirm]').click();
+      await page.locator('#toast').filter({ hasText: 'This request has already been processed.' }).waitFor();
+      assert.equal(await page.locator('[data-withdraw-confirm]').count(), 0);
+      assert.equal(await page.locator('#app-dialog[open]').count(), 0);
+      const afterClick = await page.evaluate('({trial:AF.store.read(),exchange:AF.exchange.read()})');
+      assert.deepEqual(afterClick, beforeClick, 'the stale withdrawal click changes neither ledger');
+      assert.equal(afterClick.trial.netFunding, pending.netFunding - 300);
+      assert.equal(
+        afterClick.trial.history.filter((row) => row.type === 'Confirm demo withdrawal').length,
+        1,
+      );
+      assert.deepEqual(await backendSnapshot(), backendBefore);
+      assert.deepEqual(writes, [], 'the cross-window trial flow sends no backend mutations');
+      assert.deepEqual(errors, [], 'the cross-window flow causes no page error');
+      checks.push({
+        name: 'stale-withdrawal-after-delayed-press',
+        scope: 'SHIPPED_LOCAL_MOCK_UI',
+        inputClass: 'NATIVE_UI_CROSS_WINDOW_DELAYED_PRESS',
+        targets: [['471', 0]],
+      });
+    } finally {
+      page.off('request', onRequest);
+      await other.close();
+      extraPages.delete(other);
+    }
     assert.equal(
       checks.length,
-      9,
-      'eight shipped UI groups and one explicit exported API group must complete',
+      10,
+      'nine shipped UI groups and one explicit exported API group must complete',
     );
     return checks;
   } finally {
@@ -654,6 +741,30 @@ async function runPrototype69Cases({
         dialogState,
         'opening and closing the public dialog preserves both ledgers and exact stored bytes',
       );
+      await navigate(page, '/trade/trend', '#pass-order-form');
+      await page.locator('#pass-qty').fill('1');
+      await page.locator('#pass-order-form [type="submit"]').click();
+      await page.locator('#quote-countdown').waitFor();
+      const quoteState = await page.evaluate(
+        '({trial:AF.store.read(),exchange:AF.exchange.read(),trialStorage:localStorage.getItem("alphaforge.prototype.v3"),exchangeStorage:localStorage.getItem("alphaforge.passmarket.v3")})',
+      );
+      await page.evaluate(
+        'AF.app.openDialog("<h2>Public dialog replacement</h2><p>Read-only replacement while a reviewed quote is open.</p>")',
+      );
+      assert.equal(await page.locator('#app-dialog[open]').count(), 1);
+      assert.equal(await page.locator('#quote-countdown').count(), 0);
+      // Allow the unchanged, real 1000ms quote interval to observe the replaced dialog.
+      await page.waitForTimeout(1250);
+      assert.equal(await page.locator('#app-dialog[open]').count(), 1);
+      assert.equal(await page.locator('#dialog-body h2').innerText(), 'Public dialog replacement');
+      assert.deepEqual(
+        await page.evaluate(
+          '({trial:AF.store.read(),exchange:AF.exchange.read(),trialStorage:localStorage.getItem("alphaforge.prototype.v3"),exchangeStorage:localStorage.getItem("alphaforge.passmarket.v3")})',
+        ),
+        quoteState,
+        'public dialog replacement and the natural timer tick do not execute or mutate either ledger',
+      );
+      await closeDialog(page);
       if (shipped) assert.deepEqual(await backendSnapshot(), backendBefore);
       assert.deepEqual(backendWrites, [], 'public dialog operations send no backend mutations');
       assert.deepEqual(s.errors, [], 'public dialog operations cause no uncaught page error');
@@ -669,6 +780,7 @@ async function runPrototype69Cases({
         ['219', 0],
         ['334', 1],
         ['385', 1],
+        ['529', 0],
       ],
       { inputClass: 'EXPORTED_API_ONLY', fixedInputs },
     );
