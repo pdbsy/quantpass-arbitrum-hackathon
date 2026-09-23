@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { classifySemgrep, classifyOSV, packageKey } from '../tools/security/results.mjs';
@@ -225,6 +225,24 @@ test('contract gate blocks before toolchain stages when native Python is unavail
   const report = JSON.parse(child.stdout);
   assert.equal(report.state, 'BLOCKED');
   assert.equal(report.reason, 'Native Python prerequisite unavailable');
+});
+
+test('environment CLI writes the bounded report only after validation', (t) => {
+  const reportPath = fileURLToPath(new URL('../.checks/environment/report.json', import.meta.url));
+  rmSync(reportPath, { force: true });
+  t.after(() => rmSync(reportPath, { force: true }));
+  const child = spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL('../tools/check-environment.mjs', import.meta.url)), '--write-report'],
+    { env: process.env, encoding: 'utf8', timeout: 30000 },
+  );
+  assert.equal(child.error, undefined);
+  assert.ok([0, 1, 2].includes(child.status));
+  const report = JSON.parse(child.stdout);
+  assert.equal(report.schemaVersion, 1);
+  assert.equal(report.exitCode, child.status);
+  assert.equal(existsSync(reportPath), true);
+  assert.deepEqual(JSON.parse(readFileSync(reportPath, 'utf8')), report);
 });
 
 test('actual bootstrap and integration entrypoints reject malformed local invocation', () => {
