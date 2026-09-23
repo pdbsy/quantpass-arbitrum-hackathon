@@ -233,6 +233,85 @@ test('real environment probes bind a clean fixture to exact source and local npm
   assert.ok(report.commands.some((c) => c.id === 'npm-version' && c.exitCode === 0));
 });
 
+test('repository root aliases preserve exact identity while shared data links still fail', (t) => {
+  const f = fixture(t);
+  const alias = join(f.parent, 'source-alias');
+  symlinkSync(f.root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  assert.equal(realpathSync.native(alias), realpathSync.native(f.root));
+  const aliased = f.inspect({ root: alias });
+  assert.equal(status(aliased, 'repository'), 'PASS');
+  assert.equal(aliased.head, f.git('rev-parse', 'HEAD'));
+  assert.equal(aliased.tree, f.git('rev-parse', 'HEAD^{tree}'));
+  const shared = join(f.parent, 'shared-data');
+  mkdirSync(shared);
+  symlinkSync(shared, join(f.root, '.data'), process.platform === 'win32' ? 'junction' : 'dir');
+  const linked = f.inspect({ root: alias });
+  assert.equal(status(linked, 'repository'), 'PASS');
+  assert.equal(status(linked, 'isolation'), 'FAIL');
+  assert.equal(linked.eligibleForEvidence, false);
+});
+
+test('a directory contained by the repository is not accepted as its root', (t) => {
+  const f = fixture(t);
+  const nested = join(f.root, 'nested');
+  mkdirSync(join(nested, 'planning'), { recursive: true });
+  for (const file of [
+    '.node-version',
+    'package.json',
+    'package-lock.json',
+    'planning/development-environment.json',
+    'planning/supply-chain-policy.json',
+  ])
+    copyFileSync(join(f.root, file), join(nested, file));
+  assert.notEqual(realpathSync.native(nested), realpathSync.native(f.root));
+  const report = f.inspect({ root: nested });
+  assert.equal(status(report, 'repository'), 'FAIL');
+  assert.equal(report.eligibleForEvidence, false);
+  assert.equal(status(f.inspect(), 'repository'), 'PASS');
+});
+
+test('linked worktree roots bind to their own canonical directory and retain remote checks', (t) => {
+  const f = fixture(t);
+  const worktree = join(f.parent, 'source-worktree');
+  f.git('worktree', 'add', '-b', 'linked-fixture', worktree);
+  assert.notEqual(realpathSync.native(worktree), realpathSync.native(f.root));
+  assert.ok(statSync(join(worktree, '.git')).isFile());
+  const report = f.inspect({ root: worktree });
+  for (const id of ['repository', 'history', 'workspace', 'files', 'isolation'])
+    assert.equal(status(report, id), 'PASS', id);
+  assert.equal(report.head, f.git('rev-parse', 'HEAD'));
+  f.git('remote', 'set-url', 'origin', 'https://example.invalid/different/repository.git');
+  assert.equal(status(f.inspect({ root: worktree }), 'repository'), 'FAIL');
+});
+
+test(
+  'native Windows short and long root spellings identify the same repository',
+  {
+    skip: process.platform !== 'win32' ? 'NOT_RUN: requires native Windows filesystem short names' : false,
+  },
+  (t) => {
+    const f = fixture(t);
+    const shortRoot = realpathSync(f.root);
+    const gitRoot = realpathSync(f.git('rev-parse', '--show-toplevel'));
+    if (!/~\d/.test(shortRoot) || shortRoot === gitRoot) {
+      t.skip('NOT_RUN: this Windows fixture has no distinct short-name root alias');
+      return;
+    }
+    assert.equal(realpathSync.native(shortRoot), realpathSync.native(gitRoot));
+    const first = statSync(shortRoot, { bigint: true });
+    const second = statSync(gitRoot, { bigint: true });
+    assert.notEqual(first.ino, 0n);
+    assert.equal(first.ino, second.ino);
+    assert.equal(first.dev, second.dev);
+    for (const root of [shortRoot, gitRoot]) {
+      const report = f.inspect({ root });
+      for (const id of ['repository', 'history', 'files', 'isolation'])
+        assert.equal(status(report, id), 'PASS', id);
+      assert.equal(report.head, f.git('rev-parse', 'HEAD'));
+    }
+  },
+);
+
 test('injected interpreter settings stop real environment probes before launching npm or Git', (t) => {
   const f = fixture(t);
   const report = f.inspect({

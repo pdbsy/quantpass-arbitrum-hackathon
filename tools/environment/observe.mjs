@@ -320,7 +320,10 @@ export function inspectEnvironment({ root = ROOT, mode = 'dev', environment = pr
       o.overrides.push('git-history');
       return evaluate(inputs, o, mode);
     }
-    o.rootValid = realpathSync(git(['rev-parse', '--show-toplevel'])) === root;
+    // Windows short and long names can survive the JavaScript realpath resolver.
+    // Compare both roots through the native filesystem resolver, without case
+    // folding or accepting a merely contained directory.
+    o.rootValid = realpathSync.native(git(['rev-parse', '--show-toplevel'])) === realpathSync.native(root);
     const origin = git(['remote', 'get-url', 'origin']);
     const expected = inputs.supply.repository;
     o.originValid = [
