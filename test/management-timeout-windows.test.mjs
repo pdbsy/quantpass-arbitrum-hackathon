@@ -153,6 +153,9 @@ await writeFile(${JSON.stringify(resultPath)}, JSON.stringify(result), { flag: '
         outer.once('error', reject);
         outer.once('exit', (code, signal) => resolveExit({ code, signal }));
       });
+      // Observe an immediate spawn rejection while startup identity capture is
+      // pending; the original promise below still propagates it as test failure.
+      completion.catch(() => {});
       const deadline = new Promise((_, reject) => {
         watchdog = setTimeout(() => reject(new Error('Windows timeout outer watchdog expired')), 160_000);
       });
