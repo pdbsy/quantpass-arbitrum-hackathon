@@ -131,6 +131,28 @@ test('real environment and CI entrypoints reject injected interpreter settings b
   }
 });
 
+test('actual supply-chain CLI rejects an unpinned workflow action in an isolated checkout', (t) => {
+  const root = isolatedCheckout(t, { yaml: true });
+  const workflow = join(root, '.github/workflows/ci.yml');
+  const original = readFileSync(workflow, 'utf8');
+  const sbom = join(root, 'docs/security/npm-sbom.spdx.json');
+  const originalSbom = readFileSync(sbom);
+  const unpinned = original.replace(/(actions\/checkout@)[a-f0-9]{40}/, '$1v7');
+  assert.notEqual(unpinned, original, 'the fixture must alter a real pinned action');
+  writeFileSync(workflow, unpinned);
+  const child = spawnSync(process.execPath, [join(root, 'tools/check-supply-chain.mjs')], {
+    cwd: root,
+    env: process.env,
+    encoding: 'utf8',
+    timeout: 15000,
+  });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 1);
+  assert.equal(child.stdout, '');
+  assert.match(child.stderr, /Invalid supply-chain state: .*unpinned or malformed Action reference/);
+  assert.deepEqual(readFileSync(sbom), originalSbom);
+});
+
 test('CI report emission preserves failure exits and rejects oversized evidence before output', (t) => {
   const previous = process.exitCode;
   const rows = [];

@@ -111,6 +111,16 @@ test('absent PATH and conflicting npm executable cannot be admitted as an aligne
   }
 });
 
+test('missing PATH rejects an otherwise available exact npm runtime', (t) => {
+  const f = fixture(t);
+  const environment = { ...f.environment };
+  delete environment.PATH;
+  const report = f.inspect({ environment });
+  assert.ok(report.commands.some((command) => command.id === 'npm-version' && command.exitCode === 0));
+  assert.notEqual(status(report, 'platform'), 'PASS');
+  assert.equal(report.eligibleForEvidence, false);
+});
+
 test('an exact Node copy without adjacent npm rejects the native npm prerequisite', (t) => {
   assert.equal(process.versions.node, readFileSync(join(repository, '.node-version'), 'utf8').trim());
   const directory = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-node-no-npm-')));
