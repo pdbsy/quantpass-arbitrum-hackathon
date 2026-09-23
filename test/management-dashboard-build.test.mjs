@@ -456,6 +456,39 @@ test('artifact writes are deterministic, checkable, atomic, and retain the last 
   assert.equal(await readFile(dashboardPath, 'utf8'), original);
 });
 
+test('artifact writer records READY when a fully populated snapshot has no diagnostics', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'quantpass-dashboard-ready-artifacts-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const sources = fixtureSources();
+  sources.workers.workerA = source('docs/management/workers/worker-a.md', {
+    current: { status: 'READY' },
+    activities: [],
+  });
+  for (const [name, collected] of Object.entries(sources.management)) {
+    collected.status = 'READY';
+    collected.data = { text: `${name} is available` };
+  }
+  const snapshot = buildDashboardSnapshot({
+    sources,
+    git: { ...gitState(), dirtyFiles: 0 },
+    checkReport: completeCheckReport(currentCommit),
+    observedAt,
+    linkStates: {
+      'docs/adr/0001.md': true,
+      'docs/security/report.md': true,
+      'docs/management/host/HOST-SETUP.md': true,
+      'docs/ROBINHOOD-CHAIN.md': true,
+    },
+  });
+  assert.deepEqual(snapshot.dashboardLog, []);
+  await writeDashboardArtifacts(root, snapshot);
+  const buildLog = JSON.parse(
+    await readFile(join(root, 'docs/management/dashboard/data/build-log.json'), 'utf8'),
+  );
+  assert.equal(buildLog.status, 'READY');
+  assert.deepEqual(buildLog.diagnostics, []);
+});
+
 test('artifact writer rejects a symlinked output directory without touching external files', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'quantpass-dashboard-build-symlink-'));
   const outside = await mkdtemp(join(tmpdir(), 'quantpass-dashboard-build-target-'));
@@ -725,6 +758,60 @@ test('check mode remains reproducible after the generated snapshot is committed'
   );
 
   await assert.doesNotReject(() => main(['--check'], { root, environment: {} }));
+});
+
+test('check mode reports a missing versioned check report after a clean artifact commit', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'quantpass-dashboard-missing-report-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, 'planning'), { recursive: true });
+  await writeFile(join(root, '.gitignore'), '.checks/\n');
+  await writeFile(
+    join(root, 'planning/roadmap.json'),
+    `${JSON.stringify({
+      project: { name: 'QuantPass', network: 'Robinhood Chain Testnet', chainId: 46630 },
+      tasks: [],
+      releaseGates: [],
+    })}\n`,
+  );
+  execFileSync('git', ['init', '--quiet', '-b', 'master'], { cwd: root });
+  execFileSync('git', ['add', '--all'], { cwd: root });
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'user.name=Macbeth',
+      '-c',
+      'user.email=pdbsy@users.noreply.github.com',
+      'commit',
+      '--quiet',
+      '-m',
+      'baseline',
+    ],
+    { cwd: root },
+  );
+  execFileSync('git', ['switch', '--quiet', '-c', 'macbeth/dashboard'], { cwd: root });
+
+  await main([`--observed-at=${observedAt}`], { root, environment: {} });
+  execFileSync('git', ['add', '--all'], { cwd: root });
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'user.name=Macbeth',
+      '-c',
+      'user.email=pdbsy@users.noreply.github.com',
+      'commit',
+      '--quiet',
+      '-m',
+      'generated dashboard without check report',
+    ],
+    { cwd: root },
+  );
+
+  await assert.rejects(
+    () => main(['--check'], { root, environment: {} }),
+    /^Error: CHECK_REPORT_NOT_AVAILABLE$/,
+  );
 });
 
 test('check mode uses a versioned report in local, push, PR, queue, and integration layouts', async (t) => {
@@ -1291,4 +1378,13 @@ test('reachable dashboard branches preserve explicit statuses and defensive sect
   });
   assert.equal(unavailableCheck.tests.status, 'NOT_RUN');
   assert.ok(unavailableCheck.tests.items.every((item) => item.status === 'NOT_RUN'));
+
+  const missingReadyDocumentData = make();
+  missingReadyDocumentData.documents.architecture = source('docs/adr', undefined);
+  const defensiveSnapshot = snapshotFor(missingReadyDocumentData);
+  assert.equal(
+    defensiveSnapshot.links.some((item) => item.kind === 'architecture'),
+    false,
+  );
+  assert.notEqual(defensiveSnapshot.integration.status, 'DATA_SOURCE_ERROR');
 });

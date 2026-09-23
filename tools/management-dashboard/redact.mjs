@@ -656,8 +656,18 @@ function redactStaticBracketAssignments(value) {
 function containsAuthorizationCredential(payload, scheme) {
   // Logs may quote just the credential. Unwrap only a single token with a
   // matching quote, leaving multiword explanations to the ordinary checks.
-  const quoted = /^[ \t]*(["'`])([-A-Za-z0-9._~+/]+=*)\1(?=$|[ \t,;()])/.exec(payload);
-  if (quoted) payload = `${quoted[2]}${payload.slice(quoted[0].length)}`;
+  const quoted = /^[ \t]*(["'`])([-A-Za-z0-9._~+/]+=*)\1/.exec(payload);
+  if (quoted) {
+    // A quoted Bearer token is opaque even when its diagnostic suffix is adjacent.
+    // Basic still requires a canonical user:password payload.
+    if (/^bearer$/i.test(scheme)) return true;
+    if (/^basic$/i.test(scheme)) {
+      const bytes = Buffer.from(quoted[2], 'base64');
+      if (bytes.includes(58) && bytes.toString('base64').replace(/=+$/, '') === quoted[2].replace(/=+$/, ''))
+        return true;
+    }
+    payload = `${quoted[2]}${payload.slice(quoted[0].length)}`;
+  }
   // Basic has a verifiable user:password encoding; do not rely on entropy or
   // length. Bearer values are opaque, so an isolated or punctuation-delimited
   // token is treated conservatively, including quoted responses/status suffixes.
