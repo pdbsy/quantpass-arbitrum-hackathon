@@ -6,8 +6,13 @@ const cases = [
   { kind: 'pass', cancel: 'back', first: '1' },
   { kind: 'pass', cancel: 'button', first: '1', second: '0.000000000000000001' },
   { kind: 'pass', cancel: 'button', first: '1', second: '0.000000000000000001', rejectFirst: true },
+  { kind: 'pass', first: '1', second: '2', rejectFirst: true, keepOpen: true },
   { kind: 'vault', cancel: 'button', first: '1', second: '2' },
+  { kind: 'vault', cancel: 'button', first: '1', second: '2', rejectFirst: true },
+  { kind: 'vault', first: '1', second: '2', rejectFirst: true, keepOpen: true },
   { kind: 'approval', cancel: 'button', first: '1', second: '2' },
+  { kind: 'approval', cancel: 'button', first: '1', second: '2', rejectFirst: true },
+  { kind: 'approval', first: '1', second: '2', rejectFirst: true, keepOpen: true },
 ];
 
 async function exercise(parent, origin, scenario) {
@@ -119,6 +124,46 @@ async function exercise(parent, origin, scenario) {
 
     await review(scenario.first);
     await page.waitForFunction(() => window.__reviewEntered === true);
+    if (scenario.keepOpen) {
+      await page.evaluate(() => window.__releaseReview());
+      await page
+        .locator('dialog[open] [data-product-dialog-error]')
+        .filter({ hasText: 'DEV_REVIEW_REJECTED' })
+        .waitFor();
+      const reviewSelector = scenario.kind === 'pass' ? '[data-pass-review]' : '[data-chain-review]';
+      assert.equal(await page.locator(`dialog[open] ${reviewSelector}`).isEnabled(), true);
+      await page
+        .locator(`dialog[open] [name="${scenario.kind === 'pass' ? 'passAmount' : 'chainAmount'}"]`)
+        .fill(scenario.second);
+      await page.locator(`dialog[open] ${reviewSelector}`).click();
+      const confirmSelector =
+        scenario.kind === 'pass'
+          ? '[data-pass-confirm]'
+          : scenario.kind === 'vault'
+            ? '[data-chain-confirm]'
+            : '[data-chain-approve]';
+      await page.locator(`dialog[open] ${confirmSelector}`).first().waitFor();
+      const body = await page.locator('dialog[open]').textContent();
+      assert.match(
+        body,
+        scenario.kind === 'pass'
+          ? /2000000000000000000 Pass base units/
+          : scenario.kind === 'vault'
+            ? /2000000 AF-USDC base units/
+            : /required 2000000/,
+      );
+      assert.doesNotMatch(body, /DEV_REVIEW_REJECTED/);
+      assert.equal(
+        await page.evaluate(
+          () => window.__fixtureRequests.filter((request) => request.method === 'eth_sendTransaction').length,
+        ),
+        0,
+      );
+      await page.locator('dialog[open] [data-close]').click();
+      assert.deepEqual(pageErrors, []);
+      assert.deepEqual(blocked, []);
+      return;
+    }
     if (scenario.cancel === 'back') {
       await page.goBack();
       assert.equal(new URL(page.url()).hash, '#/home');
@@ -170,7 +215,9 @@ export async function verifyM3LateReviewCancellation(page, origin) {
   for (const scenario of cases) {
     await exercise(page, origin, scenario);
     checks.push(
-      `Slow ${scenario.kind} review cancelled by ${scenario.cancel}${scenario.rejectFirst ? ' with late rejection' : ''} cannot revive an old dialog or override a fresh review`,
+      scenario.keepOpen
+        ? `Slow ${scenario.kind} review rejection leaves its current dialog correctable without wallet send`
+        : `Slow ${scenario.kind} review cancelled by ${scenario.cancel}${scenario.rejectFirst ? ' with late rejection' : ''} cannot revive an old dialog or override a fresh review`,
     );
   }
   return checks;
