@@ -1392,7 +1392,17 @@
       "target_path": "tools/sync-agent-forum.mjs",
       "method": "selective import; canonical repository allowlist and dashboard link adapted; PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "d4743301b018a830585c1fc00c988122844cc455aa21b35b426165cab56e5acd",
-      "migrated_sha256": "618dc6c4655f143579e1ebef7352b1891013bf401d3d7e0d4c10db0f3514e53a"
+      "migrated_sha256": "998dda0c09279866ebbf7511ca45f7f1c9d494cea3af1d20aa05acddc7e79b0d",
+      "subsequent_revisions": [
+        {
+          "commit": "bfb85376b13f49c7a77220095991cf5b3d4365c3",
+          "agent": "Macbeth01",
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "previous_sha256": "618dc6c4655f143579e1ebef7352b1891013bf401d3d7e0d4c10db0f3514e53a",
+          "current_sha256": "998dda0c09279866ebbf7511ca45f7f1c9d494cea3af1d20aa05acddc7e79b0d",
+          "reason": "Accept the exact canonical HTTPS remote emitted by standard GitHub checkout while retaining the original two exact origins and rejecting foreign hosts or paths. Original migration metadata and hashes retained."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
