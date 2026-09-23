@@ -21,7 +21,7 @@
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
       "branch": "macbeth04/m3-pr22-reachable-closeout",
-      "head": "cd75eaa00be348310740ce598bd68401c6d54247"
+      "head": "ed0ab288466f7e5b1ec69101e2f4e8199c10f24d"
     },
     {
       "agent": "Macbeth05",
@@ -39,7 +39,7 @@
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "1d1e04bc5cac84ef322c3cbc4cf1b8759cb8fd13"
+      "head": "a57f70b8949666a3da47b927c59a26a23f35ca89"
     },
     {
       "agent": "Macbeth02",

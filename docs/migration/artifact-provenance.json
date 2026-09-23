@@ -1942,7 +1942,7 @@
       "target_path": "apps/web/src/product-ui.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3-04-PRODUCT-UI adds the manifest-bound Vault runtime, finite approval review and canonical evidence readback",
       "original_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38",
-      "migrated_sha256": "db0a19114ecf66ed1dcdbf85d7d85e89abe4d7ce53ed2117ab0126166c06cd4e",
+      "migrated_sha256": "4ec78d4ed748ee886a44e915c5a91dcab24f641b9e741ab4b6ff2f18efff40de",
       "subsequent_adaptations": [
         {
           "task": "M3-01-PHASE1-CLOSEOUT",
@@ -1965,6 +1965,14 @@
           "previous_sha256": "dd368d5033b1d30dc7c4707c18523976e3fc37f6a746b4101c7a674ec94d7f99",
           "current_sha256": "db0a19114ecf66ed1dcdbf85d7d85e89abe4d7ce53ed2117ab0126166c06cd4e",
           "reason": "Discard late review success and rejection after the original dialog is cancelled or replaced; independently reviewed by Macbeth05."
+        },
+        {
+          "commit": "ed0ab288466f7e5b1ec69101e2f4e8199c10f24d",
+          "agent": "Macbeth04",
+          "task": "M3-04-PHASE1-PRODUCT",
+          "previous_sha256": "db0a19114ecf66ed1dcdbf85d7d85e89abe4d7ce53ed2117ab0126166c06cd4e",
+          "current_sha256": "4ec78d4ed748ee886a44e915c5a91dcab24f641b9e741ab4b6ff2f18efff40de",
+          "reason": "Bind late confirmation UI updates to the original live dialog while allowing the original approved request to complete once; preserve all original migration history."
         }
       ]
     },
