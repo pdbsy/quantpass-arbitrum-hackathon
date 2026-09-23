@@ -1077,6 +1077,61 @@ test('workspace scan fails closed for NUL bytes in every repository file extensi
   );
 });
 
+test('workspace scan inspects every file through 10 MiB and detects a canary after the old limit', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-public-capacity-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  initializeRepository(root);
+  const payload = 'x'.repeat(1024 * 1024);
+  // The shared Git fixture already tracks .gitattributes. Include its real
+  // bytes in the ten-file boundary rather than dropping it from the scan.
+  const attributes = await fsPromises.readFile(join(root, '.gitattributes'));
+  const files = Array.from({ length: 9 }, (_, index) => `bounded-${index}.txt`);
+  await Promise.all(files.map((file) => writeFile(join(root, file), payload)));
+  const lastFile = files.at(-1);
+  const lastPayload = 'x'.repeat(2 * 1024 * 1024 - attributes.length);
+  await writeFile(join(root, lastFile), lastPayload);
+  execFileSync('git', ['add', ...files], { cwd: root });
+  const ordered = execFileSync('git', ['ls-files', '-c', '-o', '--exclude-standard', '-z'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter(Boolean);
+  assert.deepEqual(ordered, ['.gitattributes', ...files]);
+  const sizes = await Promise.all(ordered.map(async (file) => (await lstat(join(root, file))).size));
+  assert.equal(
+    sizes.reduce((total, size) => total + size, 0),
+    10 * 1024 * 1024,
+  );
+  const logs = [];
+  t.mock.method(console, 'log', (message) => logs.push(message));
+  await scanPublicMetadata(root);
+  assert.equal(logs.length, 1);
+  assert.match(logs[0], /passed: 10 bounded repository files/);
+  logs.length = 0;
+  // Reuse the existing synthetic private-network canary used below.
+  const privateAddress = ['10', '45', '3', '8'].join('.');
+  const canary = `\nPrivate address: ${privateAddress}\n`;
+  assert.ok(10 * 1024 * 1024 - Buffer.byteLength(canary) > 8 * 1024 * 1024);
+  await writeFile(join(root, lastFile), lastPayload.slice(0, lastPayload.length - canary.length) + canary);
+  await assert.rejects(scanPublicMetadata(root), (error) => {
+    assert.match(error.message, /bounded-8\.txt: private-network/);
+    assert.doesNotMatch(error.message, /total-text-budget-exceeded/);
+    assert.equal(error.message.includes(privateAddress), false);
+    return true;
+  });
+  assert.deepEqual(logs, [], 'a trailing canary must prevent a success message');
+  await writeFile(join(root, lastFile), lastPayload);
+  await scanPublicMetadata(root);
+  assert.equal(logs.length, 1);
+  assert.match(logs[0], /passed: 10 bounded repository files/);
+  logs.length = 0;
+  await writeFile(join(root, 'overflow.txt'), 'x');
+  execFileSync('git', ['add', 'overflow.txt'], { cwd: root });
+  await assert.rejects(scanPublicMetadata(root), /overflow\.txt: total-text-budget-exceeded/);
+  assert.deepEqual(logs, [], 'one excess byte must prevent a success message');
+});
+
 test('workspace scan fails closed when the bounded total text budget is exceeded', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'quantpass-public-total-budget-'));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -1084,7 +1139,7 @@ test('workspace scan fails closed when the bounded total text budget is exceeded
   await mkdir(join(root, 'records'), { recursive: true });
   const payload = 'x'.repeat(1024 * 1024);
   await Promise.all(
-    Array.from({ length: 9 }, (_, index) =>
+    Array.from({ length: 11 }, (_, index) =>
       writeFile(join(root, 'records', `bounded-${index}.txt`), payload),
     ),
   );

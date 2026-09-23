@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const maximumGitOutputBytes = 4 * 1024 * 1024;
 const maximumTextBytes = 2 * 1024 * 1024;
-const maximumTotalTextBytes = 8 * 1024 * 1024;
+const maximumTotalTextBytes = 10 * 1024 * 1024;
 const maximumFiles = 10_000;
 const maximumStructuredDepth = 32;
 const maximumStructuredProperties = 10_000;
