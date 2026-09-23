@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { lstat, mkdir, realpath, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname, resolve, sep } from 'node:path';
+import { delimiter, dirname, resolve, sep } from 'node:path';
+import { npmCli } from '../environment/observe.mjs';
 
 import { sanitizeLog } from './redact.mjs';
 import { validateCheckReport } from './schema.mjs';
@@ -134,9 +135,10 @@ function safeEnvironment() {
   const env = {
     CI: '1',
     LC_ALL: 'C',
-    PATH: process.env.PATH,
+    PATH: [dirname(process.execPath), process.env.PATH ?? ''].join(delimiter),
   };
   if (process.env.TMPDIR) env.TMPDIR = process.env.TMPDIR;
+  if (process.platform === 'win32' && process.env.SystemRoot) env.SystemRoot = process.env.SystemRoot;
   return env;
 }
 
@@ -156,6 +158,10 @@ async function groupDisappeared(groupExists) {
 
 // Trusted local command supervision, not OS isolation: detached descendants can escape this group.
 async function spawnProcess({ file, args, cwd, timeoutMs, maxOutputBytes }) {
+  // npm.cmd cannot be executed without a shell on Windows. Keep shell:false and
+  // bind both npm and node to the approved current Node installation.
+  const executable = ['node', 'npm'].includes(file) ? process.execPath : file;
+  const executableArgs = file === 'npm' ? [npmCli(), ...args] : args;
   return new Promise((resolveProcess) => {
     let stdout = '';
     let stderr = '';
@@ -167,7 +173,7 @@ async function spawnProcess({ file, args, cwd, timeoutMs, maxOutputBytes }) {
     let escalation;
     let hardDeadline;
     const nativeGroup = process.platform !== 'win32';
-    const child = spawn(file, args, {
+    const child = spawn(executable, executableArgs, {
       cwd,
       env: safeEnvironment(),
       shell: false,
