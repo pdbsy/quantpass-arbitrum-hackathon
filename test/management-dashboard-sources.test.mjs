@@ -1393,3 +1393,14 @@ test('worker current status without an activity section remains explicitly empty
   assert.deepEqual(parsed.activities, []);
   assert.deepEqual(parsed.current, parseWorkerLog(original).current);
 });
+
+test('document collection keeps only regular Markdown entries and records ignored file kinds', async (t) => {
+  const root = await createSourceFixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, 'docs/adr/valid.md'), '# valid\n');
+  await writeFile(join(root, 'docs/adr/ignored.txt'), 'ignored\n');
+  await mkdir(join(root, 'docs/adr/nested.md'));
+  const sources = await collectRepositorySources(root, { observedAt });
+  assert.equal(sources.documents.architecture.status, 'READY');
+  assert.deepEqual(sources.documents.architecture.data, ['docs/adr/valid.md']);
+});

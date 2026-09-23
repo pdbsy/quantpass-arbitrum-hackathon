@@ -457,3 +457,22 @@ test('a missing process working directory yields failed evidence and a bounded g
   assert.equal(failed.record.exitCode, 127);
   assert.equal(failed.log, 'PROCESS_ERROR\n');
 });
+
+test('runCheck records a process terminated by signal as a failure with bounded evidence', async () => {
+  const result = await runCheck('lint', {
+    root: process.cwd(),
+    commit,
+    runId: 'signal-run',
+    clock: clock('2026-09-08T22:46:00.000Z', '2026-09-08T22:46:00.010Z'),
+    runProcess: async () => ({
+      exitCode: null,
+      signal: 'SIGTERM',
+      stdout: '',
+      stderr: 'terminated',
+      timedOut: false,
+    }),
+  });
+  assert.equal(result.record.status, 'FAIL');
+  assert.equal(result.record.exitCode, null);
+  assert.match(result.log, /terminated/);
+});
