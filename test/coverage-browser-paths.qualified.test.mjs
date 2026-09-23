@@ -17,6 +17,7 @@ import { prepareCoverage } from '../tools/coverage/prepare.mjs';
 import { collectBrowserCoverage } from '../tools/coverage/browser.mjs';
 import { collectNodeWorkflow } from '../tools/coverage/collect.mjs';
 import { reportCoverage } from '../tools/coverage/report.mjs';
+import { collectManagementBrowserCoverage } from '../tools/coverage/browser-legacy.mjs';
 import { loadCoverageTools } from '../tools/coverage/toolchain.mjs';
 import { replayBrowserCoverage } from '../tools/coverage/browser-evidence.mjs';
 const repository = resolve(import.meta.dirname, '..');
@@ -27,7 +28,7 @@ assert.ok(
   'qualified browser inputs required',
 );
 
-async function fixture(t, external = false) {
+async function fixture(t, external = false, managementMode = null) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-browser-paths-')));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'tools'), { recursive: true });
@@ -78,6 +79,58 @@ export async function runM3BrowserJourneys(page,{origin}) {
 }
 `,
   );
+  if (managementMode) {
+    mkdirSync(join(root, 'docs/management/dashboard'), { recursive: true });
+    writeFileSync(
+      join(root, 'docs/management/dashboard/app.js'),
+      'globalThis.choose = value => value ? 7 : 9;\n',
+    );
+    writeFileSync(
+      join(root, 'tools/verify-management-browser.mjs'),
+      `import assert from 'node:assert/strict';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+const { chromium } = await import(pathToFileURL(process.env.AF_PLAYWRIGHT_PATH).href);
+const browsers = [];
+const pages = [];
+try {
+  for (let index = 0; index < 2; index++) {
+    const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH, headless: true });
+    browsers.push(browser);
+    const page = await (await browser.newContext()).newPage();
+    pages.push(page);
+    await page.addScriptTag({ content: readFileSync('docs/management/dashboard/app.js', 'utf8') });
+    assert.equal(await page.evaluate('choose(true)'), 7);
+  }
+  if (${JSON.stringify(managementMode)} === 'sequential') {
+    await browsers[0].close();
+    assert.equal(browsers[0].isConnected(), false);
+    assert.equal(browsers[1].isConnected(), true);
+    assert.equal(await pages[1].evaluate('choose(false)'), 9);
+  }
+  if (${JSON.stringify(managementMode)} === 'invalid-graph')
+    await pages[0].evaluate('globalThis.__coverage__ = { foreign: {} }');
+} finally {
+  const results = await Promise.allSettled(browsers.map(browser => browser.close()));
+  // Save observations before the test-only emergency cleanup. A leaked browser
+  // must fail the test even though this fallback keeps the host clean after RED.
+  writeFileSync('closure.json', JSON.stringify({
+    connected: browsers.map(browser => browser.isConnected()),
+    errors: results.filter(result => result.status === 'rejected').map(result => result.reason.message),
+  }));
+  for (const browser of browsers) if (browser.isConnected()) {
+    const session = await browser.newBrowserCDPSession();
+    await session.send('Browser.close').catch(() => {});
+  }
+  for (const browser of browsers) await browser.close().catch(() => {});
+  await assert.rejects(chromium.launch({ executablePath: process.env.CHROMIUM_PATH }), /lifecycle is finished/);
+  for (const browser of browsers) await assert.rejects(browser.newContext(), /closing or finished/);
+  const failures = results.filter(result => result.status === 'rejected');
+  if (failures.length) throw failures[0].reason;
+}
+`,
+    );
+  }
   const git = (...args) =>
     execFileSync('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args], {
       cwd: root,
@@ -188,4 +241,43 @@ for (const mode of ['default-pass', 'default-fail', 'explicit-fail'])
     });
     assert.equal(result.report.functionalState, failing ? 'FAIL' : 'PASS');
     assert.equal(result.report.methodAdmission, 'PENDING_INDEPENDENT_REVIEW');
+  });
+
+for (const mode of ['parallel', 'sequential', 'invalid-graph'])
+  test(`legacy shim closes every real browser and finishes one replayable collection: ${mode}`, async (t) => {
+    const f = await fixture(t, false, mode);
+    const result = await collectManagementBrowserCoverage({
+      ...f,
+      outputDirectory: join(f.root, 'outputs/multi-browser'),
+      executablePath: process.env.CHROMIUM_PATH,
+      browserPath: join(browserDirectory, 'index.mjs'),
+    });
+    const closure = JSON.parse(readFileSync(join(result.runtimeRoot, 'closure.json')));
+    assert.deepEqual(
+      closure.connected,
+      [false, false],
+      'each actual browser must close without the test fallback: ' + result.child.stderr.toString(),
+    );
+    assert.equal(result.status, mode === 'invalid-graph' ? 'FAIL' : 'PASS');
+    assert.equal(result.summary.status, mode === 'invalid-graph' ? 'FAIL' : 'PASS');
+    const replay = replayBrowserCoverage({
+      manifest: f.manifest,
+      outputDirectory: result.directory,
+      index: result.collection.index,
+    });
+    assert.deepEqual(
+      replay.observations,
+      [...result.collection.observations].sort((left, right) => left.sequence - right.sequence),
+    );
+    assert.equal(new Set(replay.observations.map((row) => row.pageId)).size, 2);
+    const sums = [0, 0];
+    for (const row of replay.observations) {
+      const coverage = row.sources['docs/management/dashboard/app.js']?.coverage;
+      if (coverage) for (let index = 0; index < 2; index++) sums[index] += coverage.b['0'][index];
+    }
+    assert.deepEqual(sums, mode === 'invalid-graph' ? [1, 0] : mode === 'sequential' ? [2, 1] : [2, 0]);
+    if (mode === 'invalid-graph') {
+      assert.ok(closure.errors.length);
+      assert.ok(replay.observations.some((row) => !row.complete && Object.keys(row.sources).length === 0));
+    } else assert.deepEqual(closure.errors, []);
   });

@@ -243,25 +243,61 @@ const generated = JSON.parse(readFileSync(${JSON.stringify(generatedPath)}, 'utf
 const tracker = createBrowserCoverageLifecycle({ manifest, outputDirectory: ${JSON.stringify(outputDirectory)}, loaded: new Set(${JSON.stringify(loaded)}), workflow: ${JSON.stringify(`LEGACY_${workflow.toUpperCase()}`)} });
 const bootstrap = ${JSON.stringify(bootstrap)};
 let collection;
-let closePromise;
+let finishPromise;
+let pendingLaunches = 0;
+const browsers = new Set();
+const failures = [];
 mkdirSync(${JSON.stringify(rawDirectory)}, { recursive: true });
-function installContext(context) {
+function installContext(context, pages, assertOpen) {
   context.addInitScript({ content: bootstrap });
   const originalNewPage = context.newPage.bind(context);
   context.newPage = async (...args) => {
+    assertOpen();
     const page = await originalNewPage(...args);
+    assertOpen();
+    pages.add(page);
     tracker.registerPage(page);
     return page;
   };
   return context;
 }
+async function finishIfIdle() {
+  if (browsers.size || pendingLaunches) return;
+  if (!finishPromise) finishPromise = (async () => {
+    try { collection = await tracker.finish(); }
+    catch (error) { collection = error.browserCoverage; failures.push(error); }
+    if (failures.length) {
+      const error = new AggregateError(failures, 'browser collection or cleanup failed');
+      error.browserCoverage = collection;
+      writeFileSync(${JSON.stringify(summaryPath)}, JSON.stringify({ status: 'FAIL', error: { name: error.name, message: error.message }, collection }) + '\\n', { flag: 'wx' });
+      throw error;
+    }
+    writeFileSync(${JSON.stringify(summaryPath)}, JSON.stringify({ status: 'PASS', collection }) + '\\n', { flag: 'wx' });
+  })();
+  return finishPromise;
+}
 async function wrapBrowser(browser) {
+  browsers.add(browser);
+  const pages = new Set();
+  let closing = false;
+  let closePromise;
+  const assertOpen = () => {
+    if (closing || finishPromise) throw new Error('Browser coverage lifecycle is closing or finished');
+  };
   const originalNewContext = browser.newContext.bind(browser);
-  browser.newContext = async (...args) => installContext(await originalNewContext(...args));
+  browser.newContext = async (...args) => {
+    assertOpen();
+    const context = await originalNewContext(...args);
+    assertOpen();
+    return installContext(context, pages, assertOpen);
+  };
   if (typeof browser.newPage === 'function') {
     const originalNewPage = browser.newPage.bind(browser);
     browser.newPage = async (...args) => {
+      assertOpen();
       const page = await originalNewPage(...args);
+      assertOpen();
+      pages.add(page);
       await page.addInitScript({ content: bootstrap });
       tracker.registerPage(page);
       return page;
@@ -269,16 +305,34 @@ async function wrapBrowser(browser) {
   }
   const originalClose = browser.close.bind(browser);
   browser.close = async (...args) => {
-    if (!closePromise) closePromise = (async () => {
-      try { collection = await tracker.finish(); writeFileSync(${JSON.stringify(summaryPath)}, JSON.stringify({ status: 'PASS', collection }) + '\\n', { flag: 'wx' }); }
-      catch (error) { collection = error.browserCoverage; writeFileSync(${JSON.stringify(summaryPath)}, JSON.stringify({ status: 'FAIL', error: { name: error.name, message: error.message }, collection }) + '\\n', { flag: 'wx' }); throw error; }
-      finally { await originalClose(...args); }
-    })();
+    if (!closePromise) {
+      closing = true;
+      closePromise = (async () => {
+        const ownFailures = [];
+        try {
+          const captures = await Promise.allSettled([...pages].filter(page => !page.isClosed()).map(page => page.close()));
+          ownFailures.push(...captures.filter(result => result.status === 'rejected').map(result => result.reason));
+        } finally {
+          try { await originalClose(...args); }
+          catch (error) { ownFailures.push(error); }
+          failures.push(...ownFailures);
+          browsers.delete(browser);
+        }
+        await finishIfIdle();
+        if (ownFailures.length) throw new AggregateError(ownFailures, 'browser capture or cleanup failed');
+      })();
+    }
     return closePromise;
   };
   return browser;
 }
-export const chromium = { launch: async (...args) => wrapBrowser(await realChromium.launch(...args)) };
+export const chromium = { launch: async (...args) => {
+  if (finishPromise) throw new Error('Browser coverage lifecycle is finished');
+  pendingLaunches++;
+  try { return await wrapBrowser(await realChromium.launch(...args)); }
+  catch (error) { failures.push(error); throw error; }
+  finally { pendingLaunches--; await finishIfIdle(); }
+} };
 // ${generatedPath} and ${driverPath} are fixed inputs; generated is read to bind this shim's evidence.
 void generated;
 `;
