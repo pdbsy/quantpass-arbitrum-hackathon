@@ -471,3 +471,28 @@ test('toolchain input aliases and runtime overrides cannot qualify local mock ev
   assert.equal(status(report, 'local-mock'), 'FAIL');
   assert.equal(report.eligibleForEvidence, false);
 });
+
+test('public default environment inspection rejects interpreter overrides before any probes', () => {
+  const forbidden = 'https://example.invalid/unapproved-environment-runtime';
+  const script = `
+    import {inspectEnvironment} from ${JSON.stringify(new URL('../tools/environment/observe.mjs', import.meta.url).href)};
+    process.stdout.write(JSON.stringify(inspectEnvironment()));
+  `;
+  const child = spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
+    cwd: repository,
+    env: { ...process.env, FNM_NODE_DIST_MIRROR: forbidden },
+    encoding: 'utf8',
+    timeout: 15_000,
+  });
+  assert.equal(child.error, undefined);
+  assert.equal(child.signal, null);
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stderr, '');
+  const report = JSON.parse(child.stdout);
+  assert.equal(report.mode, 'dev');
+  assert.equal(report.eligibleForEvidence, false);
+  assert.notEqual(report.exitCode, 0);
+  assert.equal(status(report, 'overrides'), 'FAIL');
+  assert.deepEqual(report.commands, [], 'unapproved input must prevent all subprocess probes');
+  assert.equal(child.stdout.includes(forbidden), false, 'raw override value must not be disclosed');
+});
