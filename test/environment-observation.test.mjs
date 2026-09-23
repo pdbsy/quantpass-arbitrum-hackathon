@@ -173,6 +173,39 @@ test('case-colliding tracked names and shallow history remain ineligible for env
 test('real environment probes bind a clean fixture to exact source and local npm configuration', (t) => {
   const f = fixture(t);
   const report = f.inspect();
+  const gitTop = f.git('rev-parse', '--show-toplevel');
+  const nodeRoot = realpathSync(f.root);
+  let gitRoot = '';
+  let nativeCanonicalEqual = false;
+  let sameDirectoryIdentity = false;
+  try {
+    gitRoot = realpathSync(gitTop);
+    nativeCanonicalEqual = realpathSync.native(f.root) === realpathSync.native(gitTop);
+    const nodeStat = statSync(f.root, { bigint: true });
+    const gitStat = statSync(gitTop, { bigint: true });
+    sameDirectoryIdentity =
+      nodeStat.ino !== 0n && nodeStat.ino === gitStat.ino && nodeStat.dev === gitStat.dev;
+  } catch {
+    // Report only booleans if a probe path cannot be resolved.
+  }
+  // Keep the actual temporary-directory fixture, including native Windows short
+  // names. Diagnose binding failures without publishing either personal path.
+  const repositoryDiagnostic = {
+    platform: process.platform,
+    gitTopExists: existsSync(gitTop),
+    canonicalEqual: nodeRoot === gitRoot,
+    canonicalCaseFoldEqual: nodeRoot.toLowerCase() === gitRoot.toLowerCase(),
+    canonicalLengthEqual: nodeRoot.length === gitRoot.length,
+    nativeCanonicalEqual,
+    sameDirectoryIdentity,
+    nodeRootHasShortName: /~\d/.test(nodeRoot),
+    gitRootHasShortName: /~\d/.test(gitRoot),
+    nodeRootPrintableAscii: /^[\x20-\x7e]*$/.test(nodeRoot),
+    gitRootPrintableAscii: /^[\x20-\x7e]*$/.test(gitRoot),
+    originMatches:
+      f.git('remote', 'get-url', 'origin') === 'https://github.com/pdbsy/quantpass-arbitrum-hackathon.git',
+    failedCommands: report.commands.filter((command) => command.exitCode !== 0),
+  };
   for (const id of [
     'inputs',
     'tools',
@@ -187,7 +220,11 @@ test('real environment probes bind a clean fixture to exact source and local npm
     'npm-config',
     'local-mock',
   ])
-    assert.equal(status(report, id), 'PASS', id);
+    assert.equal(
+      status(report, id),
+      'PASS',
+      id === 'repository' ? `${id} ${JSON.stringify(repositoryDiagnostic)}` : id,
+    );
   assert.equal(report.head, f.git('rev-parse', 'HEAD'));
   assert.equal(report.tree, f.git('rev-parse', 'HEAD^{tree}'));
   assert.equal(report.context, 'local');

@@ -13,7 +13,7 @@ const git = (root, args) =>
 async function fixture(t) {
   await mkdir('.checks', { recursive: true });
   const root = await mkdtemp(resolve('.checks/git-evidence-review-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(() => rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }));
   git(root, ['init', '--quiet', '-b', 'master']);
   await writeFile(join(root, 'README.md'), 'base\n');
   git(root, ['add', '.']);
@@ -119,6 +119,118 @@ test('recorded Git missing intermediate commit object produces real Git fatal gr
   assert.equal(r.error, 'RECORDED_GIT_QUERY_FAILED');
   assert.equal(r.commit, undefined);
 });
+for (const collector of ['collectGitState', 'collectRecordedGitState'])
+  test(`${collector} waits for an owned Git probe after another probe rejects`, async (t) => {
+    const f = await fixture(t);
+    await writeFile(join(f.root, '.git/refs/heads/master'), 'f'.repeat(40) + '\n');
+    const releaseFile = join(f.root, '.git/release-status-probe');
+    // Only the launch scheduling boundary is held. The delayed child executes
+    // the original Git arguments in its real cwd and returns Git's own bytes.
+    const program = `
+      import assert from 'node:assert/strict';
+      import cp from 'node:child_process';
+      import { writeFileSync } from 'node:fs';
+      import { syncBuiltinESMExports } from 'node:module';
+      import { promisify } from 'node:util';
+      import { setTimeout as delay } from 'node:timers/promises';
+      const [root, releaseFile, moduleUrl, collector, serializedRecord] = process.argv.slice(1);
+      const original = cp.execFile;
+      const children = [];
+      let pending = 0;
+      let ordinaryPending = 0;
+      let held = 0;
+      let ready = false;
+      const delayedGit = \`
+        const fs = require('node:fs');
+        const { spawnSync } = require('node:child_process');
+        const [args, releaseFile] = process.argv.slice(1);
+        fs.writeFileSync(releaseFile + '.ready', 'ready');
+        const deadline = Date.now() + 8000;
+        const timer = setInterval(() => {
+          if (!fs.existsSync(releaseFile)) {
+            if (Date.now() > deadline) { clearInterval(timer); process.exitCode = 124; }
+            return;
+          }
+          clearInterval(timer);
+          const result = spawnSync('git', JSON.parse(args), {
+            cwd: process.cwd(), env: process.env, encoding: 'utf8', timeout: 4000,
+          });
+          if (result.error) throw result.error;
+          process.stdout.write(result.stdout);
+          process.stderr.write(result.stderr);
+          process.exitCode = result.status ?? 1;
+        }, 10);
+      \`;
+      cp.execFile = function(file, args, options, callback) {
+        const hold = file === 'git' && args.includes('status');
+        if (hold) held++;
+        else ordinaryPending++;
+        pending++;
+        const child = hold
+          ? original(process.execPath, ['--eval', delayedGit, JSON.stringify(args), releaseFile], options, callback)
+          : original(file, args, options, callback);
+        children.push(new Promise((resolve) => child.once('close', () => {
+          pending--;
+          if (!hold) ordinaryPending--;
+          resolve();
+        })));
+        return child;
+      };
+      cp.execFile[promisify.custom] = (...args) => new Promise((resolve, reject) => {
+        cp.execFile(...args, (error, stdout, stderr) => error ? reject(error) : resolve({stdout, stderr}));
+      });
+      syncBuiltinESMExports();
+      const sources = await import(moduleUrl);
+      let settled = false;
+      let pendingAtResolution;
+      const collection = (collector === 'collectGitState'
+        ? sources.collectGitState(root)
+        : sources.collectRecordedGitState(root, 'master', JSON.parse(serializedRecord), {environment: {}})
+      ).then((value) => { settled = true; pendingAtResolution = pending; return value; });
+      const { existsSync } = await import('node:fs');
+      try {
+        const deadline = Date.now() + 3000;
+        while (!(ready = existsSync(releaseFile + '.ready')) || ordinaryPending !== 0) {
+          assert.ok(Date.now() < deadline, 'real Git scheduling barrier reached within deadline');
+          await delay(10);
+        }
+        await delay(0);
+        assert.equal(held, 1, 'one real status probe was held');
+        assert.equal(pending, 1, 'the owned delayed Git launcher is still alive');
+        assert.equal(settled, false, 'collector returned while its Git probe was still alive');
+        writeFileSync(releaseFile, 'release');
+        const actual = await collection;
+        assert.equal(actual.status, 'DATA_SOURCE_ERROR');
+        assert.equal(actual.error, collector === 'collectGitState' ? 'GIT_QUERY_FAILED' : 'RECORDED_GIT_QUERY_FAILED');
+        assert.equal(actual.commit, undefined);
+        assert.equal(pendingAtResolution, 0, 'all original probe handles closed before result');
+      } finally {
+        writeFileSync(releaseFile, 'release');
+        await collection;
+        await Promise.all(children);
+      }
+      assert.equal(pending, 0);
+      console.log('REAL_GIT_PROBES_DRAINED');
+    `;
+    const child = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        program,
+        f.root,
+        releaseFile,
+        sourceUrl,
+        collector,
+        JSON.stringify(f.recorded),
+      ],
+      { encoding: 'utf8', timeout: 15000 },
+    );
+    assert.equal(child.error, undefined);
+    assert.equal(child.status, 0, child.stderr);
+    assert.equal(child.stdout, 'REAL_GIT_PROBES_DRAINED\n');
+    assert.equal(child.stderr, '');
+  });
 test('recorded Git malformed recorded branch and base stay generic and never reveal provenance', async (t) => {
   const f = await fixture(t);
   for (const [base, recorded] of [

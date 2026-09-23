@@ -1232,7 +1232,7 @@ test('snapshot provenance accepts bounded closure but rejects excessive descenda
 
 test('unsupported Git object identities never produce READY provenance', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'alphaforge-sha256-evidence-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(() => rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }));
   git(root, ['init', '--quiet', '--object-format=sha256', '-b', 'master']);
   await writeFile(join(root, 'README.md'), 'isolated unsupported object format\n');
   git(root, ['add', '.gitattributes', 'README.md']);
