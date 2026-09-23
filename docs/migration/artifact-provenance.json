@@ -1912,7 +1912,16 @@
       "target_path": "apps/web/prototype/AlphaForge_v3_EN.html",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45",
-      "migrated_sha256": "949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45"
+      "migrated_sha256": "499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161",
+      "subsequent_revisions": [
+        {
+          "task": "M3-04-PHASE1-PRODUCT",
+          "commit": "7f66f0bf37b35f102cce00861dc55714ac9f2411",
+          "previous_sha256": "949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45",
+          "sha256": "499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161",
+          "reason": "Retain the exact original artifact in complete Git history; reviewed repair rejects damaged date inputs, orders undated posts last and releases render state after errors without changing CSS or HTML outside the script."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -2022,7 +2031,7 @@
       "target_path": "test/ui-import.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
-      "migrated_sha256": "391b35bfebfada32b1e493d619379e700aff09a5146ba4ad838a330b3861835a",
+      "migrated_sha256": "678809f4c29da962a013e63383c35aecab33f0e1b90fa704bfc7a7114fed97be",
       "subsequent_revisions": [
         {
           "task": "M3-04-PHASE1-PRODUCT",
@@ -2030,6 +2039,13 @@
           "previous_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
           "sha256": "391b35bfebfada32b1e493d619379e700aff09a5146ba4ad838a330b3861835a",
           "reason": "Register reviewed assertion-bearing recovery or product boundary tests; preserve the original source and all previous revision hashes."
+        },
+        {
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "commit": "bf53f2dee12efbfe1ec58e006ad0746c2ae417cb",
+          "previous_sha256": "391b35bfebfada32b1e493d619379e700aff09a5146ba4ad838a330b3861835a",
+          "sha256": "678809f4c29da962a013e63383c35aecab33f0e1b90fa704bfc7a7114fed97be",
+          "reason": "Bind the retained original and exact reviewed UI repair to ancestor Git objects, preserve CSS and surrounding HTML, and verify all three importer outputs after repeat imports."
         }
       ]
     },
