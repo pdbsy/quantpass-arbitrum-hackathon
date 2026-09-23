@@ -855,9 +855,6 @@ test('check mode remains reproducible after the generated snapshot is committed'
       '--eval',
       `
     import assert from 'node:assert/strict';
-import fsPromises from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
-import { syncBuiltinESMExports } from 'node:module';
     const {main} = await import(${JSON.stringify(new URL('../tools/build-management-dashboard.mjs', import.meta.url).href)});
     await assert.doesNotReject(() => main(['--check'], {root: ${JSON.stringify(root)}}));
   `,
