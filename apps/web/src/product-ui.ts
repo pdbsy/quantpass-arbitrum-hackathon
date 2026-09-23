@@ -346,6 +346,14 @@ function showOnchainDialogError(message: string): void {
   const output = document.querySelector('[data-product-dialog-error]');
   if (output) output.textContent = message;
 }
+function currentDialog(control: HTMLElement): HTMLDialogElement | null {
+  const dialog = control.closest('dialog');
+  return control.isConnected && dialog?.open ? dialog : null;
+}
+function showConfirmDialogError(control: HTMLElement, message: string): void {
+  const output = currentDialog(control)?.querySelector('[data-product-dialog-error]');
+  if (output) output.textContent = message;
+}
 async function reviewOnchainAction(control: HTMLElement): Promise<void> {
   const draft = onchainDraft;
   if (!onchainRuntime || !draft) throw Error('CHAIN_REVIEW_REQUIRED');
@@ -515,9 +523,9 @@ document.addEventListener('click', (event) => {
         target as HTMLButtonElement,
         async () => {
           await onchainRuntime.confirmPassTransfer!(captured);
-          AF.app.closeDialog();
+          if (currentDialog(target)) AF.app.closeDialog();
         },
-        showOnchainDialogError,
+        (message) => showConfirmDialogError(target, message),
       );
     } else if (target.hasAttribute('data-chain-review')) {
       void runM3DialogAction(
@@ -535,9 +543,9 @@ document.addEventListener('click', (event) => {
         target as HTMLButtonElement,
         async () => {
           await onchainRuntime.confirmAction(captured);
-          AF.app.closeDialog();
+          if (currentDialog(target)) AF.app.closeDialog();
         },
-        showOnchainDialogError,
+        (message) => showConfirmDialogError(target, message),
       );
     } else if (target.hasAttribute('data-chain-approve')) {
       if (!onchainRuntime?.confirmDepositApproval || !onchainDraft?.approval)
@@ -550,9 +558,9 @@ document.addEventListener('click', (event) => {
         target as HTMLButtonElement,
         async () => {
           await onchainRuntime.confirmDepositApproval!(approval, kind);
-          AF.app.closeDialog();
+          if (currentDialog(target)) AF.app.closeDialog();
         },
-        showOnchainDialogError,
+        (message) => showConfirmDialogError(target, message),
       );
     } else if (target.hasAttribute('data-product-review')) reviewDraft();
     else if (target.hasAttribute('data-product-claim')) {
