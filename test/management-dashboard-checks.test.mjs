@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fsPromises from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
 import { fixtureExec } from './helpers/git-fixture.mjs';
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -476,3 +479,105 @@ test('runCheck records a process terminated by signal as a failure with bounded 
   assert.equal(result.record.exitCode, null);
   assert.match(result.log, /terminated/);
 });
+
+for (const replacement of ['directory', 'file']) {
+  test(`evidence creation validates a competing process ${replacement} after native EEXIST`, async (t) => {
+    const root = await mkdtemp(join(tmpdir(), 'alphaforge-checks-mkdir-race-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const target = join(await fsPromises.realpath(root), '.checks');
+    const original = fsPromises.mkdir;
+    let raced = false;
+    let nativeError;
+    let commands = 0;
+    const run = () =>
+      runChecks({
+        root,
+        commit,
+        profile: 'quick',
+        runId: 'real-mkdir-race',
+        collectGitState: gitStateSequence(gitState()),
+        runProcess: async () => {
+          commands++;
+          return { exitCode: 7, stdout: '', stderr: 'deliberate fixture command failure', timedOut: false };
+        },
+      });
+    try {
+      fsPromises.mkdir = async (path, options) => {
+        if (path !== target || raced) return original(path, options);
+        raced = true;
+        const actor = spawnSync(
+          process.execPath,
+          [
+            '--input-type=module',
+            '-e',
+            "import {mkdirSync,writeFileSync} from 'node:fs'; process.argv[2]==='directory'?mkdirSync(process.argv[1]):writeFileSync(process.argv[1],'competing file');",
+            target,
+            replacement,
+          ],
+          { encoding: 'utf8', timeout: 15000 },
+        );
+        assert.equal(actor.error, undefined);
+        assert.equal(actor.status, 0, actor.stderr);
+        try {
+          return await original(path, options);
+        } catch (error) {
+          nativeError = error.code;
+          throw error;
+        }
+      };
+      syncBuiltinESMExports();
+      if (replacement === 'file') {
+        await assert.rejects(run, /CHECK_EVIDENCE_PATH_UNSAFE/);
+        assert.equal(commands, 0);
+        assert.equal(await readFile(target, 'utf8'), 'competing file');
+      } else {
+        const report = await run();
+        assert.ok(commands > 0);
+        assert.ok(report.checks.every((row) => row.status === 'FAIL' || row.status === 'NOT_RUN'));
+        assert.deepEqual(JSON.parse(await readFile(join(target, 'management/latest.json'), 'utf8')), report);
+        assert.deepEqual((await readdir(join(target, 'management'))).sort(), [
+          'latest.json',
+          'real-mkdir-race',
+        ]);
+      }
+    } finally {
+      fsPromises.mkdir = original;
+      syncBuiltinESMExports();
+    }
+    assert.equal(raced, true);
+    assert.equal(nativeError, 'EEXIST');
+  });
+}
+
+test(
+  'evidence creation propagates actual parent permission failure without running checks',
+  {
+    skip: process.platform === 'win32' || process.getuid?.() === 0,
+  },
+  async (t) => {
+    const root = await mkdtemp(join(tmpdir(), 'alphaforge-checks-parent-permission-'));
+    t.after(async () => {
+      await fsPromises.chmod(root, 0o700);
+      await rm(root, { recursive: true, force: true });
+    });
+    let commands = 0;
+    await fsPromises.chmod(root, 0o500);
+    await assert.rejects(
+      () =>
+        runChecks({
+          root,
+          commit,
+          profile: 'quick',
+          runId: 'permission-denied',
+          collectGitState: gitStateSequence(gitState()),
+          runProcess: async () => {
+            commands++;
+            throw Error('must not run');
+          },
+        }),
+      (error) => ['EACCES', 'EPERM'].includes(error.code),
+    );
+    assert.equal(commands, 0);
+    assert.deepEqual(await readdir(root), []);
+  },
+);

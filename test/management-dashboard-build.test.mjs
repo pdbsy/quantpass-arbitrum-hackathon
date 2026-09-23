@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fsPromises from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
 import { fixtureExec as execFileSync } from './helpers/git-fixture.mjs';
 import { unlinkSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
@@ -489,6 +492,55 @@ test('artifact writer records READY when a fully populated snapshot has no diagn
   assert.deepEqual(buildLog.diagnostics, []);
 });
 
+test('artifact directory creation tolerates an actual competing process mkdir', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-dashboard-mkdir-race-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const snapshot = buildDashboardSnapshot({ sources: fixtureSources(), git: gitState(), observedAt });
+  const original = fsPromises.mkdir;
+  const target = join(await fsPromises.realpath(root), 'docs');
+  let raced = false;
+  let nativeError;
+  try {
+    fsPromises.mkdir = async (path, options) => {
+      if (path !== target || raced) return original(path, options);
+      raced = true;
+      // A separate real process wins creation after the public writer observed
+      // ENOENT. The original syscall below supplies EEXIST; no error is forged.
+      const actor = spawnSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          "import {mkdirSync} from 'node:fs'; mkdirSync(process.argv[1]);",
+          target,
+        ],
+        { encoding: 'utf8', timeout: 15000 },
+      );
+      assert.equal(actor.error, undefined);
+      assert.equal(actor.status, 0, actor.stderr);
+      try {
+        return await original(path, options);
+      } catch (error) {
+        nativeError = error.code;
+        throw error;
+      }
+    };
+    syncBuiltinESMExports();
+    await writeDashboardArtifacts(root, snapshot);
+  } finally {
+    fsPromises.mkdir = original;
+    syncBuiltinESMExports();
+  }
+  assert.equal(raced, true);
+  assert.equal(nativeError, 'EEXIST');
+  assert.equal(await checkDashboardArtifacts(root, snapshot), true);
+  assert.deepEqual((await readdir(join(root, 'docs/management/dashboard/data'))).sort(), [
+    'build-log.json',
+    'dashboard.json',
+  ]);
+  assert.deepEqual(await readdir(join(root, 'docs/management/dashboard')), ['data']);
+});
+
 test('artifact comparison rejects a missing output directory without creating it', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'alphaforge-dashboard-absent-output-'));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -803,6 +855,9 @@ test('check mode remains reproducible after the generated snapshot is committed'
       '--eval',
       `
     import assert from 'node:assert/strict';
+import fsPromises from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
     const {main} = await import(${JSON.stringify(new URL('../tools/build-management-dashboard.mjs', import.meta.url).href)});
     await assert.doesNotReject(() => main(['--check'], {root: ${JSON.stringify(root)}}));
   `,
