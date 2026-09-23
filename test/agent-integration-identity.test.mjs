@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, copyFileSync, existsSync, writeFileSync, rmSync
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const branch = 'macbeth01/AF-M3-CLOSEOUT';
 const repository = 'pdbsy/quantpass-arbitrum-hackathon';
@@ -96,15 +97,25 @@ function fixture(t, profile = { branch, task: 'AF-M3-CLOSEOUT', title }) {
         },
       };
       writeFileSync(join(root, 'event.json'), JSON.stringify(event));
-      return spawnSync(process.execPath, ['tools/check-agent-identity.mjs'], {
-        cwd: root,
-        env: {
-          ...env,
-          GITHUB_EVENT_NAME: options.name ?? 'pull_request',
-          GITHUB_EVENT_PATH: join(root, 'event.json'),
+      return spawnSync(
+        process.execPath,
+        [
+          options.canonical
+            ? fileURLToPath(new URL('../tools/check-agent-identity.mjs', import.meta.url))
+            : 'tools/check-agent-identity.mjs',
+          ...(options.args ?? []),
+        ],
+        {
+          cwd: root,
+          env: {
+            ...env,
+            GITHUB_EVENT_NAME: options.name ?? 'pull_request',
+            GITHUB_EVENT_PATH: join(root, 'event.json'),
+            ...(options.canonical ? { GIT_DIR: join(root, '.git'), GIT_WORK_TREE: root } : {}),
+          },
+          encoding: 'utf8',
         },
-        encoding: 'utf8',
-      });
+      );
     },
   };
 }
@@ -157,6 +168,59 @@ test('real Git record separators cannot make malformed worker or manager history
     timeout: 15000,
   });
   assert.equal(child.status, 0, child.stderr);
+});
+
+test('canonical identity entrypoint validates actual Git fixture ranges and rejects forged PR binding', (t) => {
+  const s = fixture(t);
+  const head = s.git('rev-parse', 'HEAD');
+  const canonical = { canonical: true };
+  const basePull = {
+    title,
+    head: { ref: branch, sha: head, repo },
+    base: { ref: 'master', sha: s.base, repo },
+  };
+  const valid = s.run(canonical);
+  succeeds(valid);
+  assert.match(valid.stdout, /Integration identity: .* records verified/);
+  for (const pull of [
+    { ...basePull, head: { ...basePull.head, ref: 'macbeth01/other' } },
+    { ...basePull, base: { ...basePull.base, ref: 'other' } },
+    { ...basePull, head: { ...basePull.head, repo: { full_name: 'foreign/repository' } } },
+    { ...basePull, base: { ...basePull.base, repo: { full_name: 'foreign/repository' } } },
+  ])
+    rejects(
+      s.run({ ...canonical, args: ['--branch', branch], event: { pull_request: pull } }),
+      /canonical head\/base/,
+    );
+  succeeds(
+    s.run({
+      ...canonical,
+      name: 'push',
+      event: { ref: `refs/heads/${branch}`, before: s.base, after: head },
+    }),
+  );
+  succeeds(s.run({ ...canonical, name: '', event: {} }));
+  rejects(
+    s.run({
+      ...canonical,
+      name: 'merge_group',
+      event: {
+        merge_group: {
+          head_sha: head,
+          base_sha: s.base,
+          head_ref: 'refs/heads/gh-readonly-queue/master/fixture',
+          base_ref: 'refs/heads/master',
+        },
+      },
+    }),
+    /Integration merge queue is not authorized/,
+  );
+  s.git('switch', '--detach', head);
+  s.git('commit', '--allow-empty', '-qm', 'Ordinary detached maintenance');
+  // The root commit has no worker declarations, so use an exact empty range.
+  const detached = s.run({ ...canonical, name: '', event: {}, args: ['--base', 'HEAD'] });
+  succeeds(detached);
+  assert.match(detached.stdout, /skipped for non-worker branch: detached/);
 });
 
 test('registered integration accepts preserved mixed worker history and manager merge commits', (t) => {
