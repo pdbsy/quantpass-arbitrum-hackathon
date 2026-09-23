@@ -17,6 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { verifyInstallation } from '../tools/coverage/toolchain.mjs';
+import { qualifiedBrowserBootstrap } from './helpers/qualified-browser-bootstrap.mjs';
 
 const repository = resolve(import.meta.dirname, '..');
 // Always execute the actual driver, even though its working directory is a private fixture.
@@ -131,8 +132,9 @@ function browserModule() {
   return pathToFileURL(join(root, 'index.mjs')).href;
 }
 
-function observeRealBrowser(f, mode) {
+async function observeRealBrowser(f, mode) {
   const realModule = browserModule();
+  const bootstrap = await qualifiedBrowserBootstrap(repository, ['tools/verify-management-browser.mjs']);
   const observer = join(f.root, '.checks/driver-observer.mjs');
   const observation = join(f.root, '.checks/driver-observation.json');
   mkdirSync(dirname(observer), { recursive: true });
@@ -144,6 +146,7 @@ function observeRealBrowser(f, mode) {
 import {writeFileSync} from 'node:fs';
 import {chromium as realChromium} from ${JSON.stringify(realModule)};
 const observation = {mode: ${JSON.stringify(mode)}, consoleMessages: [], closed: false};
+const coverageBootstrap = ${JSON.stringify(bootstrap)};
 const save = () => writeFileSync(${JSON.stringify(observation)}, JSON.stringify(observation));
 export const chromium = {launch: async (options) => {
   observation.executablePath = options.executablePath;
@@ -159,6 +162,7 @@ export const chromium = {launch: async (options) => {
   const newPage = browser.newPage.bind(browser);
   browser.newPage = async (...args) => {
     const page = await newPage(...args);
+    if (coverageBootstrap) await page.addInitScript({content: coverageBootstrap});
     page.on('console', message => {
       observation.consoleMessages.push({type: message.type(), text: message.text()});
       save();
@@ -229,7 +233,7 @@ test(
   async (t) => {
     assert.ok(existsSync(defaultChrome), 'approved default Chrome installation required');
     const f = fixture(t);
-    const observed = observeRealBrowser(f, 'default');
+    const observed = await observeRealBrowser(f, 'default');
     const env = { ...f.env, AF_PLAYWRIGHT_PATH: observed.observer };
     delete env.AF_CHROME_PATH;
     const child = await runDriver(f, env);
@@ -256,7 +260,7 @@ test(
   async (t) => {
     assert.ok(process.env.CHROMIUM_PATH, 'CHROMIUM_PATH is required for the qualified CSP journey');
     const f = fixture(t);
-    const observed = observeRealBrowser(f, 'csp');
+    const observed = await observeRealBrowser(f, 'csp');
     const child = await runDriver(f, {
       ...f.env,
       AF_PLAYWRIGHT_PATH: observed.observer,
