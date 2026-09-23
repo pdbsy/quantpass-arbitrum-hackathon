@@ -240,3 +240,38 @@ test('a degraded closed second Vault retains its own owner and locker during dir
     value: '0x0',
   });
 });
+
+test('disconnect at the public wallet-pending notification retains an uncertain transfer without a receipt', async () => {
+  const fixture = createM3InjectedRuntimeFixture();
+  fixture.setCorrectNetwork();
+  await fixture.runtime.connect();
+  const balance = fixture.runtime.snapshot.onchain.passBalanceBaseUnits;
+  const review = await fixture.runtime.reviewPassTransfer!({
+    recipient: asAddress('0x9999999999999999999999999999999999999999'),
+    passBaseUnits: '1',
+  });
+  let disconnected: Promise<void> | undefined;
+  let triggered = false;
+  const unsubscribe = fixture.runtime.subscribe(() => {
+    if (!triggered && fixture.runtime.snapshot.transaction.status === 'WALLET_PENDING') {
+      triggered = true;
+      disconnected = fixture.setDisconnected();
+    }
+  });
+  try {
+    const result = await fixture.runtime.confirmPassTransfer!(review);
+    await disconnected;
+    assert.ok(disconnected, 'the public pending notification triggers the disconnect');
+    assert.equal(result.state, 'SUBMISSION_AMBIGUOUS');
+    assert.equal(result.txHash, null);
+    assert.equal(fixture.runtime.snapshot.transaction.status, 'SUBMISSION_AMBIGUOUS');
+    assert.equal(fixture.runtime.snapshot.transaction.txHash, undefined);
+    assert.equal(fixture.runtime.snapshot.wallet.status, 'DISCONNECTED');
+    assert.equal(fixture.providerRequests.filter((row) => row.method === 'eth_sendTransaction').length, 1);
+    await fixture.setOwner();
+    await fixture.runtime.connect();
+    assert.equal(fixture.runtime.snapshot.onchain.passBalanceBaseUnits, balance);
+  } finally {
+    unsubscribe();
+  }
+});
