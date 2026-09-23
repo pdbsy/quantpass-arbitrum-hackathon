@@ -40,6 +40,22 @@ test('Gitleaks history qualification rejects a non-repository and detached histo
   assert.throws(() => historyCoverage(root), /Empty Git history coverage/);
 });
 
+test('Gitleaks history coverage rejects a real SHA-256 Git object database', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'alphaforge-gitleaks-sha256-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  fixtureExec('git', ['init', '-q', '-b', 'main', '--object-format=sha256'], { cwd: root });
+  fixtureExec('git', ['commit', '-qm', 'SHA-256 fixture'], { cwd: root });
+  assert.equal(
+    fixtureExec('git', ['rev-parse', '--show-object-format'], { cwd: root, encoding: 'utf8' }).trim(),
+    'sha256',
+  );
+  assert.match(
+    fixtureExec('git', ['for-each-ref', '--format=%(objectname)'], { cwd: root, encoding: 'utf8' }).trim(),
+    /^[a-f0-9]{64}$/,
+  );
+  assert.throws(() => historyCoverage(root), /Invalid Git reference coverage/);
+});
+
 test('Gitleaks source ignore guard refuses every existing root path without disclosing its contents', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'alphaforge-gitleaks-ignore-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
