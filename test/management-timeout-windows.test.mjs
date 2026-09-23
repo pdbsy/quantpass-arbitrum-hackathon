@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
@@ -64,9 +65,11 @@ try {
       '-EncodedCommand',
       Buffer.from(script, 'utf16le').toString('base64'),
     ],
-    { encoding: 'utf8', timeout: 8000, maxBuffer: 4096, windowsHide: true, shell: false },
+    { encoding: 'utf8', timeout: terminate ? 8000 : 20000, maxBuffer: 4096, windowsHide: true, shell: false },
   );
-  assert.equal(cleanup.error, undefined);
+  // Keep spawn arguments and their encoded fixture identity out of failures.
+  const errorCode = cleanup.error ? String(cleanup.error.code || 'UNKNOWN').slice(0, 32) : undefined;
+  assert.equal(errorCode, undefined, 'Windows fixture identity probe failed');
   assert.equal(cleanup.status, 0, cleanup.stderr);
   if (!terminate) {
     assert.match(cleanup.stdout, /^[0-9]+$/);
@@ -94,7 +97,9 @@ test(
     assert.equal(integration.file, 'node');
     assert.deepEqual(integration.args, ['--test', 'test/server.test.ts']);
     assert.equal(integration.timeoutMs, 120_000);
-    const root = await mkdtemp(join(tmpdir(), 'alphaforge-management-windows-timeout-'));
+    // Native canonicalization expands Windows short names before either the
+    // child runner or its command identity is constructed.
+    const root = realpathSync.native(await mkdtemp(join(tmpdir(), 'alphaforge-management-windows-timeout-')));
     const nonce = randomUUID();
     const pidPath = join(root, 'fixture-pids.json');
     const resultPath = join(root, 'result.json');
