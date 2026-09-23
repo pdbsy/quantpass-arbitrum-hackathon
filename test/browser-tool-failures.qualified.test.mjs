@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -12,6 +12,32 @@ import { runM3BrowserJourneys } from '../tools/verify-m3-browser.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 
+async function executeDriver(options, timeoutMs) {
+  return new Promise((done) => {
+    const child = spawn(process.execPath, [join(root, 'tools/verify-ui-browser.mjs')], options);
+    let stdout = '';
+    let stderr = '';
+    let error;
+    const timer = setTimeout(() => {
+      error = new Error('Browser driver exceeded its outer execution budget');
+      child.kill('SIGKILL');
+    }, timeoutMs);
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.once('error', (failure) => {
+      error = failure;
+    });
+    child.once('close', (status, signal) => {
+      clearTimeout(timer);
+      done({ stdout, stderr, status, signal, error });
+    });
+  });
+}
+
 async function reservePort(port = 0) {
   const server = createServer();
   await new Promise((done, reject) => {
@@ -23,48 +49,55 @@ async function reservePort(port = 0) {
   return actual;
 }
 
-test('real legacy browser journey reports success only after cleanup and preserves injected failures', async (t) => {
-  const tool = process.env.AF_PLAYWRIGHT_PATH;
-  const chrome = process.env.CHROMIUM_PATH;
-  assert.ok(
-    tool && existsSync(tool),
-    'Approved AF_PLAYWRIGHT_PATH is required; qualification is NOT_RUN without it',
-  );
-  assert.ok(
-    chrome && existsSync(chrome),
-    'Approved CHROMIUM_PATH is required; qualification is NOT_RUN without it',
-  );
-  const bootstrap = await qualifiedBrowserBootstrap(root, ['tools/verify-ui-browser.mjs']);
-  for (const [name, journey, failClose] of [
-    ['FAULT_INJECTED closed page diagnostics', false, false],
-    ['FAULT_INJECTED browser close rejection after original failure', false, true],
-    ['real successful journey', true, false],
-    ['FAULT_INJECTED cleanup failure after real successful journey', true, true],
-  ]) {
-    await t.test(name, async (t) => {
-      const directory = await mkdtemp(join(tmpdir(), 'alphaforge-browser-failure-'));
-      t.after(() => rm(directory, { recursive: true, force: true }));
-      const port = await reservePort();
-      const backend = join(directory, 'backend.mjs');
-      const toolShim = join(directory, 'playwright-boundary.mjs');
-      await mkdir(join(directory, 'apps/web/dist'), { recursive: true });
-      if (journey) {
-        assert.ok(existsSync(join(root, 'apps/web/dist/index.html')), 'Build the exact candidate UI first');
-        await cp(join(root, 'apps/web/dist'), join(directory, 'apps/web/dist'), { recursive: true });
-      }
-      await writeFile(
-        backend,
-        `import { buildApp as actual } from ${JSON.stringify(pathToFileURL(join(root, 'apps/server/src/app.ts')).href)};
+test(
+  'real legacy browser journey reports success only after cleanup and preserves injected failures',
+  { concurrency: 2 },
+  async (t) => {
+    const tool = process.env.AF_PLAYWRIGHT_PATH;
+    const chrome = process.env.CHROMIUM_PATH;
+    assert.ok(
+      tool && existsSync(tool),
+      'Approved AF_PLAYWRIGHT_PATH is required; qualification is NOT_RUN without it',
+    );
+    assert.ok(
+      chrome && existsSync(chrome),
+      'Approved CHROMIUM_PATH is required; qualification is NOT_RUN without it',
+    );
+    const bootstrap = await qualifiedBrowserBootstrap(root, ['tools/verify-ui-browser.mjs']);
+    await Promise.all(
+      [
+        ['FAULT_INJECTED closed page diagnostics', false, false],
+        ['FAULT_INJECTED browser close rejection after original failure', false, true],
+        ['real successful journey', true, false],
+        ['FAULT_INJECTED cleanup failure after real successful journey', true, true],
+      ].map(([name, journey, failClose]) =>
+        t.test(name, async (t) => {
+          const directory = await mkdtemp(join(tmpdir(), 'alphaforge-browser-failure-'));
+          t.after(() => rm(directory, { recursive: true, force: true }));
+          const port = await reservePort();
+          const backend = join(directory, 'backend.mjs');
+          const toolShim = join(directory, 'playwright-boundary.mjs');
+          await mkdir(join(directory, 'apps/web/dist'), { recursive: true });
+          if (journey) {
+            assert.ok(
+              existsSync(join(root, 'apps/web/dist/index.html')),
+              'Build the exact candidate UI first',
+            );
+            await cp(join(root, 'apps/web/dist'), join(directory, 'apps/web/dist'), { recursive: true });
+          }
+          await writeFile(
+            backend,
+            `import { buildApp as actual } from ${JSON.stringify(pathToFileURL(join(root, 'apps/server/src/app.ts')).href)};
          import { writeFileSync } from 'node:fs';
          export async function buildApp(options) {
            const result = await actual(options);
            result.app.addHook('onClose', async () => writeFileSync(${JSON.stringify(join(directory, 'app-closed'))}, 'closed'));
            return result;
          }`,
-      );
-      await writeFile(
-        toolShim,
-        `import { chromium as actual } from ${JSON.stringify(pathToFileURL(resolve(tool)).href)};
+          );
+          await writeFile(
+            toolShim,
+            `import { chromium as actual } from ${JSON.stringify(pathToFileURL(resolve(tool)).href)};
          import { writeFileSync } from 'node:fs';
          export const chromium = { async launch(options) {
            const browser = await actual.launch(options);
@@ -94,55 +127,58 @@ test('real legacy browser journey reports success only after cleanup and preserv
            };
            return browser;
          }};`,
-      );
-      const child = spawnSync(process.execPath, [join(root, 'tools/verify-ui-browser.mjs')], {
-        cwd: directory,
-        env: {
-          ...process.env,
-          AF_PLAYWRIGHT_PATH: toolShim,
-          AF_BACKEND_APP: backend,
-          AF_BROWSER_PORT: String(port),
-          CHROMIUM_PATH: resolve(chrome),
-        },
-        encoding: 'utf8',
-        timeout: journey ? 240_000 : 30_000,
-        killSignal: 'SIGKILL',
-      });
-      assert.equal(child.error, undefined, `${child.error?.message}\n${child.stderr}`);
-      assert.equal(child.signal, null, child.stderr);
-      assert.equal(child.status, journey && !failClose ? 0 : 1, child.stderr);
-      if (!journey) assert.equal(await readFile(join(directory, 'page-closed'), 'utf8'), 'true');
-      assert.equal(await readFile(join(directory, 'browser-closed'), 'utf8'), 'true');
-      assert.equal(existsSync(join(directory, 'app-closed')), true, 'actual app onClose must execute');
-      await reservePort(port);
-      const evidenceRoot = join(directory, '.checks/AF-UI01');
-      const runs = await readdir(evidenceRoot);
-      assert.equal(runs.length, 1);
-      const resultFile = join(evidenceRoot, runs[0], 'result.json');
-      assert.equal(
-        existsSync(resultFile),
-        true,
-        'FAILED report must survive a closed-page diagnostic failure',
-      );
-      const result = JSON.parse(await readFile(resultFile, 'utf8'));
-      if (journey)
-        assert.ok(result.checks.length >= 17, 'the actual full journey must finish its assertions');
-      if (journey && !failClose) {
-        assert.equal(result.status, 'PASSED');
-        assert.equal(JSON.parse(child.stdout).status, 'PASSED');
-      } else {
-        const expected = journey
-          ? /FAULT_INJECTED_BROWSER_CLOSE_FAILURE/
-          : /FAULT_INJECTED_ORIGINAL_BROWSER_FAILURE/;
-        assert.equal(result.status, 'FAILED');
-        assert.match(result.error, expected);
-        assert.match(child.stderr, expected);
-        if (!journey) assert.doesNotMatch(child.stderr, /Error: FAULT_INJECTED_BROWSER_CLOSE_FAILURE/);
-        assert.doesNotMatch(child.stdout, /PASSED/);
-      }
-    });
-  }
-});
+          );
+          const child = await executeDriver(
+            {
+              cwd: directory,
+              env: {
+                ...process.env,
+                AF_PLAYWRIGHT_PATH: toolShim,
+                AF_BACKEND_APP: backend,
+                AF_BROWSER_PORT: String(port),
+                CHROMIUM_PATH: resolve(chrome),
+              },
+              stdio: ['ignore', 'pipe', 'pipe'],
+            },
+            journey ? 240_000 : 30_000,
+          );
+          assert.equal(child.error, undefined, `${child.error?.message}\n${child.stderr}`);
+          assert.equal(child.signal, null, child.stderr);
+          assert.equal(child.status, journey && !failClose ? 0 : 1, child.stderr);
+          if (!journey) assert.equal(await readFile(join(directory, 'page-closed'), 'utf8'), 'true');
+          assert.equal(await readFile(join(directory, 'browser-closed'), 'utf8'), 'true');
+          assert.equal(existsSync(join(directory, 'app-closed')), true, 'actual app onClose must execute');
+          await reservePort(port);
+          const evidenceRoot = join(directory, '.checks/AF-UI01');
+          const runs = await readdir(evidenceRoot);
+          assert.equal(runs.length, 1);
+          const resultFile = join(evidenceRoot, runs[0], 'result.json');
+          assert.equal(
+            existsSync(resultFile),
+            true,
+            'FAILED report must survive a closed-page diagnostic failure',
+          );
+          const result = JSON.parse(await readFile(resultFile, 'utf8'));
+          if (journey)
+            assert.ok(result.checks.length >= 17, 'the actual full journey must finish its assertions');
+          if (journey && !failClose) {
+            assert.equal(result.status, 'PASSED');
+            assert.equal(JSON.parse(child.stdout).status, 'PASSED');
+          } else {
+            const expected = journey
+              ? /FAULT_INJECTED_BROWSER_CLOSE_FAILURE/
+              : /FAULT_INJECTED_ORIGINAL_BROWSER_FAILURE/;
+            assert.equal(result.status, 'FAILED');
+            assert.match(result.error, expected);
+            assert.match(child.stderr, expected);
+            if (!journey) assert.doesNotMatch(child.stderr, /Error: FAULT_INJECTED_BROWSER_CLOSE_FAILURE/);
+            assert.doesNotMatch(child.stdout, /PASSED/);
+          }
+        }),
+      ),
+    );
+  },
+);
 
 test('FAULT_INJECTED real M3 page rejects missing serialized evidence and removes its handlers', async (t) => {
   assert.ok(process.env.AF_PLAYWRIGHT_PATH, 'Approved browser tool is required');
