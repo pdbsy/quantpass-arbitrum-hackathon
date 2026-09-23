@@ -15,9 +15,42 @@ import {
   runChecks,
 } from '../tools/management-dashboard/checks.mjs';
 import { validateCheckReport } from '../tools/management-dashboard/schema.mjs';
+import {
+  runEscapedPipeTimeoutFixture,
+  runSynchronousKillErrorFixture,
+} from './helpers/management-timeout-fixture.mjs';
 
 const commit = '3333333333333333333333333333333333333333';
 const tree = '4444444444444444444444444444444444444444';
+
+test(
+  'qualified native lint timeout and FAULT_INJECTED synchronous timeout error stay bounded',
+  { skip: process.platform === 'win32' },
+  async () => {
+    // Independent fixtures share the unchanged real 120-second lint deadline in wall time.
+    const outcomes = await Promise.allSettled([
+      runEscapedPipeTimeoutFixture(),
+      runSynchronousKillErrorFixture({ waitForTimeout: true }),
+    ]);
+    for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;
+    const [observed, timeoutError] = outcomes.map((outcome) => outcome.value);
+    assert.equal(observed.settledBeforeRelease, true, `unbounded after ${observed.elapsedMs}ms`);
+    assert.equal(observed.result.record.status, 'FAIL');
+    assert.equal(observed.result.record.exitCode, 124);
+    assert.equal(observed.result.cleanupConfirmed, false);
+    assert.ok(Buffer.byteLength(observed.result.log, 'utf8') <= 160);
+    assert.match(observed.result.log, /TIMEOUT/);
+    assert.match(observed.result.log, /CLEANUP_UNCONFIRMED/);
+    assert.equal(observed.result.log.includes(observed.syntheticToken), false);
+    // Boundary injection uses the actual platform and timer, not native Windows coverage.
+    assert.equal(timeoutError.signalCalls, 2, 'only initial TERM and one cleanup KILL');
+    assert.equal(timeoutError.result.record.status, 'FAIL');
+    assert.equal(timeoutError.result.record.exitCode, 124);
+    assert.equal(timeoutError.result.cleanupConfirmed, false);
+    assert.match(timeoutError.result.log, /^TIMEOUT\nCLEANUP_UNCONFIRMED/);
+    assert.match(timeoutError.result.log, /PROCESS_ERROR/);
+  },
+);
 
 function gitState(overrides = {}) {
   return {
@@ -157,6 +190,93 @@ test('runCheck records nonzero and timeout outcomes as failures', async () => {
   assert.equal(timedOut.record.status, 'FAIL');
   assert.equal(timedOut.record.exitCode, 124);
   assert.match(timedOut.log, /TIMEOUT/);
+});
+
+test('FAULT_INJECTED cleanup uncertainty fails closed and preserves timeout exit 124', async () => {
+  for (const [timedOut, observedExitCode, expectedExitCode] of [
+    [false, 0, 127],
+    [true, 0, 124],
+    // A process error after the real timeout must not downgrade its exit classification.
+    [true, 127, 124],
+  ]) {
+    const result = await runCheck('lint', {
+      root: process.cwd(),
+      commit,
+      runId: 'unconfirmed-result',
+      runProcess: async () => ({
+        exitCode: observedExitCode,
+        stdout: 'completed output',
+        stderr: '',
+        timedOut,
+        cleanupConfirmed: false,
+      }),
+    });
+    assert.equal(result.record.status, 'FAIL');
+    assert.equal(result.record.exitCode, expectedExitCode);
+    assert.equal(result.cleanupConfirmed, false);
+    assert.match(result.log, /CLEANUP_UNCONFIRMED/);
+    if (timedOut) assert.match(result.log, /^TIMEOUT\n/);
+  }
+});
+
+test(
+  'FAULT_INJECTED synchronous group signal error does not reenter cleanup',
+  { skip: process.platform === 'win32' },
+  async () => {
+    const result = await runSynchronousKillErrorFixture();
+    assert.equal(result.signalCalls, 1);
+    assert.equal(result.result.record.status, 'FAIL');
+    assert.equal(result.result.record.exitCode, 127);
+    assert.equal(result.result.cleanupConfirmed, false);
+    assert.match(result.result.log, /CLEANUP_UNCONFIRMED/);
+    assert.match(result.result.log, /PROCESS_ERROR/);
+    assert.deepEqual(result.evidence, {
+      errorMessage: 'CHECK_PROCESS_CLEANUP_UNCONFIRMED',
+      signalCalls: 1,
+      latest: 'previous complete evidence',
+      files: ['typecheck.log'],
+    });
+  },
+);
+
+test('FAULT_INJECTED unconfirmed cleanup cannot produce PASS or replace complete evidence', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-check-cleanup-unconfirmed-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const priorPath = join(root, '.checks/management/latest.json');
+  await mkdir(join(root, '.checks/management'), { recursive: true });
+  await writeFile(priorPath, 'previous complete evidence\n');
+  const syntheticToken = `${'gh' + 'p_'}ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890`;
+  let calls = 0;
+  await assert.rejects(
+    runChecks({
+      root,
+      profile: 'quick',
+      runId: 'unconfirmed-cleanup',
+      maxLogBytes: 96,
+      collectGitState: gitStateSequence(gitState()),
+      runProcess: async () => {
+        calls++;
+        return calls === 1
+          ? { exitCode: 0, stdout: 'typecheck complete', stderr: '', timedOut: false }
+          : {
+              exitCode: 0,
+              stdout: syntheticToken,
+              stderr: '',
+              timedOut: false,
+              cleanupConfirmed: false,
+            };
+      },
+    }),
+    /CHECK_PROCESS_CLEANUP_UNCONFIRMED/,
+  );
+  assert.equal(calls, 2);
+  assert.equal(await readFile(priorPath, 'utf8'), 'previous complete evidence\n');
+  const evidenceDirectory = join(root, '.checks/management/unconfirmed-cleanup');
+  assert.deepEqual(await readdir(evidenceDirectory), ['lint.log']);
+  const diagnostic = await readFile(join(evidenceDirectory, 'lint.log'), 'utf8');
+  assert.ok(Buffer.byteLength(diagnostic, 'utf8') <= 96);
+  assert.match(diagnostic, /CLEANUP_UNCONFIRMED/);
+  assert.equal(diagnostic.includes(syntheticToken), false);
 });
 
 test('unavailable checks stay NOT_RUN without invoking a process', async () => {
