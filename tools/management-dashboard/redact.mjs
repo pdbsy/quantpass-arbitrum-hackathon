@@ -658,8 +658,8 @@ function containsAuthorizationCredential(payload, scheme) {
   // matching quote, leaving multiword explanations to the ordinary checks.
   const quoted = /^[ \t]*(["'`])([-A-Za-z0-9._~+/]+=*)\1/.exec(payload);
   if (quoted) {
-    // A quoted Bearer token is opaque even when its diagnostic suffix is adjacent.
-    // Basic still requires a canonical user:password payload.
+    // A quoted Bearer token is opaque even when its diagnostic suffix is
+    // adjacent. Basic still requires a canonical user:password payload.
     if (/^bearer$/i.test(scheme)) return true;
     if (/^basic$/i.test(scheme)) {
       const bytes = Buffer.from(quoted[2], 'base64');
