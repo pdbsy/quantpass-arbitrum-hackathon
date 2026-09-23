@@ -1735,3 +1735,16 @@ test('a controlled URL marker nonce collision fails closed without inventing a U
   }
   assert.equal(crypto.randomUUID, original);
 });
+
+test('quoted challenge schemes redact opaque credentials without erasing short explanatory prose', () => {
+  const credential = ['fictional', 'challenge', 'payload', '123456'].join('-');
+  for (const scheme of ['Digest', 'DPoP', 'Negotiate', 'OAuth', 'Token']) {
+    for (const quote of ['"', "'", '`']) {
+      const privateValue = `${scheme} ${quote}${credential}${quote}`;
+      assert.equal(sanitizeLog(privateValue), `${scheme} [REDACTED]`);
+      assert.equal(redactValue({ message: privateValue }).message, `${scheme} [REDACTED]`);
+      const prose = `${scheme} ${quote}hello${quote} is an example`;
+      assert.equal(sanitizeLog(prose), prose);
+    }
+  }
+});
