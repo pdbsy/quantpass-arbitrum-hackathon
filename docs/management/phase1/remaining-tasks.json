@@ -15,10 +15,10 @@
       "dependencies": "无",
       "deliverables": "矩阵、登记、当前状态与 C/R/S",
       "acceptance": "所有来源映射；真实 ACK；无旧状态冒充当前",
-      "evidence": "01维护准确来源、逐条分支缺口、审阅和C/R/S。当前1069初始缺口；后续两批各11个相对6a完整报告的同源同图真实新命中、不互相重复。最终同一候选重新全量测量，已允许正常公开推送。",
+      "evidence": "01统一来源登记、独立审阅和C/R/S。基线f966dd2的1069缺口保留；旧6a完整报告及后续局部命中仅用于排序，最终同一候选重新全量测量。02/03 f403已正常集成，最终采集器修复等待独立复核。",
       "blocker_type": "FINAL_CANDIDATE_FREEZE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -43,7 +43,7 @@
       "evidence": "合约源e09e639保持；6a完整原生160 Solidity测试/19 suites、fuzz/invariant、Slither通过。合约LCOV原缺42减少27，余15保留限定说明与分母；新最终候选复验待运行。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -68,7 +68,7 @@
       "evidence": "6a完整原生合约门禁与2次本地部署演练通过，ABI与制品绑定保持；没有真实Testnet部署。准确最终源需同一完整验收。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -93,7 +93,7 @@
       "evidence": "03来源图与链身份/ABI/地址边界经独立源码复核；05同源后端、chain-store、domain、部署配置局部117/117通过。完整6a为历史，最终新候选待验收。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -118,7 +118,7 @@
       "evidence": "已有模糊提交不重发、账户/会话隔离与恢复回归；本轮实际UI迟到review/confirm/本地API完成跨模块修复并独立浏览器复验。最终原始断言和状态迁移须在新候选重跑。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -143,7 +143,7 @@
       "evidence": "索引重组、租约/事务失败、损坏输入及幂等路径已有来源绑定回归；保留05后端限定审阅，最终完整验收与剩余图分类待准确候选。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -168,7 +168,7 @@
       "evidence": "SQLite query_only健康误报已修复并回归；本轮管理检查真实120秒超时管道滞留和同步错误递归修复8d85df2通过05独立25/25，清理未确认不发布complete/latest。最终统一验收待运行。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -190,10 +190,10 @@
       "dependencies": "apps/web/index.html 加载 product-ui.ts 与 user-ui.js",
       "deliverables": "产品状态/来源缺口修复、浏览器证据",
       "acceptance": "主页/市场/详情/账户/用户论坛/排名准确；不改未使用React入口",
-      "evidence": "7e683e7产品修复经05独立旧界面17检查和M3 26检查，零page/CSP/blocked错误。蓝色管理看板新增缺失嵌套状态拒绝及传输错误边界，最终浏览器验收待准确候选。",
+      "evidence": "原主界面与管理看板回归保留；真实禁用localStorage、跨窗口同步、公开API及迟到会话响应新增断言已集成f403。05独立普通CLI6/6、native资格7/7、Node hook13/13通过；实际browser collector须经新修复并统一全量复验。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -215,10 +215,10 @@
       "dependencies": "PH1-02/04；PH1-16已明确仅首发分配与转账",
       "deliverables": "操作闭环、精确接口和浏览器用例",
       "acceptance": "1 PASS容量不等于价格；转账18位；创建或选择 Vault；受审 allowlist 选择满足产品路径，创建保留显式 Owner 部署流程；切换废弃旧意图/模拟",
-      "evidence": "固定供应首发分配、18位自由转账、allowlist Vault选择范围不变。04已修复review/confirm/API晚到结果影响新弹窗问题；后续真实入口集中补测和逐条限定证明继续。",
+      "evidence": "固定供应、首发分配、18位转账、allowlist Vault选择范围不变。ab16a84拒绝canonical账户中未知策略Pass并保持旧状态；05原源码RED、修复57/57与三工作流独立通过。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -243,7 +243,7 @@
       "evidence": "支持的Vault授权/存取/关闭/关闭后救援范围不变，迟到响应保持原身份与单次经济动作；独立浏览器回归已有，当前新候选须统一复验。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -268,7 +268,7 @@
       "evidence": "degraded状态、真实链身份与Owner退出边界保留；已验证失败不显示伪成功，保留本地mock与未部署区分，最终同一源码报告待验收。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -290,10 +290,10 @@
       "dependencies": "起点base；最终统一候选",
       "deliverables": "独立功能复测/覆盖率/缺陷及修复SHA",
       "acceptance": "测量总体90%目标和关键授权会计100%分支要求；不足仍FAIL/BLOCKED，不拿数量替代",
-      "evidence": "当前基线f966dd2未命中1069。6a完整13工作流行12432/12821、语句15000/15562、函数2263/2372、分支10418/10888仅为中间值；继续验证合理可达路径，最终计数/平台/限定证明/未命中语义分列并独立复核。",
+      "evidence": "05已独立复核源码图和原始计数；旧37e证据包287条限定证明/4条语义已验但计数未观察，不等于最终命中。新增真实双browser采集器修复feb25f1与最终S/full图待复核；不移植旧源命中。",
       "blocker_type": "FINAL_CANDIDATE_COVERAGE_AND_METHOD_REVIEW",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -333,10 +333,10 @@
       "dependencies": "base；每个准确候选",
       "deliverables": "六项分列结论和run/job/step证据",
       "acceptance": "9jobs每关键步骤实际执行；错误失败关闭；旧CI失败不改写",
-      "evidence": "Public仓库及正常发布/现有标准CI已授权；7必需+2现有附加job及承诺CodeQL/Dependency Review必须对应最终最新head。远程3a78e34旧9绿不作新候选证明；Windows超时用例1142996仅静态审阅和macOS SKIP，待真实Windows。",
+      "evidence": "正常公开发布及标准CI已授权；准确最终head须通过7必需+2现有附加job及承诺CodeQL/Dependency Review。06已交付扫描器与Windows回归，当前会话受服务限制；01继续原定集成、全量验收和远程核验，独立身份/安全服务限制仍单列。",
       "blocker_type": "EXACT_HEAD_REMOTE_CI",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -415,7 +415,7 @@
       "evidence": "6a原生门禁160 Solidity/19 suites、fuzz/invariant/2演练/Slither/ABI及制品绑定通过。管理collector4个未注册NOT_RUN保留，以独立原生工作流证据覆盖，不手改PASS。",
       "blocker_type": "FINAL_CANDIDATE_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -437,10 +437,10 @@
       "dependencies": "PH1-02至18适用项",
       "deliverables": "准确候选及可复现交付包",
       "acceptance": "实现/本地/CI/QA/review/merge/testnet各状态分列；所有限制留存",
-      "evidence": "01集成当前修复、身份和169项迁移来源摘要核验。所有局部审阅完成后统一C/R/S、14工作流、完整剩余清单、公开正常发布及准确head托管验证；不再将中间值当最终交付。",
+      "evidence": "01已正常集成f403原生浏览器交接并登记真实修订，169项迁移当前摘要一致。feb25f1修复多browser共享关闭Promise的实际缺陷，本文件全部8项真实资格通过；最终独立复核/C/R/S/14工作流/准确head托管验证待完成。",
       "blocker_type": "FINAL_CANDIDATE_FREEZE_AND_ACCEPTANCE",
       "requires_user_decision": false,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -462,10 +462,10 @@
       "dependencies": "最终候选、本地/覆盖率/安全/治理、真实托管检查、适格review及本轮merge授权",
       "deliverables": "具体PR/SHA/门禁预览后用户决定",
       "acceptance": "全部准确head门禁和实际审批条件满足；不降低规则、不代签、不自动merge",
-      "evidence": "ruleset22507334实际要求1名独立审批、CODEOWNERS、末次push审批、解决讨论及7 required checks。pdbsy不能自批，worker审阅不是GitHub审批；本轮只到Ready，不合并。",
+      "evidence": "2026-09-24只读核验：ruleset22507334仍要求1独立审批、CODEOWNERS、末次push审批、解决讨论及7 required checks。当前仅pdbsy有写权限且为PR作者，review列表为空；不得降规则或代签。本轮到Ready停止，不合并。",
       "blocker_type": "GITHUB_INDEPENDENT_REVIEW",
       "requires_user_decision": true,
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -520,7 +520,7 @@
       "goal": "确认中Vault A→B与A→B→A失效；Vault action/Pass transfer/deposit approval",
       "status": "SCOPED_LOCAL_VERIFIED_FINAL_CANDIDATE_PENDING",
       "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "owner": "04",
       "collaborators": "01/03/05/06",
       "dependencies": "本地准确候选及既有工具链",
@@ -545,7 +545,7 @@
       "goal": "九job本地映射、Woodpecker/Jenkins/act比较、PoC与接回方案",
       "status": "SCOPED_LOCAL_VERIFIED_FINAL_CANDIDATE_PENDING",
       "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "owner": "06",
       "collaborators": "01/05/06",
       "dependencies": "本地准确候选及既有工具链",
@@ -570,7 +570,7 @@
       "goal": "使用保存日志调查Windows文件级进程失败",
       "status": "REAL_WINDOWS_FINAL_HEAD_PENDING",
       "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
-      "actual_candidate": "673c7b005d393a0d9b10bb94305c0eb7c34b2c67",
+      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
       "owner": "05",
       "collaborators": "01/05/06",
       "dependencies": "本地准确候选及既有工具链",
@@ -633,6 +633,15 @@
         "missing": 470
       },
       "status": "SUPERSEDED_INTERMEDIATE_NOT_FINAL_ACCEPTANCE"
+    },
+    "pre_freeze_source": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
+    "pre_freeze_binding": "SCOPED_ENGINEERING_EVIDENCE_NOT_FINAL_PASS",
+    "reviewed_sources": {
+      "browser_driver": "f403942b8f4aff1aac8e94588f1748f82413e67d",
+      "adapter": "ab16a84d4442bb8fe48e90c460758a158db2e2a0",
+      "management_browser": "da3e05391c6f28a1f2cea80c1411d9d1f78466d8",
+      "privacy_capacity": "14a213c76682dfcc33f66b0d704f79cd8193d812",
+      "collector_pending_independent_review": "feb25f1a8aa631c14f063dbb68f1447404430a38"
     }
   }
 }
