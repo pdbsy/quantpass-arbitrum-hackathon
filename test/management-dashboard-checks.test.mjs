@@ -15,16 +15,25 @@ import {
   runChecks,
 } from '../tools/management-dashboard/checks.mjs';
 import { validateCheckReport } from '../tools/management-dashboard/schema.mjs';
-import { runEscapedPipeTimeoutFixture } from './helpers/management-timeout-fixture.mjs';
+import {
+  runEscapedPipeTimeoutFixture,
+  runSynchronousKillErrorFixture,
+} from './helpers/management-timeout-fixture.mjs';
 
 const commit = '3333333333333333333333333333333333333333';
 const tree = '4444444444444444444444444444444444444444';
 
 test(
-  'qualified native lint timeout settles despite an escaped descendant holding stdout',
+  'qualified native lint timeout and FAULT_INJECTED synchronous timeout error stay bounded',
   { skip: process.platform === 'win32' },
   async () => {
-    const observed = await runEscapedPipeTimeoutFixture();
+    // Independent fixtures share the unchanged real 120-second lint deadline in wall time.
+    const outcomes = await Promise.allSettled([
+      runEscapedPipeTimeoutFixture(),
+      runSynchronousKillErrorFixture({ waitForTimeout: true }),
+    ]);
+    for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;
+    const [observed, timeoutError] = outcomes.map((outcome) => outcome.value);
     assert.equal(observed.settledBeforeRelease, true, `unbounded after ${observed.elapsedMs}ms`);
     assert.equal(observed.result.record.status, 'FAIL');
     assert.equal(observed.result.record.exitCode, 124);
@@ -33,6 +42,13 @@ test(
     assert.match(observed.result.log, /TIMEOUT/);
     assert.match(observed.result.log, /CLEANUP_UNCONFIRMED/);
     assert.equal(observed.result.log.includes(observed.syntheticToken), false);
+    // Boundary injection uses the actual platform and timer, not native Windows coverage.
+    assert.equal(timeoutError.signalCalls, 2, 'only initial TERM and one cleanup KILL');
+    assert.equal(timeoutError.result.record.status, 'FAIL');
+    assert.equal(timeoutError.result.record.exitCode, 124);
+    assert.equal(timeoutError.result.cleanupConfirmed, false);
+    assert.match(timeoutError.result.log, /^TIMEOUT\nCLEANUP_UNCONFIRMED/);
+    assert.match(timeoutError.result.log, /PROCESS_ERROR/);
   },
 );
 
@@ -202,6 +218,26 @@ test('FAULT_INJECTED cleanup uncertainty fails closed and preserves timeout exit
     if (timedOut) assert.match(result.log, /^TIMEOUT\n/);
   }
 });
+
+test(
+  'FAULT_INJECTED synchronous group signal error does not reenter cleanup',
+  { skip: process.platform === 'win32' },
+  async () => {
+    const result = await runSynchronousKillErrorFixture();
+    assert.equal(result.signalCalls, 1);
+    assert.equal(result.result.record.status, 'FAIL');
+    assert.equal(result.result.record.exitCode, 127);
+    assert.equal(result.result.cleanupConfirmed, false);
+    assert.match(result.result.log, /CLEANUP_UNCONFIRMED/);
+    assert.match(result.result.log, /PROCESS_ERROR/);
+    assert.deepEqual(result.evidence, {
+      errorMessage: 'CHECK_PROCESS_CLEANUP_UNCONFIRMED',
+      signalCalls: 1,
+      latest: 'previous complete evidence',
+      files: ['typecheck.log'],
+    });
+  },
+);
 
 test('FAULT_INJECTED unconfirmed cleanup cannot produce PASS or replace complete evidence', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'alphaforge-check-cleanup-unconfirmed-'));

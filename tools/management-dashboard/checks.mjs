@@ -216,6 +216,8 @@ async function spawnProcess({ file, args, cwd, timeoutMs, maxOutputBytes }) {
     const timer = setTimeout(() => {
       timedOut = true;
       signalProcess('SIGTERM');
+      // kill() may synchronously emit an error that settles the check.
+      if (settled) return;
       escalation = setTimeout(() => signalProcess('SIGKILL'), 1000);
       hardDeadline = setTimeout(() => {
         signalProcess('SIGKILL');
@@ -230,7 +232,6 @@ async function spawnProcess({ file, args, cwd, timeoutMs, maxOutputBytes }) {
     });
     child.on('error', () => {
       if (settled) return;
-      if (child.pid) signalProcess('SIGKILL');
       finish({
         exitCode: timedOut ? 124 : 127,
         stdout,
@@ -238,6 +239,8 @@ async function spawnProcess({ file, args, cwd, timeoutMs, maxOutputBytes }) {
         timedOut,
         cleanupConfirmed: !child.pid && !timedOut,
       });
+      // Settle before cleanup: a synchronous kill error must not reenter this handler.
+      if (child.pid) signalProcess('SIGKILL');
     });
     child.once('exit', () => {
       if (nativeGroup) groupExists();

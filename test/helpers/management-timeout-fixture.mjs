@@ -146,3 +146,136 @@ export async function runEscapedPipeTimeoutFixture() {
   if (cleanupErrors.length) throw new AggregateError(cleanupErrors, 'native timeout fixture cleanup failed');
   return observed;
 }
+
+export async function runSynchronousKillErrorFixture({ waitForTimeout = false } = {}) {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-management-kill-error-'));
+  const resultPath = join(root, 'result.json');
+  const checksUrl = new URL('../../tools/management-dashboard/checks.mjs', import.meta.url).href;
+  const harnessCode = `
+    import cp from 'node:child_process';
+    import { EventEmitter } from 'node:events';
+    import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+    import { syncBuiltinESMExports } from 'node:module';
+    import { PassThrough } from 'node:stream';
+    import { runCheck, runChecks } from ${JSON.stringify(checksUrl)};
+    class FakeChild extends EventEmitter {
+      pid = 424242;
+      exitCode = null;
+      signalCode = null;
+      stdout = new PassThrough();
+      stderr = new PassThrough();
+      unref() {}
+    }
+    let child;
+    const originalKill = process.kill;
+    let signalCalls = 0;
+    process.kill = (pid, signal) => {
+      if (pid === -child.pid && signal === 0) return true;
+      if (pid === -child.pid && (signal === 'SIGKILL' || signal === 'SIGTERM')) {
+        signalCalls++;
+        if (signalCalls <= 5)
+          child.emit('error', new Error('FAULT_INJECTED synchronous group signal denial'));
+        return true;
+      }
+      return originalKill(pid, signal);
+    };
+    cp.spawn = () => {
+      child = new FakeChild();
+      if (!${waitForTimeout})
+        queueMicrotask(() => child.emit('error', new Error('FAULT_INJECTED initial child error')));
+      return child;
+    };
+    syncBuiltinESMExports();
+    const result = await runCheck('lint', {
+      root: ${JSON.stringify(root)},
+      commit: 'f'.repeat(40),
+      runId: 'sync-kill-error-fixture',
+    });
+    child.emit('error', new Error('FAULT_INJECTED late child error'));
+    child.emit('close', 0);
+    // Let both deferred cleanup deadlines pass to detect signals scheduled after settlement.
+    if (${waitForTimeout}) await new Promise(resolve => setTimeout(resolve, 2300));
+    const checkSignalCalls = signalCalls;
+    let evidence;
+    if (!${waitForTimeout}) {
+      signalCalls = 0;
+      const root = ${JSON.stringify(root)};
+      mkdirSync(root + '/.checks/management', { recursive: true });
+      const latest = root + '/.checks/management/latest.json';
+      writeFileSync(latest, 'previous complete evidence');
+      let errorMessage;
+      try {
+        await runChecks({
+          root,
+          profile: 'quick',
+          runId: 'sync-error-evidence',
+          collectGitState: async () => ({
+            status: 'READY', commit: 'f'.repeat(40), tree: 'e'.repeat(40),
+            branch: 'fixture/sync-error', dirtyFiles: 0,
+          }),
+        });
+      } catch (error) { errorMessage = error.message; }
+      child.emit('error', new Error('FAULT_INJECTED late collector child error'));
+      child.emit('close', 0);
+      evidence = {
+        errorMessage, signalCalls,
+        latest: readFileSync(latest, 'utf8'),
+        files: readdirSync(root + '/.checks/management/sync-error-evidence'),
+      };
+    }
+    process.kill = originalKill;
+    writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ result, signalCalls: checkSignalCalls, evidence }));
+  `;
+  let supervisor;
+  let supervisorGroup;
+  let completed;
+  let failure;
+  let observed;
+  let stderr = '';
+  const cleanupErrors = [];
+  try {
+    supervisor = spawn(process.execPath, ['--input-type=module', '-e', harnessCode], {
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    assert.ok(Number.isInteger(supervisor.pid) && supervisor.pid > 0);
+    supervisorGroup = { pid: supervisor.pid, retired: false };
+    supervisor.once('exit', () => groupExists(supervisorGroup));
+    supervisor.stderr.on('data', (chunk) => {
+      stderr = `${stderr}${chunk}`.slice(0, 2000);
+    });
+    supervisor.stdout.resume();
+    completed = new Promise((resolve) => supervisor.once('close', resolve));
+    let deadline;
+    const exitCode = await Promise.race([
+      completed,
+      new Promise((_, reject) => {
+        deadline = setTimeout(
+          () => reject(new Error('synchronous kill-error harness did not exit')),
+          waitForTimeout ? 135_000 : 5_000,
+        );
+      }),
+    ]).finally(() => clearTimeout(deadline));
+    assert.equal(exitCode, 0, stderr);
+    observed = JSON.parse(await readFile(resultPath, 'utf8'));
+  } catch (error) {
+    failure = error;
+  } finally {
+    const attempt = async (operation) => {
+      try {
+        await operation();
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    };
+    await attempt(() => killFixtureGroup(supervisorGroup));
+    if (completed) await attempt(() => Promise.race([completed, delay(5_000)]));
+    await attempt(() => confirmGone(supervisorGroup));
+    await attempt(() => rm(root, { recursive: true, force: true }));
+  }
+  if (failure && cleanupErrors.length)
+    throw new AggregateError([failure, ...cleanupErrors], 'kill-error fixture and cleanup failed');
+  if (failure) throw failure;
+  if (cleanupErrors.length) throw new AggregateError(cleanupErrors, 'kill-error fixture cleanup failed');
+  return observed;
+}
