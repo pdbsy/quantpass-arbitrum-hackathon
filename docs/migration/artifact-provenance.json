@@ -1942,7 +1942,7 @@
       "target_path": "apps/web/src/product-ui.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3-04-PRODUCT-UI adds the manifest-bound Vault runtime, finite approval review and canonical evidence readback",
       "original_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38",
-      "migrated_sha256": "dd368d5033b1d30dc7c4707c18523976e3fc37f6a746b4101c7a674ec94d7f99",
+      "migrated_sha256": "db0a19114ecf66ed1dcdbf85d7d85e89abe4d7ce53ed2117ab0126166c06cd4e",
       "subsequent_adaptations": [
         {
           "task": "M3-01-PHASE1-CLOSEOUT",
@@ -1955,6 +1955,16 @@
           "base_commit": "18f5352070910a867b9729b031aa2e3951785e01",
           "previous_sha256": "335dd498b1b70a4b52ec1029e59b2efda7f9f750f47f4d7b1459e80c4a75c0db",
           "reason": "Integrate reviewed Macbeth04 allowlisted Vault selection and register its real regression suite; preserve original migration evidence."
+        }
+      ],
+      "subsequent_revisions": [
+        {
+          "commit": "cd75eaa00be348310740ce598bd68401c6d54247",
+          "agent": "Macbeth04",
+          "task": "M3-04-PHASE1-PRODUCT",
+          "previous_sha256": "dd368d5033b1d30dc7c4707c18523976e3fc37f6a746b4101c7a674ec94d7f99",
+          "current_sha256": "db0a19114ecf66ed1dcdbf85d7d85e89abe4d7ce53ed2117ab0126166c06cd4e",
+          "reason": "Discard late review success and rejection after the original dialog is cancelled or replaced; independently reviewed by Macbeth05."
         }
       ]
     },
@@ -2058,7 +2068,7 @@
       "target_path": "tools/verify-ui-browser.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; subsequent visible-browser assertion extension from Macbeth04 1dd5ca0fb03682b5b487ab68be424b35e4386d77 (metadata-only mapping from bf54f914), original source hash retained",
       "original_sha256": "4668e613f77c694aa66e8f43015c2d9f093fe8bf938f0d713e1baa6d627691e9",
-      "migrated_sha256": "f2bf3b38f2f0e569f4ba56a486d27bde06612a62d3bf2d684ab50a00b88a48f6",
+      "migrated_sha256": "94d08463d2b4ff59ecda0f4dec276c3d613ee28033f9bf3dd6b8ea412ca380c2",
       "subsequent_revisions": [
         {
           "commit": "dafb30d260769c19c940a54fde20b9bf97b7d5a2",
@@ -2067,6 +2077,14 @@
           "previous_sha256": "2a96c3f47592327c48f46c01ebe51b89cb50362ba4b1c191b09d3b16512bb58c",
           "current_sha256": "f2bf3b38f2f0e569f4ba56a486d27bde06612a62d3bf2d684ab50a00b88a48f6",
           "reason": "Execute assertion-bearing local demo model boundaries through the original visible-browser driver; retain all earlier source and author provenance."
+        },
+        {
+          "commit": "b3c5948a132e85d9a69567b61eb5d27dbe68f8ee",
+          "agent": "Macbeth04",
+          "task": "M3-04-PHASE1-PRODUCT",
+          "previous_sha256": "f2bf3b38f2f0e569f4ba56a486d27bde06612a62d3bf2d684ab50a00b88a48f6",
+          "current_sha256": "94d08463d2b4ff59ecda0f4dec276c3d613ee28033f9bf3dd6b8ea412ca380c2",
+          "reason": "Require matching audit recovery to send zero duplicate POST requests; preserve the full original migration history."
         }
       ]
     }
