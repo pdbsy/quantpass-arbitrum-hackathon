@@ -89,3 +89,44 @@ test('Critical risk acceptance is forbidden and High acceptance cannot be self-a
   };
   assert.throws(() => validateThreatModel(high, boundary, roadmap), /owner cannot self-accept risk/);
 });
+
+test('mitigation requires evidence and identifies incomplete closure fields', () => {
+  const mitigated = structuredClone(register);
+  const item = mitigated.risks[0];
+  item.status = 'mitigated';
+  item.evidence = ['test/threat-model.test.mjs'];
+  item.verifiedBy = 'independent-fixture-reviewer';
+  item.verifiedAt = '2026-09-23';
+  assert.equal(validateThreatModel(mitigated, boundary, roadmap), mitigated);
+  for (const [field, invalid, reason] of [
+    ['evidence', [], /evidence/],
+    ['verifiedBy', '', /verifiedBy/],
+    ['verifiedAt', 'invalid', /verifiedAt/],
+  ]) {
+    const malformed = structuredClone(mitigated);
+    malformed.risks[0][field] = invalid;
+    assert.throws(() => validateThreatModel(malformed, boundary, roadmap), reason);
+    assert.deepEqual(mitigated.risks[0], item);
+  }
+  const completed = structuredClone(roadmap);
+  const task = completed.tasks.find((task) => task.id === 'THREAT-001');
+  task.status = 'done';
+  task.evidence = [
+    'planning/risk-register.json',
+    'docs/THREAT-MODEL.md',
+    'docs/reviews/THREAT-001.md',
+    'tools/check-threat-model.mjs',
+    'test/threat-model.test.mjs',
+  ];
+  assert.equal(validateThreatRoadmapAlignment(register, completed), completed);
+  for (const missing of task.evidence) {
+    const malformed = structuredClone(completed);
+    malformed.tasks.find((task) => task.id === 'THREAT-001').evidence = task.evidence.filter(
+      (path) => path !== missing,
+    );
+    assert.throws(() => validateThreatRoadmapAlignment(register, malformed), /THREAT-001 evidence missing/);
+  }
+  const lowerSeverity = structuredClone(register);
+  lowerSeverity.risks[0].severity = 'medium';
+  assert.match(renderThreatModel(lowerSeverity), /\| medium \|/);
+});

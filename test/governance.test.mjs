@@ -446,6 +446,7 @@ test('Git provenance rejects forged review baselines and constrains the first ac
     'planning/security-boundary.json',
     'test/governance.test.mjs',
     'tools/check-governance-v2.mjs',
+    'tools/build-planning.mjs',
   ];
   const baselineFiles = new Map(
     await Promise.all(
@@ -672,6 +673,30 @@ test('Git provenance rejects forged review baselines and constrains the first ac
     now,
   });
   assert.match(committedVerification.acceptanceCommit, /^[0-9a-f]{40}$/);
+  // Execute the byte-identical CLI in the private, complete Git fixture. These
+  // native processes verify the accepted lifecycle; relocated modules do not
+  // contribute counters to the repository source coverage report.
+  const nativeRead = execFileSync(process.execPath, ['tools/check-governance-v2.mjs'], {
+    cwd: repository,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  const acceptedReport = JSON.parse(nativeRead);
+  assert.equal(acceptedReport.status, 'accepted');
+  assert.equal(acceptedReport.deploymentWritesEnabled, false);
+  assert.equal(acceptedReport.applicationWritesEnabled, false);
+  const beforeGenerated = await readFile(resolve(repository, 'docs/reviews/GOV-001.md'));
+  const nativeWrite = execFileSync(process.execPath, ['tools/check-governance-v2.mjs', '--write'], {
+    cwd: repository,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  assert.match(nativeWrite, /Governance artifacts generated and validated/);
+  assert.deepEqual(await readFile(resolve(repository, 'docs/reviews/GOV-001.md')), beforeGenerated);
+  assert.equal(git(repository, ['status', '--porcelain']).trim(), '');
+  assert.doesNotThrow(() =>
+    validateGovernanceReviewProvenance(review, current, { repositoryRoot: repository }),
+  );
 
   await writeRepositoryFile(repository, 'src/feature.ts', 'export const feature = true;\n');
   git(repository, ['add', '--all']);
@@ -1022,5 +1047,29 @@ test('review date admission uses the current clock when no override is supplied'
   assert.throws(
     () => validateReviewDateWindow(now.toISOString().slice(0, 10), tomorrow.toISOString()),
     /commit timestamp is in the future/,
+  );
+});
+
+test('governance rendering faithfully exposes disallowed switches without granting validation', () => {
+  const changed = structuredClone(boundary);
+  for (const plane of Object.values(changed.environment.writePlanes)) plane.enabled = true;
+  changed.operatingModel.unattendedExecution = true;
+  changed.roleLifecycle.crossRoleKeyMaterialReuseAllowed = true;
+  changed.trustBootstrap.runtimeOrRequestSelectionAllowed = true;
+  changed.trustBootstrap.currentManifestDigest = 'a'.repeat(64);
+  const rendered = renderSecurityBoundaryAppendix(changed);
+  for (const expected of [
+    '开启',
+    '无人值守执行：允许',
+    '跨角色复用密钥材料：允许',
+    '运行时/请求选择：允许',
+    'a'.repeat(64),
+  ])
+    assert.ok(rendered.includes(expected), expected);
+  assert.throws(() => validateSecurityBoundary(changed), /Invalid governance boundary/);
+  assert.notEqual(semanticBoundaryDigest({}), semanticBoundaryDigest(boundary));
+  assert.throws(
+    () => validateGovernanceReviewProvenance(makeValidReview(), { boundary }),
+    /does not exist as a Git commit/,
   );
 });
