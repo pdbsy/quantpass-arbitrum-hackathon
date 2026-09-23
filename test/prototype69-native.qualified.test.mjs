@@ -18,119 +18,289 @@ const origin = 'http://127.0.0.1:19469';
 const trialKey = 'alphaforge.prototype.v3';
 const exchangeKey = 'alphaforge.passmarket.v3';
 
-test('protected prototype native and admitted persistence boundaries', { timeout: 120_000 }, async (t) => {
+// Called by the existing legacy driver on its already instrumented shipped page.
+// This entry creates no manifest, collector, routes, scripts or mocked product APIs.
+export async function verifyPrototype69Shipped(page, { origin: shippedOrigin }) {
   assert.equal(sha256(source), sourceSha256);
-  assert.equal(
-    execFileSync('git', ['show', 'HEAD:' + prototypePath], { cwd: root, encoding: 'utf8' }),
-    source,
+  assert.equal(new URL(page.url()).origin, shippedOrigin);
+  assert.equal(await page.locator('[data-product-state]').count(), 1, 'product overlay must be loaded');
+  const url = page.url();
+  const viewport = page.viewportSize();
+  assert.ok(viewport, 'driver must declare its viewport');
+  const reducedMotion = await page.evaluate('matchMedia("(prefers-reduced-motion: reduce)").matches');
+  const saved = await page.evaluate(
+    '({trial:localStorage.getItem("alphaforge.prototype.v3"),exchange:localStorage.getItem("alphaforge.passmarket.v3")})',
   );
-  assert.ok(process.env.AF_QUALIFIED_COVERAGE_TOOLS, 'qualified instrumenter required');
-  assert.ok(process.env.AF_QUALIFIED_BROWSER_TOOLS, 'qualified browser required');
-  const tools = await loadCoverageTools(root, {
-    instrumentationDirectory: process.env.AF_QUALIFIED_COVERAGE_TOOLS,
-    browserDirectory: process.env.AF_QUALIFIED_BROWSER_TOOLS,
-  });
-  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-  const tree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: root, encoding: 'utf8' }).trim();
-  // A targeted source snapshot, explicitly not a full-candidate coverage report.
-  const { manifest, generated } = await instrumentSnapshot(
-    root,
-    {
-      candidateCommit: head,
-      candidateTree: tree,
-      trackedPaths: [prototypePath],
-      sources: {},
-      prototype: { path: prototypePath, sha256: sourceSha256, text: source },
-    },
-    tools,
-  );
-  assert.equal([...source.matchAll(/<script>[\s\S]*?<\/script>/g)].length, 1);
-  const html = source.replace(
-    /<script>[\s\S]*?<\/script>/,
-    () => '<script>' + generated[prototypePath].code + '</script>',
-  );
-  const output = resolve(root, '.checks/prototype69-native', randomUUID());
-  mkdirSync(output, { recursive: true });
-  const write = (file, value) => writeFileSync(resolve(output, file), JSON.stringify(value, null, 2) + '\n');
-  write('manifest.json', manifest);
-  write('generated.json', generated);
-  const tracker = createBrowserCoverageLifecycle({
-    manifest,
-    outputDirectory: resolve(output, 'raw'),
-    loaded: new Set([prototypePath]),
-    workflow: 'PROTOTYPE69_TARGETED',
-  });
-  const browser = await tools.chromium.launch({
-    headless: true,
-    executablePath: process.env.CHROMIUM_PATH,
-  });
-  t.after(() => browser.close());
-  const observations = [];
-  const evidence = [];
+  const checks = [];
+  const errors = [];
+  const extraPages = new Set();
+  const onError = (error) => errors.push(error.message);
+  page.on('pageerror', onError);
+  async function ready(target) {
+    await target
+      .locator('[data-product-state]')
+      .filter({ hasText: /READY|EMPTY|ERROR/ })
+      .waitFor();
+  }
+  async function navigate(target, path, selector) {
+    await target.evaluate('location.hash = ' + JSON.stringify('#' + path));
+    await ready(target);
+    await target.locator(selector).first().waitFor();
+    assert.equal(await target.locator('[data-product-state]').count(), 1);
+  }
+  async function closeDialog(target) {
+    await target.locator('#close-dialog').click();
+    await target.locator('#app-dialog').waitFor({ state: 'hidden' });
+  }
   async function session(options = {}) {
-    const { denied = false, ...browserOptions } = options;
-    const context = await browser.newContext(browserOptions);
-    t.after(() => context.close());
-    await context.route('**/*', async (route) => {
-      if (new URL(route.request().url()).origin !== origin) return route.abort();
-      return route.fulfill({
-        status: 200,
-        contentType: 'text/html',
-        headers: denied ? { 'Content-Security-Policy': 'sandbox allow-scripts' } : {},
-        body: html,
-      });
-    });
-    const page = await context.newPage();
-    tracker.registerPage(page);
-    page.setDefaultTimeout(7_000);
-    const errors = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(origin + '/#/home');
+    assert.equal(options.denied, undefined, 'opaque-origin raw fixture is not a shipped journey');
+    await page.setViewportSize(options.viewport ?? viewport);
+    await page.emulateMedia({ reducedMotion: options.reducedMotion ?? 'no-preference' });
+    await page.goto(shippedOrigin + '/#/account/settings');
+    await ready(page);
+    await page.locator('[data-action="reset-confirm"]').click();
+    await page.locator('[data-action="reset-run"]').click();
+    await page.goto(shippedOrigin + '/#/home');
+    await ready(page);
     await page.locator('#press-button').waitFor();
-    return { page, context, errors };
-  }
-  async function navigate(page, path, selector) {
-    // Hash navigation is a public router input; no AF.view/private state writes.
-    await page.evaluate('location.hash = ' + JSON.stringify('#' + path));
-    await page.locator(selector).first().waitFor();
-  }
-  async function capture(s, name, targets, metadata = {}) {
-    assert.deepEqual(s.errors, [], name + ': no uncaught page error');
-    const raw = JSON.parse(await s.page.evaluate('JSON.stringify(globalThis.__coverage__)'));
-    const canonical = browserCoverageSources(manifest, raw, new Set([prototypePath]));
-    write(name + '-raw.json', raw);
-    write(name + '-canonical.json', canonical);
-    const hits = targets.map(([id, index]) => {
-      const count = canonical[prototypePath].coverage.b[id][index];
-      assert.ok(count > 0, name + ': expected branch ' + id + '/' + index);
-      return { id, index, count };
-    });
-    observations.push({ name, targets: hits, ...metadata });
-    write('observations.json', observations);
-    await pageClose(s.page);
-    await s.context.close();
-  }
-  async function pageClose(page) {
-    // Original lifecycle owns capture/reset/close. Never sum browser counters here.
-    await page.close();
-  }
-  async function closeDialog(page) {
-    await page.locator('#close-dialog').click();
-    await page.locator('#app-dialog').waitFor({ state: 'hidden' });
+    const baseline = await page.evaluate('({trial:AF.store.read(),exchange:AF.exchange.read()})');
+    assert.equal(baseline.trial.idle, 1000000);
+    assert.equal(baseline.exchange.cash, 1000000);
+    assert.deepEqual(baseline.trial.history, []);
+    assert.deepEqual(baseline.exchange.orders, []);
+    return { page, context: page.context(), errors };
   }
   async function resetFromSecondWindow(s) {
     const other = await s.context.newPage();
-    tracker.registerPage(other);
-    other.setDefaultTimeout(7_000);
-    other.on('pageerror', (error) => s.errors.push(error.message));
-    await other.goto(origin + '/#/account/settings');
-    await other.locator('[data-action="reset-confirm"]').click();
-    await other.locator('[data-action="reset-run"]').click();
-    await other.waitForFunction('AF.store.read().history.length === 0 && !AF.store.read().passes.factor');
-    await other.close();
+    extraPages.add(other);
+    other.on('pageerror', onError);
+    try {
+      await other.goto(shippedOrigin + '/#/account/settings');
+      await ready(other);
+      await other.locator('[data-action="reset-confirm"]').click();
+      await other.locator('[data-action="reset-run"]').click();
+      await other.waitForFunction(
+        () => globalThis.AF.store.read().history.length === 0 && !globalThis.AF.store.read().passes.factor,
+      );
+    } finally {
+      await other.close();
+      extraPages.delete(other);
+    }
   }
+  try {
+    await runPrototype69Cases({
+      run: async (name, body) => {
+        // These retain separate compatibility/API scope; not current UI reachability.
+        if (name.startsWith('native opaque-origin') || name.startsWith('exported APIs')) return;
+        try {
+          await body();
+        } catch (error) {
+          throw new Error('Shipped prototype group failed: ' + name, { cause: error });
+        }
+      },
+      session,
+      navigate,
+      closeDialog,
+      resetFromSecondWindow,
+      capture: async (s, name, targets, metadata = {}) => {
+        assert.deepEqual(s.errors, [], name + ': shipped page has no uncaught error');
+        assert.equal(await page.locator('[data-product-state]').count(), 1);
+        checks.push({ name, scope: 'SHIPPED_LOCAL_MOCK_UI', targets, ...metadata });
+      },
+      write: () => assert.fail('raw diagnostic writes are not a shipped journey'),
+    });
+    assert.equal(checks.length, 8, 'all eight shipped assertion groups must complete');
+    return checks;
+  } finally {
+    for (const extra of extraPages) await extra.close();
+    // Retire the old document and its delayed UI actions before restoring storage.
+    await page.goto(shippedOrigin + '/#/account/settings');
+    await ready(page);
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: reducedMotion ? 'reduce' : 'no-preference' });
+    // Restore only the two fixture keys; backend identity/cookies and vaults are untouched.
+    await page.evaluate(
+      '(() => { const saved=' +
+        JSON.stringify(saved) +
+        '; for (const [key,value] of [["alphaforge.prototype.v3",saved.trial],["alphaforge.passmarket.v3",saved.exchange]]) { if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value); } })()',
+    );
+    await page.goto(url);
+    await ready(page);
+    assert.deepEqual(
+      await page.evaluate(
+        '({trial:localStorage.getItem("alphaforge.prototype.v3"),exchange:localStorage.getItem("alphaforge.passmarket.v3")})',
+      ),
+      saved,
+      'original driver fixture storage restored exactly',
+    );
+    page.off('pageerror', onError);
+  }
+}
 
-  await t.test('trial allocation rejects unowned access and disables a full quota', async () => {
+if (process.argv[1] && resolve(process.argv[1]) === import.meta.filename)
+  test('protected prototype native and admitted persistence boundaries', { timeout: 120_000 }, async (t) => {
+    assert.equal(sha256(source), sourceSha256);
+    assert.equal(
+      execFileSync('git', ['show', 'HEAD:' + prototypePath], { cwd: root, encoding: 'utf8' }),
+      source,
+    );
+    assert.ok(process.env.AF_QUALIFIED_COVERAGE_TOOLS, 'qualified instrumenter required');
+    assert.ok(process.env.AF_QUALIFIED_BROWSER_TOOLS, 'qualified browser required');
+    const tools = await loadCoverageTools(root, {
+      instrumentationDirectory: process.env.AF_QUALIFIED_COVERAGE_TOOLS,
+      browserDirectory: process.env.AF_QUALIFIED_BROWSER_TOOLS,
+    });
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+    const tree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: root, encoding: 'utf8' }).trim();
+    // A targeted source snapshot, explicitly not a full-candidate coverage report.
+    const { manifest, generated } = await instrumentSnapshot(
+      root,
+      {
+        candidateCommit: head,
+        candidateTree: tree,
+        trackedPaths: [prototypePath],
+        sources: {},
+        prototype: { path: prototypePath, sha256: sourceSha256, text: source },
+      },
+      tools,
+    );
+    assert.equal([...source.matchAll(/<script>[\s\S]*?<\/script>/g)].length, 1);
+    const html = source.replace(
+      /<script>[\s\S]*?<\/script>/,
+      () => '<script>' + generated[prototypePath].code + '</script>',
+    );
+    const output = resolve(root, '.checks/prototype69-native', randomUUID());
+    mkdirSync(output, { recursive: true });
+    const write = (file, value) =>
+      writeFileSync(resolve(output, file), JSON.stringify(value, null, 2) + '\n');
+    write('manifest.json', manifest);
+    write('generated.json', generated);
+    const tracker = createBrowserCoverageLifecycle({
+      manifest,
+      outputDirectory: resolve(output, 'raw'),
+      loaded: new Set([prototypePath]),
+      workflow: 'PROTOTYPE69_TARGETED',
+    });
+    const browser = await tools.chromium.launch({
+      headless: true,
+      executablePath: process.env.CHROMIUM_PATH,
+    });
+    t.after(() => browser.close());
+    const observations = [];
+    const evidence = [];
+    async function session(options = {}) {
+      const { denied = false, ...browserOptions } = options;
+      const context = await browser.newContext(browserOptions);
+      t.after(() => context.close());
+      await context.route('**/*', async (route) => {
+        if (new URL(route.request().url()).origin !== origin) return route.abort();
+        return route.fulfill({
+          status: 200,
+          contentType: 'text/html',
+          headers: denied ? { 'Content-Security-Policy': 'sandbox allow-scripts' } : {},
+          body: html,
+        });
+      });
+      const page = await context.newPage();
+      tracker.registerPage(page);
+      page.setDefaultTimeout(7_000);
+      const errors = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      await page.goto(origin + '/#/home');
+      await page.locator('#press-button').waitFor();
+      return { page, context, errors };
+    }
+    async function navigate(page, path, selector) {
+      // Hash navigation is a public router input; no AF.view/private state writes.
+      await page.evaluate('location.hash = ' + JSON.stringify('#' + path));
+      await page.locator(selector).first().waitFor();
+    }
+    async function capture(s, name, targets, metadata = {}) {
+      assert.deepEqual(s.errors, [], name + ': no uncaught page error');
+      const raw = JSON.parse(await s.page.evaluate('JSON.stringify(globalThis.__coverage__)'));
+      const canonical = browserCoverageSources(manifest, raw, new Set([prototypePath]));
+      write(name + '-raw.json', raw);
+      write(name + '-canonical.json', canonical);
+      const hits = targets.map(([id, index]) => {
+        const count = canonical[prototypePath].coverage.b[id][index];
+        assert.ok(count > 0, name + ': expected branch ' + id + '/' + index);
+        return { id, index, count };
+      });
+      observations.push({ name, targets: hits, ...metadata });
+      write('observations.json', observations);
+      await pageClose(s.page);
+      await s.context.close();
+    }
+    async function pageClose(page) {
+      // Original lifecycle owns capture/reset/close. Never sum browser counters here.
+      await page.close();
+    }
+    async function closeDialog(page) {
+      await page.locator('#close-dialog').click();
+      await page.locator('#app-dialog').waitFor({ state: 'hidden' });
+    }
+    async function resetFromSecondWindow(s) {
+      const other = await s.context.newPage();
+      tracker.registerPage(other);
+      other.setDefaultTimeout(7_000);
+      other.on('pageerror', (error) => s.errors.push(error.message));
+      await other.goto(origin + '/#/account/settings');
+      await other.locator('[data-action="reset-confirm"]').click();
+      await other.locator('[data-action="reset-run"]').click();
+      await other.waitForFunction(
+        () => globalThis.AF.store.read().history.length === 0 && !globalThis.AF.store.read().passes.factor,
+      );
+      await other.close();
+    }
+
+    await runPrototype69Cases({
+      run: (name, body) => t.test(name, body),
+      session,
+      navigate,
+      capture,
+      closeDialog,
+      resetFromSecondWindow,
+      write,
+    });
+
+    const lifecycle = await tracker.finish();
+    const replay = replayBrowserCoverage({
+      manifest,
+      outputDirectory: resolve(output, 'raw'),
+      index: lifecycle.index,
+    });
+    const byId = (rows) => [...rows].sort((a, b) => a.id.localeCompare(b.id));
+    assert.deepEqual(byId(replay.observations), byId(lifecycle.observations));
+    const merged = mergeObserved(manifest, replay.observations);
+    assert.deepEqual(merged.incomplete, []);
+    write('lifecycle.json', lifecycle);
+    write('replayed-coverage.json', merged);
+    assert.equal(observations.length, 10, 'all ten assertion groups must finish before a receipt');
+    evidence.push({
+      scope: 'TARGETED_PROTOTYPE_ONLY_NOT_FULL_CANDIDATE_REPORT',
+      sourceSha256,
+      candidateCommit: head,
+      candidateTree: tree,
+      toolDigest: tools.descriptorSha256,
+      browserVersion: browser.version(),
+      testFileSha256: sha256(readFileSync(import.meta.filename)),
+      observations: observations.length,
+      sourceModified: false,
+    });
+    write('receipt.json', evidence);
+    t.diagnostic('Prototype observations: ' + output);
+  });
+
+async function runPrototype69Cases({
+  run,
+  session,
+  navigate,
+  capture,
+  closeDialog,
+  resetFromSecondWindow,
+  write,
+}) {
+  await run('trial allocation rejects unowned access and disables a full quota', async () => {
     const s = await session();
     const { page } = s;
     await navigate(page, '/trade/factor', '#pass-order-form');
@@ -156,31 +326,28 @@ test('protected prototype native and admitted persistence boundaries', { timeout
     ]);
   });
 
-  await t.test(
-    'withdrawing all idle funds preserves pending money and disables a second request',
-    async () => {
-      const s = await session();
-      const { page } = s;
-      await navigate(page, '/account/funds', '[data-cash="withdraw"]');
-      await page.locator('[data-cash="withdraw"]').click();
-      await page.locator('#cash-form [name="amount"]').fill('10000');
-      await page.locator('#cash-form [type="submit"]').click();
-      await page.locator('[data-action="commit"]').click();
-      await page.locator('[data-route="/account/funds"]').click();
-      await page.locator('#app-dialog').waitFor({ state: 'hidden' });
-      assert.equal(await page.locator('[data-cash="withdraw"]').isDisabled(), true);
-      const state = await page.evaluate('AF.store.read()');
-      assert.equal(state.idle, 0);
-      assert.equal(state.pending.length, 1);
-      assert.equal(state.pending[0].amount, state.netFunding);
-      await capture(s, 'withdraw-idle', [
-        ['255', 0],
-        ['383', 0],
-      ]);
-    },
-  );
+  await run('withdrawing all idle funds preserves pending money and disables a second request', async () => {
+    const s = await session();
+    const { page } = s;
+    await navigate(page, '/account/funds', '[data-cash="withdraw"]');
+    await page.locator('[data-cash="withdraw"]').click();
+    await page.locator('#cash-form [name="amount"]').fill('10000');
+    await page.locator('#cash-form [type="submit"]').click();
+    await page.locator('[data-action="commit"]').click();
+    await page.locator('[data-route="/account/funds"]').click();
+    await page.locator('#app-dialog').waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('[data-cash="withdraw"]').isDisabled(), true);
+    const state = await page.evaluate('AF.store.read()');
+    assert.equal(state.idle, 0);
+    assert.equal(state.pending.length, 1);
+    assert.equal(state.pending[0].amount, state.netFunding);
+    await capture(s, 'withdraw-idle', [
+      ['255', 0],
+      ['383', 0],
+    ]);
+  });
 
-  await t.test('admitted persisted position hits the size guard without changing money', async () => {
+  await run('admitted persisted position hits the size guard without changing money', async () => {
     const s = await session();
     const { page } = s;
     const state = await page.evaluate('AF.exchange.read()');
@@ -217,7 +384,7 @@ test('protected prototype native and admitted persistence boundaries', { timeout
     );
   });
 
-  await t.test('admitted legacy history safely renders absent type and retired strategy', async () => {
+  await run('admitted legacy history safely renders absent type and retired strategy', async () => {
     const s = await session();
     const { page } = s;
     const state = await page.evaluate('AF.store.read()');
@@ -243,7 +410,7 @@ test('protected prototype native and admitted persistence boundaries', { timeout
     );
   });
 
-  await t.test('saved and comparison controls survive full renderer round trips', async () => {
+  await run('saved and comparison controls survive full renderer round trips', async () => {
     const s = await session();
     const { page } = s;
     await navigate(page, '/market', '#market-sort');
@@ -268,14 +435,17 @@ test('protected prototype native and admitted persistence boundaries', { timeout
     ]);
   });
 
-  await t.test('mobile price/returns charts and reduced-motion press use native input', async () => {
+  await run('mobile price/returns charts and reduced-motion press use native input', async () => {
     const s = await session({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
     const { page } = s;
     await page.locator('#press-button').click();
     await page.waitForFunction(
-      'AF.store.read().samplePass === true && !document.querySelector("#press-button").disabled',
+      () =>
+        globalThis.AF.store.read().samplePass === true &&
+        !globalThis.document.querySelector('#press-button').disabled,
     );
     await navigate(page, '/trade/trend', '[data-v3-chart="price"]');
+    await page.locator('[data-v3-chart="price"]').scrollIntoViewIfNeeded();
     const box = await page.locator('[data-v3-chart="price"]').boundingBox();
     assert.ok(box);
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -296,7 +466,7 @@ test('protected prototype native and admitted persistence boundaries', { timeout
     ]);
   });
 
-  await t.test(
+  await run(
     'native opaque-origin storage denial keeps settings, trading and draft status honest',
     async () => {
       const s = await session({ denied: true });
@@ -331,7 +501,7 @@ test('protected prototype native and admitted persistence boundaries', { timeout
     },
   );
 
-  await t.test('exported APIs have explicit API-only coverage and preserve monetary state', async () => {
+  await run('exported APIs have explicit API-only coverage and preserve monetary state', async () => {
     const s = await session();
     const { page } = s;
     const before = await page.evaluate('({trial:AF.store.read(),exchange:AF.exchange.read()})');
@@ -362,7 +532,7 @@ test('protected prototype native and admitted persistence boundaries', { timeout
     );
   });
 
-  await t.test('native cross-window reset and bookmark sync reject a stale allocation form', async () => {
+  await run('native cross-window reset and bookmark sync reject a stale allocation form', async () => {
     const s = await session();
     const { page } = s;
     await navigate(page, '/trade/factor', '#pass-order-form');
@@ -385,7 +555,7 @@ test('protected prototype native and admitted persistence boundaries', { timeout
     await capture(s, 'stale-allocation', [['405', 0]], { inputClass: 'NATIVE_TWO_WINDOWS' });
   });
 
-  await t.test('stale claim after a real second-window reset yields an existing-Pass receipt', async () => {
+  await run('stale claim after a real second-window reset yields an existing-Pass receipt', async () => {
     const s = await session();
     const { page } = s;
     const initial = await page.evaluate('AF.store.read()');
@@ -415,31 +585,4 @@ test('protected prototype native and admitted persistence boundaries', { timeout
       inputClass: 'VALID_PERSISTENCE_THEN_NATIVE_TWO_WINDOWS',
     });
   });
-
-  const lifecycle = await tracker.finish();
-  const replay = replayBrowserCoverage({
-    manifest,
-    outputDirectory: resolve(output, 'raw'),
-    index: lifecycle.index,
-  });
-  const byId = (rows) => [...rows].sort((a, b) => a.id.localeCompare(b.id));
-  assert.deepEqual(byId(replay.observations), byId(lifecycle.observations));
-  const merged = mergeObserved(manifest, replay.observations);
-  assert.deepEqual(merged.incomplete, []);
-  write('lifecycle.json', lifecycle);
-  write('replayed-coverage.json', merged);
-  assert.equal(observations.length, 10, 'all ten assertion groups must finish before a receipt');
-  evidence.push({
-    scope: 'TARGETED_PROTOTYPE_ONLY_NOT_FULL_CANDIDATE_REPORT',
-    sourceSha256,
-    candidateCommit: head,
-    candidateTree: tree,
-    toolDigest: tools.descriptorSha256,
-    browserVersion: browser.version(),
-    testFileSha256: sha256(readFileSync(import.meta.filename)),
-    observations: observations.length,
-    sourceModified: false,
-  });
-  write('receipt.json', evidence);
-  t.diagnostic('Prototype observations: ' + output);
-});
+}
