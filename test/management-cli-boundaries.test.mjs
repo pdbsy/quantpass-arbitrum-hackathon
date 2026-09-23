@@ -140,3 +140,43 @@ test(
     assert.doesNotMatch(result.log, /PROCESS_ERROR|TIMEOUT/);
   },
 );
+
+test('governance CLI reports real malformed and unreadable input failures without publishing success', async (t) => {
+  const temporary = await mkdtemp(join(tmpdir(), 'alphaforge-governance-cli-boundary-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const malformed = join(temporary, 'malformed.json');
+  await writeFile(malformed, '{ invalid json');
+  for (const [relative, fixture, message] of [
+    ['planning/security-boundary.json', malformed, /JSON|property name/],
+    ['docs/reviews/GOV-001.json', temporary, /governance review record cannot be read/],
+  ]) {
+    const target = resolve(root, relative);
+    const before = await readFile(target).catch((error) => {
+      assert.equal(error.code, 'ENOENT');
+      return null;
+    });
+    const hook = `
+      import fs from 'node:fs/promises';
+      import {syncBuiltinESMExports} from 'node:module';
+      const original = fs.readFile;
+      fs.readFile = (path, ...args) => original(path === ${JSON.stringify(target)} ? ${JSON.stringify(fixture)} : path, ...args);
+      syncBuiltinESMExports();
+    `;
+    const run = execute([
+      '--import',
+      `data:text/javascript,${encodeURIComponent(hook)}`,
+      'tools/check-governance-v2.mjs',
+    ]);
+    assert.equal(run.error, undefined);
+    assert.equal(run.status, 1, run.stderr);
+    assert.equal(run.stdout, '');
+    assert.match(run.stderr, message);
+    assert.deepEqual(
+      await readFile(target).catch((error) => {
+        assert.equal(error.code, 'ENOENT');
+        return null;
+      }),
+      before,
+    );
+  }
+});

@@ -1073,3 +1073,21 @@ test('governance rendering faithfully exposes disallowed switches without granti
     /does not exist as a Git commit/,
   );
 });
+
+test('Git governance lookup rejects a genuinely missing repository root before reading evidence', async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), 'alphaforge-governance-missing-root-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const absent = resolve(directory, 'absent');
+  assert.throws(
+    () => readOptionalCommitBlob(absent, '1'.repeat(40), 'README.md'),
+    (error) => {
+      assert.equal(
+        error.message,
+        'Invalid governance boundary: Git provenance repository root cannot be verified',
+      );
+      assert.equal(error.cause.code, 'ENOENT');
+      return true;
+    },
+  );
+  await assert.rejects(() => readFile(absent), { code: 'ENOENT' });
+});
