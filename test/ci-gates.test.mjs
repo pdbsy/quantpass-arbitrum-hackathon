@@ -1,14 +1,46 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, mkdir, rm, symlink, readFile } from 'node:fs/promises';
+import { mkdtemp, writeFile, mkdir, rm, symlink, readFile, truncate } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse, stringify } from 'yaml';
+import { ESLint } from 'eslint';
 import { validateContractHost, runContractStages } from '../tools/ci/verify-contracts.mjs';
 import { scanSources, sourceTargets } from '../tools/ci/check-source-policy.mjs';
 import { compareLocks, classifyAudit, candidateRefs } from '../tools/ci/check-dependency-delta.mjs';
 import { validateCIGateWorkflows } from '../tools/ci/workflow-contract.mjs';
 import { assertUnchanged } from '../tools/ci/context.mjs';
+
+test('source policy rejects a real aggregate byte overflow before linting any files', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-source-byte-limit-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const paths = [];
+  for (let index = 0; index < 17; index++) {
+    const path = `source-${index}.ts`;
+    await writeFile(join(root, path), '');
+    await truncate(join(root, path), 2 * 1024 * 1024);
+    paths.push(path);
+  }
+  await assert.rejects(scanSources(root, paths), /Source coverage exceeds limit/);
+});
+
+test('source policy rejects an incomplete result at the real ESLint executor boundary', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'alphaforge-source-incomplete-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const name of ['x.ts', 'y.ts']) await writeFile(join(root, name), 'export const x = 1;\n');
+  const original = ESLint.prototype.lintFiles;
+  let observed = 0;
+  t.mock.method(ESLint.prototype, 'lintFiles', async function (...args) {
+    const results = await original.apply(this, args);
+    assert.equal(results.length, 2);
+    observed++;
+    // Explicit fault injection: lose one genuine engine result. This is a
+    // reconciliation test, not a claim that this ESLint version drops files.
+    return results.slice(1);
+  });
+  await assert.rejects(scanSources(root, ['x.ts', 'y.ts']), /Incomplete source scan/);
+  assert.equal(observed, 1);
+});
 
 test('gate evidence rejects dirty state and changed commit, tree or lock after execution', () => {
   const before = {

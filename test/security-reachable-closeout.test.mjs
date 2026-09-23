@@ -21,6 +21,33 @@ import { emit, inspect } from '../tools/ci/context.mjs';
 import { installScanner } from '../tools/security/bootstrap.mjs';
 import { verifySecretCanary } from '../tools/ci/check-gitleaks.mjs';
 
+test('real environment and CI entrypoints reject injected interpreter settings before starting tools', () => {
+  for (const [path, args, mode] of [
+    ['tools/check-environment.mjs', [], 'dev'],
+    ['tools/check-environment.mjs', ['--ci'], 'ci'],
+    ['tools/verify-ci.mjs', [], 'ci'],
+  ]) {
+    const child = spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL(`../${path}`, import.meta.url)), ...args],
+      {
+        env: { ...process.env, FNM_NODE_DIST_MIRROR: 'https://example.invalid/untrusted-runtime' },
+        encoding: 'utf8',
+        timeout: 15000,
+      },
+    );
+    assert.equal(child.error, undefined);
+    assert.ok([1, 2].includes(child.status), child.stderr);
+    const report = JSON.parse(child.stdout);
+    assert.equal(report.mode, mode);
+    assert.equal(report.eligibleForEvidence, false);
+    assert.equal(report.exitCode, child.status);
+    assert.equal(report.checks.find((row) => row.id === 'overrides').status, 'FAIL');
+    assert.deepEqual(report.commands, []);
+    assert.doesNotMatch(child.stdout + child.stderr, /untrusted-runtime/);
+  }
+});
+
 test('CI report emission preserves failure exits and rejects oversized evidence before output', (t) => {
   const previous = process.exitCode;
   const rows = [];
