@@ -3,15 +3,17 @@ import assert from 'node:assert/strict';
 import {
   cpSync,
   existsSync,
+  linkSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
   realpathSync,
+  symlinkSync,
   writeFileSync,
   rmSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import { classifySemgrep, classifyOSV, packageKey } from '../tools/security/results.mjs';
 import { buildInventory } from '../tools/security/inputs.mjs';
 import { stageSources } from '../tools/security/staging.mjs';
@@ -57,6 +59,49 @@ function isolatedCheckout(t, { yaml = false } = {}) {
     '',
   );
   return canonicalRoot;
+}
+
+function gitOnlyEnvironment(t) {
+  const ambientPath = Object.entries(process.env).find(([key]) => key.toUpperCase() === 'PATH')?.[1] ?? '';
+  const gitName = process.platform === 'win32' ? 'git.exe' : 'git';
+  const executable = ambientPath
+    .split(delimiter)
+    .filter(Boolean)
+    .map((directory) => join(directory.replace(/^"|"$/g, ''), gitName))
+    .find(
+      (candidate) =>
+        existsSync(candidate) &&
+        spawnSync(candidate, ['--version'], { env: process.env, encoding: 'utf8' }).status === 0,
+    );
+  assert.ok(executable, 'A real Git executable is required');
+  const directory = mkdtempSync(join(tmpdir(), 'alphaforge-git-only-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const bin = join(directory, 'bin');
+  mkdirSync(bin);
+  const gitLink = join(bin, gitName);
+  let executionDirectory = bin;
+  try {
+    symlinkSync(executable, gitLink, 'file');
+  } catch (error) {
+    if (process.platform !== 'win32') throw error;
+    try {
+      linkSync(executable, gitLink);
+    } catch {
+      executionDirectory = dirname(executable);
+    }
+  }
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH'),
+  );
+  environment.PATH = executionDirectory;
+  if (process.platform === 'win32' && executionDirectory === bin) {
+    const probe = spawnSync('git', ['--version'], { env: environment, encoding: 'utf8' });
+    if (probe.status !== 0) {
+      rmSync(gitLink, { force: true });
+      environment.PATH = dirname(executable);
+    }
+  }
+  return environment;
 }
 
 test('real environment and CI entrypoints reject injected interpreter settings before starting tools', () => {
@@ -245,9 +290,15 @@ test('dependency delta blocks malformed event ranges before invoking npm audit',
 
 test('contract gate blocks before toolchain stages when native Python is unavailable', (t) => {
   const root = isolatedCheckout(t);
+  const environment = gitOnlyEnvironment(t);
+  const gitProbe = spawnSync('git', ['--version'], { env: environment, encoding: 'utf8' });
+  assert.equal(gitProbe.status, 0);
+  assert.match(gitProbe.stdout, /^git version /);
+  const pythonProbe = spawnSync('python3.12', ['--version'], { env: environment, encoding: 'utf8' });
+  assert.equal(pythonProbe.error?.code, 'ENOENT');
   const child = spawnSync(process.execPath, [join(root, 'tools/ci/verify-contracts.mjs')], {
     cwd: root,
-    env: { ...process.env, PATH: '/usr/bin:/bin' },
+    env: environment,
     encoding: 'utf8',
     timeout: 15000,
   });
