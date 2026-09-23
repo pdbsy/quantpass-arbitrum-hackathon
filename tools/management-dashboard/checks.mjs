@@ -8,6 +8,8 @@ import { validateCheckReport } from './schema.mjs';
 import { collectGitState as collectRepositoryGitState } from './sources.mjs';
 
 const unitTests = [
+  'test/forum-sync-boundaries.test.mjs',
+  'test/management-transport-boundaries.test.mjs',
   'test/management-dashboard-git-boundaries.test.mjs',
   'test/security-reachable-closeout.test.mjs',
   'test/coverage-cli-boundaries.test.mjs',
