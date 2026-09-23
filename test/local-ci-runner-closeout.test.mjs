@@ -128,6 +128,24 @@ test(
 );
 
 test(
+  'native spawn rejection remains blocked with no process ID or passing evidence',
+  { skip: !native },
+  async (t) => {
+    const { root, config, job, expected } = fixture(t);
+    const executable = join(root, 'not-executable');
+    writeFileSync(executable, 'not an executable\n', { mode: 0o600 });
+    const run = await runLocal({
+      ...config,
+      jobs: [job('process.exit(0)', { executable, timeoutMs: 1 })],
+    });
+    assertReport(run, expected, 'BLOCKED');
+    assert.equal(run.jobs[0].pid, undefined);
+    assert.equal(run.jobs[0].processFailure, true);
+    assert.equal(run.jobs[0].cleanup, 'PASS');
+  },
+);
+
+test(
   'FAULT_INJECTED EPERM liveness probes block evidence in a supervised subprocess',
   { skip: !native },
   async (t) => {
