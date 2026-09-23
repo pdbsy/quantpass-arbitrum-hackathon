@@ -8,6 +8,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -347,5 +348,51 @@ test(
     const observation = JSON.parse(readFileSync(observed.observation));
     assert.equal(observation.executablePath, missing);
     assert.equal(observation.serverClosed, true);
+  },
+);
+
+test(
+  'management driver archives a prior receipt before a failed rerun or missing tool prerequisite',
+  { timeout: 180_000 },
+  async (t) => {
+    const f = fixture(t);
+    const archives = join(f.root, '.checks/pr11/history');
+    for (const mode of ['close-error', 'missing-tools', 'import-error']) {
+      const first = await observeRealBrowser(f, 'default');
+      const good = await runDriver(f, {
+        ...f.env,
+        AF_PLAYWRIGHT_PATH: first.observer,
+        AF_CHROME_PATH: process.env.CHROMIUM_PATH,
+      });
+      assert.equal(good.status, 0, good.stderr);
+      const previous = readFileSync(f.receipt);
+      assert.equal(JSON.parse(previous).status, 'PASS');
+      const before = new Set(existsSync(archives) ? readdirSync(archives) : []);
+      const env = { ...f.env, AF_CHROME_PATH: process.env.CHROMIUM_PATH };
+      if (mode === 'close-error') env.AF_PLAYWRIGHT_PATH = (await observeRealBrowser(f, mode)).observer;
+      else if (mode === 'import-error') env.AF_PLAYWRIGHT_PATH = join(f.root, 'missing-browser-module.mjs');
+      else delete env.AF_PLAYWRIGHT_PATH;
+      const bad = await runDriver(f, env);
+      assert.equal(bad.status, 1, bad.stderr);
+      assert.match(
+        bad.stderr,
+        mode === 'close-error'
+          ? /FIXTURE_BROWSER_CLOSE_FAILURE/
+          : mode === 'missing-tools'
+            ? /AF_PLAYWRIGHT_PATH is required/
+            : /ERR_MODULE_NOT_FOUND/,
+      );
+      assert.equal(bad.stdout, '');
+      assert.equal(existsSync(f.receipt), false, 'a previous PASS must not remain as the current receipt');
+      const added = readdirSync(archives).filter((name) => !before.has(name));
+      assert.equal(added.length, 1);
+      assert.match(added[0], /^management-browser-[a-f0-9-]+\.json$/);
+      assert.deepEqual(
+        readFileSync(join(archives, added[0])),
+        previous,
+        'archive preserves the exact prior evidence',
+      );
+      for (const name of before) assert.ok(existsSync(join(archives, name)), 'earlier history remains');
+    }
   },
 );

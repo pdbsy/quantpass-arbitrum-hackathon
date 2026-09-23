@@ -1,10 +1,23 @@
 import assert from 'node:assert/strict';
 import { verifyManagementBoundaries } from '../test/helpers/management-browser-boundaries.mjs';
 import { execFileSync } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createDashboardServer } from './serve-management-dashboard.mjs';
+
+// The fixed receipt denotes the current invocation. Preserve earlier bytes in
+// history before tool loading can fail, so stale PASS cannot represent this run.
+await mkdir('.checks/pr11/history', { recursive: true });
+try {
+  await rename(
+    '.checks/pr11/management-browser.json',
+    `.checks/pr11/history/management-browser-${randomUUID()}.json`,
+  );
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+}
 
 if (!process.env.AF_PLAYWRIGHT_PATH) throw new Error('AF_PLAYWRIGHT_PATH is required');
 const { chromium } = await import(pathToFileURL(resolve(process.env.AF_PLAYWRIGHT_PATH)));
