@@ -15,6 +15,7 @@ import {
   existsSync,
   readFileSync,
   readdirSync,
+  lstatSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -83,7 +84,20 @@ test('Gitleaks source ignore guard refuses every existing root path without disc
   }
   const regular = join(root, 'not-a-directory');
   writeFileSync(regular, 'ordinary file');
-  assert.throws(() => assertNoSourceIgnore(regular), /could not be verified/);
+  // Windows reports ENOENT for a child of a regular file, unlike POSIX ENOTDIR.
+  // Exercise a real non-ENOENT refusal on each host without changing the guard.
+  assert.throws(() => lstatSync(join(regular, '.gitleaksignore')), {
+    code: process.platform === 'win32' ? 'ENOENT' : 'ENOTDIR',
+  });
+  const invalidRoot = process.platform === 'win32' ? `${regular}\0` : regular;
+  assert.throws(
+    () => assertNoSourceIgnore(invalidRoot),
+    (error) => {
+      assert.match(error.message, /could not be verified/);
+      assert.equal(error.cause?.code, process.platform === 'win32' ? 'ERR_INVALID_ARG_VALUE' : 'ENOTDIR');
+      return true;
+    },
+  );
   assert.doesNotThrow(() => assertNoSourceIgnore(root));
 });
 
