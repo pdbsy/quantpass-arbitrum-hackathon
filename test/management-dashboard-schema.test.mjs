@@ -1663,3 +1663,36 @@ test('redaction rejects quoted short scheme payloads and preserves quoted explan
     }
   }
 });
+
+test('redaction fails closed for quoted credential tails and line separators', () => {
+  const basic = Buffer.from('user:pass').toString('base64');
+  for (const tail of ['foo', '_tail', '/tail', '\u2028next', '\u2029next']) {
+    for (const quote of ['"', "'", '`']) {
+      for (const [scheme, token] of [
+        ['Basic', basic],
+        ['Bearer', 'abc'],
+      ]) {
+        const input = `${scheme} ${quote}${token}${quote}${tail}`;
+        for (const output of [sanitizeLog(input), redactValue(input)]) {
+          assert.doesNotMatch(output, new RegExp(token), input);
+          assert.match(output, /\[REDACTED\]/, input);
+        }
+      }
+    }
+  }
+});
+
+test('redaction preserves explicit truncation and maximum-depth boundaries', () => {
+  const truncated = redactValue('x'.repeat(5000), { maxStringLength: 32 });
+  assert.equal(truncated, `${'x'.repeat(21)}[TRUNCATED]`);
+  const nested = {};
+  let cursor = nested;
+  for (let index = 0; index < 10; index++) {
+    cursor.value = {};
+    cursor = cursor.value;
+  }
+  cursor.secret = 'SYNTHETIC_DEPTH_MARKER';
+  const bounded = redactValue(nested);
+  assert.match(JSON.stringify(bounded), /\[MAX_DEPTH\]/);
+  assert.doesNotMatch(JSON.stringify(bounded), /SYNTHETIC_DEPTH_MARKER/);
+});
