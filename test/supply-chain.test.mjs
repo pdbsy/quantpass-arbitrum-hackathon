@@ -35,6 +35,13 @@ test('workflow parser admits bounded null nodes and read access under a write ce
   assert.doesNotThrow(() => validateWorkflowText('.github/workflows/codeql.yml', readOnlyCodeQL, policy));
 });
 
+test('workflow parser rejects a real YAML document with no root node', () => {
+  assert.throws(
+    () => validateWorkflowText(ciPath, '---\n', policy),
+    /\.github\/workflows\/ci\.yml must be a mapping/,
+  );
+});
+
 test('supply-chain policy and npm lock are closed and produce deterministic SPDX', () => {
   assert.equal(validateSupplyChainPolicy(policy), policy);
   const locked = validatePackageLock(lockfile, packageJson, policy);

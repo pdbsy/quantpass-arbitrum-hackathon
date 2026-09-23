@@ -1,13 +1,147 @@
 import assert from 'node:assert/strict';
-import fs, { mkdirSync, readFileSync, existsSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import fs, {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  existsSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import childProcess, { execFileSync } from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { installScanner, selectPlatform, verifyBytes } from '../tools/security/bootstrap.mjs';
 import { verifyRuleFixtures } from '../tools/ci/check-semgrep.mjs';
+import { verifySecretCanary } from '../tools/ci/check-gitleaks.mjs';
+import { fixtureExec } from './helpers/git-fixture.mjs';
 
 const root = resolve(import.meta.dirname, '..');
+
+test('qualified Gitleaks canary rejects a missing config and a real current-tree detection loss', async (t) => {
+  const lock = JSON.parse(readFileSync(join(root, 'planning/security-scanners.lock.json')));
+  const platform = selectPlatform(process.platform, process.arch);
+  const asset = lock.gitleaks.platforms[platform];
+  const cache = join(root, '.checks/security-scanners/downloads', asset.filename);
+  assert.ok(existsSync(cache), 'qualified Gitleaks cache is required');
+  verifyBytes(readFileSync(cache), asset.sha256);
+  const tool = await installScanner('gitleaks');
+  t.after(() => tool.cleanup());
+
+  const missingConfig = join(tool.directory, 'missing-config');
+  mkdirSync(missingConfig);
+  assert.throws(
+    () => verifySecretCanary({ ...tool, directory: missingConfig }),
+    /Gitleaks history\/redaction canary failed/,
+  );
+
+  const currentLoss = join(tool.directory, 'current-loss');
+  mkdirSync(currentLoss);
+  writeFileSync(join(currentLoss, 'gitleaks.toml'), '[extend]\nuseDefault = true\n');
+  writeFileSync(join(currentLoss, 'empty-ignore'), '');
+  const originalSpawn = childProcess.spawnSync;
+  let currentScans = 0;
+  const hook = t.mock.method(childProcess, 'spawnSync', function (file, args, options) {
+    if (file === tool.binary && args[0] === 'dir') {
+      currentScans++;
+      const canaryTree = args.at(-1);
+      rmSync(join(canaryTree, 'side.txt'));
+      rmSync(join(canaryTree, 'merge-only.txt'));
+    }
+    return originalSpawn.call(this, file, args, options);
+  });
+  syncBuiltinESMExports();
+  try {
+    assert.throws(
+      () => verifySecretCanary({ ...tool, directory: currentLoss }),
+      /Gitleaks current-file\/redaction canary failed/,
+    );
+    assert.equal(currentScans, 1);
+  } finally {
+    hook.mock.restore();
+    syncBuiltinESMExports();
+  }
+});
+
+test('qualified Gitleaks gate rejects an extra synthetic finding in both history and current files', (t) => {
+  const directory = mkdtempSync(join(tmpdir(), 'alphaforge-gitleaks-gate-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const checkout = join(directory, 'repo');
+  fixtureExec('git', ['clone', '--quiet', '--no-hardlinks', '--no-checkout', root, checkout], {
+    cwd: directory,
+  });
+  const fixture = realpathSync(checkout);
+  const head = fixtureExec('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  fixtureExec('git', ['-C', fixture, 'checkout', '--quiet', '--detach', head], { cwd: directory });
+  fixtureExec('git', ['-C', fixture, 'update-ref', 'refs/remotes/origin/master', head], {
+    cwd: directory,
+  });
+
+  const lock = JSON.parse(readFileSync(join(root, 'planning/security-scanners.lock.json')));
+  const platform = selectPlatform(process.platform, process.arch);
+  const asset = lock.gitleaks.platforms[platform];
+  const cache = join(root, '.checks/security-scanners/downloads', asset.filename);
+  assert.ok(existsSync(cache), 'qualified Gitleaks cache is required');
+  verifyBytes(readFileSync(cache), asset.sha256);
+  const fixtureCache = join(fixture, '.checks/security-scanners/downloads');
+  mkdirSync(fixtureCache, { recursive: true });
+  cpSync(cache, join(fixtureCache, asset.filename));
+
+  const canary = [
+    'ghp',
+    '_',
+    createHash('sha256')
+      .update('AlphaForge disposable gate finding, never issued')
+      .digest('hex')
+      .slice(0, 36),
+  ].join('');
+  writeFileSync(join(fixture, 'synthetic-token.txt'), `credential = "${canary}"\n`);
+  fixtureExec('git', ['-C', fixture, 'add', 'synthetic-token.txt'], { cwd: directory });
+  fixtureExec(
+    'git',
+    [
+      '-C',
+      fixture,
+      '-c',
+      'user.name=Scanner Fixture',
+      '-c',
+      'user.email=fixture@example.test',
+      'commit',
+      '--quiet',
+      '-m',
+      'synthetic never-issued scanner finding',
+    ],
+    { cwd: directory },
+  );
+  const status = fixtureExec('git', ['-C', fixture, 'status', '--porcelain', '--untracked-files=no'], {
+    cwd: directory,
+    encoding: 'utf8',
+  });
+  assert.equal(status, '');
+
+  const child = childProcess.spawnSync(process.execPath, [join(fixture, 'tools/ci/check-gitleaks.mjs')], {
+    cwd: fixture,
+    env: process.env,
+    encoding: 'utf8',
+    timeout: 60000,
+  });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 1, JSON.stringify({ stdout: child.stdout, stderr: child.stderr }));
+  assert.equal(child.stderr, '');
+  assert.doesNotMatch(child.stdout, new RegExp(canary));
+  const report = JSON.parse(child.stdout);
+  assert.equal(report.state, 'FAIL');
+  assert.equal(report.canary, 'PASS');
+  assert.equal(report.historyDisposition.state, 'FAIL');
+  assert.equal(report.currentFiles.state, 'FAIL');
+  assert.equal(report.historyScannerExit, 10);
+  assert.ok(report.refs.some((ref) => ref.name === 'refs/remotes/origin/master'));
+});
 
 test('qualified Semgrep detects missing positives and contaminated negatives with its real engine', async (t) => {
   const lock = JSON.parse(readFileSync(join(root, 'planning/security-scanners.lock.json')));
