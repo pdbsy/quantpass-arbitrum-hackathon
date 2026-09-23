@@ -35,6 +35,29 @@ export async function verifyManagementBoundaries(page, origin) {
   await page.locator('#dashboard-search').press('Escape');
   await page.locator('#worker-report-search').fill('fixture');
   await page.locator('[data-view="list"]').click();
+  await page.evaluate(() => {
+    const nav = globalThis.document.querySelector('#sidebar-nav a[href="#git-history"]');
+    const marker = globalThis.document.createElement('span');
+    marker.dataset.fixtureNavigationMarker = 'true';
+    marker.hidden = true;
+    nav.parentElement.insertBefore(marker, nav);
+    nav.dataset.fixtureNavigationMarker = 'true';
+    nav.hidden = true;
+    nav.dataset.fixtureDetachedNavigation = 'true';
+    globalThis.document.body.append(nav);
+  });
+  await page.locator('#dashboard-search').fill('Git');
+  assert.ok(await page.locator('#search-results').textContent());
+  await page.evaluate(() => {
+    const nav = globalThis.document.querySelector('[data-fixture-detached-navigation]');
+    const marker = globalThis.document.querySelector('[data-fixture-navigation-marker]');
+    if (marker?.parentNode) marker.parentNode.insertBefore(nav, marker);
+    marker?.remove();
+    delete nav.dataset.fixtureNavigationMarker;
+    delete nav.dataset.fixtureDetachedNavigation;
+    nav.hidden = false;
+  });
+  await page.locator('#dashboard-search').press('Escape');
   passed.push('Initial data failure remains visibly unavailable with working retry/search/view controls');
 
   fixture = structuredClone(original);
@@ -56,6 +79,21 @@ export async function verifyManagementBoundaries(page, origin) {
     ['currentStatus', 'workQueue', 'changelog'].map((key) => [key, { status: 'NOT_AVAILABLE' }]),
   );
   unavailable = false;
+  // A first successful fetch can still fail to render before any snapshot exists.
+  // Move an actual DOM node rather than replacing the renderer or its decision.
+  await page.evaluate(() => {
+    const body = globalThis.document.querySelector('#git-history .panel-body');
+    body.dataset.fixtureInitialDetached = 'true';
+    globalThis.document.body.append(body);
+  });
+  await refresh();
+  assert.match(await page.locator('#data-state').textContent(), /数据源错误/);
+  assert.equal(await page.locator('#refresh-dashboard').isEnabled(), true);
+  await page.evaluate(() => {
+    const body = globalThis.document.querySelector('[data-fixture-initial-detached]');
+    delete body.dataset.fixtureInitialDetached;
+    globalThis.document.querySelector('#git-history').append(body);
+  });
   await refresh();
   assert.match(await page.locator('#data-state').textContent(), /^快照：/);
   assert.match(await page.locator('#project-subtitle').textContent(), /阶段不可用/);
