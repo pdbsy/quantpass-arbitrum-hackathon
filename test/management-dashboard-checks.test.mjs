@@ -177,13 +177,18 @@ test('runCheck records nonzero and timeout outcomes as failures', async () => {
 });
 
 test('FAULT_INJECTED cleanup uncertainty fails closed and preserves timeout exit 124', async () => {
-  for (const timedOut of [false, true]) {
+  for (const [timedOut, observedExitCode, expectedExitCode] of [
+    [false, 0, 127],
+    [true, 0, 124],
+    // A process error after the real timeout must not downgrade its exit classification.
+    [true, 127, 124],
+  ]) {
     const result = await runCheck('lint', {
       root: process.cwd(),
       commit,
       runId: 'unconfirmed-result',
       runProcess: async () => ({
-        exitCode: 0,
+        exitCode: observedExitCode,
         stdout: 'completed output',
         stderr: '',
         timedOut,
@@ -191,7 +196,7 @@ test('FAULT_INJECTED cleanup uncertainty fails closed and preserves timeout exit
       }),
     });
     assert.equal(result.record.status, 'FAIL');
-    assert.equal(result.record.exitCode, timedOut ? 124 : 127);
+    assert.equal(result.record.exitCode, expectedExitCode);
     assert.equal(result.cleanupConfirmed, false);
     assert.match(result.log, /CLEANUP_UNCONFIRMED/);
     if (timedOut) assert.match(result.log, /^TIMEOUT\n/);

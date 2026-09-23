@@ -228,14 +228,15 @@ async function spawnProcess({ file, args, cwd, timeoutMs, maxOutputBytes }) {
     child.stderr.on('data', (chunk) => {
       stderr = appendBounded(stderr, chunk.toString('utf8'), maxOutputBytes);
     });
-    child.once('error', () => {
+    child.on('error', () => {
+      if (settled) return;
       if (child.pid) signalProcess('SIGKILL');
       finish({
-        exitCode: 127,
+        exitCode: timedOut ? 124 : 127,
         stdout,
         stderr: `${stderr}PROCESS_ERROR`,
-        timedOut: false,
-        cleanupConfirmed: !child.pid,
+        timedOut,
+        cleanupConfirmed: !child.pid && !timedOut,
       });
     });
     child.once('exit', () => {
