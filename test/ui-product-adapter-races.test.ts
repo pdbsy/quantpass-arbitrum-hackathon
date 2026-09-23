@@ -50,13 +50,17 @@ async function setup(t: TestContext) {
   t.after(() => h.app.close());
   let cookie = '';
   const values = new Map<string, string>();
-  const hooks: { after?: (path: string, value: Record<string, unknown>) => Promise<void> } = {};
+  const hooks: {
+    before?: (path: string, body?: unknown) => Promise<void>;
+    after?: (path: string, value: Record<string, unknown>, body?: unknown) => Promise<void>;
+  } = {};
   const request: ApiRequest = async <T>(path: string, body?: unknown) => {
+    await hooks.before?.(path, body);
     const response = await h.request(cookie, `/api${path}`, body);
     if (response.headers['set-cookie']) cookie = String(response.headers['set-cookie']).split(';')[0]!;
     const data = response.json();
     if (response.statusCode >= 400) throw new ApiError(data.error, response.statusCode);
-    await hooks.after?.(path, data);
+    await hooks.after?.(path, data, body);
     return data as T;
   };
   const adapter = new ProductAdapter({
@@ -81,6 +85,7 @@ async function setup(t: TestContext) {
   return {
     ...h,
     adapter,
+    values,
     hooks,
     a,
     b,
@@ -558,3 +563,67 @@ for (const regression of ['lower-revision', 'same-revision-new-balances'] as con
     assert.throws(() => h.adapter.client.prepare(), /REFRESH_REQUIRED/);
   });
 }
+
+test('public adapter refresh is session-first and read-only; unknown Vault selection cannot alter projection', async (t) => {
+  const h = await setup(t);
+  const calls: Array<{ path: string; body: unknown }> = [];
+  h.hooks.after = async (path, _value, body) => {
+    calls.push({ path, body });
+  };
+  await h.adapter.client.refresh();
+  assert.equal(calls[0]?.path, '/session');
+  assert.ok(calls.some(({ path }) => path === '/v1/product-snapshot'));
+  assert.ok(calls.every(({ body }) => body === undefined));
+  const accepted = projection(h.adapter.snapshot);
+  calls.length = 0;
+  await assert.rejects(h.adapter.client.selectVault('unregistered-vault'), /VAULT_NOT_FOUND/);
+  assert.deepEqual(calls, []);
+  assert.deepEqual(projection(h.adapter.snapshot), accepted);
+  assert.equal(h.adapter.client.prepare().vaultId, h.a);
+});
+
+test('a late definitive rejection keeps Alice pending while an in-flight identity switch is refused', async (t) => {
+  const h = await setup(t);
+  const client = h.adapter.client;
+  const pendingKey = 'quantpass.local.pending-command.v1';
+  const review = client.prepare();
+  await h.deposit(review.vaultId, '1', 'external-race');
+  const entered = deferred();
+  const release = deferred();
+  t.after(() => release.resolve());
+  let commandPosts = 0;
+  h.hooks.before = async (path) => {
+    if (!path.endsWith('/commands')) return;
+    commandPosts++;
+    entered.resolve();
+    await release.promise;
+  };
+  const pending = client.command('deposit', { amount: '2' }, review);
+  await entered.promise;
+  await assert.rejects(client.selectIdentity('bob'), /BUSY/);
+  await assert.rejects(client.refresh(), /BUSY/);
+  await assert.rejects(client.selectVault(h.b), /BUSY/);
+  assert.equal(client.snapshot.user, 'alice');
+  assert.equal(client.snapshot.pending?.owner, 'alice');
+  release.resolve();
+  await assert.rejects(pending, /REVISION_CONFLICT/);
+  assert.equal(commandPosts, 1);
+  const durable = h.values.get(pendingKey);
+  assert.ok(durable);
+  assert.deepEqual(JSON.parse(durable).rejection, { code: 'REVISION_CONFLICT', status: 409 });
+  assert.equal(client.snapshot.pending?.owner, 'alice');
+  await client.selectIdentity('bob');
+  assert.equal(client.snapshot.user, 'bob');
+  assert.equal(client.snapshot.pending, null);
+  assert.deepEqual(client.snapshot.vaults, []);
+  assert.equal(h.values.get(pendingKey), durable);
+  await assert.rejects(client.retry(), /PENDING_OWNER_MISMATCH/);
+  await client.selectIdentity('alice');
+  const restored = h.adapter.snapshot;
+  assert.equal(restored.pending?.owner, 'alice');
+  await assert.rejects(client.retry(), /REVIEW_REQUIRED/);
+  await client.dismissRejected();
+  assert.equal(h.values.has(pendingKey), false);
+  assert.equal(h.store.get(review.vaultId, 'alice').idle, '1');
+  assert.equal(h.store.audit('alice', review.vaultId).length, 1);
+});

@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 
 export async function verifyProductLateConfirmIsolation(parent, origin) {
-  const context = await parent
-    .context()
-    .browser()
-    .newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
+  const page = await parent.context().newPage();
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   const checks = [];
@@ -53,6 +49,8 @@ export async function verifyProductLateConfirmIsolation(parent, origin) {
       assert.match(await page.locator('dialog[open]').textContent(), /RESEARCH RELATION/);
       release();
       await page.locator('[data-product-state]').filter({ hasText: 'READY' }).waitFor();
+      // The status publish precedes the awaiting click handler's final dialog check.
+      await page.waitForTimeout(150);
       assert.equal(await page.locator('dialog[open]').count(), 1, `${kind} completion closed a newer dialog`);
       assert.match(await page.locator('dialog[open]').textContent(), /RESEARCH RELATION/);
       assert.equal(posts, 1, `${kind} sends only the original local API request`);
@@ -62,8 +60,10 @@ export async function verifyProductLateConfirmIsolation(parent, origin) {
       await page.locator('nav a[href="#/market"]').click();
       await page.locator('[data-product-strategy="satellite-flow-demo"]').first().click();
     }
+    await page.locator('[data-product-login="alice"]').click();
+    await page.locator('[data-product-state]').filter({ hasText: 'READY' }).waitFor();
     return checks;
   } finally {
-    await context.close();
+    await page.close();
   }
 }
