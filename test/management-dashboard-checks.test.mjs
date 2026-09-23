@@ -464,7 +464,15 @@ test('real check process bounds output, preserves failure and never exposes an i
     else process.env.ALPHAFORGE_TEST_SECRET = old;
   });
   const result = await runCheck('lint', { root, commit, runId: 'actual-process', maxLogBytes: 80 });
-  assert.equal(result.record.status, 'PASS');
+  assert.equal(
+    result.record.status,
+    'PASS',
+    JSON.stringify({
+      exitCode: result.record.exitCode,
+      cleanupConfirmed: result.cleanupConfirmed,
+      log: result.log,
+    }),
+  );
   assert.ok(Buffer.byteLength(result.log) <= 80);
   assert.match(result.log, /TRUNCATED/);
   assert.doesNotMatch(result.log, /synthetic-local-marker/);

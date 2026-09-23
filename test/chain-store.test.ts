@@ -1640,7 +1640,7 @@ test(
   },
 );
 
-test('chain recovery CLI creates and restores a validated independent database', async () => {
+test('chain recovery CLI creates and restores a validated independent database', async (t) => {
   const source = await databasePath();
   const backupPath = `${source}.backup`;
   const restoredPath = `${source}.restored`;
@@ -1669,7 +1669,6 @@ test('chain recovery CLI creates and restores a validated independent database',
     integrity: 'OK',
     content: 'MATCH',
   });
-  assert.equal((await stat(backupPath)).mode & 0o777, 0o600);
   const restoreResult = runRecovery('restore', backupPath, restoredPath);
   assert.equal(restoreResult.status, 0, restoreResult.stderr);
   assert.deepEqual(JSON.parse(restoreResult.stdout), {
@@ -1679,7 +1678,19 @@ test('chain recovery CLI creates and restores a validated independent database',
     integrity: 'OK',
     content: 'MATCH',
   });
-  assert.equal((await stat(restoredPath)).mode & 0o777, 0o600);
+  await t.test(
+    'POSIX backup and restore files remain owner-readable and owner-writable only',
+    {
+      skip:
+        process.platform === 'win32'
+          ? 'NOT_RUN: Windows mode bits do not represent POSIX permissions or ACL isolation'
+          : false,
+    },
+    async () => {
+      assert.equal((await stat(backupPath)).mode & 0o777, 0o600);
+      assert.equal((await stat(restoredPath)).mode & 0o777, 0o600);
+    },
+  );
   const overwriteResult = runRecovery('restore', backupPath, restoredPath);
   assert.notEqual(overwriteResult.status, 0);
 
@@ -1904,32 +1915,53 @@ test('chain recovery CLI keeps a consistent source snapshot while writers contin
   }
 });
 
-test('chain recovery CLI removes a completed copy when target validation cannot open it', async () => {
-  const source = await largeRecoveryDatabase();
-  const target = `${source}.backup`;
-  const child = spawn(process.execPath, [resolve('tools/chain-recovery.ts'), 'backup', source, target], {
-    stdio: ['ignore', 'ignore', 'pipe'],
-  });
-  let stderr = '';
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (chunk) => {
-    stderr += String(chunk);
-  });
-  for (let attempt = 0; attempt < 2_000; attempt++) {
-    try {
-      await stat(target);
-      break;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      if (child.exitCode !== null) assert.fail(`recovery exited before reserving target: ${stderr}`);
-      await delay(1);
-    }
-  }
-  await chmod(target, 0o000);
-  const exitCode = child.exitCode === null ? (await once(child, 'exit'))[0] : child.exitCode;
-  assert.notEqual(exitCode, 0);
-  await assert.rejects(stat(target), { code: 'ENOENT' });
-});
+test(
+  'chain recovery CLI removes a completed copy when POSIX permissions deny validation',
+  {
+    skip:
+      process.platform === 'win32'
+        ? 'NOT_RUN: Windows chmod does not revoke file read access like POSIX mode 000'
+        : false,
+  },
+  async () => {
+    const source = await databasePath();
+    const target = `${source}.backup`;
+    const store = new ChainStore(source);
+    store.close();
+    const before = readFileSync(source);
+    const preload = `${source}.deny-validation.cjs`;
+    // Synchronize at actual SQLite backup completion rather than racing the
+    // child's target reservation. Only the OS permission boundary is changed.
+    await writeFile(
+      preload,
+      `
+      const sqlite = require('node:sqlite');
+      const { syncBuiltinESMExports } = require('node:module');
+      const backup = sqlite.backup;
+      sqlite.backup = async (source, target, ...args) => {
+        const result = await backup(source, target, ...args);
+        require('node:fs').chmodSync(target, 0o000);
+        return result;
+      };
+      syncBuiltinESMExports();
+    `,
+    );
+    const child = spawnSync(
+      process.execPath,
+      ['--require', preload, resolve('tools/chain-recovery.ts'), 'backup', source, target],
+      { encoding: 'utf8', timeout: 10_000 },
+    );
+    // spawnSync returns only after the real CLI exits and its pipes close.
+    // A timeout/launch error is a failure, never evidence that cleanup succeeded.
+    assert.equal(child.error, undefined);
+    assert.equal(child.signal, null);
+    assert.equal(child.status, 1, child.stderr);
+    assert.match(child.stderr, /unable to open database file/);
+    assert.doesNotMatch(child.stdout, /HEALTHY/);
+    assert.deepEqual(readFileSync(source), before);
+    await assert.rejects(stat(target), { code: 'ENOENT' });
+  },
+);
 
 test('sync leases and rollback remain isolated by contract in a shared chain database', async () => {
   const store = new ChainStore(await databasePath());
