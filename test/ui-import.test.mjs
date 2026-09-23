@@ -1,18 +1,14 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { test } from 'node:test';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { verifiedPrototypeArtifacts } from './helpers/prototype-artifact.mjs';
 import { importUserUI, normalizeStyles } from '../tools/import-user-ui.mjs';
-test('actual importer preserves exact source, CSS, script except scoped style hydration markers and shell', async () => {
-  const source = await readFile('apps/web/prototype/AlphaForge_v3_EN.html', 'utf8');
-  assert.equal(Buffer.byteLength(source), 285969);
-  assert.equal(
-    createHash('sha256').update(source).digest('hex'),
-    '949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45',
-  );
+test('actual importer preserves the reviewed repair and the historical original artifact', async (t) => {
+  const { current: source } = await verifiedPrototypeArtifacts(resolve(import.meta.dirname, '..'));
   const out = await mkdtemp(join(tmpdir(), 'af-import-'));
+  t.after(() => rm(out, { recursive: true, force: true }));
   await importUserUI(source, out);
   const html = await readFile(join(out, 'index.html'), 'utf8');
   const css = await readFile(join(out, 'public/user-ui.css'), 'utf8');
@@ -36,6 +32,8 @@ test('actual importer preserves exact source, CSS, script except scoped style hy
   assert.ok(js.includes('font-style'));
   await importUserUI(source, out);
   assert.equal(await readFile(join(out, 'index.html'), 'utf8'), html);
+  assert.equal(await readFile(join(out, 'public/user-ui.css'), 'utf8'), css);
+  assert.equal(await readFile(join(out, 'public/user-ui.js'), 'utf8'), js);
 });
 test('mechanical style normalization preserves escaped JSON and unrelated attribute names', () => {
   assert.equal(

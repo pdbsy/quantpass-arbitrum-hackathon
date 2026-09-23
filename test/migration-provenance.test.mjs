@@ -4,6 +4,7 @@ import { readFile, lstat } from 'node:fs/promises';
 import { resolve, relative, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { verifiedPrototypeArtifacts } from './helpers/prototype-artifact.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const readJson = async (path) => JSON.parse(await readFile(resolve(root, path), 'utf8'));
 
@@ -36,11 +37,16 @@ test('migration inventory accounts for source versions and validates imported ar
       artifact.target_path,
     );
   }
-  const protectedUi = await readFile(resolve(root, 'apps/web/prototype/AlphaForge_v3_EN.html'));
-  assert.equal(
-    createHash('sha256').update(protectedUi).digest('hex'),
-    '949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45',
+  const prototype = await verifiedPrototypeArtifacts(root);
+  const record = manifest.artifacts.find(
+    (row) => row.target_path === 'apps/web/prototype/AlphaForge_v3_EN.html',
   );
+  assert.equal(record.original_sha256, prototype.originalSha256);
+  assert.equal(record.migrated_sha256, prototype.repairedSha256);
+  const revision = record.subsequent_revisions.at(-1);
+  assert.equal(revision.commit, prototype.repairCommit);
+  assert.equal(revision.previous_sha256, prototype.originalSha256);
+  assert.equal(revision.sha256, prototype.repairedSha256);
 });
 
 test('generated Forum uses external assets under the existing dashboard CSP', async () => {
