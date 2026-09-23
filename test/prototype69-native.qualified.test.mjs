@@ -18,6 +18,83 @@ const origin = 'http://127.0.0.1:19469';
 const trialKey = 'alphaforge.prototype.v3';
 const exchangeKey = 'alphaforge.passmarket.v3';
 
+// The caller owns a separate real Chrome launched with --disable-local-storage.
+// Use the driver's existing qualified launch path so its lifecycle owns all counts.
+export async function verifyPrototype69StorageUnavailable(page, { origin: shippedOrigin }) {
+  assert.equal(sha256(source), sourceSha256);
+  const errors = [];
+  const writes = [];
+  const onError = (error) => errors.push(error.message);
+  const onRequest = (request) => {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()))
+      writes.push({ method: request.method(), pathname: new URL(request.url()).pathname });
+  };
+  page.on('pageerror', onError);
+  page.on('request', onRequest);
+  try {
+    await page.goto(shippedOrigin + '/#/account/settings');
+    await page.locator('[data-product-state]').waitFor();
+    assert.equal(
+      await page.evaluate('localStorage === null'),
+      true,
+      'native Chrome storage-disable mode required',
+    );
+    assert.deepEqual(
+      await page.evaluate('({trial:AF.store.available(),exchange:AF.exchange.available()})'),
+      { trial: true, exchange: true },
+      'fresh null-storage read recovery precedes the real persistence failure',
+    );
+    await page.locator('[data-action="reset-confirm"]').click();
+    await page.locator('[data-action="reset-run"]').click();
+    await page.evaluate('location.hash="#/account/settings"');
+    await page.locator('.account-section').waitFor();
+    assert.deepEqual(await page.evaluate('({trial:AF.store.available(),exchange:AF.exchange.available()})'), {
+      trial: false,
+      exchange: false,
+    });
+    assert.match(await page.locator('.account-section').innerText(), /SESSION ONLY/);
+    await page.evaluate('location.hash="#/trade/trend"');
+    await page.locator('#pass-order-form').waitFor();
+    assert.match(
+      await page.locator('#trade-panel').innerText(),
+      /Storage restricted: trades last for this session only/,
+    );
+    await page.evaluate('location.hash="#/forum"');
+    await page.locator('[data-action="compose"]').first().click();
+    assert.match(await page.locator('#draft-status').innerText(), /session/i);
+    await page.locator('#compose-title').fill('Native unavailable storage');
+    await page.locator('#compose-body').fill('This draft stays only in the current native browser session.');
+    assert.match(await page.locator('#draft-status').innerText(), /session only/i);
+    await page.locator('#close-dialog').click();
+    await page.locator('#app-dialog').waitFor({ state: 'hidden' });
+    await page.locator('[data-action="compose"]').first().click();
+    assert.equal(await page.locator('#compose-title').inputValue(), 'Native unavailable storage');
+    assert.equal(await page.locator('[data-product-state]').count(), 1, 'product module remains active');
+    assert.deepEqual(errors, [], 'storage-disabled shipped app has no uncaught page error');
+    assert.deepEqual(writes, [], 'the storage failure journey sends no backend mutations');
+    return [
+      {
+        name: 'native-chrome-disabled-storage',
+        scope: 'SHIPPED_NATIVE_BROWSER_STORAGE_DISABLED',
+        targets: [
+          ['268', 1],
+          ['269', 1],
+          ['303', 0],
+          ['394', 1],
+          ['396', 1],
+        ],
+        browserCondition: '--disable-local-storage with native localStorage === null',
+        inputClass: 'NATIVE_ENVIRONMENT_FAILURE',
+        mutatingRequestCount: writes.length,
+        productState: await page.locator('[data-product-state]').innerText(),
+      },
+    ];
+  } finally {
+    page.off('pageerror', onError);
+    page.off('request', onRequest);
+  }
+}
+
 // Called by the existing legacy driver on its already instrumented shipped page.
 // This entry creates no manifest, collector, routes, scripts or mocked product APIs.
 export async function verifyPrototype69Shipped(page, { origin: shippedOrigin }) {
@@ -90,8 +167,8 @@ export async function verifyPrototype69Shipped(page, { origin: shippedOrigin }) 
   try {
     await runPrototype69Cases({
       run: async (name, body) => {
-        // These retain separate compatibility/API scope; not current UI reachability.
-        if (name.startsWith('native opaque-origin') || name.startsWith('exported APIs')) return;
+        // The raw opaque-origin document is not the shipped app.
+        if (name.startsWith('native opaque-origin')) return;
         try {
           await body();
         } catch (error) {
@@ -105,11 +182,21 @@ export async function verifyPrototype69Shipped(page, { origin: shippedOrigin }) 
       capture: async (s, name, targets, metadata = {}) => {
         assert.deepEqual(s.errors, [], name + ': shipped page has no uncaught error');
         assert.equal(await page.locator('[data-product-state]').count(), 1);
-        checks.push({ name, scope: 'SHIPPED_LOCAL_MOCK_UI', targets, ...metadata });
+        checks.push({
+          name,
+          scope:
+            metadata.inputClass === 'EXPORTED_API_ONLY' ? 'SHIPPED_EXPORTED_API' : 'SHIPPED_LOCAL_MOCK_UI',
+          targets,
+          ...metadata,
+        });
       },
-      write: () => assert.fail('raw diagnostic writes are not a shipped journey'),
+      write: (name) => assert.equal(name, 'fixed-inputs.json', 'only read-only API diagnostics are omitted'),
     });
-    assert.equal(checks.length, 8, 'all eight shipped assertion groups must complete');
+    assert.equal(
+      checks.length,
+      9,
+      'eight shipped UI groups and one explicit exported API group must complete',
+    );
     return checks;
   } finally {
     for (const extra of extraPages) await extra.close();
@@ -528,7 +615,7 @@ async function runPrototype69Cases({
         ['219', 0],
         ['334', 1],
       ],
-      { inputClass: 'EXPORTED_API_ONLY' },
+      { inputClass: 'EXPORTED_API_ONLY', fixedInputs },
     );
   });
 

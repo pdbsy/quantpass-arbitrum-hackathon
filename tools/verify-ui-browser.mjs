@@ -2,8 +2,12 @@
 import assert from 'node:assert/strict';
 import { verifyPrototypeBoundaries } from '../test/helpers/prototype-browser-boundaries.mjs';
 import { verifyProductLateConfirmIsolation } from '../test/helpers/product-browser-late-confirm.mjs';
-import { verifyPrototype69Shipped } from '../test/prototype69-native.qualified.test.mjs';
+import {
+  verifyPrototype69Shipped,
+  verifyPrototype69StorageUnavailable,
+} from '../test/prototype69-native.qualified.test.mjs';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const { buildApp } = await import(
@@ -27,6 +31,8 @@ const { app } = await buildApp({
 const checks = [];
 let browser;
 let page;
+let storageBrowser;
+let storageApp;
 let cleanupFailure;
 try {
   await app.listen({ host: '127.0.0.1', port });
@@ -619,6 +625,33 @@ try {
   checks.push(
     'Original six strategy pages and all account sections preserved; mobile pages no horizontal overflow; fixture market unchanged; no page/CSP errors',
   );
+
+  // Keep the real unavailable-storage environment separate from the normal
+  // journey, including browser cookies, fixture state, backend and SQLite file.
+  const reservation = createServer();
+  await new Promise((done, reject) => {
+    reservation.once('error', reject);
+    reservation.listen(0, '127.0.0.1', done);
+  });
+  const storagePort = reservation.address().port;
+  await new Promise((done, reject) => reservation.close((error) => (error ? reject(error) : done())));
+  const storageOrigin = `http://127.0.0.1:${storagePort}`;
+  ({ app: storageApp } = await buildApp({
+    dbPath: resolve(evidence, 'storage-ledger.sqlite'),
+    env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+    origin: storageOrigin,
+    webRoot: resolve('apps/web/dist'),
+  }));
+  await storageApp.listen({ host: '127.0.0.1', port: storagePort });
+  storageBrowser = await chromium.launch({
+    executablePath:
+      process.env.CHROMIUM_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    headless: true,
+    args: ['--disable-local-storage'],
+  });
+  const storageContext = await storageBrowser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const storagePage = await storageContext.newPage();
+  checks.push(...(await verifyPrototype69StorageUnavailable(storagePage, { origin: storageOrigin })));
 } catch (error) {
   if (page) {
     await page
@@ -640,6 +673,8 @@ try {
   const cleanup = await Promise.allSettled([
     Promise.resolve().then(() => browser?.close()),
     Promise.resolve().then(() => app.close()),
+    Promise.resolve().then(() => storageBrowser?.close()),
+    Promise.resolve().then(() => storageApp?.close()),
   ]);
   cleanupFailure = cleanup.find((result) => result.status === 'rejected');
 }

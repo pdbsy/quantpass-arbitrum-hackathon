@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -16,29 +16,102 @@ const approvedBrowserTool =
   (process.env.AF_QUALIFIED_BROWSER_TOOLS && join(process.env.AF_QUALIFIED_BROWSER_TOOLS, 'index.mjs'));
 
 async function executeDriver(options, timeoutMs) {
-  return new Promise((done) => {
-    const child = spawn(process.execPath, [join(root, 'tools/verify-ui-browser.mjs')], options);
-    let stdout = '';
-    let stderr = '';
-    let error;
-    const timer = setTimeout(() => {
-      error = new Error('Browser driver exceeded its outer execution budget');
-      child.kill('SIGKILL');
-    }, timeoutMs);
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-    });
-    child.once('error', (failure) => {
-      error = failure;
-    });
-    child.once('close', (status, signal) => {
-      clearTimeout(timer);
-      done({ stdout, stderr, status, signal, error });
-    });
+  const child = spawn(process.execPath, [join(root, 'tools/verify-ui-browser.mjs')], {
+    ...options,
+    detached: process.platform !== 'win32',
   });
+  let stdout = '';
+  let stderr = '';
+  let error;
+  let retired = false;
+  let timer;
+  let escalation;
+  let deadline;
+  let settled = false;
+  const clearTimers = () => {
+    clearTimeout(timer);
+    clearTimeout(escalation);
+    clearTimeout(deadline);
+  };
+  const terminateOnce = () => {
+    if (retired) return;
+    retired = true;
+    if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
+    if (process.platform === 'win32') {
+      execFileSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
+        stdio: 'ignore',
+        timeout: 5_000,
+        killSignal: 'SIGKILL',
+      });
+    } else {
+      try {
+        process.kill(-child.pid, 'SIGKILL');
+      } catch (failure) {
+        if (failure.code !== 'ESRCH') throw failure;
+      }
+    }
+  };
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+  try {
+    return await new Promise((done) => {
+      const finish = (status, signal) => {
+        if (settled) return;
+        settled = true;
+        clearTimers();
+        done({ stdout, stderr, status, signal, error });
+      };
+      child.once('error', (failure) => {
+        error ??= failure;
+        try {
+          terminateOnce();
+        } catch (cleanup) {
+          error = new AggregateError([error, cleanup]);
+        }
+        finish(null, null);
+      });
+      child.once('close', (status, signal) => {
+        retired = true;
+        finish(status, signal);
+      });
+      timer = setTimeout(() => {
+        error = new Error('Browser driver exceeded its outer execution budget');
+        const force = () => {
+          try {
+            terminateOnce();
+          } catch (cleanup) {
+            error = new AggregateError([error, cleanup], 'Timeout cleanup failed');
+          }
+        };
+        // The approved Playwright browser owns a separate process group. Allow
+        // its native signal handlers and our shim to close that browser first.
+        if (process.platform === 'win32') force();
+        else {
+          try {
+            if (!retired && child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+          } catch (failure) {
+            error = new AggregateError([error, failure]);
+          }
+          if (!settled) escalation = setTimeout(force, 5_000);
+        }
+        if (!settled)
+          deadline = setTimeout(() => {
+            force();
+            child.stdout.destroy();
+            child.stderr.destroy();
+            child.unref();
+            finish(null, null);
+          }, 6_000);
+      }, timeoutMs);
+    });
+  } finally {
+    clearTimers();
+    terminateOnce();
+  }
 }
 
 async function reservePort(port = 0) {
@@ -73,7 +146,8 @@ test(
         ['FAULT_INJECTED browser close rejection after original failure', false, true],
         ['real successful journey', true, false],
         ['FAULT_INJECTED cleanup failure after real successful journey', true, true],
-      ].map(([name, journey, failClose]) =>
+        ['FAULT_INJECTED timeout after native browser launch', false, false, true],
+      ].map(([name, journey, failClose, hang]) =>
         t.test(name, async (t) => {
           const directory = await mkdtemp(join(tmpdir(), 'alphaforge-browser-failure-'));
           t.after(() => rm(directory, { recursive: true, force: true }));
@@ -92,9 +166,13 @@ test(
             backend,
             `import { buildApp as actual } from ${JSON.stringify(pathToFileURL(join(root, 'apps/server/src/app.ts')).href)};
          import { writeFileSync } from 'node:fs';
+         import { basename } from 'node:path';
          export async function buildApp(options) {
            const result = await actual(options);
-           result.app.addHook('onClose', async () => writeFileSync(${JSON.stringify(join(directory, 'app-closed'))}, 'closed'));
+           result.app.addHook('onClose', async () => {
+             writeFileSync(${JSON.stringify(join(directory, 'app-closed'))}, 'closed');
+             writeFileSync(${JSON.stringify(directory)} + '/' + basename(options.dbPath) + '.closed', 'closed');
+           });
            return result;
          }`,
           );
@@ -102,8 +180,15 @@ test(
             toolShim,
             `import { chromium as actual } from ${JSON.stringify(pathToFileURL(resolve(tool)).href)};
          import { writeFileSync } from 'node:fs';
+         let launchIndex = 0;
          export const chromium = { async launch(options) {
+           const id = ++launchIndex;
            const browser = await actual.launch(options);
+           browser.once('disconnected', () => writeFileSync(${JSON.stringify(join(directory, 'browser-disconnected'))}, 'closed'));
+           process.once('SIGTERM', () => {
+             const deadline = setTimeout(() => process.exit(125), 3_000);
+             browser.close().then(() => { clearTimeout(deadline); process.exit(124); }, () => { clearTimeout(deadline); process.exit(125); });
+           });
            const newContext = browser.newContext.bind(browser);
            browser.newContext = async (...args) => {
              const context = await newContext(...args);
@@ -113,7 +198,11 @@ test(
              const newPage = context.newPage.bind(context);
              context.newPage = async (...args) => {
               const page = await newPage(...args);
-               if (!${journey}) page.goto = async () => {
+               if (${Boolean(hang)}) page.goto = async () => {
+                 writeFileSync(${JSON.stringify(join(directory, 'timeout-ready'))}, 'ready');
+                 await new Promise(() => {});
+               };
+               else if (!${journey}) page.goto = async () => {
                  await page.close();
                  writeFileSync(${JSON.stringify(join(directory, 'page-closed'))}, String(page.isClosed()));
                  throw new Error('FAULT_INJECTED_ORIGINAL_BROWSER_FAILURE');
@@ -126,6 +215,7 @@ test(
            browser.close = async () => {
              await close();
              writeFileSync(${JSON.stringify(join(directory, 'browser-closed'))}, String(!browser.isConnected()));
+             writeFileSync(${JSON.stringify(directory)} + '/browser-' + id + '.closed', String(!browser.isConnected()));
              if (${failClose}) throw new Error('FAULT_INJECTED_BROWSER_CLOSE_FAILURE');
            };
            return browser;
@@ -143,8 +233,20 @@ test(
               },
               stdio: ['ignore', 'pipe', 'pipe'],
             },
-            journey ? 240_000 : 30_000,
+            hang ? 5_000 : journey ? 240_000 : 30_000,
           );
+          if (hang) {
+            assert.equal(await readFile(join(directory, 'timeout-ready'), 'utf8'), 'ready');
+            assert.match(child.error?.message ?? '', /outer execution budget/);
+            assert.equal(
+              existsSync(join(directory, 'browser-disconnected')),
+              true,
+              'timeout must close the actual detached browser',
+            );
+            await reservePort(port);
+            assert.doesNotMatch(child.stdout, /PASSED/);
+            return;
+          }
           assert.equal(child.error, undefined, `${child.error?.message}\n${child.stderr}`);
           assert.equal(child.signal, null, child.stderr);
           assert.equal(child.status, journey && !failClose ? 0 : 1, child.stderr);
@@ -162,6 +264,15 @@ test(
             'FAILED report must survive a closed-page diagnostic failure',
           );
           const result = JSON.parse(await readFile(resultFile, 'utf8'));
+          if (journey) {
+            for (const marker of [
+              'ledger.sqlite.closed',
+              'storage-ledger.sqlite.closed',
+              'browser-1.closed',
+              'browser-2.closed',
+            ])
+              assert.ok(existsSync(join(directory, marker)), marker + ' confirms each owned resource closed');
+          }
           if (journey)
             assert.ok(result.checks.length >= 17, 'the actual full journey must finish its assertions');
           if (journey && !failClose) {
@@ -229,7 +340,11 @@ test('FAULT_INJECTED real M3 page rejects missing serialized evidence and remove
     assert.equal(existsSync(join(directory, 'result.json')), false);
     assert.equal(page.isClosed(), false, 'the exported journey leaves ownership with its caller');
   } finally {
-    await browser?.close();
-    await server.close();
+    const cleanup = await Promise.allSettled([
+      Promise.resolve().then(() => browser?.close()),
+      Promise.resolve().then(() => server.close()),
+    ]);
+    const failure = cleanup.find((result) => result.status === 'rejected');
+    assert.equal(failure, undefined, failure?.reason?.message);
   }
 });
