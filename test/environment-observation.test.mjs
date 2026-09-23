@@ -1,19 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import {
+  chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, delimiter, join, resolve } from 'node:path';
+import { basename, dirname, delimiter, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { boundedRead, inspectEnvironment, readInputs } from '../tools/environment/observe.mjs';
 
@@ -105,6 +109,41 @@ test('absent PATH and conflicting npm executable cannot be admitted as an aligne
     assert.notEqual(status(report, 'platform'), 'PASS');
     assert.equal(report.eligibleForEvidence, false);
   }
+});
+
+test('an exact Node copy without adjacent npm rejects the native npm prerequisite', (t) => {
+  assert.equal(process.versions.node, readFileSync(join(repository, '.node-version'), 'utf8').trim());
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-node-no-npm-')));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const bin = join(directory, 'bin');
+  mkdirSync(bin);
+  const approvedNode = realpathSync(process.execPath);
+  const copiedNode = join(bin, basename(approvedNode));
+  copyFileSync(approvedNode, copiedNode);
+  chmodSync(copiedNode, statSync(approvedNode).mode & 0o777);
+  const digest = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
+  assert.equal(digest(copiedNode), digest(approvedNode));
+  assert.equal(existsSync(join(directory, 'lib/node_modules/npm/bin/npm-cli.js')), false);
+  assert.equal(existsSync(join(bin, 'node_modules/npm/bin/npm-cli.js')), false);
+
+  const script = `
+    import assert from 'node:assert/strict';
+    import {realpathSync} from 'node:fs';
+    import {npmCli} from ${JSON.stringify(new URL('../tools/environment/observe.mjs', import.meta.url).href)};
+    assert.equal(realpathSync(process.execPath), ${JSON.stringify(realpathSync(copiedNode))});
+    assert.throws(() => npmCli(), /Exact npm runtime unavailable/);
+    process.stdout.write('NPM_PREREQUISITE_REJECTED\\n');
+  `;
+  const child = spawnSync(copiedNode, ['--input-type=module', '-e', script], {
+    cwd: directory,
+    env: process.env,
+    encoding: 'utf8',
+    timeout: 15000,
+  });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stdout, 'NPM_PREREQUISITE_REJECTED\n');
+  assert.equal(child.stderr, '');
 });
 
 test('case-colliding tracked names and shallow history remain ineligible for environment evidence', (t) => {
