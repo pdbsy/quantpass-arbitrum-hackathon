@@ -1639,3 +1639,27 @@ test('redaction preserves safe values and rejects boundary-shaped credentials th
     assert.equal(redactValue(input, { maxStringLength: 262144 }), expected, `${id}: value`);
   }
 });
+
+test('redaction rejects quoted short scheme payloads and preserves quoted explanatory prose', () => {
+  for (const quote of ['"', "'", '`']) {
+    for (const [scheme, token] of [
+      ['Basic', 'dXNlcjpwYXNz'],
+      ['Bearer', 'abc'],
+    ]) {
+      for (const tail of ['', ' status=401', ', denied']) {
+        const input = `upstream ${scheme} ${quote}${token}${quote}${tail}`;
+        for (const output of [sanitizeLog(input), redactValue(input)]) {
+          assert.doesNotMatch(output, new RegExp(token), input);
+          assert.match(output, /\[REDACTED\]/, input);
+        }
+      }
+    }
+    for (const prose of [
+      `Basic ${quote}authentication remains disabled${quote}`,
+      `Bearer ${quote}market conditions${quote}`,
+    ]) {
+      assert.equal(sanitizeLog(prose), prose);
+      assert.equal(redactValue(prose), prose);
+    }
+  }
+});
