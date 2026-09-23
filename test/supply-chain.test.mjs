@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
+  checkSupplyChain,
   renderNpmSbom,
   validatePackageLock,
   validateSupplyChainPolicy,
@@ -16,6 +17,20 @@ const packageJson = JSON.parse(await readFile(new URL('../package.json', import.
 const lockfile = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
 
 const engineeringWorkflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+const codeqlWorkflow = await readFile(new URL('../.github/workflows/codeql.yml', import.meta.url), 'utf8');
+
+test('real supply-chain entrypoint validates the repository without mutating the checkout', async () => {
+  const result = await checkSupplyChain();
+  assert.ok(result.packages > 0);
+  assert.ok(result.workflows >= 3);
+});
+
+test('workflow parser admits bounded null nodes and read access under a write ceiling', () => {
+  const withNullEnvironment = valid.replace('permissions:\n  contents: read', 'env:\npermissions:\n  contents: read');
+  assert.doesNotThrow(() => validateWorkflowText(ciPath, withNullEnvironment, policy));
+  const readOnlyCodeQL = codeqlWorkflow.replace('security-events: write', 'security-events: read');
+  assert.doesNotThrow(() => validateWorkflowText('.github/workflows/codeql.yml', readOnlyCodeQL, policy));
+});
 
 test('supply-chain policy and npm lock are closed and produce deterministic SPDX', () => {
   assert.equal(validateSupplyChainPolicy(policy), policy);

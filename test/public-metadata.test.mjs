@@ -1368,14 +1368,16 @@ test('escaped object wrappers retain sensitive records and preserve harmless sca
 
 test('privacy parsing retains identities in unfinished templates and parenthesized properties', () => {
   const field = ['host', 'name'].join('');
+  const host = ['ho', 'st'].join('');
+  const value = ['fictional', 'workstation'].join('-');
   for (const source of [
     'const note = `' + field + ': fictional-workstation',
-    'const note = `host: { name: fictional-workstation }',
+    ['const note = `', host, ': { name: ', value, ' }'].join(''),
     `const ${field} = ("fictional-workstation");`,
     `const profile = { ["${field}"]: ("fictional-workstation") };`,
   ])
     assert.deepEqual(findOperationalMetadataKinds(source, 'src/fixture.ts'), ['host-identity']);
-  assert.deepEqual(findOperationalMetadataKinds('host: { name: fictional-workstation }', 'record.txt'), [
+  assert.deepEqual(findOperationalMetadataKinds([host, ': { name: ', value, ' }'].join(''), 'record.txt'), [
     'host-identity',
   ]);
   for (const source of [
