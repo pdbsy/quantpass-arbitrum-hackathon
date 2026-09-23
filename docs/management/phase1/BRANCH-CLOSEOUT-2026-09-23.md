@@ -1,3 +1,5 @@
+> 历史阶段记录：下文单人/暂停发布范围已被用户本轮授权取代。当前执行与基线见 [PR22最终收口记录](PR22-READY-CLOSEOUT-2026-09-23.md)，保留本页旧候选证据，不将其当现状。
+
 # 集中补测与本地交付 — 2026-09-23
 
 归属：AlphaForge / Robinhood Chain Testnet / Hackathon / PR #22；Macbeth01 / M3-01-PHASE1-CLOSEOUT。Xlayer 独立。本轮按用户要求由01执行，未启动或派发 worker。
