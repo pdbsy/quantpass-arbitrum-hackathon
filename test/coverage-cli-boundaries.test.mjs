@@ -227,10 +227,20 @@ for (const browser of [false, true])
       const qualification = jobs.find((row) => row.options.id === 'coverage-qualification').options.args;
       assert.equal(qualification.includes('test/coverage-browser.qualified.test.mjs'), browser);
       const bootstrap = decodeURIComponent(qualification[1].split(',').slice(1).join(','));
-      assert.match(
-        bootstrap,
-        browser ? /qualified-fixture\/tools/ : /\.checks\/coverage-tools\/instrumentation\/node_modules/,
-      );
+      const prefix = 'Object.assign(process.env, ';
+      assert.ok(bootstrap.startsWith(prefix) && bootstrap.endsWith(');'));
+      const prerequisites = JSON.parse(bootstrap.slice(prefix.length, -2));
+      assert.deepEqual(prerequisites, {
+        AF_QUALIFIED_COVERAGE_TOOLS: browser
+          ? resolve('/qualified-fixture/tools')
+          : resolve(root, '.checks/coverage-tools/instrumentation/node_modules'),
+        ...(browser
+          ? {
+              AF_QUALIFIED_BROWSER_TOOLS: resolve('/qualified-fixture/browser'),
+              CHROMIUM_PATH: '/qualified-fixture/chrome',
+            }
+          : {}),
+      });
       if (browser)
         for (const row of jobs.filter((item) => item.options.id.endsWith('-browser'))) {
           assert.deepEqual(row.options.artifactFiles, ['browser-receipt.json']);

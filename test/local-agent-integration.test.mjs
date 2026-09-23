@@ -7,6 +7,19 @@ import { tmpdir } from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
 import * as identity from '../tools/agent-integration-identity.mjs';
 
+// LOCAL API cases run in a temporary local process environment even when their
+// enclosing test runner is hosted. Production hosted admission remains unchanged;
+// the CLI cases below explicitly assert all three hosted markers are rejected.
+function localVerify(root, options) {
+  const saved = Object.entries(process.env).filter(([key]) => /^(GITHUB_|ACTIONS_|RUNNER_)/.test(key));
+  for (const [key] of saved) delete process.env[key];
+  try {
+    return identity.verifyLocalManagerIntegration(root, options);
+  } finally {
+    for (const [key, value] of saved) process.env[key] = value;
+  }
+}
+
 const branch = 'macbeth01/m3-phase1-closeout';
 const task = 'M3-01-PHASE1-CLOSEOUT';
 const repository = 'pdbsy/quantpass-arbitrum-hackathon';
@@ -127,7 +140,7 @@ function fixture(t) {
     options,
     message,
     commit,
-    check: () => identity.verifyLocalManagerIntegration(root, options()),
+    check: () => localVerify(root, options()),
   };
 }
 test(
@@ -195,10 +208,8 @@ test(
   { skip: !available },
   (t) => {
     const s = fixture(t);
-    assert.throws(() => identity.verifyLocalManagerIntegration(s.root, { ...s.options(), base: undefined }));
-    assert.throws(() =>
-      identity.verifyLocalManagerIntegration(s.root, { ...s.options(), base: s.sources[0].head }),
-    );
+    assert.throws(() => localVerify(s.root, { ...s.options(), base: undefined }));
+    assert.throws(() => localVerify(s.root, { ...s.options(), base: s.sources[0].head }));
     s.record({ ...s.manifest, provider: 'GITHUB' });
     assert.throws(s.check, /manifest/);
   },
@@ -258,9 +269,7 @@ test(
       sources: s.sources.map((x) => (x.agent === 'Macbeth06' ? { ...x, task: 'M3-06-OTHER' } : x)),
     });
     assert.throws(s.check, /06/);
-    assert.throws(() =>
-      identity.verifyLocalManagerIntegration(s.root, { ...s.options(), branch: 'macbeth01/other' }),
-    );
+    assert.throws(() => localVerify(s.root, { ...s.options(), branch: 'macbeth01/other' }));
   },
 );
 test('local source cannot launder unregistered foreign commits', { skip: !available }, (t) => {
@@ -334,6 +343,11 @@ test('CLI requires explicit pins, emits only LOCAL and refuses hosted context', 
   const good = run();
   assert.equal(good.status, 0, good.stderr);
   assert.equal(JSON.parse(good.stdout).scope, 'LOCAL');
-  assert.notEqual(run({ GITHUB_ACTIONS: 'true' }).status, 0);
+  for (const marker of ['GITHUB_ACTIONS', 'ACTIONS_RUNTIME_URL', 'RUNNER_OS']) {
+    const hosted = run({ [marker]: 'fixture-hosted' });
+    assert.equal(hosted.status, 1);
+    assert.match(hosted.stderr, /LOCAL entry cannot run in hosted context/);
+    assert.equal(hosted.stdout, '');
+  }
   assert.notEqual(run({}, args.slice(0, -2)).status, 0);
 });

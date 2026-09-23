@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 
 const root = resolve(import.meta.dirname, '..');
 const outputs = [
@@ -17,6 +18,16 @@ for (const scenario of ['complete', 'partial', 'invalid-page', 'missing-previous
   test(`Forum CLI ${scenario} uses bounded API pages and preserves truthful generated state`, async (t) => {
     const temporary = await mkdtemp(join(tmpdir(), 'alphaforge-forum-cli-'));
     t.after(() => rm(temporary, { recursive: true, force: true }));
+    const gitEnvironment = { ...process.env };
+    for (const key of Object.keys(gitEnvironment)) if (key.startsWith('GIT_')) delete gitEnvironment[key];
+    Object.assign(gitEnvironment, { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' });
+    for (const args of [
+      ['init', '-q'],
+      ['remote', 'add', 'origin', 'https://github.com/pdbsy/quantpass-arbitrum-hackathon'],
+    ]) {
+      const git = spawnSync('git', args, { cwd: temporary, env: gitEnvironment, encoding: 'utf8' });
+      assert.equal(git.status, 0, git.stderr);
+    }
     const originalOutputs = await Promise.all(outputs.map((path) => readFile(resolve(root, path))));
     const redirects = Object.fromEntries(
       outputs.map((path, index) => [resolve(root, path), join(temporary, `output-${index}`)]),
@@ -77,7 +88,7 @@ for (const scenario of ['complete', 'partial', 'invalid-page', 'missing-previous
         if (file !== 'gh') {
           assert.equal(file, 'git');
           assert.deepEqual(args, ['remote', 'get-url', 'origin']);
-          return originalExec(file, args, options);
+          return originalExec(file, args, { ...options, cwd: ${JSON.stringify(temporary)}, env: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } });
         }
         assert.equal(args[0], 'api');
         assert.equal(args[2], '--jq');
@@ -90,12 +101,18 @@ for (const scenario of ['complete', 'partial', 'invalid-page', 'missing-previous
       syncBuiltinESMExports();
     `,
     );
-    const child = spawnSync(process.execPath, ['--import', hookPath, 'tools/sync-agent-forum.mjs'], {
-      cwd: root,
-      env: process.env,
-      encoding: 'utf8',
-      timeout: 30_000,
-    });
+    const child = spawnSync(
+      process.execPath,
+      ['--import', pathToFileURL(hookPath).href, 'tools/sync-agent-forum.mjs'],
+      {
+        cwd: root,
+        env: process.env,
+        encoding: 'utf8',
+        timeout: 30_000,
+      },
+    );
+    assert.equal(child.error, undefined);
+    assert.equal(child.status, ['complete', 'partial'].includes(scenario) ? 0 : 1, child.stderr);
     const snapshot = JSON.parse(await readFile(snapshotPath, 'utf8'));
     const calls = (await readFile(callsPath, 'utf8')).trim().split('\n').map(JSON.parse);
     const html = await readFile(redirects[resolve(root, outputs[1])], 'utf8');
