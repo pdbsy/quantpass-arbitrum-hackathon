@@ -1232,3 +1232,63 @@ test('missing source times are rejected and absent document items cannot create 
   );
   assert.notEqual(snapshot.tests.status, 'PASS');
 });
+
+test('reachable dashboard branches preserve explicit statuses and defensive section handling', () => {
+  const make = () => fixtureSources();
+  const snapshotFor = (sources) =>
+    buildDashboardSnapshot({
+      sources,
+      git: gitState(),
+      checkReport: checkReport(),
+      observedAt,
+      linkStates: {
+        'docs/adr/0001.md': true,
+        'docs/security/report.md': true,
+        'docs/management/host/HOST-SETUP.md': true,
+        'docs/ROBINHOOD-CHAIN.md': true,
+      },
+    });
+
+  const unknownGate = make();
+  unknownGate.roadmap.data.releaseGates[1].status = 'unknown';
+  assert.equal(snapshotFor(unknownGate).hackathon.status, 'DATA_SOURCE_ERROR');
+
+  const emptySections = make();
+  emptySections.taskRecords[0].data.sections = {};
+  const emptySnapshot = snapshotFor(emptySections);
+  assert.equal(
+    emptySnapshot.knownIssues.some((item) => item.category === 'Known limitations'),
+    false,
+  );
+
+  const plainSections = make();
+  plainSections.taskRecords[0].data.sections['Known limitations'] = 'single documented limitation';
+  assert.equal(
+    snapshotFor(plainSections).knownIssues.some((item) => item.title === 'single documented limitation'),
+    true,
+  );
+
+  const decision = make();
+  decision.management.decisions = source('docs/management/DECISIONS.md', { text: 'reviewer decision' });
+  assert.deepEqual(snapshotFor(decision).decisions.items, [
+    { id: 'decision-log', text: 'reviewer decision' },
+  ]);
+
+  const risk = make();
+  delete risk.riskRegister.data.risks[0].boundaries;
+  assert.deepEqual(snapshotFor(risk).security.findings[0].component, []);
+
+  const links = make();
+  const linked = snapshotFor(links);
+  assert.equal(linked.links.filter((item) => item.status === 'READY').length, 4);
+
+  const unavailableCheck = buildDashboardSnapshot({
+    sources: make(),
+    git: gitState(),
+    checkReport: { status: 'NOT_AVAILABLE', source: '.checks/management/latest.json', observedAt },
+    observedAt,
+    linkStates: {},
+  });
+  assert.equal(unavailableCheck.tests.status, 'NOT_RUN');
+  assert.ok(unavailableCheck.tests.items.every((item) => item.status === 'NOT_RUN'));
+});
