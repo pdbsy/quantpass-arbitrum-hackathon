@@ -275,23 +275,23 @@ for (const browser of [false, true])
           );
           assert.equal(row.options.artifactFiles, undefined);
           const script = decodeURIComponent(row.options.args[1].split(',').slice(1).join(','));
-          const proof = run(
-            '--import',
-            [
-              row.options.args[1],
-              '--input-type=module',
-              '-e',
-              'console.log(JSON.stringify(Object.fromEntries(Object.entries(process.env).filter(([key])=>key.startsWith("AF_QUALIFIED_")||key==="AF_RUN_LEGACY_WORKFLOWS"))))',
-            ],
-            {
-              env: {
-                ...process.env,
+          // Let the inherited real hook capture its bound context before this
+          // controlled input is passed to the actual qualification bootstrap.
+          const fixtureBootstrap = (raw) =>
+            'data:text/javascript,' +
+            encodeURIComponent(
+              `Object.assign(process.env, ${JSON.stringify({
                 AF_COVERAGE_ROOT: root,
                 AF_COVERAGE_PREPARED: f.directory,
-                AF_COVERAGE_RAW: join(f.directory, 'unique-workflow', 'raw'),
-              },
-            },
-          );
+                AF_COVERAGE_RAW: raw,
+              })}); await import(${JSON.stringify(row.options.args[1])});`,
+            );
+          const proof = run('--import', [
+            fixtureBootstrap(join(f.directory, 'unique-workflow', 'raw')),
+            '--input-type=module',
+            '-e',
+            'console.log(JSON.stringify(Object.fromEntries(Object.entries(process.env).filter(([key])=>key.startsWith("AF_QUALIFIED_")||key==="AF_RUN_LEGACY_WORKFLOWS"))))',
+          ]);
           assert.equal(proof.status, 0, proof.stderr);
           const bound = JSON.parse(proof.stdout);
           assert.equal(bound.AF_QUALIFIED_BROWSER_CANDIDATE, root);
@@ -305,18 +305,12 @@ for (const browser of [false, true])
             join(f.directory, 'unique-workflow', 'node-hook.mjs'),
           );
           assert.equal(bound.AF_RUN_LEGACY_WORKFLOWS, '1');
-          const unbound = run(
-            '--import',
-            [row.options.args[1], '--input-type=module', '-e', 'process.exit(0)'],
-            {
-              env: {
-                ...process.env,
-                AF_COVERAGE_ROOT: root,
-                AF_COVERAGE_PREPARED: f.directory,
-                AF_COVERAGE_RAW: '',
-              },
-            },
-          );
+          const unbound = run('--import', [
+            fixtureBootstrap(''),
+            '--input-type=module',
+            '-e',
+            'process.exit(0)',
+          ]);
           assert.notEqual(unbound.status, 0);
           assert.match(unbound.stderr, /Bound coverage context required: AF_COVERAGE_RAW/);
           assert.ok(script.includes('AF_COVERAGE_RAW'));
