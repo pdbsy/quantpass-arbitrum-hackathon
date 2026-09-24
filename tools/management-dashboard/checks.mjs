@@ -9,6 +9,10 @@ import { validateCheckReport } from './schema.mjs';
 import { collectGitState as collectRepositoryGitState } from './sources.mjs';
 
 const unitTests = [
+  'test/management-public-entry-boundaries.test.mjs',
+  'test/environment-public-entry-boundaries.test.mjs',
+  'test/html-source-ranges.test.mjs',
+  'test/management-browser-inputs.qualified.test.mjs',
   'test/forum-sync-boundaries.test.mjs',
   'test/management-transport-boundaries.test.mjs',
   'test/management-dashboard-git-boundaries.test.mjs',

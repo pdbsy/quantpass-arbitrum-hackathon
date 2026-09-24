@@ -577,7 +577,8 @@ async function runPrototype69Cases({
       s,
       'persisted-history',
       [
-        ['166', 1],
+        // Invalid activity types now take the explicit display fallback before esc.
+        ['262', 1],
         ['266', 1],
       ],
       { inputClass: 'VALID_PERSISTENCE_FIXTURE' },
