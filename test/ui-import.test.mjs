@@ -87,10 +87,21 @@ test('retained UI history validates a tree-identical master integration without 
     ).trim();
   execute(directory, ['clone', '--no-hardlinks', '--no-checkout', '--single-branch', root, cwd]);
   const git = (...args) => execute(cwd, args);
-  const source = git('rev-parse', 'HEAD');
   const base = '18f5352070910a867b9729b031aa2e3951785e01';
   const sourceRef = 'refs/remotes/origin/macbeth01/m3-phase1-closeout';
   const masterRef = 'refs/remotes/origin/master';
+  const admitted = await verifiedPrototypeArtifacts(root);
+  let directSource = true;
+  try {
+    execute(root, ['merge-base', '--is-ancestor', admitted.repairCommit, 'HEAD']);
+  } catch (error) {
+    if (error.status !== 1 || error.signal) throw error;
+    directSource = false;
+  }
+  // A real post-integration checkout already has rewritten ancestry. Preserve
+  // its admitted source reference instead of mislabelling that master as source.
+  const source = execute(root, ['rev-parse', '--verify', directSource ? 'HEAD' : sourceRef]);
+  execute(cwd, ['fetch', '--no-tags', root, source]);
   const tree = git('rev-parse', `${source}^{tree}`);
   const master = execute(cwd, ['commit-tree', tree, '-p', base], 'Local squash-shaped fixture only\n');
   git('checkout', '--force', '--detach', master);
