@@ -20,7 +20,136 @@ function alive(pid) {
   }
 }
 
-function inspectOwnedPid(identity, terminate = false) {
+function verifyProbeResult(cleanup, { role, terminate, elapsedMs }, diagnostic) {
+  // Parse only this fixed protocol. PowerShell error text can include source
+  // lines containing the encoded identity; never forward stderr or spawnargs.
+  const stages = new Set([
+    'script-start',
+    'identity-decoded',
+    'get-process',
+    'process-found',
+    'acquire-handle',
+    'handle-acquired',
+    'cim-query',
+    'cim-complete',
+    'checks-complete',
+    'terminate',
+    'wait-exit',
+    'dispose',
+    'disposed',
+    'probe-error',
+  ]);
+  const phases = [];
+  let checks = 'unknown';
+  for (const line of (cleanup.stderr || '').slice(0, 4096).split(/\r?\n/)) {
+    const phase = /^AF_PROBE_V1 stage=([a-z-]+) elapsedMs=([0-9]{1,7})$/.exec(line);
+    if (phase && stages.has(phase[1]) && phases.length < 16) phases.push([phase[1], Number(phase[2])]);
+    const match = /^AF_PROBE_V1 checks=([01]{5})$/.exec(line);
+    if (match) checks = match[1];
+  }
+  const safeRole = ['fixture-child', 'registry-parent'].includes(role) ? role : 'unknown';
+  const safeError = !cleanup.error
+    ? 'none'
+    : ['ETIMEDOUT', 'ENOENT', 'EACCES', 'EPERM', 'ENOBUFS', 'EINVAL'].includes(cleanup.error.code)
+      ? cleanup.error.code
+      : 'unknown';
+  const safeElapsed =
+    Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs <= 9_999_999 ? Math.ceil(elapsedMs) : 'unknown';
+  const safeStatus = Number.isInteger(cleanup.status) ? cleanup.status : 'unknown';
+  const summary = `Windows fixture probe role=${safeRole} mode=${terminate ? 'cleanup' : 'capture'} elapsedMs=${safeElapsed} error=${safeError} status=${safeStatus} stage=${phases.at(-1)?.[0] || 'unknown'} checks=${checks} phases=${phases.map(([stage, ms]) => `${stage}:${ms}`).join(',') || 'unknown'}`;
+  diagnostic(summary);
+  assert.ok(!cleanup.error, `Windows fixture identity probe failed; ${summary}`);
+  assert.ok(cleanup.status === 0, `Windows fixture identity probe rejected; ${summary}`);
+  if (!terminate) {
+    assert.ok(
+      typeof cleanup.stdout === 'string' && /^[0-9]+$/.test(cleanup.stdout),
+      `Windows fixture invalid birth ticks; ${summary}`,
+    );
+    return cleanup.stdout;
+  }
+}
+
+test('probe diagnostics retain a real native child timeout as failure without raw launch details', () => {
+  const result = spawnSync(process.execPath, ['--eval', 'setInterval(() => {}, 1000)'], {
+    encoding: 'utf8',
+    timeout: 250,
+    maxBuffer: 4096,
+    windowsHide: true,
+    shell: false,
+  });
+  assert.equal(result.error?.code, 'ETIMEDOUT');
+  const diagnostics = [];
+  assert.throws(
+    () =>
+      verifyProbeResult(result, { role: 'fixture-child', terminate: false, elapsedMs: 251 }, (line) =>
+        diagnostics.push(line),
+      ),
+    /role=fixture-child mode=capture.*error=ETIMEDOUT.*stage=unknown/,
+  );
+  assert.equal(diagnostics.length, 1);
+  assert.ok(diagnostics[0].length <= 2048);
+  assert.match(diagnostics[0], /checks=unknown/);
+  assert.ok(!diagnostics[0].includes(process.execPath));
+});
+
+test('probe diagnostics preserve only known phases and five booleans from a failing native child', () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--eval',
+      `
+process.stderr.write('SECRET_PATH_COMMAND_NONCE_PID_ENV\\nAF_PROBE_V1 stage=cim-query elapsedMs=12\\nAF_PROBE_V1 checks=11011\\nAF_PROBE_V1 stage=SECRET elapsedMs=13\\n');
+process.stderr.write('AF_PROBE_V1 stage=cim-query elapsedMs=12\\n'.repeat(60));
+process.stderr.write('AF_PROBE_V1 checks=SECRET\\nAF_PROBE_V1 stage=dispose elapsedMs=123456789SECRET\\n');
+process.stdout.write('SECRET_STDOUT');
+process.exitCode = 1;
+`,
+    ],
+    { encoding: 'utf8', timeout: 20_000, maxBuffer: 4096, windowsHide: true, shell: false },
+  );
+  assert.equal(result.status, 1);
+  const diagnostics = [];
+  assert.throws(
+    () =>
+      verifyProbeResult(result, { role: 'registry-parent', terminate: true, elapsedMs: 25 }, (line) =>
+        diagnostics.push(line),
+      ),
+    (error) => /role=registry-parent mode=cleanup/.test(error.message) && !error.message.includes('SECRET'),
+  );
+  assert.equal(diagnostics.length, 1);
+  assert.ok(diagnostics[0].length <= 2048);
+  assert.match(diagnostics[0], /stage=cim-query/);
+  assert.match(diagnostics[0], /checks=11011/);
+  assert.ok(!diagnostics[0].includes('SECRET'));
+});
+
+test('probe diagnostics keep the birth-tick stdout protocol and reject malformed output', () => {
+  const result = spawnSync(process.execPath, ['--eval', "process.stdout.write('638942400000000000')"], {
+    encoding: 'utf8',
+    timeout: 20_000,
+    maxBuffer: 4096,
+    windowsHide: true,
+    shell: false,
+  });
+  assert.equal(result.status, 0);
+  assert.equal(
+    verifyProbeResult(result, { role: 'fixture-child', terminate: false, elapsedMs: 12 }, () => {}),
+    '638942400000000000',
+  );
+  // Fault injection at the unavailable Windows probe boundary: malformed bytes
+  // must fail closed without reflecting raw output into the assertion report.
+  assert.throws(
+    () =>
+      verifyProbeResult(
+        { ...result, stdout: 'SECRET_INVALID_TICKS' },
+        { role: 'fixture-child', terminate: false, elapsedMs: 12 },
+        () => {},
+      ),
+    (error) => /invalid birth ticks/.test(error.message) && !error.message.includes('SECRET'),
+  );
+});
+
+function inspectOwnedPid(identity, terminate, diagnostic) {
   if (terminate && !alive(identity.pid)) return;
   // Windows PowerShell is an existing OS component. Hold an actual process
   // handle and verify its start time, ancestry and command before termination;
@@ -29,13 +158,30 @@ function inspectOwnedPid(identity, terminate = false) {
   const script = `
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+$probeClock = [Diagnostics.Stopwatch]::StartNew()
+function Write-ProbeStage([string]$stage) {
+  # Diagnostic IO must never prevent identity checks or held-handle disposal.
+  try {
+    [Console]::Error.WriteLine('AF_PROBE_V1 stage=' + $stage + ' elapsedMs=' + $probeClock.ElapsedMilliseconds)
+    [Console]::Error.Flush()
+  } catch {}
+}
+Write-ProbeStage 'script-start'
+try {
 $expected = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedIdentity}')) | ConvertFrom-Json
+Write-ProbeStage 'identity-decoded'
+Write-ProbeStage 'get-process'
 $ownedProcess = Get-Process -Id $expected.pid -ErrorAction SilentlyContinue
 if ($null -eq $ownedProcess) { exit 0 }
+Write-ProbeStage 'process-found'
 try {
+  Write-ProbeStage 'acquire-handle'
   $null = $ownedProcess.Handle
+  Write-ProbeStage 'handle-acquired'
   if ($ownedProcess.HasExited) { exit 0 }
+  Write-ProbeStage 'cim-query'
   $metadata = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $expected.pid)
+  Write-ProbeStage 'cim-complete'
   if ($ownedProcess.HasExited) { exit 0 }
   $expectedTail = $expected.commandPart
   $command = if ($null -ne $metadata -and $null -ne $metadata.CommandLine) { $metadata.CommandLine.TrimEnd() } else { '' }
@@ -46,6 +192,13 @@ try {
     commandMatches = $command.EndsWith(' ' + $expectedTail) -or $command.EndsWith(' "' + $expectedTail + '"')
     executableMatches = $null -ne $metadata -and $null -ne $metadata.ExecutablePath -and [IO.Path]::GetFullPath($metadata.ExecutablePath) -ieq [IO.Path]::GetFullPath($expected.executable)
   }
+  # Order: metadata, parent, started-after, command, executable. Missing checks
+  # remain unknown to the caller until this entire comparison has completed.
+  try {
+    [Console]::Error.WriteLine('AF_PROBE_V1 checks=' + (($checks.Values | ForEach-Object { if ($_){ '1' } else { '0' } }) -join ''))
+    [Console]::Error.Flush()
+  } catch {}
+  Write-ProbeStage 'checks-complete'
   if ($checks.Values -contains $false) {
     # Emit only booleans, never a process command line or executable path.
     throw ('Fixture process identity changed; refusing PID cleanup; checks=' + ($checks | ConvertTo-Json -Compress))
@@ -53,11 +206,23 @@ try {
   $startTicks = $ownedProcess.StartTime.ToUniversalTime().Ticks.ToString()
   if (${terminate ? '$true' : '$false'}) {
     if ($startTicks -ne $expected.startTicks) { throw 'PID birth identity changed; refusing cleanup' }
+    Write-ProbeStage 'terminate'
     $ownedProcess.Kill()
+    Write-ProbeStage 'wait-exit'
     if (-not $ownedProcess.WaitForExit(3000)) { throw 'Owned process survived cleanup' }
   } else { [Console]::Out.Write($startTicks) }
-} finally { $ownedProcess.Dispose() }
+} finally {
+  Write-ProbeStage 'dispose'
+  $ownedProcess.Dispose()
+  Write-ProbeStage 'disposed'
+}
+} catch {
+  # Do not let PowerShell print an error source line with encoded identity data.
+  Write-ProbeStage 'probe-error'
+  exit 1
+}
 `;
+  const probeStarted = performance.now();
   const cleanup = spawnSync(
     join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
     [
@@ -69,22 +234,23 @@ try {
     ],
     { encoding: 'utf8', timeout: terminate ? 8000 : 20000, maxBuffer: 4096, windowsHide: true, shell: false },
   );
-  // Keep spawn arguments and their encoded fixture identity out of failures.
-  const errorCode = cleanup.error ? String(cleanup.error.code || 'UNKNOWN').slice(0, 32) : undefined;
-  assert.equal(errorCode, undefined, 'Windows fixture identity probe failed');
-  assert.equal(cleanup.status, 0, cleanup.stderr);
-  if (!terminate) {
-    assert.match(cleanup.stdout, /^[0-9]+$/);
-    return { ...identity, startTicks: cleanup.stdout };
-  }
+  const startTicks = verifyProbeResult(
+    cleanup,
+    { role: identity.role, terminate, elapsedMs: performance.now() - probeStarted },
+    diagnostic,
+  );
+  if (!terminate) return { ...identity, startTicks };
 }
 
-function cleanupFixture(identities) {
+function cleanupFixture(identities, lifecycle, diagnostic) {
   const errors = [];
   for (const identity of identities) {
     try {
-      inspectOwnedPid(identity, true);
+      lifecycle[identity.role].cleanup = 'started';
+      inspectOwnedPid(identity, true, diagnostic);
+      lifecycle[identity.role].cleanup = 'probe-returned';
     } catch (error) {
+      lifecycle[identity.role].cleanup = 'failed';
       errors.push(error);
     }
   }
@@ -94,7 +260,8 @@ function cleanupFixture(identities) {
 test(
   'Windows management integration timeout returns bounded FAIL without claiming process-tree cleanup',
   { skip: process.platform !== 'win32' ? 'Requires a real Windows runner and fixed 120s timeout' : false },
-  async () => {
+  async (t) => {
+    const diagnostic = (line) => t.diagnostic(line);
     const integration = CHECK_REGISTRY.find((check) => check.id === 'integration');
     assert.equal(integration.file, 'node');
     assert.deepEqual(integration.args, ['--test', 'test/server.test.ts']);
@@ -116,6 +283,15 @@ test(
     let stderr = '';
     let startedAfter;
     const identities = [];
+    const lifecycle = Object.fromEntries(
+      ['fixture-child', 'registry-parent'].map((role) => [
+        role,
+        {
+          capture: 'not-started',
+          cleanup: 'not-attempted-unverified',
+        },
+      ]),
+    );
     const outputLimit = 4096;
     try {
       await mkdir(join(root, 'test'));
@@ -194,13 +370,33 @@ await writeFile(${JSON.stringify(resultPath)}, JSON.stringify(result), { flag: '
         // argument. process.argv[1] is absolute inside that child, but CIM observes
         // the original relative command. Verify both, retaining every PID guard.
         for (const identity of [
-          { pid: owned.pid, parentPid: owned.parentPid, commandPart: join('test', 'server.test.ts') },
-          { pid: owned.parentPid, parentPid: outer.pid, commandPart: 'test/server.test.ts' },
+          {
+            role: 'fixture-child',
+            pid: owned.pid,
+            parentPid: owned.parentPid,
+            commandPart: join('test', 'server.test.ts'),
+          },
+          {
+            role: 'registry-parent',
+            pid: owned.parentPid,
+            parentPid: outer.pid,
+            commandPart: 'test/server.test.ts',
+          },
         ]) {
           assert.ok(Number.isInteger(identity.pid) && identity.pid > 0);
           assert.notEqual(identity.pid, process.pid);
           assert.notEqual(identity.pid, outer.pid);
-          identities.push(inspectOwnedPid({ ...identity, startedAfter, executable: process.execPath }));
+          lifecycle[identity.role].capture = 'started';
+          try {
+            identities.push(
+              inspectOwnedPid({ ...identity, startedAfter, executable: process.execPath }, false, diagnostic),
+            );
+            lifecycle[identity.role].capture = 'authenticated';
+            lifecycle[identity.role].cleanup = 'not-attempted';
+          } catch (error) {
+            lifecycle[identity.role].capture = 'failed';
+            throw error;
+          }
         }
         return completion;
       };
@@ -224,8 +420,15 @@ await writeFile(${JSON.stringify(resultPath)}, JSON.stringify(result), { flag: '
       // Only this private fixture can create this receipt. Never enumerate or
       // terminate processes by executable name, port, or a wildcard tree.
       try {
-        cleanupFixture(identities);
+        cleanupFixture(identities, lifecycle, diagnostic);
       } finally {
+        // Unregistered descendants are never signalled. These are observations
+        // of our calls only, not a claim that every fixture descendant exited.
+        for (const [role, state] of Object.entries(lifecycle)) {
+          diagnostic(
+            `Windows fixture lifecycle role=${role} capture=${state.capture} cleanup=${state.cleanup} descendantSurvival=unknown`,
+          );
+        }
         if (outer) {
           if (outer.exitCode === null && outer.signalCode === null) outer.kill('SIGKILL');
           if (completion) await Promise.race([completion.catch(() => {}), delay(5000)]);
