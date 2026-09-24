@@ -32,14 +32,14 @@
     {
       "agent": "Macbeth06",
       "task": "M3-06-CI-GATES",
-      "branch": "macbeth06/m3-pr22-supply-workflow-boundaries",
-      "head": "2918272c9655bc3335ab30ce097b4f55910e0196"
+      "branch": "macbeth06/m3-pr22-slither-evidence",
+      "head": "40ae352b390368796039ddfe670c076ee9b91025"
     },
     {
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "5f6718f88cfdf10a31c92daeb1e69fe2c6a9efd2"
+      "head": "a1a417f287704e3627c031ccdcaf26f7f6469476"
     },
     {
       "agent": "Macbeth02",
