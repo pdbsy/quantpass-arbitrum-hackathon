@@ -20,8 +20,8 @@
     {
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
-      "branch": "macbeth04/t7-m3-cleanup-registered",
-      "head": "d5d425c94d594b56748020e3a8cafe7538784249"
+      "branch": "macbeth04/m3-cleanup-qualification",
+      "head": "160c83c80cedb9aa536389117f2b69c9838a1597"
     },
     {
       "agent": "Macbeth05",
@@ -39,7 +39,7 @@
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "e04260432c8a04fcd8e74bcc2ff8d66d5983693b"
+      "head": "0cfa8488ba70e877e8d336f91658ec5484e19397"
     },
     {
       "agent": "Macbeth02",
