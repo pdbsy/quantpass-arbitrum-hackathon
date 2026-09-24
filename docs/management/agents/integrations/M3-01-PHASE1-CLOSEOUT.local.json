@@ -82,6 +82,13 @@
       "branch": "macbeth03/pr22-browser-inputs",
       "head": "4d444528bb75906b6f056e2732efbc704d0e93ac",
       "local_ref": "refs/remotes/local-macbeth03/pr22-browser-inputs"
+    },
+    {
+      "agent": "Macbeth02",
+      "task": "M3-02-CONTRACT-REVIEW",
+      "branch": "macbeth02/m3-browser-policy-inputs",
+      "head": "741dd7a8093fbe8313761ee4e001ec829fccaf68",
+      "local_ref": "refs/remotes/local-macbeth02/m3-browser-policy-inputs"
     }
   ]
 }
