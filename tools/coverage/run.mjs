@@ -88,6 +88,7 @@ const qualification = {
           'test/browser-tool-cli-boundaries.test.mjs',
           'test/browser-tool-failures.qualified.test.mjs',
           'test/m3-browser-cleanup.qualified.test.mjs',
+          'test/ui-kline-hover.qualified.test.mjs',
           'test/prototype-damaged-dates.qualified.test.mjs',
           'test/prototype-damaged-state.qualified.test.mjs',
         ]

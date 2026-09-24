@@ -1,3 +1,5 @@
+import { installCandleInspection, type CandleChartHost } from './kline-hover.ts';
+import './kline-hover.css';
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
 import { createM3BrowserRuntime, type M3BrowserDeploymentConfig } from './m3-browser-runtime.ts';
@@ -21,7 +23,7 @@ import {
   type M3PassTransferReview,
 } from './m3-product-runtime.ts';
 import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
-interface Prototype {
+interface Prototype extends CandleChartHost {
   strategies: { id: string }[];
   pages: { market: () => string; account: (tab: string) => string; trade: (id: string) => string };
   app: {
@@ -40,6 +42,7 @@ declare global {
   }
 }
 const AF = window.AF;
+installCandleInspection(AF);
 let onchainRuntime = AF.m3OnchainRuntime;
 if (!onchainRuntime && import.meta.env.DEV && new URLSearchParams(location.search).get('m3Fixture') === '1') {
   const fixtureModule = await import('./m3-injected-runtime-fixture.ts');

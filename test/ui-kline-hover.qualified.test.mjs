@@ -1,0 +1,164 @@
+/* global window, location */
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { mkdtemp, mkdir, readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { build } from 'vite';
+import { importUserUI } from '../tools/import-user-ui.mjs';
+import { buildApp } from '../apps/server/src/app.ts';
+import { verifyInstallation } from '../tools/coverage/toolchain.mjs';
+
+const browserDirectory = process.env.AF_QUALIFIED_BROWSER_TOOLS;
+const chrome = process.env.CHROMIUM_PATH;
+// Real compiled product and native pointer/keyboard events. Removing the
+// tooltip or picking an adjacent candle breaks the visible value assertions.
+test(
+  'K-line inspection shows the selected candle and clears stale selections',
+  {
+    skip: !browserDirectory || !chrome,
+    timeout: 60000,
+  },
+  async (t) => {
+    const root = resolve(import.meta.dirname, '..');
+    const lock = JSON.parse(await readFile(resolve(root, 'planning/coverage-toolchain.lock.json')));
+    verifyInstallation(resolve(browserDirectory), lock.browser.installedFiles);
+    await mkdir(resolve(root, '.checks/kline-hover'), { recursive: true });
+    const output = await mkdtemp(resolve(root, '.checks/kline-hover/run-'));
+    const site = resolve(output, 'site');
+    const assets = resolve(output, 'assets');
+    const dist = resolve(output, 'dist');
+    await mkdir(site);
+    await importUserUI(
+      await readFile(resolve(root, 'apps/web/prototype/AlphaForge_v3_EN.html'), 'utf8'),
+      site,
+      assets,
+    );
+    await build({
+      configFile: false,
+      root: site,
+      publicDir: assets,
+      logLevel: 'silent',
+      plugins: [
+        {
+          name: 'product-entry',
+          enforce: 'pre',
+          resolveId(id) {
+            if (id === '/src/product-ui.ts') return resolve(root, 'apps/web/src/product-ui.ts');
+          },
+        },
+      ],
+      build: { outDir: dist, emptyOutDir: true },
+    });
+    const origin = 'http://127.0.0.1:19641';
+    const { app } = await buildApp({
+      origin,
+      dbPath: resolve(output, 'ledger.sqlite'),
+      env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+      webRoot: dist,
+    });
+    t.after(() => app.close());
+    await app.listen({ host: '127.0.0.1', port: 19641 });
+    const { chromium } = await import(pathToFileURL(resolve(browserDirectory, 'index.mjs')).href);
+    const browser = await chromium.launch({ executablePath: chrome, headless: true });
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1100 }, hasTouch: true });
+    t.after(() => context.close());
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(origin + '/#/trade/trend');
+    const chart = page.locator('[data-v3-chart="price"]');
+    await chart.waitFor();
+    await page.waitForLoadState('networkidle');
+    assert.deepEqual(errors, [], 'product must initialize without browser errors');
+    async function select(index) {
+      await chart.scrollIntoViewIfNeeded();
+      const point = await chart.evaluate((svg, i) => {
+        const rows = window.AF.marketData.candles(svg.dataset.strategy, window.AF.view.priceRange);
+        const g = window.AF.charts.G;
+        const p = svg.createSVGPoint();
+        p.x = g.L + ((i + 0.5) / rows.length) * (g.R - g.L);
+        p.y = 150;
+        const screen = p.matrixTransform(svg.getScreenCTM());
+        return { x: screen.x, y: screen.y, row: rows[i] };
+      }, index);
+      await page.mouse.move(point.x, point.y);
+      return point.row;
+    }
+    const money = (n) =>
+      new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n / 100);
+    const signed = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + money(Math.abs(n));
+    const percent = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(2) + '%';
+    const field = (key) => page.locator(`[data-candle-field="${key}"]`).textContent();
+    for (const index of [0, 12, 23]) {
+      const row = await select(index);
+      assert.equal(
+        await page.locator('[data-candle-tooltip]').count(),
+        1,
+        'hover must expose a candle detail panel',
+      );
+      assert.equal(
+        await field('time'),
+        new Date(row.time).toISOString().slice(0, 16).replace('T', ' ') + ' UTC',
+      );
+      for (const key of ['open', 'high', 'low', 'close'])
+        assert.equal(await field(key), money(row[key]) + ' DEMO');
+      assert.equal(await field('change'), signed(row.close - row.open) + ' DEMO');
+      assert.equal(await field('changePercent'), percent(((row.close - row.open) / row.open) * 100));
+      assert.equal(await field('amplitude'), (((row.high - row.low) / row.open) * 100).toFixed(2) + '%');
+      assert.equal(
+        await field('volume'),
+        new Intl.NumberFormat('en-US', { maximumFractionDigits: 8 }).format(row.volume) + ' Pass',
+      );
+      assert.equal(await field('turnover'), money(row.quoteVolume) + ' DEMO');
+      assert.equal(
+        await chart.evaluate((svg) => Number(svg.querySelector('#price-cursor line').getAttribute('x1'))),
+        16 + ((index + 0.5) / 24) * 802,
+      );
+      const box = await page.locator('[data-candle-tooltip]').boundingBox();
+      assert.ok(box.x >= 0 && box.x + box.width <= 1440, 'tooltip stays within viewport');
+    }
+    await page.screenshot({ path: resolve(output, 'desktop.png') });
+    await page.mouse.move(0, 0);
+    assert.equal(await page.locator('[data-candle-tooltip]').count(), 0);
+    assert.equal(await chart.locator('#price-cursor').getAttribute('visibility'), 'hidden');
+    await chart.focus();
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.locator('[data-candle-tooltip]').count(), 1);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('[data-candle-tooltip]').count(), 0);
+    await select(12);
+    await page.locator('[data-price-range="7d"]').click();
+    assert.equal(await page.locator('[data-candle-tooltip]').count(), 0);
+    const row7d = await select(55);
+    assert.equal(
+      await field('time'),
+      new Date(row7d.time).toISOString().slice(0, 16).replace('T', ' ') + ' UTC',
+    );
+    await page.locator('[data-price-style="line"]').click();
+    assert.equal(await page.locator('[data-candle-tooltip]').count(), 0);
+    await select(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(150); // existing responsive chart debounce is 80 ms
+    await select(27);
+    const mobileBox = await page.locator('[data-candle-tooltip]').boundingBox();
+    assert.ok(mobileBox.x >= 0 && mobileBox.x + mobileBox.width <= 390);
+    const touchBox = await chart.boundingBox();
+    await page.mouse.move(0, 0);
+    await page.touchscreen.tap(touchBox.x + touchBox.width / 2, touchBox.y + touchBox.height / 3);
+    assert.equal(
+      await page.locator('[data-candle-tooltip]').count(),
+      1,
+      'touch selection remains visible after release',
+    );
+    await page.screenshot({ path: resolve(output, 'mobile.png') });
+    await page.evaluate(() => {
+      location.hash = '#/home';
+    });
+    await page.locator('[data-v3-chart="price"]').waitFor({ state: 'detached' });
+    assert.equal(await page.locator('[data-candle-tooltip]').count(), 0);
+    assert.deepEqual(errors, []);
+    t.diagnostic(`Screenshots: ${output}`);
+  },
+);
