@@ -40,6 +40,9 @@ test('private registered integration receipt', () => {
   const program = `
 import assert from 'node:assert/strict';
 import { runCheck } from ${JSON.stringify(new URL('../tools/management-dashboard/checks.mjs', import.meta.url).href)};
+// Windows spawn may restore an omitted PATH. Establish the
+// no-PATH input in this owned process immediately before the public entry.
+for (const key of Object.keys(process.env)) if (key.toUpperCase() === 'PATH') delete process.env[key];
 assert.equal(Object.keys(process.env).some(key => key.toUpperCase() === 'PATH'), false);
 const result = await runCheck('integration', {
   root: ${JSON.stringify(root)}, commit: 'a'.repeat(40), runId: 'public-entry-no-path',

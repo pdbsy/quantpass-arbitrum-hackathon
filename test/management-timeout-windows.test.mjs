@@ -13,7 +13,10 @@ import { awaitWindowsExercise, runWindowsFixture } from './helpers/windows-manag
 
 test('F01 lifecycle retains the primary read failure and all teardown failures (cleanup fault injected)', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'alphaforge-lifecycle-primary-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(async () => {
+    await rm(root, { recursive: true, force: true });
+    await assert.rejects(access(root), { code: 'ENOENT' });
+  });
   await writeFile(join(root, 'not-a-directory'), 'owned fixture');
   const primary = await readFile(join(root, 'absent-receipt')).catch((error) => error);
   assert.equal(primary.code, 'ENOENT');
@@ -36,11 +39,15 @@ test('F01 lifecycle retains the primary read failure and all teardown failures (
       }
     },
   }).catch((error) => error);
-  assert.equal(removalFailure.code, 'ENOTDIR');
+  // Native Windows reports file/child as absent; POSIX reports its non-directory
+  // parent. Require the exact platform error, retaining the real failed rm.
+  const removalCode = process.platform === 'win32' ? 'ENOENT' : 'ENOTDIR';
+  assert.equal(removalFailure.code, removalCode);
+  assert.equal(await readFile(join(root, 'not-a-directory'), 'utf8'), 'owned fixture');
   assert.deepEqual(outcome.primary, { phase: 'exercise', code: 'ENOENT' });
   assert.deepEqual(outcome.secondary, [
     { phase: 'cleanup-identities', code: 'unknown', role: 'fixture-child' },
-    { phase: 'remove-root', code: 'ENOTDIR' },
+    { phase: 'remove-root', code: removalCode },
   ]);
   assert.equal(Object.hasOwn(outcome, 'cause'), false);
   assert.equal(Object.hasOwn(outcome, 'errors'), false);
