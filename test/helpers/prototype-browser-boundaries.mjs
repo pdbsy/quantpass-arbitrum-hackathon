@@ -866,6 +866,7 @@ export async function verifyPrototypeBoundaries(page) {
   );
 
   cases.push(...(await verifyAdditionalReachableJourneys(page)));
+  cases.push(...(await verifyDamagedDateJourneys(page)));
   cases.push(...(await verifyConfiguredBootstrapJourneys(page)));
   cases.push(...(await verifyRuntimePortJourneys(page)));
   cases.push(...(await verifyRecoveryJourneys(page)));
@@ -993,6 +994,313 @@ async function verifyApiLossAndThrottle(page) {
   ];
 }
 
+// Real corrupted-persistence fixtures run in separate contexts, through the
+// existing driver's browser (and therefore its instrumentation lifecycle).
+export async function verifyDamagedDateJourneys(parent) {
+  const origin = new URL(parent.url()).origin;
+  const browser = parent.context().browser();
+  assert.ok(browser, 'the existing driver must own the browser');
+  const snapshot = (page) =>
+    page.evaluate(() => ({
+      local: window.AF.store.read(),
+      persistedLocal: JSON.parse(localStorage.getItem('alphaforge.prototype.v3')),
+      exchange: window.AF.exchange.read(),
+      persistedExchange: localStorage.getItem('alphaforge.passmarket.v3'),
+    }));
+  const parentBefore = await snapshot(parent);
+  const parentUrl = parent.url();
+  const backend = async () => {
+    const response = await parent.request.get(`${origin}/api/vaults`);
+    assert.equal(response.status(), 200);
+    return response.json();
+  };
+  const backendBefore = await backend();
+  const cases = [];
+  async function isolated(label, action) {
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      timezoneId: 'UTC',
+      reducedMotion: 'reduce',
+    });
+    let firstError;
+    let failed = false;
+    const errors = [];
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(8_000);
+      context.on('page', (other) => other.on('pageerror', (error) => errors.push(error.message)));
+      page.on('pageerror', (error) => errors.push(error.message));
+      context.on('console', (message) => {
+        if (/Content Security Policy|Refused to (?:apply|execute)/i.test(message.text()))
+          errors.push(message.text());
+      });
+      await page.goto(`${origin}/#/account/funds`);
+      await page.locator('[data-product-login="alice"]').click();
+      await page
+        .locator('[data-product-state]')
+        .filter({ hasText: /^(READY|EMPTY)$/ })
+        .waitFor();
+      await action(page, context);
+      assert.deepEqual(errors, [], `${label}: no page/CSP errors`);
+    } catch (error) {
+      firstError = error;
+      failed = true;
+    } finally {
+      // Explicit page.close lets the existing collector flush each page before
+      // context.close; every cleanup is attempted even after another rejection.
+      const closed = await Promise.allSettled(context.pages().map((page) => page.close()));
+      try {
+        await context.close();
+      } catch (error) {
+        closed.push({ status: 'rejected', reason: error });
+      }
+      for (const result of closed)
+        if (result.status === 'rejected' && !failed) {
+          firstError = result.reason;
+          failed = true;
+        }
+    }
+    if (failed) throw firstError;
+    assert.equal(parent.url(), parentUrl);
+    assert.deepEqual(
+      await snapshot(parent),
+      parentBefore,
+      'isolated fixture must not change the driver state',
+    );
+    assert.deepEqual(await backend(), backendBefore, 'prototype journeys must not change API funds');
+    cases.push(label);
+  }
+  async function corrupt(context, local) {
+    const other = await context.newPage();
+    await other.goto(`${origin}/#/home`);
+    await other.locator('#press-button').waitFor();
+    // Boundary fixture: change only the stated persisted dates and revision.
+    // No private helpers, event replacement, counter writes or production stubs.
+    await other.evaluate(
+      (state) => localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(state)),
+      local,
+    );
+    await other.close();
+  }
+  const preserved = (before, local) => ({ ...before, local, persistedLocal: local });
+  async function home(page) {
+    await page.locator('a[href="#/home"]').first().click();
+    await page.locator('#press-button').waitFor();
+    assert.equal(await page.evaluate(() => window.AF.route.name), 'home');
+  }
+  async function compose(page, title) {
+    await page.locator('a[href="#/forum"]').first().click();
+    await page.locator('#forum-results').waitFor();
+    await page.locator('[data-action="compose"]').first().click();
+    await page.locator('#compose-title').fill(title);
+    await page
+      .locator('#compose-body')
+      .fill('A real local note for persisted date boundary recovery and stable ordering.');
+    await page.locator('#compose-form button[type="submit"]').click();
+    await page.locator('.article-page').waitFor();
+  }
+  for (const [label, value] of [
+    ['non-coercible object', { toString: null }],
+    ['invalid string', 'not-a-date'],
+    ['null', null],
+    ['array', []],
+    ['out-of-range number', 1e20],
+  ]) {
+    await isolated(
+      `Damaged history ${label}: native profile save, rejected withdrawal and navigation preserve funds, storage and exchange`,
+      async (page, context) => {
+        await page.locator('[data-cash="deposit"]').click();
+        await page.locator('#cash-amount').fill('3');
+        await page.locator('#cash-form button[type="submit"]').click();
+        await page.locator('[data-action="commit"]').click();
+        await page
+          .locator('#dialog-body h2')
+          .filter({ hasText: /recorded/ })
+          .waitFor();
+        await page.locator('#close-dialog').click();
+        const before = await snapshot(page);
+        assert.equal(before.local.history.length, 1);
+        assert.equal(before.local.idle, 1000300);
+        assert.equal(before.local.netFunding, 1000300);
+        await page.locator('[data-action="profile"]').first().click();
+        await page.locator('#profile-name').fill('Date boundary');
+        const damaged = structuredClone(before.local);
+        damaged.revision++;
+        damaged.history[0].at = value;
+        await corrupt(context, damaged);
+        await page.locator('#profile-form button[type="submit"]').click();
+        assert.match(await page.locator('#toast').textContent(), /Local profile updated/);
+        const expected = preserved(before, {
+          ...damaged,
+          revision: damaged.revision + 1,
+          profile: { ...damaged.profile, name: 'Date boundary' },
+        });
+        assert.deepEqual(await snapshot(page), expected);
+        const row = page.locator('.ledger-entry').filter({ hasText: 'Add demo funds' });
+        assert.equal(await row.count(), 1);
+        assert.match(await row.textContent(), /Date unavailable/);
+        assert.match(await row.locator('.ledger-amount').textContent(), /3\.00\s*DEMO/);
+        assert.deepEqual(await page.locator('.balance-columns strong').allTextContents(), [
+          '10,003.00',
+          '0.00',
+          '0.00',
+        ]);
+        await page.locator('[data-cash="withdraw"]').click();
+        await page.locator('#cash-amount').fill('10003.01');
+        await page.locator('#cash-form button[type="submit"]').click();
+        assert.match(await page.locator('#cash-error').textContent(), /Only idle demo funds/);
+        assert.equal(await page.locator('[data-action="commit"]').count(), 0);
+        assert.deepEqual(await snapshot(page), expected);
+        await page.locator('#close-dialog').click();
+        await home(page);
+        assert.deepEqual(await snapshot(page), expected);
+        await page.reload();
+        await page.locator('#press-button').waitFor();
+        assert.deepEqual(
+          await snapshot(page),
+          expected,
+          'reload keeps the damaged record without resetting money',
+        );
+      },
+    );
+    await isolated(
+      `Damaged post ${label}: native discussion, resize and later navigation preserve both ledgers and persisted records`,
+      async (page, context) => {
+        await compose(page, 'Date boundary research');
+        await home(page);
+        await page.locator('[data-route="/trade/trend"]').first().click();
+        await page.locator('[data-trade-tab="discussion"]').click();
+        await home(page);
+        const before = await snapshot(page);
+        assert.equal(before.local.posts.length, 1);
+        const damaged = structuredClone(before.local);
+        damaged.revision++;
+        damaged.posts[0].date = value;
+        await corrupt(context, damaged);
+        await page.locator('#press-button').click();
+        await page.waitForFunction(() => window.AF.store.read().samplePass === true);
+        const expected = preserved(before, { ...damaged, samplePass: true, revision: damaged.revision + 1 });
+        assert.deepEqual(await snapshot(page), expected);
+        await page.locator('[data-route="/trade/trend"]').first().click();
+        await page.locator('#trade-price svg').waitFor();
+        assert.equal(await page.locator('#trade-returns svg').count(), 1);
+        await page.setViewportSize({ width: 600, height: 900 });
+        await page.waitForFunction(() =>
+          document.querySelector('#trade-price svg')?.getAttribute('viewBox')?.endsWith('540'),
+        );
+        assert.equal(await page.locator('#trade-returns svg').count(), 1);
+        assert.doesNotMatch(await page.locator('#price-readout').textContent(), /NaN|undefined/);
+        assert.doesNotMatch(await page.locator('#returns-readout').textContent(), /NaN|undefined/);
+        await page.locator('#main a[href="#/forum"]').first().click();
+        await page.locator('#forum-results').waitFor();
+        const row = page.locator('.journal-row').filter({ hasText: 'Date boundary research' });
+        assert.match(await row.textContent(), /Date unavailable/);
+        assert.equal(
+          await page.locator('#forum-results .journal-row h3').last().textContent(),
+          'Date boundary research',
+        );
+        assert.deepEqual(await snapshot(page), expected);
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await home(page);
+        await page.locator('.nav-right a[data-nav="account"]').click();
+        await page.locator('.account-tabs a[href="#/account/funds"]').click();
+        await page.locator('.balance-columns').waitFor();
+        assert.deepEqual(await page.locator('.balance-columns strong').allTextContents(), [
+          '10,000.00',
+          '0.00',
+          '0.00',
+        ]);
+        assert.deepEqual(await snapshot(page), expected);
+        await page.reload();
+        await page.locator('.balance-columns').waitFor();
+        assert.deepEqual(await snapshot(page), expected);
+      },
+    );
+  }
+  await isolated(
+    'Mixed valid and invalid persisted post dates sort newest first with stable equal/invalid ties and no ledger or storage mutation',
+    async (page, context) => {
+      await page.locator('a[href="#/forum"]').first().click();
+      await page.locator('#forum-results').waitFor();
+      const samples = await page.locator('#forum-results .journal-row h3').allTextContents();
+      assert.equal(samples.length, 6);
+      // Created through the real form; dates alone become a named storage fixture.
+      for (const title of [
+        'Invalid first',
+        'Equal first',
+        'Future latest',
+        'Epoch note',
+        'Equal second',
+        'Invalid second',
+        'Older valid',
+      ])
+        await compose(page, title);
+      await home(page);
+      const before = await snapshot(page);
+      assert.deepEqual(
+        before.local.posts.map((post) => post.title),
+        [
+          'Older valid',
+          'Invalid second',
+          'Equal second',
+          'Epoch note',
+          'Future latest',
+          'Equal first',
+          'Invalid first',
+        ],
+      );
+      const damaged = structuredClone(before.local);
+      const dates = {
+        'Invalid first': { toString: null },
+        'Equal first': '2099-02-01T12:00:00.000Z',
+        'Future latest': '2099-03-01T12:00:00.000Z',
+        'Epoch note': 0,
+        'Equal second': '2099-02-01T12:00:00.000Z',
+        'Invalid second': [],
+        'Older valid': '2098-01-01T12:00:00.000Z',
+      };
+      for (const post of damaged.posts) post.date = dates[post.title];
+      damaged.revision++;
+      await corrupt(context, damaged);
+      await page.locator('#press-button').click();
+      await page.waitForFunction(() => window.AF.store.read().samplePass === true);
+      const expected = preserved(before, { ...damaged, samplePass: true, revision: damaged.revision + 1 });
+      const titles = [
+        'Future latest',
+        'Equal second',
+        'Equal first',
+        'Older valid',
+        ...samples,
+        'Epoch note',
+        'Invalid second',
+        'Invalid first',
+      ];
+      await page.locator('a[href="#/forum"]').first().click();
+      await page.locator('#forum-results').waitFor();
+      assert.deepEqual(await page.locator('#forum-results .journal-row h3').allTextContents(), titles);
+      for (const [title, date] of [
+        ['Future latest', '03/01'],
+        ['Equal second', '02/01'],
+        ['Equal first', '02/01'],
+        ['Epoch note', '01/01'],
+        ['Invalid second', 'Date unavailable'],
+        ['Invalid first', 'Date unavailable'],
+      ]) {
+        const row = page.locator('.journal-row').filter({ hasText: title });
+        assert.ok((await row.locator('.post-meta').textContent()).includes(date));
+      }
+      assert.deepEqual(await snapshot(page), expected);
+      await page.reload();
+      await page.locator('#forum-results').waitFor();
+      assert.deepEqual(await page.locator('#forum-results .journal-row h3').allTextContents(), titles);
+      assert.deepEqual(await snapshot(page), expected);
+      await home(page);
+      assert.deepEqual(await snapshot(page), expected);
+    },
+  );
+  return cases;
+}
+
 export async function verifyAdditionalReachableJourneys(page) {
   const origin = new URL(page.url()).origin;
   // Exercise a supported persisted legacy profile through the real startup migration.
@@ -1013,7 +1321,9 @@ export async function verifyAdditionalReachableJourneys(page) {
   assert.equal(migrated.history[0].type, 'Add demo funds');
   assert.equal(migrated.passes.trend.at, 'Initial demo sample');
   await page.goto(`${origin}/#/account/funds`);
-  assert.match(await page.locator('main').textContent(), /Demo sample/);
+  const migratedRow = page.locator('.ledger-entry').filter({ hasText: 'Add demo funds' });
+  assert.equal(await migratedRow.count(), 1);
+  assert.match(await migratedRow.textContent(), /Date unavailable/);
 
   // SPA navigation must retain active catalogue choices in the rebuilt controls.
   await page.goto(`${origin}/#/market`);
@@ -1089,7 +1399,7 @@ export async function verifyAdditionalReachableJourneys(page) {
   await page.emulateMedia({ reducedMotion: null });
   await page.setViewportSize({ width: 1440, height: 1000 });
   return [
-    'Persisted Chinese legacy profile and history migrate through startup without inventing balances; invalid history date stays an explicit demo sample',
+    'Persisted Chinese legacy profile and history migrate through startup without inventing balances; invalid history date explicitly shows Date unavailable',
     'Real SPA catalogue navigation preserves selected filters, while return-chart keyboard and pointer controls retain finite values',
     'Allocation without consent remains visibly rejected and leaves the local ledger unchanged',
     'Visible allocation, withdrawal and deposit budget rejections preserve the ledger exactly',
