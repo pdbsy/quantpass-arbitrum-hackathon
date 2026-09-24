@@ -226,6 +226,7 @@ for (const browser of [false, true])
       assert.deepEqual(jobs[0].options.args, ['/qualified-fixture/npm-cli.js', 'run', 'check']);
       const qualification = jobs.find((row) => row.options.id === 'coverage-qualification').options.args;
       assert.equal(qualification.includes('test/coverage-browser.qualified.test.mjs'), browser);
+      assert.equal(qualification.includes('test/prototype-damaged-dates.qualified.test.mjs'), browser);
       const bootstrap = decodeURIComponent(qualification[1].split(',').slice(1).join(','));
       const prefix = 'Object.assign(process.env, ';
       assert.ok(bootstrap.startsWith(prefix) && bootstrap.endsWith(');'));

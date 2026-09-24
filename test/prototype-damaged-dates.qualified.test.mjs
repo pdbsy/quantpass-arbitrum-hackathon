@@ -12,7 +12,9 @@ import { buildApp } from '../apps/server/src/app.ts';
 import { importUserUI } from '../tools/import-user-ui.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-const browserModule = process.env.AF_DAMAGED_DATE_BROWSER_MODULE;
+const browserModule =
+  process.env.AF_DAMAGED_DATE_BROWSER_MODULE ||
+  (process.env.AF_QUALIFIED_BROWSER_TOOLS && resolve(process.env.AF_QUALIFIED_BROWSER_TOOLS, 'index.mjs'));
 const chromiumPath = process.env.CHROMIUM_PATH;
 const key = 'alphaforge.prototype.v3';
 const faultMode = process.env.AF_DAMAGED_DATE_FAULT;
