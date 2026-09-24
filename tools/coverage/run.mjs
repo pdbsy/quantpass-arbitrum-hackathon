@@ -118,6 +118,7 @@ Object.assign(process.env, ${JSON.stringify(prerequisites)}, {
     ['qualified-legacy-workflows', 'test/coverage-browser-legacy.qualified.test.mjs', 600000],
     ['qualified-m3-workflow', 'test/coverage-browser-m3.qualified.test.mjs', 300000],
     ['qualified-browser-policy', 'test/browser-policy-inputs.qualified.test.mjs', 600000],
+    ['qualified-legacy-capability', 'test/browser-legacy-capability.qualified.test.mjs', 600000],
   ]) {
     const configuration = {
       id,

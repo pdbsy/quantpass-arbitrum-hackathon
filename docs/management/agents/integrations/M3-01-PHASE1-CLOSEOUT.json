@@ -14,8 +14,8 @@
     {
       "agent": "Macbeth03",
       "task": "M3-03-PHASE1-RECOVERY",
-      "branch": "macbeth03/m3-pr22-browser-failures",
-      "head": "f403942b8f4aff1aac8e94588f1748f82413e67d"
+      "branch": "macbeth03/pr22-legacy-capability",
+      "head": "51b2809fd0f97d702ff920292b5c6ad05d5af441"
     },
     {
       "agent": "Macbeth04",

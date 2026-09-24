@@ -7,7 +7,9 @@ import { verifyLegacyApiJourneys, verifyRecoveryJourneys } from './product-recov
 
 // Exercise the actual loaded browser model. All values are fictional DEMO fixtures;
 // these checks are separate from visible journeys and never certify chain accounting.
-export async function verifyPrototypeBoundaries(page) {
+export async function verifyPrototypeBoundaries(page, { v1Supported = true, unsupportedChecks = [] } = {}) {
+  assert.equal(typeof v1Supported, 'boolean');
+  assert.ok(Array.isArray(unsupportedChecks));
   const original = await page.evaluate(() => ({
     local: window.AF.store.read(),
     exchange: window.AF.exchange.read(),
@@ -871,7 +873,7 @@ export async function verifyPrototypeBoundaries(page) {
   cases.push(...(await verifyConfiguredBootstrapJourneys(page)));
   cases.push(...(await verifyRuntimePortJourneys(page)));
   cases.push(...(await verifyRecoveryJourneys(page)));
-  cases.push(...(await verifyLegacyApiJourneys(page)));
+  cases.push(...(await verifyLegacyApiJourneys(page, { v1Supported, unsupportedChecks })));
 
   await page.evaluate((saved) => {
     localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(saved.local));
@@ -883,13 +885,23 @@ export async function verifyPrototypeBoundaries(page) {
     exchange: window.AF.exchange.read(),
   }));
   assert.deepEqual(restored, original);
-  cases.push(...(await verifyApiLossAndThrottle(page)));
-  const receiptRecovery = await verifyPrototypeReceiptRecovery(page);
-  cases.push(...receiptRecovery.map((observation) => observation.name));
+  cases.push(...(await verifyApiLossAndThrottle(page, { v1Supported, unsupportedChecks })));
+  if (v1Supported) {
+    const receiptRecovery = await verifyPrototypeReceiptRecovery(page);
+    cases.push(...receiptRecovery.map((observation) => observation.name));
+  } else {
+    unsupportedChecks.push({
+      name: 'v1-snapshot-receipt-recovery',
+      status: 'NOT_SUPPORTED',
+      execution: 'NOT_RUN',
+      requiredCapability: 'v1',
+      equivalentCoverage: false,
+    });
+  }
   return cases;
 }
 
-async function verifyApiLossAndThrottle(page) {
+async function verifyApiLossAndThrottle(page, { v1Supported, unsupportedChecks }) {
   const origin = new URL(page.url()).origin;
   const savedRoute = page.url();
   const state = async () => {
@@ -935,6 +947,20 @@ async function verifyApiLossAndThrottle(page) {
   assert.equal(loss.status, 'stopped');
   assert.equal(loss.balances.equity, '0');
   assert.match(await page.locator('main').textContent(), /Realized simulation P&L\s*-1\.000000/);
+  if (!v1Supported) {
+    unsupportedChecks.push({
+      name: 'v1-command-rate-limit-retry',
+      status: 'NOT_SUPPORTED',
+      execution: 'NOT_RUN',
+      requiredCapability: 'v1',
+      equivalentCoverage: false,
+    });
+    await page.locator('[data-product-login="alice"]').click();
+    await ready();
+    await page.goto(savedRoute);
+    assert.deepEqual(await state(), alice);
+    return ['Visible API loss settles to zero equity with exact negative P&L and no phantom funds'];
+  }
   const attempted = [];
   let retryAfter = 0;
   const pattern = '**/api/v1/vaults/*/commands';

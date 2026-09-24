@@ -218,7 +218,12 @@ for (const browser of [false, true])
           ...(browser ? ['m3-browser', 'legacy-browser', 'management-browser'] : []),
           'coverage-qualification',
           ...(browser
-            ? ['qualified-legacy-workflows', 'qualified-m3-workflow', 'qualified-browser-policy']
+            ? [
+                'qualified-legacy-workflows',
+                'qualified-m3-workflow',
+                'qualified-browser-policy',
+                'qualified-legacy-capability',
+              ]
             : []),
           'source-policy',
           'dependency-delta-audit',
@@ -256,15 +261,16 @@ for (const browser of [false, true])
         }
       if (browser) {
         const qualifiers = jobs.filter((row) => row.options.id.startsWith('qualified-'));
-        assert.equal(qualifiers.length, 3);
+        assert.equal(qualifiers.length, 4);
         for (const [index, row] of qualifiers.entries()) {
-          assert.equal(row.options.timeoutMs, [600000, 300000, 600000][index]);
+          assert.equal(row.options.timeoutMs, [600000, 300000, 600000, 600000][index]);
           assert.equal(
             row.options.args.at(-1),
             [
               'test/coverage-browser-legacy.qualified.test.mjs',
               'test/coverage-browser-m3.qualified.test.mjs',
               'test/browser-policy-inputs.qualified.test.mjs',
+              'test/browser-legacy-capability.qualified.test.mjs',
             ][index],
           );
           assert.equal(row.options.artifactFiles, undefined);
