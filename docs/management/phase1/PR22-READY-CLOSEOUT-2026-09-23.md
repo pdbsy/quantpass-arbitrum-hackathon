@@ -1,3 +1,32 @@
+## 2026-09-24 当前接续：并行 CI 与两个可见临时任务
+
+本节覆盖下方旧的暂停、06启动受阻、单独审批待决及“没有新增任务”状态；下方带日期记录保留历史事实。唯一目标仍为 AlphaForge / Robinhood Chain Testnet / Hackathon、PR #22；AF_Xlayer 独立。
+
+用户明确允许本轮正常提交和推送、标准远程 CI，并最多增加 Temp-A、Temp-B。两项现已通过实际 create_thread 创建在 AlphaForge 项目，回读真实任务 ID 与本人 ACK；旧内部临时 Worker 均已停止，两个身份接续其既有证据，不重复启动：
+
+| 可见任务 | 真实任务 ID | 独立范围 |
+| --- | --- | --- |
+| AlphaForge Temp-A | 01a0cf52-281d-7eb1-88a7-724d4efe0740 | 原型未覆盖路径的限定调查，独立验证04日期损坏修复；只声明实际观察，不移植旧图命中 |
+| AlphaForge Temp-B | 01a0cf52-a14e-7d50-85e3-2618f440b3e5 | 来源与原始UI保留的独立一致性复核、最终候选/锚点/CI绑定；其自编测试另由05复核 |
+
+02、03、04、05、06继续原角色。共享 package、覆盖执行器、来源登记和 C/R/S 由01串行维护；每个Worker使用独立checkout、依赖、SQLite与输出。问题先回01，不再派生其他Worker。临时任务在本轮达到Ready后结束。
+
+远程CI已提前并行运行，不等待最后看板：公开候选237468bd072e8124a87f6100cc0b9211ea7ad430，PR merge-test b80e0ff3c6013bdff162e45991beec5589e87fb3；PR run35897846073、push35897840576均保留失败。Linux/macOS单元1301 PASS/5 SKIP/0 FAIL，随后旧C/R/S触发RECORDED_GIT_GRAPH_MISMATCH；Windows剩两项短长目录/命令身份失败。6项contracts/source/security/dependency job及同head的CodeQL35898018160、DependencyReview35898022058通过，不能替代最后候选的全部验收。
+
+用户自行修改审批规则后，01/06只读核验规则22507334：required approvals=0、CODEOWNER=false、last-push approval=false；7项strict required checks、必须PR及其他保护保留，代理未修改规则。最终仍核验准确head、讨论及实际合并条件。没有merge、部署、广播、付费或修改锚点001的授权。
+
+## 当前工程修复与证据边界
+
+本地集成基线2469a174e7bd429e1b78148fa9481a5a1272d632仍是预冻结源，不是最终S。bf53f2d及99ce467保留原始UI的完整Git对象949627…，绑定04准确修订499c1b…及真实逐笔provenance，169个当前摘要与6项来源/导入测试一致。HTML脚本以外和CSS原字节不变。04的7f66产品修复由Temp-A独立验证；30b回执修复由05真实17/17复核，清理失败子进程均真实exit1/FAIL，不能冒称自然故障覆盖。新原型图有1225个branch arms，旧1213图的命中不得移植。
+
+03的368796c等待所有已启动Git查询结束后才交还异常，05独立87项通过；54052cc使用native realpath比较同一真实仓库根，拒绝不同嵌套目录且保留数据隔离与remote验证，05独立7 PASS/1 Windows NOT_RUN。06的473a9c6只修Windows timeout fixture的native路径及首次有界查询，全部PID/启动时间/命令/可执行文件断言、120秒integration和160秒outer deadline保留；真实Windows复测尚待下一批CI。
+
+05在84cc4edc对授权、金额、重入、签名边界、暂停/停止和owner退出完成有范围的非实现者工程审阅：170 Node和160 Solidity测试通过。签名Preview不验签、不授权，离线risk model不冒充链上执行，已批准暂缓范围不补造功能。历史受限外部服务仍为BLOCKED/NOT_RUN，未尝试绕过，也不把工程审阅冒称第三方认证。原SEC-002要求独立工程审阅与锁定工具验证，没有新增购买外部服务的门槛；最终S、扫描器和全量重绑定仍是未完成验收。
+
+当前结论仍为NOT_READY_TO_MERGE。等待原浏览器采集路径的日期场景与新图重绑定、最终分支账本、C/R/S和同一S全量14工作流，以及准确最新head三平台与安全CI。以下旧记录仅保留当时情况；不能拿旧源、旧看板或旧绿灯签收当前候选。
+
+## 以下为此前执行记录
+
 # PR22 最终收口执行记录 — 2026-09-23
 
 归属：[AlphaForge][Robinhood][PR22-READY][Macbeth01]。唯一仓库为 pdbsy/quantpass-arbitrum-hackathon；目标 PR #22，master 基线 18f5352070910a867b9729b031aa2e3951785e01。AF_Xlayer 不在本轮范围。

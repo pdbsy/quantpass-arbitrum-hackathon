@@ -15,10 +15,10 @@
       "dependencies": "无",
       "deliverables": "矩阵、登记、当前状态与 C/R/S",
       "acceptance": "所有来源映射；真实 ACK；无旧状态冒充当前",
-      "evidence": "01统一来源登记、独立审阅和C/R/S。基线f966dd2的1069缺口保留；旧6a完整报告及后续局部命中仅用于排序，最终同一候选重新全量测量。02/03 f403已正常集成，最终采集器修复等待独立复核。",
+      "evidence": "两个可见Temp任务已真实创建并完成原工作交接；02–06继续独立工作。已开始准确237468b远程预跑，当前2469本地源待最终图、C/R/S与完整验收；保留初始1069缺口和原始分母，不借旧报告签收。",
       "blocker_type": "FINAL_CANDIDATE_FREEZE",
       "requires_user_decision": false,
-      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
+      "actual_candidate": "2469a174e7bd429e1b78148fa9481a5a1272d632",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -308,19 +308,26 @@
       "task_id": "PH1-13",
       "source": "用户05/SEC-002；历史服务拒绝",
       "goal": "独立最终安全复核",
-      "status": "BLOCKED_EXTERNAL_REVIEW",
+      "status": "SCOPED_ENGINEERING_REVIEW_COMPLETE_FINAL_BINDING_PENDING",
       "base_sha": "18f5352070910a867b9729b031aa2e3951785e01",
       "owner": "05",
-      "collaborators": "用户/外部合格复核者",
-      "dependencies": "允许的验证主体、最终候选",
+      "collaborators": "01/02/03/04/06",
+      "dependencies": "准确最终候选、锁定工具扫描与独立复核",
       "deliverables": "有范围的真实安全结论",
-      "acceptance": "服务限制未解除不得重试规避；普通功能复测不能代替；无伪造通过",
-      "evidence": "05 2026-09-19服务失败；新05状态报告",
-      "blocker_type": "EXTERNAL_REVIEW",
-      "requires_user_decision": true,
-      "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8",
+      "acceptance": "非实现者按授权、会计、重入、签名边界、暂停/退出及实际调用链审阅；准确最终源重绑定；历史受限服务不重试、不绕过、不冒充已完成",
+      "evidence": "05准确84cc4edc独立6域工程矩阵：170/170 Node、160/160 Solidity，逐源blob/测试/日志绑定；矩阵SHA e9306cd00a2709a1a99907224ace9d9ce594f76c6adc2106590c1585506e8a78。无新增High/Critical，最终S及扫描待完成。原SEC-002未规定购买新外部服务；历史服务BLOCKED/NOT_RUN单列保留，不签第三方认证或部署准入。",
+      "blocker_type": "FINAL_CANDIDATE_BINDING",
+      "requires_user_decision": false,
+      "actual_candidate": "84cc4edc3a86009eaf7cace88c9d241d5c8b3b14",
       "budget_limited": false,
-      "local_closeout_source": "docs/management/specs/PR22-LOCAL-CLOSEOUT-2026-09-20.md"
+      "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
+      "historical_restricted_service": {
+        "status": "BLOCKED_EXTERNAL_REVIEW",
+        "evidence": "05 2026-09-19服务失败；新05状态报告",
+        "blocker_type": "EXTERNAL_REVIEW",
+        "actual_candidate": "3a78e34ba933f1e3239424d3bf0b1e27b1a65bb8"
+      },
+      "candidate_binding": "SCOPED_SOURCE_REVIEW_NOT_FINAL_PASS"
     },
     {
       "task_id": "PH1-14",
@@ -333,10 +340,10 @@
       "dependencies": "base；每个准确候选",
       "deliverables": "六项分列结论和run/job/step证据",
       "acceptance": "9jobs每关键步骤实际执行；错误失败关闭；旧CI失败不改写",
-      "evidence": "正常公开发布及标准CI已授权；准确最终head须通过7必需+2现有附加job及承诺CodeQL/Dependency Review。06已交付扫描器与Windows回归，当前会话受服务限制；01继续原定集成、全量验收和远程核验，独立身份/安全服务限制仍单列。",
+      "evidence": "06已恢复标准CI协调。准确237468b真实4runs已收齐：工程PR/push各6PASS3FAIL；Linux/mac单元1301PASS5SKIP0FAIL，旧C/R/S后续失败；Win2项路径身份问题已有限定修复待实测；同head CodeQL/DependencyReview通过。最终head全部门禁仍待。用户自行把审批数改0，7strict required contexts完整保留。",
       "blocker_type": "EXACT_HEAD_REMOTE_CI",
       "requires_user_decision": false,
-      "actual_candidate": "e3c6db94eee2a9256c48419bbc1a6a929e680324",
+      "actual_candidate": "237468bd072e8124a87f6100cc0b9211ea7ad430",
       "budget_limited": false,
       "local_closeout_source": "docs/management/phase1/PR22-READY-CLOSEOUT-2026-09-23.md",
       "prior_checkpoint": {
@@ -643,5 +650,8 @@
       "privacy_capacity": "14a213c76682dfcc33f66b0d704f79cd8193d812",
       "collector_pending_independent_review": "feb25f1a8aa631c14f063dbb68f1447404430a38"
     }
-  }
+  },
+  "current_planning_candidate": "2469a174e7bd429e1b78148fa9481a5a1272d632",
+  "published_pr_head": "237468bd072e8124a87f6100cc0b9211ea7ad430",
+  "final_candidate": null
 }
