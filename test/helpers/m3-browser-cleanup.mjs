@@ -227,6 +227,8 @@ export async function verifyM3Cleanup(t, root, tool) {
             'cleanup rejection must not publish success',
           );
           const persisted = JSON.parse(await readFile(join(evidence, 'failure.json'), 'utf8'));
+          if (!configuration.primary)
+            assert.equal(persisted.primaryError, null, 'successful journey must precede unroute failure');
           assert.match(JSON.stringify(persisted), /FAULT_INJECTED_M3_UNROUTE/);
           assert.match(JSON.stringify(persisted), /FAULT_INJECTED_UNROUTE_CAUSE/);
           if (configuration.primary) {
@@ -291,6 +293,8 @@ export async function verifyM3Cleanup(t, root, tool) {
           'CLI-owned cleanup precedes final success',
         );
         const persisted = JSON.parse(await readFile(join(journey, 'cli-failure.json'), 'utf8'));
+        if (!configuration.primary)
+          assert.equal(persisted.primaryError, null, 'successful CLI journey must precede cleanup failure');
         assert.match(
           JSON.stringify(persisted),
           configuration.browserClose ? /FAULT_INJECTED_M3_BROWSER_CLOSE/ : /FAULT_INJECTED_M3_SERVER_CLOSE/,
