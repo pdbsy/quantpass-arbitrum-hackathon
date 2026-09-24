@@ -35,7 +35,7 @@ test('actual instrumented M3 workflow retains canonical prototype and original T
     tools: { chromium, parser },
     outputDirectory,
     executablePath: process.env.CHROMIUM_PATH,
-    port: 4202,
+    port: 0,
   });
   assert.equal(result.workflowResult.state, 'PASS');
   assert.equal(result.workflowResult.walletSends.length, 9);

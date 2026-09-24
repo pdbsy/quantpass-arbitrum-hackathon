@@ -217,6 +217,7 @@ for (const browser of [false, true])
           'npm-check',
           ...(browser ? ['m3-browser', 'legacy-browser', 'management-browser'] : []),
           'coverage-qualification',
+          ...(browser ? ['qualified-legacy-workflows', 'qualified-m3-workflow'] : []),
           'source-policy',
           'dependency-delta-audit',
           'osv-scanner',
@@ -251,11 +252,79 @@ for (const browser of [false, true])
             '/qualified-fixture/chrome',
           );
         }
+      if (browser) {
+        const qualifiers = jobs.filter((row) => row.options.id.startsWith('qualified-'));
+        assert.equal(qualifiers.length, 2);
+        for (const [index, row] of qualifiers.entries()) {
+          assert.equal(row.options.timeoutMs, index === 0 ? 600000 : 300000);
+          assert.equal(
+            row.options.args.at(-1),
+            index === 0
+              ? 'test/coverage-browser-legacy.qualified.test.mjs'
+              : 'test/coverage-browser-m3.qualified.test.mjs',
+          );
+          assert.equal(row.options.artifactFiles, undefined);
+          const script = decodeURIComponent(row.options.args[1].split(',').slice(1).join(','));
+          const proof = run(
+            '--import',
+            [
+              row.options.args[1],
+              '--input-type=module',
+              '-e',
+              'console.log(JSON.stringify(Object.fromEntries(Object.entries(process.env).filter(([key])=>key.startsWith("AF_QUALIFIED_")||key==="AF_RUN_LEGACY_WORKFLOWS"))))',
+            ],
+            {
+              env: {
+                ...process.env,
+                AF_COVERAGE_ROOT: root,
+                AF_COVERAGE_PREPARED: f.directory,
+                AF_COVERAGE_RAW: join(f.directory, 'unique-workflow', 'raw'),
+              },
+            },
+          );
+          assert.equal(proof.status, 0, proof.stderr);
+          const bound = JSON.parse(proof.stdout);
+          assert.equal(bound.AF_QUALIFIED_BROWSER_CANDIDATE, root);
+          assert.equal(bound.AF_QUALIFIED_BROWSER_PREPARED, f.directory);
+          assert.equal(
+            bound.AF_QUALIFIED_BROWSER_OUTPUT,
+            join(f.directory, 'unique-workflow', 'qualified-browser'),
+          );
+          assert.equal(
+            bound.AF_QUALIFIED_BROWSER_NODE_HOOK,
+            join(f.directory, 'unique-workflow', 'node-hook.mjs'),
+          );
+          assert.equal(bound.AF_RUN_LEGACY_WORKFLOWS, '1');
+          const unbound = run(
+            '--import',
+            [row.options.args[1], '--input-type=module', '-e', 'process.exit(0)'],
+            {
+              env: {
+                ...process.env,
+                AF_COVERAGE_ROOT: root,
+                AF_COVERAGE_PREPARED: f.directory,
+                AF_COVERAGE_RAW: '',
+              },
+            },
+          );
+          assert.notEqual(unbound.status, 0);
+          assert.match(unbound.stderr, /Bound coverage context required: AF_COVERAGE_RAW/);
+          assert.ok(script.includes('AF_COVERAGE_RAW'));
+        }
+        assert.equal(
+          jobs.find((row) => row.options.id === 'coverage-qualification').options.timeoutMs,
+          300000,
+        );
+      }
       const final = calls.at(-1);
       assert.equal(final.kind, 'report');
       assert.deepEqual(
         final.options.workflows.map((row) => row.id),
         jobs.map((row) => row.options.id),
+      );
+      assert.deepEqual(
+        final.options.workflows.filter((row) => row.browser).map((row) => row.id),
+        browser ? ['m3-browser', 'legacy-browser', 'management-browser'] : [],
       );
       const receipt = JSON.parse(readFileSync(join(f.directory, 'collection-receipt.json')));
       assert.equal(receipt.functionalState, state);

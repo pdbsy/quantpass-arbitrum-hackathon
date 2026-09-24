@@ -99,6 +99,37 @@ const qualified = await collectNodeWorkflow(root, prepared.directory, {
   timeoutMs: 300000,
 });
 workflows.push({ ...qualification, directory: qualified.directory });
+// These existing method qualifications exercise real drivers against this exact
+// prepared graph. Their nested browser artifacts remain assertion evidence;
+// only the three browser workflows above supply browser observations to report.
+if (options.browserDirectory) {
+  const bootstrap = `import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+for (const key of ['AF_COVERAGE_ROOT', 'AF_COVERAGE_PREPARED', 'AF_COVERAGE_RAW'])
+  assert.ok(process.env[key], 'Bound coverage context required: ' + key);
+Object.assign(process.env, ${JSON.stringify(prerequisites)}, {
+  AF_QUALIFIED_BROWSER_CANDIDATE: process.env.AF_COVERAGE_ROOT,
+  AF_QUALIFIED_BROWSER_PREPARED: process.env.AF_COVERAGE_PREPARED,
+  AF_QUALIFIED_BROWSER_OUTPUT: resolve(process.env.AF_COVERAGE_RAW, '..', 'qualified-browser'),
+  AF_QUALIFIED_BROWSER_NODE_HOOK: resolve(process.env.AF_COVERAGE_RAW, '..', 'node-hook.mjs'),
+  AF_RUN_LEGACY_WORKFLOWS: '1',
+});`;
+  for (const [id, file, timeoutMs] of [
+    ['qualified-legacy-workflows', 'test/coverage-browser-legacy.qualified.test.mjs', 600000],
+    ['qualified-m3-workflow', 'test/coverage-browser-m3.qualified.test.mjs', 300000],
+  ]) {
+    const configuration = {
+      id,
+      args: ['--import', `data:text/javascript,${encodeURIComponent(bootstrap)}`, '--test', file],
+    };
+    const qualified = await collectNodeWorkflow(root, prepared.directory, {
+      ...options,
+      ...configuration,
+      timeoutMs,
+    });
+    workflows.push({ ...configuration, directory: qualified.directory });
+  }
+}
 // Include actual existing gate commands, not imports or inferred scanner hits.
 // Their nonzero exits still fail the complete functional workflow collection.
 for (const gate of [
