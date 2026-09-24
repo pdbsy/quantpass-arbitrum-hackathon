@@ -2,20 +2,33 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createServer as createPortServer } from 'node:net';
 import { importUserUI } from '../../tools/import-user-ui.mjs';
+
+import { installCleanupCoverage, assertCleanupCallbackCoverage } from './m3-browser-cleanup-coverage.mjs';
 
 const json = (value) => JSON.stringify(value, null, 2) + '\n';
 
 // These injections run the native operation first. They do not replace the
 // M3 journey or synthesize its return value, assertions or wallet evidence.
 export async function wrapM3Browser(browser, configuration, directory) {
+  const coverageFinishes = [];
   const close = browser.close.bind(browser);
   browser.close = async (...args) => {
+    const coverageErrors = [];
+    for (const finish of coverageFinishes) {
+      try {
+        await finish();
+      } catch (error) {
+        coverageErrors.push(error);
+      }
+    }
     await close(...args);
+    if (coverageErrors.length)
+      throw new AggregateError(coverageErrors, 'cleanup qualification capture failed');
     await writeFile(join(directory, 'browser-closed'), 'native close completed');
     if (configuration.browserClose)
       throw new Error('FAULT_INJECTED_M3_BROWSER_CLOSE', {
@@ -26,9 +39,33 @@ export async function wrapM3Browser(browser, configuration, directory) {
   browser.newContext = async (...args) => {
     const context = await newContext(...args);
     context.setDefaultTimeout(10_000);
+    if (!configuration.collectorOwnsCoverage) {
+      const finish = await installCleanupCoverage(context, directory);
+      if (finish) coverageFinishes.push(finish);
+    }
     const newPage = context.newPage.bind(context);
     context.newPage = async (...pageArgs) => {
       const page = await newPage(...pageArgs);
+      const screenshot = page.screenshot.bind(page);
+      page.screenshot = async (options) => {
+        const result = await screenshot(options);
+        if (options?.path?.endsWith('/m3-browser-journey.png')) {
+          const serialized = await page
+            .locator('[data-m3-fixture-controls]')
+            .getAttribute('data-m3-fixture-evidence');
+          await writeFile(
+            join(directory, 'journey-before-cleanup.json'),
+            json({
+              stage: 'JOURNEY_SCREENSHOT_BEFORE_CLEANUP',
+              screenshot: options.path,
+              resultPublished: existsSync(join(dirname(options.path), 'result.json')),
+              evidence: JSON.parse(serialized),
+            }),
+            { flag: 'wx' },
+          );
+        }
+        return result;
+      };
       if (configuration.primary) {
         const goto = page.goto.bind(page);
         page.goto = async (...gotoArgs) => {
@@ -235,7 +272,11 @@ export async function verifyM3Cleanup(t, root, tool) {
             assert.equal(persisted.primaryError.message, 'M3_BROWSER_EVIDENCE_UNAVAILABLE');
             assert.match(persisted.primaryError.stack, /verify-m3-browser/);
           }
+          assert.equal(persisted.cleanupErrors.length, 1);
           assert.equal(persisted.cleanupErrors[0].step, 'page.unroute');
+          assert.equal(persisted.cleanupErrors[0].error.message, 'FAULT_INJECTED_M3_UNROUTE');
+          assert.equal(persisted.cleanupErrors[0].error.cause.message, 'FAULT_INJECTED_UNROUTE_CAUSE');
+          assert.match(persisted.cleanupErrors[0].error.cause.stack, /FAULT_INJECTED_UNROUTE_CAUSE/);
           assert.match(persisted.cleanupErrors[0].error.stack, /FAULT_INJECTED_M3_UNROUTE/);
         } else {
           assert.equal(failure, undefined);
@@ -249,8 +290,12 @@ export async function verifyM3Cleanup(t, root, tool) {
           Promise.resolve().then(() => browser?.close()),
           Promise.resolve().then(() => server.close()),
         ]);
-        assert.ok(cleanup.every((r) => r.status === 'fulfilled'));
+        assert.ok(
+          cleanup.every((r) => r.status === 'fulfilled'),
+          JSON.stringify(cleanup),
+        );
       }
+      if (!configuration.primary) await assertCompletedJourney(evidence);
     });
   }
   for (const [name, configuration] of [
@@ -299,6 +344,18 @@ export async function verifyM3Cleanup(t, root, tool) {
           JSON.stringify(persisted),
           configuration.browserClose ? /FAULT_INJECTED_M3_BROWSER_CLOSE/ : /FAULT_INJECTED_M3_SERVER_CLOSE/,
         );
+        assert.equal(persisted.cleanupErrors.length, 1);
+        const cleanup = persisted.cleanupErrors[0];
+        assert.equal(cleanup.step, configuration.browserClose ? 'browser.close' : 'server.close');
+        assert.equal(
+          cleanup.error.message,
+          configuration.browserClose ? 'FAULT_INJECTED_M3_BROWSER_CLOSE' : 'FAULT_INJECTED_M3_SERVER_CLOSE',
+        );
+        assert.match(cleanup.error.stack, new RegExp(cleanup.error.message));
+        if (configuration.browserClose) {
+          assert.equal(cleanup.error.cause.message, 'FAULT_INJECTED_CLOSE_CAUSE');
+          assert.match(cleanup.error.cause.stack, /FAULT_INJECTED_CLOSE_CAUSE/);
+        } else assert.equal(cleanup.error.cause, undefined);
         if (configuration.primary) {
           assert.equal(persisted.primaryError.message, 'M3_BROWSER_EVIDENCE_UNAVAILABLE');
           assert.match(persisted.primaryError.stack, /verify-m3-browser/);
@@ -311,8 +368,21 @@ export async function verifyM3Cleanup(t, root, tool) {
         assert.equal(JSON.parse(result.stdout).walletSends.length, 9);
         assert.equal(JSON.parse(await readFile(join(journey, 'result.json'), 'utf8')).state, 'PASS');
       }
+      if (!configuration.primary) await assertCompletedJourney(evidence);
     });
   }
+}
+
+async function assertCompletedJourney(directory) {
+  const observed = JSON.parse(await readFile(join(directory, 'journey-before-cleanup.json'), 'utf8'));
+  assert.equal(observed.resultPublished, false, 'journey evidence must not publish PASS before cleanup');
+  assert.equal(existsSync(observed.screenshot), true);
+  const sends = observed.evidence.providerRequests.filter(
+    (request) => request.method === 'eth_sendTransaction',
+  );
+  assert.equal(sends.length, 9, 'all controlled wallet sends must precede cleanup failure');
+  assert.equal(observed.evidence.snapshot.onchain.vaultClosed, true);
+  await assertCleanupCallbackCoverage(directory);
 }
 
 export async function verifyM3CollectorFailure(t, root, tool) {
@@ -348,7 +418,7 @@ export async function verifyM3CollectorFailure(t, root, tool) {
     `import { chromium } from ${JSON.stringify(pathToFileURL(tool).href)};
 import { wrapM3Browser } from ${JSON.stringify(import.meta.url)};
 const launch = chromium.launch.bind(chromium);
-chromium.launch = async options => wrapM3Browser(await launch(options), {primary:true,unroute:true}, ${JSON.stringify(directory)});
+chromium.launch = async options => wrapM3Browser(await launch(options), {primary:true,unroute:true,collectorOwnsCoverage:true}, ${JSON.stringify(directory)});
 `,
   );
   const configuration = {
