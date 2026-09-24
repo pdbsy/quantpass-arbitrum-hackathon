@@ -1912,7 +1912,7 @@
       "target_path": "apps/web/prototype/AlphaForge_v3_EN.html",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45",
-      "migrated_sha256": "499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161",
+      "migrated_sha256": "b9671bca14a388d08a7e5db492f831c5e02fcb15f8ff57baab8a65e863d4ff35",
       "subsequent_revisions": [
         {
           "task": "M3-04-PHASE1-PRODUCT",
@@ -1920,6 +1920,13 @@
           "previous_sha256": "949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45",
           "sha256": "499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161",
           "reason": "Retain the exact original artifact in complete Git history; reviewed repair rejects damaged date inputs, orders undated posts last and releases render state after errors without changing CSS or HTML outside the script."
+        },
+        {
+          "task": "M3-04-PHASE1-PRODUCT",
+          "commit": "3e0e4303dc6d6621aa71b450752e2446faec759b",
+          "previous_sha256": "499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161",
+          "sha256": "b9671bca14a388d08a7e5db492f831c5e02fcb15f8ff57baab8a65e863d4ff35",
+          "reason": "Register independently reviewed display-only damaged activity and malformed note-ID repair; retain original and prior repair hashes and every stored record."
         }
       ]
     },
@@ -2031,7 +2038,7 @@
       "target_path": "test/ui-import.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
-      "migrated_sha256": "a1a80857376331bf987bad023be31a87b6bf12e3d914c7546ee3102b98ebb438",
+      "migrated_sha256": "fb8fb483bad510bc196c096335d7ec298b0025e5a08cb27662df8748fb5d0bc5",
       "subsequent_revisions": [
         {
           "task": "M3-04-PHASE1-PRODUCT",
@@ -2076,6 +2083,13 @@
           "previous_sha256": "a7b78ca94ebed5676d170ab762ebbce24d2568f39a2c9acaf84de5f509722600",
           "sha256": "a1a80857376331bf987bad023be31a87b6bf12e3d914c7546ee3102b98ebb438",
           "reason": "Reject unsupported SVG tree contexts and attributed prototype extraction following independent review; retain fixed prototype bytes, exact source offsets and all earlier revision records."
+        },
+        {
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "commit": "51d47d029b992e3731b2dfa69a17de33ecac3443",
+          "previous_sha256": "a1a80857376331bf987bad023be31a87b6bf12e3d914c7546ee3102b98ebb438",
+          "sha256": "fb8fb483bad510bc196c096335d7ec298b0025e5a08cb27662df8748fb5d0bc5",
+          "reason": "Bind current repaired artifact byte count while retaining exact importer output, historical source and whole-tree ancestry assertions."
         }
       ]
     },
