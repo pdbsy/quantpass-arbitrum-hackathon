@@ -23,9 +23,9 @@
     {
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
-      "branch": "macbeth04/m3-pr22-error-batch",
-      "head": "ab16a84d4442bb8fe48e90c460758a158db2e2a0",
-      "local_ref": "refs/remotes/local-macbeth04/m3-pr22-error-batch"
+      "branch": "macbeth04/m3-damaged-date",
+      "head": "30b964609560e55153791bf8b61b8d81a2bb8c02",
+      "local_ref": "refs/remotes/local-macbeth04/m3-damaged-date"
     },
     {
       "agent": "Macbeth05",
@@ -45,29 +45,29 @@
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "84cc4edc3a86009eaf7cace88c9d241d5c8b3b14",
+      "head": "7f9ebdb88e4c6a9a0cebc5ced031789aba4a04bb",
       "local_ref": "refs/remotes/local-macbeth01/pr22-source-checkpoint"
     },
     {
       "agent": "Macbeth02",
       "task": "M3-02-CONTRACT-REVIEW",
-      "branch": "macbeth02/m3-prototype69-native",
-      "head": "2faa354d0723ef48d700924f0b34b5bed6b700c6",
-      "local_ref": "refs/remotes/local-macbeth02/m3-prototype69-native"
+      "branch": "macbeth02/m3-prototype-source-rebind",
+      "head": "eda4020f7f3495a6b9e09e8d5a6d96f785a1087c",
+      "local_ref": "refs/remotes/local-macbeth02/m3-prototype-source-rebind"
     },
     {
       "agent": "Macbeth03",
       "task": "M3-03-PHASE1-RECOVERY",
-      "branch": "macbeth03/pr22-windows-test-boundaries",
-      "head": "368796c2877c94f882c39e57a67af9fd09ac9a46",
-      "local_ref": "refs/remotes/local-macbeth03/pr22-windows-test-boundaries"
+      "branch": "macbeth03/pr22-windows-root-identity",
+      "head": "54052ccc572eaf61ab381d06e416eb8b2c60752a",
+      "local_ref": "refs/remotes/local-macbeth03/pr22-windows-root-identity"
     },
     {
       "agent": "Macbeth06",
       "task": "M3-06-CI-GATES",
-      "branch": "macbeth06/m3-pr22-windows-platform",
-      "head": "d317c41d04115f8ec2f06346adb743f5e130b8e7",
-      "local_ref": "refs/remotes/local-macbeth06/m3-pr22-windows-platform"
+      "branch": "macbeth06/m3-pr22-windows-pid-canonical",
+      "head": "473a9c63b38619a47044f7d151a3574c4d9298cb",
+      "local_ref": "refs/remotes/local-macbeth06/m3-pr22-windows-pid-canonical"
     }
   ]
 }
