@@ -1,4 +1,4 @@
-/* global window */
+/* global window, document */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
@@ -16,17 +16,17 @@ const browserDirectory = process.env.AF_QUALIFIED_BROWSER_TOOLS;
 const chrome = process.env.CHROMIUM_PATH;
 const trialKey = 'alphaforge.prototype.v3';
 const sourcePath = 'apps/web/prototype/AlphaForge_v3_EN.html';
-const sourceSha = '499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161';
+const sourceSha = 'b9671bca14a388d08a7e5db492f831c5e02fcb15f8ff57baab8a65e863d4ff35';
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const snapshot = (page) =>
   page.evaluate(() => ({ trial: window.AF.store.read(), exchange: window.AF.exchange.read() }));
 
-// Characterize defensive behavior for parseable, damaged persistence. Native UI
+// Exercise display-only degradation for parseable, damaged persistence. Native UI
 // cannot create these JSON values. No renderer, DOM method or guard is replaced.
-// Removing the submit catch, render finally, or either resize guard must break
-// the corresponding observable error/recovery assertions. No coverage is claimed.
+// Removing either field boundary must break the visible fallback or no-error
+// assertions; resetting records breaks full persisted-state equality. No coverage is claimed.
 test(
-  'damaged persistence preserves one profile commit and safe resize after failed trade rendering',
+  'damaged persistence degrades visibly without losing records or valid interactions',
   { skip: !browserDirectory || !chrome, timeout: 90_000 },
   async (t) => {
     const output = resolve(root, '.checks/prototype-damaged-state');
@@ -219,8 +219,35 @@ test(
           }
         });
       }
+      async function assertPersisted(page, expected) {
+        assert.deepEqual(await snapshot(page), expected);
+        const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), trialKey);
+        assert.deepEqual(
+          saved,
+          expected.trial,
+          'display fallback never rewrites saved fields or relationships',
+        );
+      }
+      async function home(page) {
+        await page.locator('a[href="#/home"]').first().click();
+        await page.waitForFunction(() => window.AF.route.name === 'home');
+        await page.locator('#press-button').waitFor();
+      }
+      async function forum(page) {
+        await page.locator('a[href="#/forum"]').first().click();
+        await page.locator('#forum-results').waitFor();
+      }
+      const badTypes = [
+        ['object', { toString: null }],
+        ['null', null],
+        ['array', []],
+        ['number', 42],
+        ['empty', ''],
+        ['whitespace', ' \t '],
+      ];
+      const validType = '  <b>Actual activity</b> & recorded  ';
       await scenario(
-        'profile error remains visible after exactly one saved edit; navigation and reload recover',
+        'invalid activity types remain stored and render unavailable while profile saves exactly once',
         async (page, context, entry) => {
           const before = await snapshot(page);
           assert.equal(before.trial.idle, 1000000);
@@ -229,21 +256,23 @@ test(
           await page.locator('#profile-name').fill('Damaged history');
           const damaged = structuredClone(before.trial);
           damaged.revision++;
-          damaged.history = [
-            {
-              id: 'damaged-history',
-              amount: 0,
-              type: { toString: null },
-              strategy: 'trend',
-              at: '2026-09-12T00:00:00Z',
-            },
-          ];
+          damaged.history = [...badTypes, ['valid', validType]].map(([id, type]) => ({
+            id: 'history-' + id,
+            type,
+            amount: 0,
+            strategy: 'trend',
+            at: '2026-09-12T00:00:00Z',
+          }));
           await corrupt(context, damaged);
           await page.locator('#profile-form button[type="submit"]').click();
           await page.locator('#app-dialog').waitFor({ state: 'hidden' });
           const toast = await page.locator('#toast').innerText();
-          assert.match(toast, /Cannot convert object to primitive value/i);
-          assert.doesNotMatch(toast, /profile updated/i);
+          entry.profileToast = toast;
+          assert.equal(
+            toast,
+            'Local profile updated.',
+            'profile save and its subsequent render must both succeed',
+          );
           const expected = {
             trial: {
               ...damaged,
@@ -252,112 +281,256 @@ test(
             },
             exchange: before.exchange,
           };
-          assert.deepEqual(
-            await snapshot(page),
-            expected,
-            'save committed exactly once despite the render error',
-          );
-          assert.deepEqual(entry.pageErrors, [], 'submit catch must expose the error through the toast');
-          await page.locator('a[href="#/home"]').first().click();
-          await page.locator('#press-button').waitFor();
-          await page.reload();
-          await ready(page);
-          await page.locator('#press-button').waitFor();
-          assert.deepEqual(await snapshot(page), expected);
+          async function historyLabels() {
+            const rows = page.locator('.ledger-entry');
+            await rows.first().waitFor();
+            assert.equal(await rows.count(), 7, 'damaged rows are retained');
+            assert.deepEqual(await rows.locator('strong').allTextContents(), [
+              ...badTypes.map(() => 'Activity type unavailable'),
+              validType,
+            ]);
+            assert.equal(
+              await rows.locator('strong b').count(),
+              0,
+              'valid text is escaped, never inserted as markup',
+            );
+          }
+          await historyLabels();
+          await assertPersisted(page, expected);
+          assert.deepEqual(entry.pageErrors, []);
+          await home(page);
           await page.locator('a[href="#/account/settings"]').first().click();
           await page.locator('[data-action="profile"]').first().click();
           assert.equal(await page.locator('#profile-name').inputValue(), 'Damaged history');
           await page.locator('#close-dialog').click();
+          await page.locator('a[href="#/account/funds"]').first().click();
+          await historyLabels();
+          await page.reload();
+          await ready(page);
+          await historyLabels();
+          await assertPersisted(page, expected);
           assert.deepEqual(entry.pageErrors, []);
-          assert.deepEqual(await snapshot(page), expected);
-          entry.productDefect =
-            'OPEN: damaged history.type still breaks Funds rendering; recovery does not repair persistence';
-          entry.handledError = toast;
+          entry.historyTypes = damaged.history.map(({ type }) => type);
           entry.final = expected;
         },
       );
       await scenario(
-        'malformed note ID leaves absent charts safe during native resize and later navigation',
+        'malformed note links degrade without losing content, relationships, charts or valid native interactions',
         async (page, context, entry) => {
-          await page.locator('a[href="#/forum"]').first().click();
+          await forum(page);
           await page.locator('[data-action="compose"]').first().click();
-          await page.locator('#compose-title').fill('Damaged ID research');
+          await page.locator('#compose-title').fill('Native unaffected note');
           await page
             .locator('#compose-body')
-            .fill('A local note created with real controls before a damaged persistence import.');
+            .fill('A normal local note remains readable and interactive beside damaged saved note links.');
           await page.locator('#compose-form button[type="submit"]').click();
           await page.locator('.article-page').waitFor();
-          await page.locator('a[href="#/home"]').first().click();
+          await home(page);
           await page.locator('[data-route="/trade/trend"]').first().click();
           await page.locator('[data-trade-tab="discussion"]').click();
-          await page.locator('a[href="#/home"]').first().click();
-          await page.locator('#press-button').waitFor();
+          await home(page);
           const before = await snapshot(page);
           assert.equal(before.trial.posts.length, 1);
+          const original = before.trial.posts[0];
+          const invalidNotes = [
+            { id: 'local-\ud800', title: 'High surrogate note' },
+            { id: 'local-\udc00', title: 'Low surrogate note' },
+          ];
+          const validNotes = [
+            { id: 'local-中文', title: 'Chinese route note', hash: '#/forum/post/local-%E4%B8%AD%E6%96%87' },
+            {
+              id: 'local-emoji-😀',
+              title: 'Emoji route note',
+              hash: '#/forum/post/local-emoji-%F0%9F%98%80',
+            },
+            { id: 'local-space note', title: 'Space route note', hash: '#/forum/post/local-space%20note' },
+            { id: 'local-100%', title: 'Percent route note', hash: '#/forum/post/local-100%25' },
+          ];
           const damaged = structuredClone(before.trial);
           damaged.revision++;
-          damaged.posts[0].id = 'local-\ud800';
-          damaged.posts[0].strategy = 'trend';
+          for (const { id, title } of [...invalidNotes, ...validNotes]) {
+            damaged.posts.push({
+              ...original,
+              id,
+              title,
+              body: 'Retained body for ' + title,
+              excerpt: 'Retained excerpt for ' + title,
+              strategy: 'trend',
+            });
+          }
+          damaged.likes = [...damaged.likes, ...invalidNotes.map(({ id }) => id)];
+          damaged.bookmarks = [...damaged.bookmarks, ...invalidNotes.map(({ id }) => id), validNotes[0].id];
+          for (const [i, note] of invalidNotes.entries())
+            damaged.comments.push({
+              id: 'retained-reply-' + i,
+              post: note.id,
+              body: 'Keep this linked reply',
+              author: damaged.profile.name,
+              at: '2026-09-12T00:00:00Z',
+              local: true,
+            });
           await corrupt(context, damaged);
           await page.locator('#press-button').click();
           await page.waitForFunction(() => window.AF.store.read().samplePass === true);
-          const expected = {
+          let expected = {
             trial: { ...damaged, revision: damaged.revision + 1, samplePass: true },
             exchange: before.exchange,
           };
-          assert.deepEqual(await snapshot(page), expected);
-          assert.deepEqual(entry.pageErrors, []);
-          const failure = page.waitForEvent('pageerror', {
-            predicate: (error) => /URI malformed/i.test(error.message),
-          });
+          await assertPersisted(page, expected);
+          entry.badRowAudits = [];
+          async function badRows(surface) {
+            for (const note of invalidNotes) {
+              const row = page
+                .locator('.journal-row')
+                .filter({ has: page.locator('h3', { hasText: note.title }) });
+              await row.waitFor();
+              assert.equal(await row.count(), 1);
+              assert.match(await row.innerText(), /Saved note link unavailable/);
+              assert.match(await row.innerText(), /1 reply/);
+              assert.match(await row.innerText(), /Liked/);
+              assert.ok((await row.innerText()).includes('Retained excerpt for ' + note.title));
+              assert.equal(await row.getByRole('link').count(), 0);
+              const interactive = await row.evaluate((node) =>
+                [node, ...node.querySelectorAll('*')]
+                  .filter(
+                    (element) =>
+                      element.matches(
+                        'a,button,input,textarea,select,[href],[data-route],[onclick],[onkeydown],[onkeyup],[role="link"],[role="button"],[contenteditable="true"]',
+                      ) || element.tabIndex >= 0,
+                  )
+                  .map((element) => element.outerHTML),
+              );
+              assert.deepEqual(
+                interactive,
+                [],
+                'unavailable note has no pointer or keyboard navigation control',
+              );
+              entry.badRowAudits.push({ surface, title: note.title, interactiveCount: interactive.length });
+            }
+          }
           await page.locator('[data-route="/trade/trend"]').first().click();
-          await failure;
           await page.waitForTimeout(150);
           assert.deepEqual(
-            await page.evaluate(() => ({ route: window.AF.route, tab: window.AF.view.tradeTab })),
-            { route: { name: 'trade', id: 'trend' }, tab: 'discussion' },
+            entry.pageErrors,
+            [],
+            'damaged note links must not throw during real Discussion rendering',
           );
-          assert.equal(
-            await page.locator('#press-button').count(),
-            1,
-            'old home DOM survives failed template evaluation',
-          );
-          assert.equal(await page.locator('#trade-price').count(), 0);
-          assert.equal(await page.locator('#trade-returns').count(), 0);
-          assert.ok(
-            entry.pageErrors.length > 0 &&
-              entry.pageErrors.every((error) => /URI malformed/i.test(error.message)),
-          );
-          const errorsBeforeResize = structuredClone(entry.pageErrors);
+          await page.locator('#trade-price svg').waitFor();
+          assert.equal(await page.locator('#trade-returns svg').count(), 1);
+          await badRows('Discussion');
+          const desktopBox = await page.locator('#trade-price svg').getAttribute('viewBox');
           for (const width of [600, 1440]) {
             await page.setViewportSize({ width, height: 900 });
-            await page.waitForTimeout(200); // Native resize debounce is 80ms.
-            assert.deepEqual(
-              entry.pageErrors,
-              errorsBeforeResize,
-              'absent chart nodes cause no extra resize error',
+            await page.waitForFunction(
+              ({ compact, desktopBox }) => {
+                const box = document.querySelector('#trade-price svg')?.getAttribute('viewBox');
+                return compact ? box?.endsWith('540') : box === desktopBox;
+              },
+              { compact: width === 600, desktopBox },
             );
-            assert.deepEqual(await snapshot(page), expected);
+            assert.equal(await page.locator('#trade-returns svg').count(), 1);
+            assert.deepEqual(entry.pageErrors, []);
+            await assertPersisted(page, expected);
           }
-          await page.locator('a[href="#/home"]').first().click();
-          await page.waitForFunction(() => window.AF.route.name === 'home');
-          await page.locator('#press-button').waitFor();
+          await forum(page);
+          await badRows('Forum');
+          await page.locator('a[href="#/account/settings"]').first().click();
+          await page.locator('a[href="#/account/notes"]').first().click();
+          await badRows('Notes');
+          await page.locator('a[href="#/account/saved"]').first().click();
+          await badRows('Saved');
           await page.reload();
           await ready(page);
-          await page.locator('#press-button').waitFor();
-          assert.deepEqual(await snapshot(page), expected);
-          assert.deepEqual(
-            entry.pageErrors,
-            errorsBeforeResize,
-            'native navigation and reload remain usable',
+          await badRows('Saved after reload');
+          await assertPersisted(page, expected);
+          for (const note of validNotes) {
+            await forum(page);
+            const row = page
+              .locator('.journal-row')
+              .filter({ has: page.locator('h3', { hasText: note.title }) });
+            assert.deepEqual(
+              await row.locator('a').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('href'))),
+              [note.hash, note.hash],
+            );
+            await row.locator('.read-link').click();
+            await page.locator('.article-page').waitFor();
+            assert.equal(new URL(page.url()).hash, note.hash);
+            assert.equal(await page.locator('.article-page h1').innerText(), note.title);
+            assert.equal(await page.locator('.article-prose').innerText(), 'Retained body for ' + note.title);
+            await page.reload();
+            await ready(page);
+            assert.equal(await page.locator('.article-page h1').innerText(), note.title);
+            await assertPersisted(page, expected);
+          }
+          await forum(page);
+          await page
+            .locator('.journal-row')
+            .filter({ hasText: 'Native unaffected note' })
+            .locator('.read-link')
+            .click();
+          await page.locator('.article-page').waitFor();
+          await page.locator('[data-like]').click();
+          expected = {
+            ...expected,
+            trial: {
+              ...expected.trial,
+              revision: expected.trial.revision + 1,
+              likes: [...expected.trial.likes, original.id],
+            },
+          };
+          await assertPersisted(page, expected);
+          await page.locator('[data-bookmark]').click();
+          expected = {
+            ...expected,
+            trial: {
+              ...expected.trial,
+              revision: expected.trial.revision + 1,
+              bookmarks: [...expected.trial.bookmarks, original.id],
+            },
+          };
+          await assertPersisted(page, expected);
+          const replyBody = 'Native reply remains attached to the original valid note.';
+          await page.locator('#comment-body').fill(replyBody);
+          await page.locator('#comment-form button[type="submit"]').click();
+          const afterReply = await snapshot(page);
+          const reply = afterReply.trial.comments.at(-1);
+          assert.equal(afterReply.trial.comments.length, expected.trial.comments.length + 1);
+          assert.deepEqual(Object.keys(reply).sort(), ['at', 'author', 'body', 'id', 'local', 'post']);
+          assert.equal(typeof reply.id, 'string');
+          assert.ok(
+            reply.id.length > 0 && !expected.trial.comments.some((comment) => comment.id === reply.id),
           );
+          assert.ok(Number.isFinite(Date.parse(reply.at)));
+          assert.deepEqual(reply, {
+            id: reply.id,
+            at: reply.at,
+            post: original.id,
+            body: replyBody,
+            author: expected.trial.profile.name,
+            local: true,
+          });
+          expected = {
+            ...expected,
+            trial: {
+              ...expected.trial,
+              revision: expected.trial.revision + 1,
+              comments: [...expected.trial.comments, reply],
+            },
+          };
+          await assertPersisted(page, expected);
+          await page.reload();
+          await ready(page);
+          assert.equal(await page.locator('.article-page h1').innerText(), 'Native unaffected note');
+          assert.equal(await page.locator('[data-like]').getAttribute('aria-pressed'), 'true');
+          assert.equal(await page.locator('[data-bookmark]').getAttribute('aria-pressed'), 'true');
+          assert.equal(await page.locator('.comment').filter({ hasText: replyBody }).count(), 1);
+          await home(page);
           await page.locator('a[href="#/account/settings"]').first().click();
-          await page.locator('[data-action="profile"]').first().waitFor();
-          assert.deepEqual(await snapshot(page), expected);
-          assert.deepEqual(entry.pageErrors, errorsBeforeResize);
-          entry.productDefect =
-            'OPEN: accepted lone-surrogate post ID still breaks Discussion rendering; recovery does not repair persistence';
-          entry.expectedRenderErrors = errorsBeforeResize;
+          await page.locator('a[href="#/account/funds"]').first().click();
+          await page.locator('.balance-notebook').waitFor();
+          await assertPersisted(page, expected);
+          assert.deepEqual(entry.pageErrors, []);
+          entry.validRoutes = validNotes;
           entry.final = expected;
         },
       );
