@@ -2031,7 +2031,7 @@
       "target_path": "test/ui-import.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
-      "migrated_sha256": "678809f4c29da962a013e63383c35aecab33f0e1b90fa704bfc7a7114fed97be",
+      "migrated_sha256": "afe3fd64de83804db436b682a8af54a7b752b98b7c081e1f129fecb4baf4d471",
       "subsequent_revisions": [
         {
           "task": "M3-04-PHASE1-PRODUCT",
@@ -2046,6 +2046,13 @@
           "previous_sha256": "391b35bfebfada32b1e493d619379e700aff09a5146ba4ad838a330b3861835a",
           "sha256": "678809f4c29da962a013e63383c35aecab33f0e1b90fa704bfc7a7114fed97be",
           "reason": "Bind the retained original and exact reviewed UI repair to ancestor Git objects, preserve CSS and surrounding HTML, and verify all three importer outputs after repeat imports."
+        },
+        {
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "commit": "a7e96878a37acce8c74943fb502e3fca0906aaba",
+          "previous_sha256": "678809f4c29da962a013e63383c35aecab33f0e1b90fa704bfc7a7114fed97be",
+          "sha256": "afe3fd64de83804db436b682a8af54a7b752b98b7c081e1f129fecb4baf4d471",
+          "reason": "Verify exact whole-tree integration history using real isolated Git fixtures, including rejection of an unrelated same-tree parent before the fixed base; preserve all original and prior revision records."
         }
       ]
     },
