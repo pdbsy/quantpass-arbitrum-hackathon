@@ -11,7 +11,10 @@ const expectedChecks = [
   'Prototype Pass trading exposes chart controls, asset context, invalid input, reviewed buy and sell receipts, and account readback',
 ];
 
-test('legacy product driver records the visible prototype interaction contract', { timeout: 180_000 }, () => {
+// The complete driver includes a genuine server Retry-After wait (60s).
+// Keep its child within the existing coverage driver's 300s budget; the parent
+// gets 15s to process the result. This does not alter fixed product/security timeouts.
+test('legacy product driver records the visible prototype interaction contract', { timeout: 315_000 }, () => {
   const browserModule = process.env.AF_PLAYWRIGHT_PATH;
   const executablePath = process.env.CHROMIUM_PATH;
   const port = process.env.AF_BROWSER_PORT;
@@ -28,7 +31,7 @@ test('legacy product driver records the visible prototype interaction contract',
       AF_BROWSER_PORT: port,
     },
     encoding: 'utf8',
-    timeout: 170_000,
+    timeout: 300_000,
   });
   assert.equal(child.error, undefined, child.error?.message);
   assert.equal(child.signal, null, `driver signal: ${child.signal}\n${child.stderr}`);
