@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, lstatSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { sha256 } from './toolchain.mjs';
+import { analyzeHtmlSource } from '../html-source-ranges.mjs';
 export const prototypePath = 'apps/web/prototype/AlphaForge_v3_EN.html';
 
 export function isTypeOnly(node) {
@@ -77,11 +78,8 @@ export function readSourceSnapshot(root) {
     assert.deepEqual(Buffer.from(text), bytes, 'source must be valid UTF-8');
     assert.equal(text, git('cat-file', 'blob', entry.blob), 'working source differs from Git blob');
     if (/\.html?$/.test(path)) {
-      const executable = [...text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)].filter(
-        (match) =>
-          !/\bsrc\s*=/i.test(match[1]) &&
-          !/\btype\s*=\s*["']application\/(?:ld\+)?json["']/i.test(match[1]) &&
-          match[2].trim(),
+      const executable = analyzeHtmlSource(text).scripts.filter(
+        (script) => script.kind === 'inline' && script.text.trim(),
       );
       if (executable.length) {
         assert.equal(path, prototypePath, 'unregistered executable inline source');
