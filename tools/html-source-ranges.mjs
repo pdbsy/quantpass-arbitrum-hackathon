@@ -5,6 +5,22 @@
 const space = (c) => c !== undefined && /[\t\n\f\r ]/.test(c);
 const letter = (c) => c !== undefined && /[A-Za-z]/.test(c);
 const lower = (text) => text.replace(/[A-Z]/g, (c) => c.toLowerCase());
+// Only balanced decorative SVG is admitted. In particular, HTML integration
+// points and breakout tags require browser tree construction, not a name stack.
+const svgNames = new Set([
+  'svg',
+  'g',
+  'defs',
+  'symbol',
+  'use',
+  'path',
+  'circle',
+  'rect',
+  'line',
+  'polyline',
+  'polygon',
+  'ellipse',
+]);
 const rawNames = new Set([
   'script',
   'style',
@@ -117,16 +133,18 @@ export function analyzeHtmlSource(source) {
     }
     const tag = tagAt(source, cursor);
     cursor = tag.end;
-    if (tag.name === 'svg' || tag.name === 'math') {
+    if (tag.name === 'math') refuse('MathML context');
+    if (tag.name === 'svg' || foreign.length) {
+      if (!svgNames.has(tag.name)) refuse('unsupported SVG context');
       if (tag.closing) {
         if (foreign.pop() !== tag.name) refuse('foreign content boundary');
       } else if (!tag.selfClosing) foreign.push(tag.name);
+      continue;
     }
     if (tag.name === 'plaintext') refuse('plaintext consumes remaining source');
     if (!rawNames.has(tag.name)) continue;
     if (tag.closing) refuse('unmatched raw-text end tag');
     if (tag.selfClosing) refuse('self-closing raw-text tag');
-    if (foreign.length) refuse('raw text or script in foreign content');
     const end = rawEnd(source, folded, tag);
     const text = source.slice(tag.end, end.start);
     if (tag.name === 'script') {

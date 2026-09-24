@@ -30,9 +30,9 @@ test('missing, ambiguous and malformed script sources cannot produce a mapping',
     assert.throws(() => buildPrototypeMap(src));
 });
 
-test('mapper extracts exact mixed-case script range with quoted delimiters and real attribute names', () => {
+test('mapper extracts exact mixed-case script range without mistaking quoted delimiters for tags', () => {
   const html =
-    '<!-- <script>inert</script> -->\n<Script data-src="fixture" data-note=\'a > b\'>\nconst answer=42;\n</sCrIpT>';
+    "<!-- <script>inert</script> -->\n<div data-note='a > b <script>inert</script>'></div><Script>\nconst answer=42;\n</sCrIpT>";
   const mapped = buildPrototypeMap(html);
   assert.equal(mapped.original, '\nconst answer=42;\n');
   assert.equal(mapped.generated, '\nconst answer=42;\n');
@@ -47,7 +47,7 @@ test('mapper excludes real external and JSON blocks but refuses a second executa
 });
 
 test('mapper uses only an appropriate end tag and preserves exact ASCII whitespace offsets', () => {
-  const html = '<script\tdata-note=fixture\n>const text="</scripture>";</SCRIPT\f\r >';
+  const html = '<script\t\n>const text="</scripture>";</SCRIPT\f\r >';
   const mapped = buildPrototypeMap(html);
   assert.equal(mapped.generated, 'const text="</scripture>";');
   assert.deepEqual(mapped.originalPosition({ line: 1, column: 0 }), { line: 2, column: 1 });
@@ -55,6 +55,23 @@ test('mapper uses only an appropriate end tag and preserves exact ASCII whitespa
   assert.throws(() => buildPrototypeMap('<script/>text</script>'));
   assert.throws(() => buildPrototypeMap('<script>text</script/>'));
 });
+
+for (const attributes of [
+  'type="text/plain"',
+  'nomodule',
+  'type="module"',
+  'async',
+  'defer',
+  'nonce="fixture"',
+  'data-src="fixture"',
+]) {
+  test(`mapper refuses extraction that would discard script attributes: ${attributes}`, () => {
+    assert.throws(
+      () => buildPrototypeMap('<script ' + attributes + '>globalThis.visible=1</script>'),
+      /attribute/,
+    );
+  });
+}
 
 test('mapper fails closed on ambiguous lexical boundaries instead of returning a partial script', () => {
   for (const html of [

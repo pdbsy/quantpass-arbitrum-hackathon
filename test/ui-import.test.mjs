@@ -48,8 +48,8 @@ test('importer replaces exact mixed-case ranges and preserves inert attributes a
   t.after(() => rm(out, { recursive: true, force: true }));
   const source =
     '<!-- <script>inert</script> --><div title="<style>inert</style>"></div>' +
-    '<STYLE data-note="a > b">p{color:red}</sTyLe>' +
-    '<Script data-src="fixture" data-type="application/json">const answer=42;</sCrIpT>' +
+    '<STYLE>p{color:red}</sTyLe>' +
+    '<Script>const answer=42;</sCrIpT>' +
     '<script src="external.js"></script><script type="application/json">{}</script>';
   await importUserUI(source, out);
   assert.equal(await readFile(join(out, 'public/user-ui.css'), 'utf8'), 'p{color:red}');
@@ -79,6 +79,38 @@ test('importer refuses hidden extra scripts and ambiguous boundaries before any 
     await assert.rejects(importUserUI(source, out));
     assert.deepEqual(await readdir(out), []);
   }
+});
+
+for (const attributes of [
+  'type="text/plain"',
+  'nomodule',
+  'type="module"',
+  'async',
+  'defer',
+  'nonce="fixture"',
+  'data-src="fixture"',
+]) {
+  test(`importer never turns attributed script into a classic script: ${attributes}`, async (t) => {
+    const { readdir } = await import('node:fs/promises');
+    const out = await mkdtemp(join(tmpdir(), 'af-import-script-mode-'));
+    t.after(() => rm(out, { recursive: true, force: true }));
+    await assert.rejects(
+      importUserUI('<style>p{}</style><script ' + attributes + '>globalThis.visible=1</script>', out),
+      /attribute/,
+    );
+    assert.deepEqual(await readdir(out), []);
+  });
+}
+
+test('importer does not discard a style media constraint', async (t) => {
+  const { readdir } = await import('node:fs/promises');
+  const out = await mkdtemp(join(tmpdir(), 'af-import-style-mode-'));
+  t.after(() => rm(out, { recursive: true, force: true }));
+  await assert.rejects(
+    importUserUI('<style media="print">p{}</style><script>void 0</script>', out),
+    /attribute/,
+  );
+  assert.deepEqual(await readdir(out), []);
 });
 
 test('UI importer refuses ambiguous or absent executable blocks before writing output', async (t) => {

@@ -8,6 +8,10 @@ export async function importUserUI(source, output, assetOutput = join(output, 'p
   const styles = ranges.styles;
   const scripts = ranges.scripts.filter((script) => script.kind === 'inline');
   if (styles.length !== 1 || scripts.length !== 1) throw new Error('EXPECTED_ONE_STYLE_AND_SCRIPT');
+  // Extraction intentionally supports attribute-free classic script/style only.
+  // Dropping type, nomodule, media, nonce, etc. could change the emitted program.
+  if (Object.keys(styles[0].attributes).length || Object.keys(scripts[0].attributes).length)
+    throw new Error('Unsupported prototype extraction attributes');
   let shell = source;
   const replacements = [
     { ...styles[0], replacement: '<link rel="stylesheet" href="/user-ui.css">' },

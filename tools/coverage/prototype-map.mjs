@@ -19,6 +19,9 @@ export function buildPrototypeMap(html) {
   if (typeof html !== 'string') throw new Error('Expected frozen HTML source');
   const matches = analyzeHtmlSource(html).scripts.filter((script) => script.kind === 'inline');
   if (matches.length !== 1) throw new Error('Expected one complete script');
+  // The served prototype is a classic external script; do not silently change
+  // an attributed source's module/nomodule/type or other element semantics.
+  if (Object.keys(matches[0].attributes).length) throw new Error('Unsupported prototype script attributes');
   const original = matches[0].text,
     scriptStart = matches[0].contentStart;
   const insertions = [];

@@ -74,6 +74,19 @@ test('hidden index flags cannot make modified configuration inherit a source ide
 });
 
 for (const [name, html] of [
+  [
+    'foreign integration cannot pop the scanner into HTML',
+    '<svg><g><foreignObject><div></svg></div></foreignObject><script src="data:text/javascript,">globalThis.hidden=1</script>',
+  ],
+  [
+    'SVG description is not an admitted HTML integration point',
+    '<svg><desc><div></svg></div></desc><script src="fixture">globalThis.hidden=1</script>',
+  ],
+  ['foreign breakout requires browser tree recovery', '<svg><g><div></div></g></svg>'],
+  [
+    'MathML integration is outside the admitted subset',
+    '<math><annotation-xml encoding="text/html"><div></math></div></annotation-xml><script src="fixture">globalThis.hidden=1</script>',
+  ],
   ['end tag attributes', '<script>globalThis.hidden=1</script\t\n bar>'],
   ['data-src is not src', '<script data-src="fixture">globalThis.hidden=1</script>'],
   ['data-type is not type', '<script data-type="application/json">globalThis.hidden=1</script>'],
