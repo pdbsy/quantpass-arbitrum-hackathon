@@ -29,6 +29,9 @@ const { app } = await buildApp({
   webRoot: resolve('apps/web/dist'),
 });
 const checks = [];
+const unsupportedChecks = [];
+let legacyOnly = false;
+const capabilityReport = () => (legacyOnly ? { capabilityProfile: 'legacy-only', unsupportedChecks } : {});
 let browser;
 let page;
 let storageBrowser;
@@ -292,8 +295,10 @@ try {
     );
   } else {
     assert.equal(v1Probe.status(), 404);
+    legacyOnly = true;
     checks.push('Legacy backend capability explicitly detected; no claim of second-strategy or v1 support');
   }
+  const v1Supported = v1Probe.status() === 200;
 
   // The production API catalogue is part of the same visible market page as the imported prototype.
   await go('market');
@@ -562,7 +567,7 @@ try {
     'Prototype Pass trading exposes chart controls, asset context, invalid input, reviewed buy and sell receipts, and account readback',
   );
 
-  const boundaryCases = await verifyPrototypeBoundaries(page);
+  const boundaryCases = await verifyPrototypeBoundaries(page, { v1Supported, unsupportedChecks });
   await writeFile(
     resolve(evidence, 'prototype-boundaries.json'),
     JSON.stringify({ scope: 'LOCAL_DEMO_MODEL', assertions: boundaryCases }, null, 2) + '\n',
@@ -570,7 +575,15 @@ try {
   checks.push(
     `Prototype model: ${boundaryCases.length} rejection, atomicity, settlement, and corrupt-storage assertions`,
   );
-  checks.push(...(await verifyProductLateConfirmIsolation(page, origin)));
+  if (v1Supported) checks.push(...(await verifyProductLateConfirmIsolation(page, origin)));
+  else
+    unsupportedChecks.push({
+      name: 'v1-late-confirm-claim-and-command',
+      status: 'NOT_SUPPORTED',
+      execution: 'NOT_RUN',
+      requiredCapability: 'v1',
+      equivalentCoverage: false,
+    });
   checks.push(...(await verifyPrototype69Shipped(page, { origin })));
 
   for (const route of [
@@ -665,7 +678,7 @@ try {
   }
   await writeFile(
     resolve(evidence, 'result.json'),
-    JSON.stringify({ status: 'FAILED', checks, error: String(error) }, null, 2),
+    JSON.stringify({ status: 'FAILED', checks, error: String(error), ...capabilityReport() }, null, 2),
   );
   console.error('Browser evidence:', evidence);
   throw error;
@@ -681,9 +694,16 @@ try {
 if (cleanupFailure) {
   await writeFile(
     resolve(evidence, 'result.json'),
-    JSON.stringify({ status: 'FAILED', checks, error: String(cleanupFailure.reason) }, null, 2),
+    JSON.stringify(
+      { status: 'FAILED', checks, error: String(cleanupFailure.reason), ...capabilityReport() },
+      null,
+      2,
+    ),
   );
   throw cleanupFailure.reason;
 }
-await writeFile(resolve(evidence, 'result.json'), JSON.stringify({ status: 'PASSED', checks }, null, 2));
-console.log(JSON.stringify({ status: 'PASSED', evidence, checks }, null, 2));
+await writeFile(
+  resolve(evidence, 'result.json'),
+  JSON.stringify({ status: 'PASSED', checks, ...capabilityReport() }, null, 2),
+);
+console.log(JSON.stringify({ status: 'PASSED', evidence, checks, ...capabilityReport() }, null, 2));

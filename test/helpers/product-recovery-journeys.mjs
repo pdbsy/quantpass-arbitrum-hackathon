@@ -252,10 +252,22 @@ export async function verifyRecoveryJourneys(parent) {
   }
 }
 
-export async function verifyLegacyApiJourneys(parent) {
+export async function verifyLegacyApiJourneys(parent, { v1Supported = true, unsupportedChecks = [] } = {}) {
+  assert.equal(typeof v1Supported, 'boolean');
+  assert.ok(Array.isArray(unsupportedChecks));
   const origin = new URL(parent.url()).origin;
   const checks = [];
   for (const mode of ['legacy', 'optional-detail']) {
+    if (mode === 'optional-detail' && !v1Supported) {
+      unsupportedChecks.push({
+        name: 'canonical-optional-detail',
+        status: 'NOT_SUPPORTED',
+        execution: 'NOT_RUN',
+        requiredCapability: 'v1',
+        equivalentCoverage: false,
+      });
+      continue;
+    }
     const page = await parent.context().newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
