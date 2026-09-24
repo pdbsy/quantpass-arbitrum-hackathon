@@ -2031,7 +2031,7 @@
       "target_path": "test/ui-import.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
-      "migrated_sha256": "afe3fd64de83804db436b682a8af54a7b752b98b7c081e1f129fecb4baf4d471",
+      "migrated_sha256": "49aaa5f78d9de3077caff9ef33c867054e3e22a7b5e36a58459f378e9dea2ab0",
       "subsequent_revisions": [
         {
           "task": "M3-04-PHASE1-PRODUCT",
@@ -2053,6 +2053,13 @@
           "previous_sha256": "678809f4c29da962a013e63383c35aecab33f0e1b90fa704bfc7a7114fed97be",
           "sha256": "afe3fd64de83804db436b682a8af54a7b752b98b7c081e1f129fecb4baf4d471",
           "reason": "Verify exact whole-tree integration history using real isolated Git fixtures, including rejection of an unrelated same-tree parent before the fixed base; preserve all original and prior revision records."
+        },
+        {
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "commit": "7cce7c3278f377ee59524a597374c55c76a44f0e",
+          "previous_sha256": "afe3fd64de83804db436b682a8af54a7b752b98b7c081e1f129fecb4baf4d471",
+          "sha256": "49aaa5f78d9de3077caff9ef33c867054e3e22a7b5e36a58459f378e9dea2ab0",
+          "reason": "Construct isolated history fixtures from the actual admitted retained source when the test suite itself runs on a verified integration descendant; preserve all historical records."
         }
       ]
     },
