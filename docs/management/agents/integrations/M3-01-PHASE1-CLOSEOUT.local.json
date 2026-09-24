@@ -23,9 +23,9 @@
     {
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
-      "branch": "macbeth04/m3-prototype-damaged-state",
-      "head": "3e0e4303dc6d6621aa71b450752e2446faec759b",
-      "local_ref": "refs/remotes/local-macbeth04/m3-prototype-damaged-state"
+      "branch": "macbeth04/t7-m3-cleanup-registered",
+      "head": "d5d425c94d594b56748020e3a8cafe7538784249",
+      "local_ref": "refs/remotes/local-macbeth04/t7-m3-cleanup-registered"
     },
     {
       "agent": "Macbeth05",
@@ -45,7 +45,7 @@
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "94ec7d37d23134f603062eed45134465e5f96235",
+      "head": "e04260432c8a04fcd8e74bcc2ff8d66d5983693b",
       "local_ref": "refs/remotes/local-macbeth01/pr22-source-checkpoint"
     },
     {
