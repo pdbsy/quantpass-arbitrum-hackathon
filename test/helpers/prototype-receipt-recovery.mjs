@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 const scope = 'FAULT_INJECTED_DOM_BOUNDARY';
-const sourceSha256 = '499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161';
+const sourceSha256 = 'b9671bca14a388d08a7e5db492f831c5e02fcb15f8ff57baab8a65e863d4ff35';
 
 async function ledgers(page) {
   return page.evaluate(() => ({

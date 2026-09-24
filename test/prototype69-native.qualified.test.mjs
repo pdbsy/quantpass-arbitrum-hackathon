@@ -13,7 +13,7 @@ import { mergeObserved } from '../tools/coverage/evidence.mjs';
 const root = resolve(import.meta.dirname, '..');
 const source = readFileSync(resolve(root, prototypePath), 'utf8');
 // Branch IDs below belong only to this protected source, never to a changed graph.
-const sourceSha256 = '499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161';
+const sourceSha256 = 'b9671bca14a388d08a7e5db492f831c5e02fcb15f8ff57baab8a65e863d4ff35';
 const origin = 'http://127.0.0.1:19469';
 const trialKey = 'alphaforge.prototype.v3';
 const exchangeKey = 'alphaforge.passmarket.v3';
@@ -77,11 +77,11 @@ export async function verifyPrototype69StorageUnavailable(page, { origin: shippe
         name: 'native-chrome-disabled-storage',
         scope: 'SHIPPED_NATIVE_BROWSER_STORAGE_DISABLED',
         targets: [
-          ['274', 1],
-          ['275', 1],
-          ['309', 0],
-          ['400', 1],
-          ['402', 1],
+          ['280', 1],
+          ['281', 1],
+          ['315', 0],
+          ['406', 1],
+          ['408', 1],
         ],
         browserCondition: '--disable-local-storage with native localStorage === null',
         inputClass: 'NATIVE_ENVIRONMENT_FAILURE',
@@ -272,7 +272,7 @@ export async function verifyPrototype69Shipped(page, { origin: shippedOrigin }) 
         name: 'stale-withdrawal-after-delayed-press',
         scope: 'SHIPPED_LOCAL_MOCK_UI',
         inputClass: 'NATIVE_UI_CROSS_WINDOW_DELAYED_PRESS',
-        targets: [['477', 0]],
+        targets: [['483', 0]],
       });
     } finally {
       page.off('request', onRequest);
@@ -495,8 +495,8 @@ async function runPrototype69Cases({
     assert.equal(state.idle, 900000);
     assert.equal(state.netFunding, 1000000);
     await capture(s, 'trial-quota', [
-      ['293', 0],
-      ['295', 0],
+      ['299', 0],
+      ['301', 0],
     ]);
   });
 
@@ -516,8 +516,8 @@ async function runPrototype69Cases({
     assert.equal(state.pending.length, 1);
     assert.equal(state.pending[0].amount, state.netFunding);
     await capture(s, 'withdraw-idle', [
-      ['261', 0],
-      ['389', 0],
+      ['267', 0],
+      ['395', 0],
     ]);
   });
 
@@ -551,8 +551,8 @@ async function runPrototype69Cases({
       'persisted-position',
       [
         ['151', 0],
-        ['347', 0],
-        ['348', 0],
+        ['353', 0],
+        ['354', 0],
       ],
       { inputClass: 'VALID_PERSISTENCE_FIXTURE' },
     );
@@ -570,7 +570,7 @@ async function runPrototype69Cases({
     );
     await page.reload();
     await navigate(page, '/account/funds', '.ledger-entry');
-    assert.equal(await page.locator('.ledger-entry strong').innerText(), '');
+    assert.equal(await page.locator('.ledger-entry strong').innerText(), 'Activity type unavailable');
     assert.match(await page.locator('.ledger-entry').innerText(), /<retired-sample>/);
     assert.equal(await page.locator('retired-sample').count(), 0);
     await capture(
@@ -578,7 +578,7 @@ async function runPrototype69Cases({
       'persisted-history',
       [
         ['166', 1],
-        ['260', 1],
+        ['266', 1],
       ],
       { inputClass: 'VALID_PERSISTENCE_FIXTURE' },
     );
@@ -603,9 +603,9 @@ async function runPrototype69Cases({
     assert.equal(await page.locator('#rank-saved').isChecked(), true);
     await capture(s, 'saved-renderers', [
       ['188', 0],
-      ['238', 0],
-      ['240', 0],
-      ['343', 0],
+      ['242', 0],
+      ['244', 0],
+      ['349', 0],
     ]);
   });
 
@@ -632,11 +632,11 @@ async function runPrototype69Cases({
     await navigate(page, '/account/not-a-tab', '.account-section');
     assert.match(await page.locator('.account-section').innerText(), /PASS COLLECTION/);
     await capture(s, 'mobile-native', [
-      ['219', 0],
-      ['466', 0],
-      ['573', 0],
-      ['287', 1],
-      ['278', 1],
+      ['223', 0],
+      ['472', 0],
+      ['579', 0],
+      ['293', 1],
+      ['284', 1],
     ]);
   });
 
@@ -664,11 +664,11 @@ async function runPrototype69Cases({
         s,
         'native-storage-denied',
         [
-          ['274', 1],
-          ['275', 1],
-          ['309', 0],
-          ['400', 1],
-          ['402', 1],
+          ['280', 1],
+          ['281', 1],
+          ['315', 0],
+          ['406', 1],
+          ['408', 1],
         ],
         { inputClass: 'NATIVE_CSP_SANDBOX_OPAQUE_ORIGIN' },
       );
@@ -777,10 +777,10 @@ async function runPrototype69Cases({
       [
         ['67', 5],
         ['165', 0],
-        ['225', 0],
-        ['340', 1],
-        ['391', 1],
-        ['535', 0],
+        ['229', 0],
+        ['346', 1],
+        ['397', 1],
+        ['541', 0],
       ],
       { inputClass: 'EXPORTED_API_ONLY', fixedInputs },
     );
@@ -806,7 +806,7 @@ async function runPrototype69Cases({
     assert.match(await page.locator('#allocate-error').innerText(), /Claim the demo Pass/);
     assert.equal(await page.locator('#app-dialog').isVisible(), false);
     assert.deepEqual(await page.evaluate('AF.store.read()'), before);
-    await capture(s, 'stale-allocation', [['411', 0]], { inputClass: 'NATIVE_TWO_WINDOWS' });
+    await capture(s, 'stale-allocation', [['417', 0]], { inputClass: 'NATIVE_TWO_WINDOWS' });
   });
 
   await run('stale claim after a real second-window reset yields an existing-Pass receipt', async () => {
@@ -835,7 +835,7 @@ async function runPrototype69Cases({
     await page.locator('[data-action="commit"]').click();
     assert.match(await page.locator('#app-dialog').innerText(), /Existing demo Pass/);
     assert.deepEqual(await page.evaluate('AF.store.read()'), before);
-    await capture(s, 'stale-claim-receipt', [['434', 1]], {
+    await capture(s, 'stale-claim-receipt', [['440', 1]], {
       inputClass: 'VALID_PERSISTENCE_THEN_NATIVE_TWO_WINDOWS',
     });
   });

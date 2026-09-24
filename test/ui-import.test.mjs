@@ -181,7 +181,7 @@ test('retained UI history validates a tree-identical master integration without 
   await t.test('exact retained source and master tree qualify after squash', async () => {
     const artifacts = await verifiedPrototypeArtifacts(cwd);
     assert.equal(Buffer.byteLength(artifacts.original), 285969);
-    assert.equal(Buffer.byteLength(artifacts.current), 286242);
+    assert.equal(Buffer.byteLength(artifacts.current), 286508);
     assert.notEqual(artifacts.current, artifacts.original);
   });
   await t.test(
@@ -202,7 +202,7 @@ test('retained UI history validates a tree-identical master integration without 
       try {
         assert.equal(git('status', '--porcelain'), '');
         const artifacts = await verifiedPrototypeArtifacts(cwd);
-        assert.equal(Buffer.byteLength(artifacts.current), 286242);
+        assert.equal(Buffer.byteLength(artifacts.current), 286508);
       } finally {
         git('checkout', '--force', '--detach', master);
         git('update-ref', masterRef, master);
@@ -302,7 +302,7 @@ test('retained UI history validates a tree-identical master integration without 
     git('update-ref', '-d', sourceRef);
     git('update-ref', '-d', masterRef);
     const artifacts = await verifiedPrototypeArtifacts(cwd);
-    assert.equal(Buffer.byteLength(artifacts.current), 286242);
+    assert.equal(Buffer.byteLength(artifacts.current), 286508);
   });
   assert.equal(git('status', '--porcelain'), '');
 });

@@ -6,9 +6,11 @@ import { resolve } from 'node:path';
 
 const path = 'apps/web/prototype/AlphaForge_v3_EN.html';
 const originalCommit = 'ebf8df18647f72afd7dafadf80638ed2f4c7a44b';
-const repairCommit = '7f66f0bf37b35f102cce00861dc55714ac9f2411';
+const previousRepairCommit = '7f66f0bf37b35f102cce00861dc55714ac9f2411';
+const repairCommit = '3e0e4303dc6d6621aa71b450752e2446faec759b';
 const originalSha256 = '949627bc39a2076de97d234546ce7bebabda6db330d22b423874063eb0243b45';
-const repairedSha256 = '499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161';
+const previousRepairedSha256 = '499c1bda91a8637a9d9fc12547790236947d2d19151173b3d4865f891ef52161';
+const repairedSha256 = 'b9671bca14a388d08a7e5db492f831c5e02fcb15f8ff57baab8a65e863d4ff35';
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 // Keep the original artifact in the complete, immutable Git history. The current
@@ -23,10 +25,13 @@ export async function verifiedPrototypeArtifacts(root) {
     });
   assert.equal(git('rev-parse', '--is-shallow-repository').trim(), 'false');
   const original = git('show', `${originalCommit}:${path}`);
+  const previousRepair = git('show', `${previousRepairCommit}:${path}`);
   const repaired = git('show', `${repairCommit}:${path}`);
   assert.equal(Buffer.byteLength(original), 285969);
   assert.equal(digest(original), originalSha256, 'original artifact must remain exact');
-  assert.equal(Buffer.byteLength(repaired), 286242);
+  assert.equal(Buffer.byteLength(previousRepair), 286242);
+  assert.equal(digest(previousRepair), previousRepairedSha256, 'previous reviewed repair must remain exact');
+  assert.equal(Buffer.byteLength(repaired), 286508);
   assert.equal(digest(repaired), repairedSha256, 'reviewed repair must remain exact');
   const current = await readFile(resolve(root, path), 'utf8');
   assert.equal(digest(current), repairedSha256, 'current artifact must match the reviewed repair');
@@ -47,7 +52,13 @@ export async function verifiedPrototypeArtifacts(root) {
     }
   };
   const head = commit('HEAD');
-  if (!ancestor(originalCommit, head) || !ancestor(repairCommit, head)) {
+  assert.ok(ancestor(originalCommit, previousRepairCommit), 'original must precede the first repair');
+  assert.ok(ancestor(previousRepairCommit, repairCommit), 'reviewed repairs must retain their exact chain');
+  if (
+    !ancestor(originalCommit, head) ||
+    !ancestor(previousRepairCommit, head) ||
+    !ancestor(repairCommit, head)
+  ) {
     // A squash/rebase preserves the reviewed source branch but changes ancestry.
     // Require an exact whole-tree integration bridge on actual master history;
     // matching only this HTML, or merely possessing the old objects, is not enough.
@@ -58,6 +69,7 @@ export async function verifiedPrototypeArtifacts(root) {
       [base, master],
       [base, retained],
       [originalCommit, retained],
+      [previousRepairCommit, retained],
       [repairCommit, retained],
     ])
       assert.ok(ancestor(before, after), 'retained source and master must preserve their fixed history');
@@ -79,24 +91,40 @@ export async function verifiedPrototypeArtifacts(root) {
     );
   }
 
+  // Exact fixed-hash artifacts only, not an arbitrary HTML sanitizer. Keep this
+  // oracle independent from the production HTML extractor under test.
+  const block = (source, tag) => {
+    const opening = '<' + tag + '>';
+    const closing = '</' + tag + '>';
+    const start = source.indexOf(opening);
+    const end = source.indexOf(closing, start + opening.length);
+    assert.ok(start >= 0 && end > start, 'fixed literal block is required');
+    assert.equal(source.indexOf(opening, start + opening.length), -1, 'one fixed opening tag');
+    assert.equal(source.indexOf(closing, end + closing.length), -1, 'one fixed closing tag');
+    return { start, end, content: source.slice(start, end + closing.length) };
+  };
   const blocks = (source) => {
-    const scripts = [...source.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
-    const styles = [...source.matchAll(/<style\b([^>]*)>([\s\S]*?)<\/style\s*>/gi)];
-    assert.equal(scripts.length, 1, 'exactly one original inline script is admitted');
-    assert.equal(styles.length, 1, 'exactly one original inline style is admitted');
-    assert.equal(scripts[0][1], '', 'script attributes must remain unchanged');
-    assert.equal(styles[0][1], '', 'style attributes must remain unchanged');
-    assert.ok(scripts[0][0].startsWith('<script>') && scripts[0][0].endsWith('</script>'));
+    const script = block(source, 'script');
     return {
-      style: styles[0][0],
-      outsideScript:
-        source.slice(0, scripts[0].index + '<script>'.length) +
-        source.slice(scripts[0].index + scripts[0][0].length - '</script>'.length),
+      style: block(source, 'style').content,
+      outsideScript: source.slice(0, script.start + '<script>'.length) + source.slice(script.end),
     };
   };
   const before = blocks(original);
+  const prior = blocks(previousRepair);
+  assert.equal(prior.style, before.style, 'prior repair CSS remains byte-identical');
+  assert.equal(prior.outsideScript, before.outsideScript, 'prior script boundary remains exact');
   const after = blocks(current);
   assert.equal(after.style, before.style, 'the original CSS remains byte-identical');
   assert.equal(after.outsideScript, before.outsideScript, 'HTML outside the repaired script remains exact');
-  return { original, current, originalCommit, repairCommit, originalSha256, repairedSha256 };
+  return {
+    original,
+    current,
+    originalCommit,
+    previousRepairCommit,
+    repairCommit,
+    originalSha256,
+    previousRepairedSha256,
+    repairedSha256,
+  };
 }

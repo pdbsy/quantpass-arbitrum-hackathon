@@ -43,9 +43,14 @@ test('migration inventory accounts for source versions and validates imported ar
   );
   assert.equal(record.original_sha256, prototype.originalSha256);
   assert.equal(record.migrated_sha256, prototype.repairedSha256);
+  assert.equal(record.subsequent_revisions.length, 2);
+  const prior = record.subsequent_revisions[0];
+  assert.equal(prior.commit, prototype.previousRepairCommit);
+  assert.equal(prior.previous_sha256, prototype.originalSha256);
+  assert.equal(prior.sha256, prototype.previousRepairedSha256);
   const revision = record.subsequent_revisions.at(-1);
   assert.equal(revision.commit, prototype.repairCommit);
-  assert.equal(revision.previous_sha256, prototype.originalSha256);
+  assert.equal(revision.previous_sha256, prototype.previousRepairedSha256);
   assert.equal(revision.sha256, prototype.repairedSha256);
 });
 
