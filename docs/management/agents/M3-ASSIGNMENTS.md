@@ -1,19 +1,19 @@
-## 2026-09-24 当前接续：并行 CI 与两个可见临时任务
+## 2026-09-24 当前接续：集中冻结与最终验收
 
-本节覆盖下方旧的暂停、06启动受阻、单独审批待决及“没有新增任务”状态；下方带日期记录保留历史事实。唯一目标仍为 AlphaForge / Robinhood Chain Testnet / Hackathon、PR #22；AF_Xlayer 独立。
+归属：[AlphaForge][Robinhood][PR22-READY][Macbeth01]。唯一目标为 pdbsy/quantpass-arbitrum-hackathon、PR #22、Robinhood Chain Testnet / Hackathon。AF_Xlayer 独立。以下旧日期记录保留其历史状态，不覆盖本节。
 
-用户明确允许本轮正常提交和推送、标准远程 CI，并最多增加 Temp-A、Temp-B。两项现已通过实际 create_thread 创建在 AlphaForge 项目，回读真实任务 ID 与本人 ACK；旧内部临时 Worker 均已停止，两个身份接续其既有证据，不重复启动：
+两个临时任务已实际创建并核对AlphaForge项目归属；旧内部临时Worker已停止，没有重复启动。只保留这两个身份，等待最终候选绑定后结束本轮任务：
 
-| 可见任务 | 真实任务 ID | 独立范围 |
+| 可见任务 | 真实任务 ID | 已完成的限定工作及交接 |
 | --- | --- | --- |
-| AlphaForge Temp-A | 01a0cf52-281d-7eb1-88a7-724d4efe0740 | 原型未覆盖路径的限定调查，独立验证04日期损坏修复；只声明实际观察，不移植旧图命中 |
-| AlphaForge Temp-B | 01a0cf52-a14e-7d50-85e3-2618f440b3e5 | 来源与原始UI保留的独立一致性复核、最终候选/锚点/CI绑定；其自编测试另由05复核 |
+| AlphaForge Temp-A | 01a0cf52-281d-7eb1-88a7-724d4efe0740 | 04日期修复独立行为复核；贡献收据故障恢复helper，已由05独立复核并由01正常集成，明确保留FAULT_INJECTED_DOM_BOUNDARY分类 |
+| AlphaForge Temp-B | 01a0cf52-a14e-7d50-85e3-2618f440b3e5 | 独立发现并复核历史集成校验和测试夹具问题；四种真实Git外层布局全通过，169来源记录一致；待最终S/锚点/CI绑定 |
 
-02、03、04、05、06继续原角色。共享 package、覆盖执行器、来源登记和 C/R/S 由01串行维护；每个Worker使用独立checkout、依赖、SQLite与输出。问题先回01，不再派生其他Worker。临时任务在本轮达到Ready后结束。
+02合同61文件与已审源逐字相同；03的Windows命令身份修复独立复核已完成；04日期/429恢复已交付；05独立复核实现、断言和证据边界。06的新任务启动再次被服务安全系统阻止，用户处理请求待回应，未换名或换Worker规避。01继续自身集成、正常发布和自动标准CI结果核验。所有共享文件、来源登记和C/R/S由01串行维护，不共享可写依赖或SQLite。
 
-远程CI已提前并行运行，不等待最后看板：公开候选237468bd072e8124a87f6100cc0b9211ea7ad430，PR merge-test b80e0ff3c6013bdff162e45991beec5589e87fb3；PR run35897846073、push35897840576均保留失败。Linux/macOS单元1301 PASS/5 SKIP/0 FAIL，随后旧C/R/S触发RECORDED_GIT_GRAPH_MISMATCH；Windows剩两项短长目录/命令身份失败。6项contracts/source/security/dependency job及同head的CodeQL35898018160、DependencyReview35898022058通过，不能替代最后候选的全部验收。
+准确已发布候选0039c08188253492d04ce669e4a9b8d24e6bd4bd的PR run35962133622与push run35962129019：三平台Node测试均零失败，Linux/macOS为1316 PASS/6平台SKIP，Windows为1277 PASS/45平台SKIP；真实Windows120秒超时/PID清理测试两次通过。三项verify随后均因历史C/R/S报RECORDED_GIT_GRAPH_MISMATCH，未忽略；另外6项合约/Slither、Semgrep、OSV、Gitleaks、源码策略和依赖差异job通过。它们是预跑，不是最终S验收。
 
-用户自行修改审批规则后，01/06只读核验规则22507334：required approvals=0、CODEOWNER=false、last-push approval=false；7项strict required checks、必须PR及其他保护保留，代理未修改规则。最终仍核验准确head、讨论及实际合并条件。没有merge、部署、广播、付费或修改锚点001的授权。
+用户自行修改规则后，01/06已只读核验required approvals=0、CODEOWNER=false、last-push approval=false，7项strict required checks、必须PR及其他保护保留。最终仍回读实际规则、讨论和准确head结果。允许正常提交/推送/更新PR/标准CI；不merge、不部署、不签名广播、不付费、不新增凭据或改规则。锚点001的引用及两份清单哈希保持原值。
 
 
 > Current phase-one assignment (2026-09-20): see [fixed-base task registry](../phase1/ASSIGNMENTS.md). Master is `18f5352070910a867b9729b031aa2e3951785e01`; earlier candidates, task tables and no-assignment states below are historical. No merge/deployment authority or independent approval is implied.

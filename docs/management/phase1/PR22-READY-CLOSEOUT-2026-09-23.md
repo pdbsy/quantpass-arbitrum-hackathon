@@ -1,29 +1,33 @@
-## 2026-09-24 当前接续：并行 CI 与两个可见临时任务
+## 2026-09-24 当前接续：集中冻结与最终验收
 
-本节覆盖下方旧的暂停、06启动受阻、单独审批待决及“没有新增任务”状态；下方带日期记录保留历史事实。唯一目标仍为 AlphaForge / Robinhood Chain Testnet / Hackathon、PR #22；AF_Xlayer 独立。
+归属：[AlphaForge][Robinhood][PR22-READY][Macbeth01]。唯一目标为 pdbsy/quantpass-arbitrum-hackathon、PR #22、Robinhood Chain Testnet / Hackathon。AF_Xlayer 独立。以下旧日期记录保留其历史状态，不覆盖本节。
 
-用户明确允许本轮正常提交和推送、标准远程 CI，并最多增加 Temp-A、Temp-B。两项现已通过实际 create_thread 创建在 AlphaForge 项目，回读真实任务 ID 与本人 ACK；旧内部临时 Worker 均已停止，两个身份接续其既有证据，不重复启动：
+两个临时任务已实际创建并核对AlphaForge项目归属；旧内部临时Worker已停止，没有重复启动。只保留这两个身份，等待最终候选绑定后结束本轮任务：
 
-| 可见任务 | 真实任务 ID | 独立范围 |
+| 可见任务 | 真实任务 ID | 已完成的限定工作及交接 |
 | --- | --- | --- |
-| AlphaForge Temp-A | 01a0cf52-281d-7eb1-88a7-724d4efe0740 | 原型未覆盖路径的限定调查，独立验证04日期损坏修复；只声明实际观察，不移植旧图命中 |
-| AlphaForge Temp-B | 01a0cf52-a14e-7d50-85e3-2618f440b3e5 | 来源与原始UI保留的独立一致性复核、最终候选/锚点/CI绑定；其自编测试另由05复核 |
+| AlphaForge Temp-A | 01a0cf52-281d-7eb1-88a7-724d4efe0740 | 04日期修复独立行为复核；贡献收据故障恢复helper，已由05独立复核并由01正常集成，明确保留FAULT_INJECTED_DOM_BOUNDARY分类 |
+| AlphaForge Temp-B | 01a0cf52-a14e-7d50-85e3-2618f440b3e5 | 独立发现并复核历史集成校验和测试夹具问题；四种真实Git外层布局全通过，169来源记录一致；待最终S/锚点/CI绑定 |
 
-02、03、04、05、06继续原角色。共享 package、覆盖执行器、来源登记和 C/R/S 由01串行维护；每个Worker使用独立checkout、依赖、SQLite与输出。问题先回01，不再派生其他Worker。临时任务在本轮达到Ready后结束。
+02合同61文件与已审源逐字相同；03的Windows命令身份修复独立复核已完成；04日期/429恢复已交付；05独立复核实现、断言和证据边界。06的新任务启动再次被服务安全系统阻止，用户处理请求待回应，未换名或换Worker规避。01继续自身集成、正常发布和自动标准CI结果核验。所有共享文件、来源登记和C/R/S由01串行维护，不共享可写依赖或SQLite。
 
-远程CI已提前并行运行，不等待最后看板：公开候选237468bd072e8124a87f6100cc0b9211ea7ad430，PR merge-test b80e0ff3c6013bdff162e45991beec5589e87fb3；PR run35897846073、push35897840576均保留失败。Linux/macOS单元1301 PASS/5 SKIP/0 FAIL，随后旧C/R/S触发RECORDED_GIT_GRAPH_MISMATCH；Windows剩两项短长目录/命令身份失败。6项contracts/source/security/dependency job及同head的CodeQL35898018160、DependencyReview35898022058通过，不能替代最后候选的全部验收。
+准确已发布候选0039c08188253492d04ce669e4a9b8d24e6bd4bd的PR run35962133622与push run35962129019：三平台Node测试均零失败，Linux/macOS为1316 PASS/6平台SKIP，Windows为1277 PASS/45平台SKIP；真实Windows120秒超时/PID清理测试两次通过。三项verify随后均因历史C/R/S报RECORDED_GIT_GRAPH_MISMATCH，未忽略；另外6项合约/Slither、Semgrep、OSV、Gitleaks、源码策略和依赖差异job通过。它们是预跑，不是最终S验收。
 
-用户自行修改审批规则后，01/06只读核验规则22507334：required approvals=0、CODEOWNER=false、last-push approval=false；7项strict required checks、必须PR及其他保护保留，代理未修改规则。最终仍核验准确head、讨论及实际合并条件。没有merge、部署、广播、付费或修改锚点001的授权。
+用户自行修改规则后，01/06已只读核验required approvals=0、CODEOWNER=false、last-push approval=false，7项strict required checks、必须PR及其他保护保留。最终仍回读实际规则、讨论和准确head结果。允许正常提交/推送/更新PR/标准CI；不merge、不部署、不签名广播、不付费、不新增凭据或改规则。锚点001的引用及两份清单哈希保持原值。
 
 ## 当前工程修复与证据边界
 
-本地集成基线2469a174e7bd429e1b78148fa9481a5a1272d632仍是预冻结源，不是最终S。bf53f2d及99ce467保留原始UI的完整Git对象949627…，绑定04准确修订499c1b…及真实逐笔provenance，169个当前摘要与6项来源/导入测试一致。HTML脚本以外和CSS原字节不变。04的7f66产品修复由Temp-A独立验证；30b回执修复由05真实17/17复核，清理失败子进程均真实exit1/FAIL，不能冒称自然故障覆盖。新原型图有1225个branch arms，旧1213图的命中不得移植。
+集成源f1460a04c97c63f81c4635dc669275782e8f95b5已完成原始完整浏览器流程及保留包装入口：实际224.265秒、exit0、无skip；覆盖了04日期场景、真实429按Retry-After等待一次、Temp-A收据故障恢复及原有账务/隔离断言。这不是最终插桩覆盖报告。包装300秒child/315秒parent与现有collector预算对齐，未修改固定120秒安全超时、服务配额或任何功能断言；05已独立审阅。
 
-03的368796c等待所有已启动Git查询结束后才交还异常，05独立87项通过；54052cc使用native realpath比较同一真实仓库根，拒绝不同嵌套目录且保留数据隔离与remote验证，05独立7 PASS/1 Windows NOT_RUN。06的473a9c6只修Windows timeout fixture的native路径及首次有界查询，全部PID/启动时间/命令/可执行文件断言、120秒integration和160秒outer deadline保留；真实Windows复测尚待下一批CI。
+历史UI校验保留原始949627…与准确修订499c1b…完整Git对象、CSS和脚本外HTML。01修复的whole-tree集成桥必须满足固定base→bridge→HEAD；Temp-B另发现测试自身在squash外层误选source，修复7cce7c3及来源411fdb3后独立运行18用例×4上下文全部通过。169当前来源哈希逐项一致，所有旧来源和修订前缀保留，原始失败未删除。
 
-05在84cc4edc对授权、金额、重入、签名边界、暂停/停止和owner退出完成有范围的非实现者工程审阅：170 Node和160 Solidity测试通过。签名Preview不验签、不授权，离线risk model不冒充链上执行，已批准暂缓范围不补造功能。历史受限外部服务仍为BLOCKED/NOT_RUN，未尝试绕过，也不把工程审阅冒称第三方认证。原SEC-002要求独立工程审阅与锁定工具验证，没有新增购买外部服务的门槛；最终S、扫描器和全量重绑定仍是未完成验收。
+04的8aa1d12日期场景由05局部16项实测复核；73d8a55原完整driver由05独立运行约221秒，真实429后遵守60秒Retry-After；独立null损坏存储探针证明429期间与一次200后原文仍保留、内存正确恢复。01关于该原文可能被启动改写的假设未被源码和实验支持，不登记成已修缺陷。Temp-A的21009b58 helper由05独立2流程及清理故障复核，01接线7a1fbae也获复核；一次已有DOM实例focus故障不产生重复记账，描述符精确恢复、后续新确认合法，仍不宣称native544自然可达。
 
-当前结论仍为NOT_READY_TO_MERGE。等待原浏览器采集路径的日期场景与新图重绑定、最终分支账本、C/R/S和同一S全量14工作流，以及准确最新head三平台与安全CI。以下旧记录仅保留当时情况；不能拿旧源、旧看板或旧绿灯签收当前候选。
+原型当前1225个branch arms，旧图1213；新源码必须重新测量。初始全量基线f966dd2为1069缺口，旧6a报告470缺口仅历史参考；没有将局部命中、测试数量或旧图移植为最终百分比。最终同一S完整14工作流、保留包装入口、逐条分类和原始计数重放待执行。
+
+05在84cc4edc完成6域非实现者工程审阅（170 Node/160 Solidity），02再次核验d7与281c的61合同/ABI/演练/锁定文件相同，contracts树e09e63952c6b01bea18e482760523076ccc00665。限定源级证据可复用，最终S原生合同、扫描器、宿主环境和生成物验收仍须实跑。历史外部服务BLOCKED/NOT_RUN单独保留；工程审阅不冒充第三方认证，也不新增购买服务的前置条件。
+
+当前结论为NOT_READY_TO_MERGE。随后管理检查报告的sourceCommit绑定实际冻结C；只提交报告R，再生成快照S，不手改PASS。最终报告、PR说明及远程检查必须绑定S；当前文件记录冻结前事实，不预写未来结果。
 
 ## 以下为此前执行记录
 
