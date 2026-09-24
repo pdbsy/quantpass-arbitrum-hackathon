@@ -2182,7 +2182,7 @@
       "target_path": "tools/verify-ui-browser.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; subsequent visible-browser assertion extension from Macbeth04 1dd5ca0fb03682b5b487ab68be424b35e4386d77 (metadata-only mapping from bf54f914), original source hash retained",
       "original_sha256": "4668e613f77c694aa66e8f43015c2d9f093fe8bf938f0d713e1baa6d627691e9",
-      "migrated_sha256": "bf48923a9698049d679cf55cd0d3da09978118be214c481137931c989def6085",
+      "migrated_sha256": "30f8cebfd2e73820ec62c6531935919416c72376ae704c509214da9fc2ef8915",
       "subsequent_revisions": [
         {
           "commit": "dafb30d260769c19c940a54fde20b9bf97b7d5a2",
@@ -2231,6 +2231,14 @@
           "previous_sha256": "3362b86b7dfa4b82bb86c9993058516e2dd0e599563e963647eb7c279c502346",
           "current_sha256": "bf48923a9698049d679cf55cd0d3da09978118be214c481137931c989def6085",
           "reason": "Run the native storage-disabled browser with its own backend and SQLite state, and attempt all owned cleanup. Independent exact-source review retained separately."
+        },
+        {
+          "commit": "51b2809fd0f97d702ff920292b5c6ad05d5af441",
+          "agent": "Macbeth03",
+          "task": "M3-03-PHASE1-RECOVERY",
+          "previous_sha256": "bf48923a9698049d679cf55cd0d3da09978118be214c481137931c989def6085",
+          "current_sha256": "30f8cebfd2e73820ec62c6531935919416c72376ae704c509214da9fc2ef8915",
+          "reason": "Qualify the real legacy-only 404 capability while retaining canonical 200 assertions, reject unexpected probe responses, and record unavailable v1 checks separately. Preserve all historical source revisions; exact source independently reviewed before integration."
         }
       ]
     }
