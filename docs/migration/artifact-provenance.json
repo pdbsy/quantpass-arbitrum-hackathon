@@ -1978,7 +1978,7 @@
       "target_path": "apps/web/src/product-ui.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3-04-PRODUCT-UI adds the manifest-bound Vault runtime, finite approval review and canonical evidence readback",
       "original_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38",
-      "migrated_sha256": "25ad00be374caa83679a8ba5766187c3664d6eb7d0fa63d07018db7854474546",
+      "migrated_sha256": "0ce282ef2015abbddf18d15c51ab090c6d0bae737eac16befede23d92b226a51",
       "subsequent_adaptations": [
         {
           "task": "M3-01-PHASE1-CLOSEOUT",
@@ -2017,6 +2017,14 @@
           "previous_sha256": "4ec78d4ed748ee886a44e915c5a91dcab24f641b9e741ab4b6ff2f18efff40de",
           "current_sha256": "25ad00be374caa83679a8ba5766187c3664d6eb7d0fa63d07018db7854474546",
           "reason": "Keep a later browser dialog open when a previously confirmed local API claim or command completes; preserve the original request and migration history."
+        },
+        {
+          "commit": "cee30e19b8e552685cf19cd4f8da009b0cff906c",
+          "agent": "Macbeth01",
+          "task": "M3-01-PHASE1-CLOSEOUT",
+          "previous_sha256": "25ad00be374caa83679a8ba5766187c3664d6eb7d0fa63d07018db7854474546",
+          "current_sha256": "0ce282ef2015abbddf18d15c51ab090c6d0bae737eac16befede23d92b226a51",
+          "reason": "Add the user-requested candle inspection module to the product entry; this entry is unchanged in the independently reviewed UI source 654a1e379e2becc2a98584e91394e21549cf6a8c. Preserve original migration identity and all prior revisions."
         }
       ]
     },
