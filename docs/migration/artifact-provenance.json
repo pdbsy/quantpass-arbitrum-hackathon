@@ -2031,7 +2031,7 @@
       "target_path": "test/ui-import.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
-      "migrated_sha256": "49aaa5f78d9de3077caff9ef33c867054e3e22a7b5e36a58459f378e9dea2ab0",
+      "migrated_sha256": "a1a80857376331bf987bad023be31a87b6bf12e3d914c7546ee3102b98ebb438",
       "subsequent_revisions": [
         {
           "task": "M3-04-PHASE1-PRODUCT",
@@ -2060,6 +2060,22 @@
           "previous_sha256": "afe3fd64de83804db436b682a8af54a7b752b98b7c081e1f129fecb4baf4d471",
           "sha256": "49aaa5f78d9de3077caff9ef33c867054e3e22a7b5e36a58459f378e9dea2ab0",
           "reason": "Construct isolated history fixtures from the actual admitted retained source when the test suite itself runs on a verified integration descendant; preserve all historical records."
+        },
+        {
+          "agent": "Macbeth02",
+          "task": "M3-02-CONTRACT-REVIEW",
+          "commit": "f9c222f1f3df6338c437918f14dd87a79b2a411f",
+          "previous_sha256": "49aaa5f78d9de3077caff9ef33c867054e3e22a7b5e36a58459f378e9dea2ab0",
+          "sha256": "a7b78ca94ebed5676d170ab762ebbce24d2568f39a2c9acaf84de5f509722600",
+          "reason": "Use shared strict HTML source ranges and public Git-fixture regressions for executable source admission; retain original source and all earlier revision records."
+        },
+        {
+          "agent": "Macbeth02",
+          "task": "M3-02-CONTRACT-REVIEW",
+          "commit": "e4c3ff11b38d608d73cbf9058f55d999629b0567",
+          "previous_sha256": "a7b78ca94ebed5676d170ab762ebbce24d2568f39a2c9acaf84de5f509722600",
+          "sha256": "a1a80857376331bf987bad023be31a87b6bf12e3d914c7546ee3102b98ebb438",
+          "reason": "Reject unsupported SVG tree contexts and attributed prototype extraction following independent review; retain fixed prototype bytes, exact source offsets and all earlier revision records."
         }
       ]
     },
@@ -2124,7 +2140,25 @@
       "target_path": "tools/import-user-ui.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "a1239d466da471e8c27e4e6f31baa14c8a513ea71e4f11a86d9a7ab75dee3733",
-      "migrated_sha256": "a1239d466da471e8c27e4e6f31baa14c8a513ea71e4f11a86d9a7ab75dee3733"
+      "migrated_sha256": "a05f474e7d035117497f10b05092320aa3c97495e3e4312bc060728e1cd8350f",
+      "subsequent_revisions": [
+        {
+          "agent": "Macbeth02",
+          "task": "M3-02-CONTRACT-REVIEW",
+          "commit": "f9c222f1f3df6338c437918f14dd87a79b2a411f",
+          "previous_sha256": "a1239d466da471e8c27e4e6f31baa14c8a513ea71e4f11a86d9a7ab75dee3733",
+          "sha256": "e1f4dbd0e38034e7639f0e99479e5f6252db1a306d5138b487c1a20fcd9d61af",
+          "reason": "Use shared strict HTML source ranges and public Git-fixture regressions for executable source admission; retain original source and all earlier revision records."
+        },
+        {
+          "agent": "Macbeth02",
+          "task": "M3-02-CONTRACT-REVIEW",
+          "commit": "e4c3ff11b38d608d73cbf9058f55d999629b0567",
+          "previous_sha256": "e1f4dbd0e38034e7639f0e99479e5f6252db1a306d5138b487c1a20fcd9d61af",
+          "sha256": "a05f474e7d035117497f10b05092320aa3c97495e3e4312bc060728e1cd8350f",
+          "reason": "Reject unsupported SVG tree contexts and attributed prototype extraction following independent review; retain fixed prototype bytes, exact source offsets and all earlier revision records."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",

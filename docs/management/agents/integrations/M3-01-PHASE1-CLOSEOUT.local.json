@@ -45,7 +45,7 @@
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "2bdae947ff5aa363c7b56b7ff2e50a24e220872d",
+      "head": "5f6718f88cfdf10a31c92daeb1e69fe2c6a9efd2",
       "local_ref": "refs/remotes/local-macbeth01/pr22-source-checkpoint"
     },
     {
@@ -68,6 +68,20 @@
       "branch": "macbeth06/m3-pr22-windows-pid-canonical",
       "head": "473a9c63b38619a47044f7d151a3574c4d9298cb",
       "local_ref": "refs/remotes/local-macbeth06/m3-pr22-windows-pid-canonical"
+    },
+    {
+      "agent": "Macbeth02",
+      "task": "M3-02-CONTRACT-REVIEW",
+      "branch": "macbeth02/m3-html-source-admission",
+      "head": "e4c3ff11b38d608d73cbf9058f55d999629b0567",
+      "local_ref": "refs/remotes/local-macbeth02/m3-html-source-admission"
+    },
+    {
+      "agent": "Macbeth03",
+      "task": "M3-03-ROOT-BOUNDARY-TEST",
+      "branch": "macbeth03/pr22-root-boundary-test",
+      "head": "46f81162aab0de5c13978514d43b2bdcac732095",
+      "local_ref": "refs/remotes/local-macbeth03/pr22-root-boundary-test"
     }
   ]
 }
