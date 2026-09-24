@@ -67,6 +67,7 @@ const unitTests = [
   'test/robinhood-chain.test.ts',
   'test/governance.test.mjs',
   'test/supply-chain.test.mjs',
+  'test/supply-chain-workflow-boundaries.test.mjs',
   'test/threat-model.test.mjs',
   'test/planning.test.mjs',
   'test/domain.test.ts',

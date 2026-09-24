@@ -37,9 +37,9 @@
     {
       "agent": "Macbeth06",
       "task": "M3-06-CI-GATES",
-      "branch": "macbeth06/m3-pr22-privacy-capacity",
-      "head": "14a213c76682dfcc33f66b0d704f79cd8193d812",
-      "local_ref": "refs/remotes/local-macbeth06/m3-pr22-privacy-capacity"
+      "branch": "macbeth06/m3-pr22-supply-workflow-boundaries",
+      "head": "2918272c9655bc3335ab30ce097b4f55910e0196",
+      "local_ref": "refs/remotes/local-macbeth06/m3-pr22-supply-workflow-boundaries"
     },
     {
       "agent": "Macbeth01",
@@ -61,13 +61,6 @@
       "branch": "macbeth03/pr22-windows-root-identity",
       "head": "54052ccc572eaf61ab381d06e416eb8b2c60752a",
       "local_ref": "refs/remotes/local-macbeth03/pr22-windows-root-identity"
-    },
-    {
-      "agent": "Macbeth06",
-      "task": "M3-06-CI-GATES",
-      "branch": "macbeth06/m3-pr22-windows-pid-canonical",
-      "head": "473a9c63b38619a47044f7d151a3574c4d9298cb",
-      "local_ref": "refs/remotes/local-macbeth06/m3-pr22-windows-pid-canonical"
     },
     {
       "agent": "Macbeth02",
