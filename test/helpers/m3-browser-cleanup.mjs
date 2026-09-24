@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createServer as createPortServer } from 'node:net';
@@ -49,7 +49,7 @@ export async function wrapM3Browser(browser, configuration, directory) {
       const screenshot = page.screenshot.bind(page);
       page.screenshot = async (options) => {
         const result = await screenshot(options);
-        if (options?.path?.endsWith('/m3-browser-journey.png')) {
+        if (options?.path && basename(options.path) === 'm3-browser-journey.png') {
           const serialized = await page
             .locator('[data-m3-fixture-controls]')
             .getAttribute('data-m3-fixture-evidence');
