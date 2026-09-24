@@ -164,7 +164,10 @@ export function installCandleInspection(host: CandleChartHost, doc: Document = d
   };
   const priceChart = (target: EventTarget | null) =>
     target instanceof Element ? target.closest<SVGSVGElement>('[data-v3-chart="price"]') : null;
+  const inlineDetail = (target: EventTarget | null) =>
+    panel?.dataset.layout === 'inline' && target instanceof Node && panel.contains(target);
   function pointer(event: PointerEvent) {
+    if (inlineDetail(event.target)) return;
     const svg = priceChart(event.target);
     if (!svg) {
       if (event.type === 'pointerdown') clear();
@@ -198,7 +201,12 @@ export function installCandleInspection(host: CandleChartHost, doc: Document = d
     )
       clear();
   });
-  doc.addEventListener('pointercancel', clear);
+  doc.addEventListener('pointercancel', (event) => {
+    // Native touch panning cancels pointer delivery when the browser takes over.
+    // Preserve the inline reading surface; other cancellations still clear it.
+    if (event.pointerType === 'touch' && inlineDetail(event.target)) return;
+    clear();
+  });
   doc.addEventListener('focusout', (event) => {
     if (priceChart(event.target)) clear();
   });

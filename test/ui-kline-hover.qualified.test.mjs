@@ -220,6 +220,54 @@ test(
       16 + (10.5 / 56) * 802,
     );
     await page.screenshot({ path: resolve(output, 'mobile.png') });
+    // Browser-native touch input must pan the page without dismissing inline
+    // details, including the trusted pointercancel emitted when Chrome takes over.
+    const panel = page.locator('[data-candle-tooltip]');
+    const startBox = await panel.boundingBox();
+    const scrollBefore = await page.evaluate(() => window.scrollY);
+    await page.evaluate(() => {
+      window.candlePanEvents = [];
+      for (const type of ['pointerdown', 'pointercancel'])
+        window.document.addEventListener(
+          type,
+          (event) => {
+            window.candlePanEvents.push({
+              type,
+              trusted: event.isTrusted,
+              touch: event.pointerType === 'touch',
+            });
+          },
+          { once: true, capture: true },
+        );
+    });
+    const cdp = await context.newCDPSession(page);
+    const x = startBox.x + startBox.width / 2;
+    const y = Math.min(startBox.y + 70, 700);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    for (let step = 1; step <= 8; step++) {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x, y: y - step * 30 }],
+      });
+      await page.waitForTimeout(30);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await cdp.detach();
+    assert.equal(await panel.count(), 1, 'native touch pan from details must preserve the selected candle');
+    await page.waitForFunction((before) => window.scrollY > before + 100, scrollBefore);
+    assert.equal(await field('time'), touchPoint.time, 'panning does not switch the selected candle');
+    const events = await page.evaluate(() => window.candlePanEvents);
+    assert.ok(events.some((e) => e.type === 'pointerdown' && e.trusted && e.touch));
+    assert.ok(events.some((e) => e.type === 'pointercancel' && e.trusted && e.touch));
+    const foot = await panel.locator('p').boundingBox();
+    assert.ok(
+      foot.y >= 0 && foot.y + foot.height < 774,
+      'full explanation is visible above the mobile dock after panning',
+    );
+    await page.screenshot({ path: resolve(output, 'mobile-scrolled.png') });
+    await page.touchscreen.tap(5, 400);
+    assert.equal(await panel.count(), 0, 'a genuine outside tap still clears details');
+
     await page.setViewportSize({ width: 900, height: 1000 });
     await page.waitForTimeout(150);
     for (const index of [0, 27, 55]) {
