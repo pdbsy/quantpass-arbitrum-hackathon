@@ -37,11 +37,13 @@ try {
   if ($ownedProcess.HasExited) { exit 0 }
   $metadata = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $expected.pid)
   if ($ownedProcess.HasExited) { exit 0 }
+  $expectedTail = $expected.commandPart
+  $command = if ($null -ne $metadata -and $null -ne $metadata.CommandLine) { $metadata.CommandLine.TrimEnd() } else { '' }
   $checks = [ordered]@{
     metadataPresent = $null -ne $metadata
     parentMatches = $null -ne $metadata -and $metadata.ParentProcessId -eq $expected.parentPid
     startedAfterMatches = $ownedProcess.StartTime.ToUniversalTime() -ge [DateTime]::Parse($expected.startedAfter).ToUniversalTime()
-    commandMatches = $null -ne $metadata -and $null -ne $metadata.CommandLine -and $metadata.CommandLine.Contains($expected.commandPart)
+    commandMatches = $command.EndsWith(' ' + $expectedTail) -or $command.EndsWith(' "' + $expectedTail + '"')
     executableMatches = $null -ne $metadata -and $null -ne $metadata.ExecutablePath -and [IO.Path]::GetFullPath($metadata.ExecutablePath) -ieq [IO.Path]::GetFullPath($expected.executable)
   }
   if ($checks.Values -contains $false) {
@@ -121,7 +123,7 @@ test(
       await writeFile(
         join(root, 'test/server.test.ts'),
         `import { renameSync, writeFileSync } from 'node:fs';
-writeFileSync(${JSON.stringify(pidPath + '.tmp')}, JSON.stringify({ nonce: ${JSON.stringify(nonce)}, pid: process.pid, parentPid: process.ppid }), { flag: 'wx' });
+writeFileSync(${JSON.stringify(pidPath + '.tmp')}, JSON.stringify({ nonce: ${JSON.stringify(nonce)}, pid: process.pid, parentPid: process.ppid, cwd: process.cwd(), argvPath: process.argv[1] }), { flag: 'wx' });
 renameSync(${JSON.stringify(pidPath + '.tmp')}, ${JSON.stringify(pidPath)});
 process.stdout.write('WINDOWS_TIMEOUT_FIXTURE\\n' + 'x'.repeat(16384));
 process.stderr.write('y'.repeat(16384));
@@ -182,8 +184,17 @@ await writeFile(${JSON.stringify(resultPath)}, JSON.stringify(result), { flag: '
         }
         assert.equal(owned?.nonce, nonce, 'the fixed registry command must start the fixture');
         assert.notEqual(owned.pid, owned.parentPid);
+        assert.equal(realpathSync.native(owned.cwd), root, 'the nonce-bound fixture runs in its owned root');
+        assert.equal(
+          realpathSync.native(owned.argvPath),
+          realpathSync.native(join(root, 'test/server.test.ts')),
+          'the owned child executes the exact private fixture file',
+        );
+        // The locked Node test runner passes its glob result as a relative child
+        // argument. process.argv[1] is absolute inside that child, but CIM observes
+        // the original relative command. Verify both, retaining every PID guard.
         for (const identity of [
-          { pid: owned.pid, parentPid: owned.parentPid, commandPart: join(root, 'test/server.test.ts') },
+          { pid: owned.pid, parentPid: owned.parentPid, commandPart: join('test', 'server.test.ts') },
           { pid: owned.parentPid, parentPid: outer.pid, commandPart: 'test/server.test.ts' },
         ]) {
           assert.ok(Number.isInteger(identity.pid) && identity.pid > 0);
