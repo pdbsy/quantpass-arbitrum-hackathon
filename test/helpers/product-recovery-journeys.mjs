@@ -9,6 +9,31 @@ export async function verifyRecoveryJourneys(parent) {
   const errors = [];
   const checks = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  async function reloadRecoveryPage() {
+    const persisted = await page.evaluate(() => localStorage.getItem('alphaforge.prototype.v3'));
+    let response = await page.reload();
+    // The full driver shares the server's real per-IP request budget, including
+    // document/asset loads. A throttled document is JSON, not a broken UI page.
+    if (response?.status() === 429) {
+      assert.deepEqual(await response.json(), { error: 'RATE_LIMITED' });
+      const retryAfter = response.headers()['retry-after'];
+      assert.match(retryAfter ?? '', /^[1-9][0-9]*$/, '429 must specify its real wait');
+      const seconds = Number(retryAfter);
+      assert.ok(seconds <= 60, 'retry must stay within the configured local window');
+      await page.waitForTimeout(seconds * 1000 + 100);
+      response = await page.reload();
+      assert.equal(response?.status(), 200, 'only one retry is allowed after the real deadline');
+      assert.equal(
+        await page.evaluate(() => localStorage.getItem('alphaforge.prototype.v3')),
+        persisted,
+        'throttled navigation must not change the persisted recovery fixture',
+      );
+      checks.push(
+        'A real HTTP 429 document reload honors Retry-After once and preserves the exact persisted recovery fixture',
+      );
+    }
+    assert.equal(response?.status(), 200, 'recovery reload must serve the actual UI');
+  }
   try {
     await page.goto(`${origin}/#/account/settings`);
     const pristine = await page.evaluate(() => {
@@ -23,7 +48,7 @@ export async function verifyRecoveryJourneys(parent) {
       { ...pristine, passes: { trend: null } },
     ]) {
       await page.evaluate((raw) => localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(raw)), raw);
-      await page.reload();
+      await reloadRecoveryPage();
       const state = await page.evaluate(() => ({
         state: window.AF.store.read(),
         recovery: window.AF.store.recovery,
@@ -63,7 +88,7 @@ export async function verifyRecoveryJourneys(parent) {
       state.draft = { title: '', body: 'A saved body without a title.', category: 'Research Notes' };
       localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(state));
     }, pristine);
-    await page.reload();
+    await reloadRecoveryPage();
     await page.goto(`${origin}/#/account/notes`);
     assert.equal(await page.locator('.journal-row').count(), 100);
     assert.match(await page.locator('.draft-note').textContent(), /Untitled/i);
@@ -91,7 +116,7 @@ export async function verifyRecoveryJourneys(parent) {
       (pristine) => localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(pristine)),
       pristine,
     );
-    await page.reload();
+    await reloadRecoveryPage();
     for (const [route, search] of [
       ['market', 'market-search'],
       ['forum', 'forum-search'],
@@ -188,7 +213,7 @@ export async function verifyRecoveryJourneys(parent) {
       state.idle -= 2500;
       localStorage.setItem('alphaforge.prototype.v3', JSON.stringify(state));
     }, pristine);
-    await page.reload();
+    await reloadRecoveryPage();
     await page.locator('[data-trade-pane="pass"]').click();
     await page.locator('[data-trade-pane="funds"]').first().click();
     await page.locator('[data-release="trend"]').click();
