@@ -23,9 +23,9 @@
     {
       "agent": "Macbeth04",
       "task": "M3-04-PHASE1-PRODUCT",
-      "branch": "macbeth04/m3-date-collector-journeys",
-      "head": "8aa1d12eb1d19e55ee33ae21f9761b21879bd07c",
-      "local_ref": "refs/remotes/local-macbeth04/m3-date-collector-journeys"
+      "branch": "macbeth04/m3-product-recovery-driver",
+      "head": "73d8a55410bb2007f49de66490a358e12ba0a74c",
+      "local_ref": "refs/remotes/local-macbeth04/m3-product-recovery-driver"
     },
     {
       "agent": "Macbeth05",
@@ -45,7 +45,7 @@
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "7a1fbae35165f34f8abbba28d86e7b614cbab9b4",
+      "head": "2bdae947ff5aa363c7b56b7ff2e50a24e220872d",
       "local_ref": "refs/remotes/local-macbeth01/pr22-source-checkpoint"
     },
     {
