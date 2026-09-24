@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { verifyRuntimePortJourneys } from './product-runtime-boundaries.mjs';
+import { verifyPrototypeReceiptRecovery } from './prototype-receipt-recovery.mjs';
 import { verifyLegacyApiJourneys, verifyRecoveryJourneys } from './product-recovery-journeys.mjs';
 
 // Exercise the actual loaded browser model. All values are fictional DEMO fixtures;
@@ -883,6 +884,8 @@ export async function verifyPrototypeBoundaries(page) {
   }));
   assert.deepEqual(restored, original);
   cases.push(...(await verifyApiLossAndThrottle(page)));
+  const receiptRecovery = await verifyPrototypeReceiptRecovery(page);
+  cases.push(...receiptRecovery.map((observation) => observation.name));
   return cases;
 }
 
