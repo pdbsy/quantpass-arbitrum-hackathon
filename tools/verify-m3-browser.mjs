@@ -116,6 +116,50 @@ function matchingSend(actual, expected) {
   });
 }
 
+function errorRecord(error, seen = new Set()) {
+  if (!(error instanceof Error)) return { name: 'Error', message: String(error) };
+  if (seen.has(error)) return { name: error.name, message: '[Circular error cause]' };
+  seen.add(error);
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+    ...('cause' in error ? { cause: errorRecord(error.cause, seen) } : {}),
+    ...(error.m3BrowserFailure ? { m3BrowserFailure: error.m3BrowserFailure } : {}),
+  };
+}
+
+async function rejectM3Run(evidenceDirectory, scope, primary, cleanupErrors) {
+  const diagnostic = {
+    state: 'FAIL',
+    scope,
+    primaryError: primary ? errorRecord(primary.error) : null,
+    cleanupErrors: cleanupErrors.map(({ step, error }) => ({ step, error: errorRecord(error) })),
+  };
+  const original = primary ? primary.error : cleanupErrors[0].error;
+  const failure = original instanceof Error ? original : new Error(String(original), { cause: original });
+  failure.m3BrowserFailure = diagnostic;
+  try {
+    await mkdir(evidenceDirectory, { recursive: true });
+    await writeFile(
+      resolve(evidenceDirectory, scope === 'CLI' ? 'cli-failure.json' : 'failure.json'),
+      `${JSON.stringify(diagnostic, null, 2)}\n`,
+      { flag: 'wx' },
+    );
+  } catch (error) {
+    diagnostic.cleanupErrors.push({ step: 'failure.write', error: errorRecord(error) });
+    // Keep the primary failure even when diagnostic storage itself is unavailable.
+    process.stderr.write(`${JSON.stringify(diagnostic)}\n`);
+  }
+  throw failure;
+}
+
+async function publishM3Result(evidenceDirectory, report) {
+  await writeFile(resolve(evidenceDirectory, 'result.json'), `${JSON.stringify(report, null, 2)}\n`, {
+    flag: 'wx',
+  });
+}
+
 async function runBrowserJourneys() {
   const toolPath =
     process.env.AF_PLAYWRIGHT_PATH || '.checks/browser-tools/node_modules/playwright-core/index.mjs';
@@ -140,6 +184,9 @@ async function runBrowserJourneys() {
     server: { host: '127.0.0.1', port, strictPort: true },
   });
   let browser;
+  let report;
+  let primary;
+  const cleanupErrors = [];
   try {
     await server.listen();
     browser = await chromium.launch({
@@ -149,17 +196,29 @@ async function runBrowserJourneys() {
     });
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
-    const report = await runM3BrowserJourneys(page, { origin, evidenceDirectory });
-    process.stdout.write(`${JSON.stringify({ ...report, evidenceDirectory }, null, 2)}\n`);
+    report = await runM3BrowserJourneys(page, { origin, evidenceDirectory, publishResult: false });
+  } catch (error) {
+    primary = { error };
   } finally {
-    await browser?.close();
-    await server.close();
+    for (const [step, close] of [
+      ['browser.close', () => browser?.close()],
+      ['server.close', () => server.close()],
+    ]) {
+      try {
+        await close();
+      } catch (error) {
+        cleanupErrors.push({ step, error });
+      }
+    }
   }
+  if (primary || cleanupErrors.length) await rejectM3Run(evidenceDirectory, 'CLI', primary, cleanupErrors);
+  await publishM3Result(evidenceDirectory, report);
+  process.stdout.write(`${JSON.stringify({ ...report, evidenceDirectory }, null, 2)}\n`);
 }
 
 // The collector owns its server, fresh browser context and counter collection.
 // This function leaves the page open so it can collect the same workflow's counters.
-export async function runM3BrowserJourneys(page, { origin, evidenceDirectory }) {
+export async function runM3BrowserJourneys(page, { origin, evidenceDirectory, publishResult = true }) {
   const base = new URL(origin);
   if (
     base.protocol !== 'http:' ||
@@ -169,6 +228,9 @@ export async function runM3BrowserJourneys(page, { origin, evidenceDirectory }) 
     base.origin !== origin
   )
     throw new Error('M3_BROWSER_REQUIRES_LOOPBACK_ORIGIN');
+  let report;
+  let primary;
+  const cleanupErrors = [];
   const checks = [];
   const pageErrors = [];
   const cspErrors = [];
@@ -530,7 +592,7 @@ export async function runM3BrowserJourneys(page, { origin, evidenceDirectory }) 
     assert.deepEqual(blockedRequests, []);
     await mkdir(evidenceDirectory, { recursive: true });
     await page.screenshot({ path: resolve(evidenceDirectory, 'm3-browser-journey.png'), fullPage: true });
-    const report = {
+    report = {
       state: 'PASS',
       origin,
       checks,
@@ -547,13 +609,25 @@ export async function runM3BrowserJourneys(page, { origin, evidenceDirectory }) 
       cspErrors,
       blockedRequests,
     };
-    await writeFile(resolve(evidenceDirectory, 'result.json'), `${JSON.stringify(report, null, 2)}\n`);
-    return report;
+  } catch (error) {
+    primary = { error };
   } finally {
-    page.off('pageerror', onPageError);
-    page.off('console', onConsole);
-    await page.unroute('**/*', routeLocal);
+    for (const [step, cleanup] of [
+      ['page.off.pageerror', () => page.off('pageerror', onPageError)],
+      ['page.off.console', () => page.off('console', onConsole)],
+      ['page.unroute', () => page.unroute('**/*', routeLocal)],
+    ]) {
+      try {
+        await cleanup();
+      } catch (error) {
+        cleanupErrors.push({ step, error });
+      }
+    }
   }
+  if (primary || cleanupErrors.length)
+    await rejectM3Run(evidenceDirectory, 'JOURNEY', primary, cleanupErrors);
+  if (publishResult) await publishM3Result(evidenceDirectory, report);
+  return report;
 }
 
 function help() {

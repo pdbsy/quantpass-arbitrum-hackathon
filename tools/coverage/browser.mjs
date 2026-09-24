@@ -166,7 +166,12 @@ export async function collectBrowserCoverage({
   if (failures.length) {
     const failure = writeBrowserArtifact(directory, 'failure', {
       candidateCommit: manifest.candidateCommit,
-      errors: failures.map((error) => ({ name: error.name, message: error.message, stack: error.stack })),
+      errors: failures.map((error) => ({
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        ...(error.m3BrowserFailure ? { m3BrowserFailure: error.m3BrowserFailure } : {}),
+      })),
       blockedRequests,
       index: collection?.index,
     });

@@ -12,8 +12,8 @@
 
 ## Global Constraints
 
-- Macbeth04 alone edits tools/verify-m3-browser.mjs, the minimal diagnostic projection in tools/coverage/browser.mjs, test/browser-tool-failures.qualified.test.mjs, and new test/helpers/m3-browser-cleanup.mjs.
-- Existing browser-tool-failures registration already runs in coverage qualification; no package, lockfile, registry or required-check changes.
+- Macbeth04 alone edits tools/verify-m3-browser.mjs, the minimal diagnostic projection in tools/coverage/browser.mjs, new test/m3-browser-cleanup.qualified.test.mjs and test/helpers/m3-browser-cleanup.mjs, and the two qualification registrations in package.json/tools/coverage/run.mjs.
+- 01B confirmed sole ownership of the minimal package.json coverage:qualify:browser and tools/coverage/run.mjs test-list additions. Keep old browser-tool-failures bytes unchanged; no lockfile, timeout, concurrency, counter or required-check changes.
 - Independent clone /private/tmp/AlphaForge-Macbeth04-T7-003, branch macbeth04/t7-m3-cleanup-fix; independent copied dependencies, no shared writable SQLite.
 - Preserve all RED attempts and prior evidence. Source edits do not relabel old S execution. No C/R/S regeneration, PR22 update, remote push/CI, deployment, signing, broadcasting or new workers.
 - Fault injection operates only at real Playwright/Vite cleanup boundaries and is labeled FAULT_INJECTED. Actual M3 driver/journey executes unchanged during RED; never substitute a synthetic journey PASS.
@@ -21,7 +21,7 @@
 
 ## Task 1: Actual exported journey RED and minimal lifecycle correction
 
-**Files:** modify driver and existing qualified test; create test helper; preserve logs under outputs/t7-003-implementation.
+**Files:** modify driver and new qualified test; create test helper; preserve logs under outputs/t7-003-implementation.
 
 **Interfaces:** keep runM3BrowserJourneys(page, {origin,evidenceDirectory}); preserve returned normal report schema. Failures retain primary Error identity plus a JSON-safe m3BrowserFailure diagnostic containing scope, primaryError, cleanupErrors. Each serialized error retains name/message/stack and cause where present.
 
@@ -83,4 +83,4 @@ No counter, reporter, exit status or resource ownership changes. Exercise projec
 - [ ] Commit coherent minimal source batch with Agent-ID: Macbeth04 and Task-ID: M3-04-PHASE1-PRODUCT trailers; preserve historical base and authors. No amend/rebase/force push. If validation needs another source correction, use a subsequent ordinary commit.
 - [ ] Persist index with source commit/tree, diff, commands/tool versions, RED/GREEN stdout/stderr/exit codes, scenario originals/hashes, independent dependency evidence and affected evidence graph. Send to 01B for A-group non-author review. Local tests are implementer verification, never independent approval or final candidate readiness.
 
-Plan self-review: covers both finally sites, premature publication, the shallow collector serializer and real boundary tests. No pending semantics, product behavior, dependency or registration changes. Execution remains in this session per manager instruction.
+Plan self-review: covers both finally sites, premature publication, the shallow collector serializer and real boundary tests. No pending semantics, product behavior or dependency changes. The two minimal test registrations are explicitly approved. Execution remains in this session per manager instruction.

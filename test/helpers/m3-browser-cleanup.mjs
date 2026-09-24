@@ -1,3 +1,4 @@
+/* global document, MutationObserver */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
@@ -289,7 +290,7 @@ export async function verifyM3Cleanup(t, root, tool) {
           false,
           'CLI-owned cleanup precedes final success',
         );
-        const persisted = JSON.parse(await readFile(join(journey, 'failure.json'), 'utf8'));
+        const persisted = JSON.parse(await readFile(join(journey, 'cli-failure.json'), 'utf8'));
         assert.match(
           JSON.stringify(persisted),
           configuration.browserClose ? /FAULT_INJECTED_M3_BROWSER_CLOSE/ : /FAULT_INJECTED_M3_SERVER_CLOSE/,
