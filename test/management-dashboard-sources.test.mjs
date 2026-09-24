@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { fixtureExec as execFileSync } from './helpers/git-fixture.mjs';
 import { chmod, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, parse, resolve } from 'node:path';
 import test from 'node:test';
 
 import { parseTaskRecord, parseWorkerLog } from '../tools/management-dashboard/markdown.mjs';
@@ -18,6 +18,31 @@ import {
 
 const fixtureRoot = new URL('./fixtures/management-dashboard/', import.meta.url);
 const observedAt = '2026-09-08T22:35:18.000Z';
+
+test('repository collector reports path errors for filesystem roots', { timeout: 5000 }, async () => {
+  const root = parse(resolve('.')).root;
+  const sources = await collectRepositorySources(root, { observedAt });
+  assert.deepEqual(sources.roadmap, {
+    status: 'DATA_SOURCE_ERROR',
+    source: 'planning/roadmap.json',
+    observedAt,
+    error: 'PATH_OUTSIDE_REPOSITORY',
+  });
+  assert.deepEqual(sources.taskRecords, [
+    {
+      status: 'DATA_SOURCE_ERROR',
+      source: 'docs/management/tasks',
+      observedAt,
+      error: 'PATH_OUTSIDE_REPOSITORY',
+    },
+  ]);
+  assert.deepEqual(sources.documents.architecture, {
+    status: 'DATA_SOURCE_ERROR',
+    source: 'docs/adr',
+    observedAt,
+    error: 'PATH_OUTSIDE_REPOSITORY',
+  });
+});
 
 test('worker parser returns documented current state and activity records', async () => {
   const text = await readFile(new URL('worker-valid.md', fixtureRoot), 'utf8');
