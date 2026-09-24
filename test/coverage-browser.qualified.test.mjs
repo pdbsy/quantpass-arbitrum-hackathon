@@ -352,6 +352,7 @@ test('actual failed browser driver retains bound failure identity and replays as
     }).trim();
   mkdirSync(join(root, 'tools'), { recursive: true });
   cpSync(join(repository, 'tools/coverage'), join(root, 'tools/coverage'), { recursive: true });
+  copyFileSync(join(repository, 'tools/html-source-ranges.mjs'), join(root, 'tools/html-source-ranges.mjs'));
   cpSync(join(repository, 'node_modules'), join(root, 'node_modules'), {
     recursive: true,
     verbatimSymlinks: true,

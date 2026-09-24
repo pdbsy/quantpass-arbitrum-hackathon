@@ -42,6 +42,7 @@ async function fixture(t, failDriver = false) {
     }).trim();
   mkdirSync(join(root, 'tools'), { recursive: true });
   cpSync(join(repository, 'tools/coverage'), join(root, 'tools/coverage'), { recursive: true });
+  copyFileSync(join(repository, 'tools/html-source-ranges.mjs'), join(root, 'tools/html-source-ranges.mjs'));
   for (const directory of ['docs', 'planning', 'node_modules']) mkdirSync(join(root, directory));
   for (const name of ['task-board.js', 'task-board.html', 'task-board.css'])
     copyFileSync(join(repository, 'docs', name), join(root, 'docs', name));

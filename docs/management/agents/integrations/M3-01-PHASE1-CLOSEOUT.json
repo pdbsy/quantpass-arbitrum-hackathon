@@ -14,8 +14,8 @@
     {
       "agent": "Macbeth03",
       "task": "M3-03-PHASE1-RECOVERY",
-      "branch": "macbeth03/pr22-legacy-capability",
-      "head": "51b2809fd0f97d702ff920292b5c6ad05d5af441"
+      "branch": "macbeth03/pr22-hook-context",
+      "head": "98e7c87a741cf166ee47d7023860d30102037a8f"
     },
     {
       "agent": "Macbeth04",
@@ -39,7 +39,7 @@
       "agent": "Macbeth01",
       "task": "M3-01-PHASE1-CLOSEOUT",
       "branch": "macbeth01/pr22-source-checkpoint",
-      "head": "a1a417f287704e3627c031ccdcaf26f7f6469476"
+      "head": "94ec7d37d23134f603062eed45134465e5f96235"
     },
     {
       "agent": "Macbeth02",
