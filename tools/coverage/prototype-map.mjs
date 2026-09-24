@@ -1,3 +1,5 @@
+import { analyzeHtmlSource } from '../html-source-ranges.mjs';
+
 function lineStarts(text) {
   const starts = [0];
   for (let i = 0; i < text.length; i++) if (text[i] === '\n') starts.push(i + 1);
@@ -15,10 +17,10 @@ function positionAt(offset, starts) {
 }
 export function buildPrototypeMap(html) {
   if (typeof html !== 'string') throw new Error('Expected frozen HTML source');
-  const matches = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+  const matches = analyzeHtmlSource(html).scripts.filter((script) => script.kind === 'inline');
   if (matches.length !== 1) throw new Error('Expected one complete script');
-  const original = matches[0][1],
-    scriptStart = matches[0].index + '<script>'.length;
+  const original = matches[0].text,
+    scriptStart = matches[0].contentStart;
   const insertions = [];
   let generated = '',
     cursor = 0;

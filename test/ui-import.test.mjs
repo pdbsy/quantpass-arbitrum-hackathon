@@ -43,6 +43,44 @@ test('mechanical style normalization preserves escaped JSON and unrelated attrib
   );
 });
 
+test('importer replaces exact mixed-case ranges and preserves inert attributes and comments', async (t) => {
+  const out = await mkdtemp(join(tmpdir(), 'af-import-ranges-'));
+  t.after(() => rm(out, { recursive: true, force: true }));
+  const source =
+    '<!-- <script>inert</script> --><div title="<style>inert</style>"></div>' +
+    '<STYLE data-note="a > b">p{color:red}</sTyLe>' +
+    '<Script data-src="fixture" data-type="application/json">const answer=42;</sCrIpT>' +
+    '<script src="external.js"></script><script type="application/json">{}</script>';
+  await importUserUI(source, out);
+  assert.equal(await readFile(join(out, 'public/user-ui.css'), 'utf8'), 'p{color:red}');
+  assert.equal(await readFile(join(out, 'public/user-ui.js'), 'utf8'), 'const answer=42;');
+  assert.equal(
+    await readFile(join(out, 'index.html'), 'utf8'),
+    '<!-- <script>inert</script> --><div title="<style>inert</style>"></div>' +
+      '<link rel="stylesheet" href="/user-ui.css">' +
+      '<script src="/user-ui.js"></script>\n<script type="module" src="/src/product-ui.ts"></script>' +
+      '<script src="external.js"></script><script type="application/json">{}</script>',
+  );
+});
+
+test('importer refuses hidden extra scripts and ambiguous boundaries before any writes', async (t) => {
+  const { readdir } = await import('node:fs/promises');
+  const out = await mkdtemp(join(tmpdir(), 'af-import-admission-'));
+  t.after(() => rm(out, { recursive: true, force: true }));
+  for (const source of [
+    '<style>p{}</style><script>first()</script><SCRIPT>second()</SCRIPT>',
+    '<style>p{}</style><script>first()</script\t\n ignored>',
+    '<style>p{}</style><script data-src="x">first()</script><script>second()</script>',
+    '<style>p{}</style><script type="text/javascript" TYPE="application/json">first()</script>',
+    '<style>p{}</style><script><!--<script>first()</script>second()</script>',
+    '<style>p{}</style><!-- --!><script>first()</script>',
+    '<style>p{}</style><svg><script>first()</script></svg>',
+  ]) {
+    await assert.rejects(importUserUI(source, out));
+    assert.deepEqual(await readdir(out), []);
+  }
+});
+
 test('UI importer refuses ambiguous or absent executable blocks before writing output', async (t) => {
   const { rm, readdir } = await import('node:fs/promises');
   const out = await mkdtemp(join(tmpdir(), 'af-import-invalid-'));
