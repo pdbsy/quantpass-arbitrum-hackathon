@@ -31,8 +31,53 @@ export async function verifiedPrototypeArtifacts(root) {
   const current = await readFile(resolve(root, path), 'utf8');
   assert.equal(digest(current), repairedSha256, 'current artifact must match the reviewed repair');
   assert.equal(current, repaired);
-  git('merge-base', '--is-ancestor', originalCommit, 'HEAD');
-  git('merge-base', '--is-ancestor', repairCommit, 'HEAD');
+  const commit = (ref) => {
+    const sha = git('rev-parse', '--verify', ref).trim();
+    assert.match(sha, /^[a-f0-9]{40}$/);
+    assert.equal(git('cat-file', '-t', sha).trim(), 'commit');
+    return sha;
+  };
+  const ancestor = (before, after) => {
+    try {
+      git('merge-base', '--is-ancestor', before, after);
+      return true;
+    } catch (error) {
+      if (error.status === 1 && !error.signal) return false;
+      throw error;
+    }
+  };
+  const head = commit('HEAD');
+  if (!ancestor(originalCommit, head) || !ancestor(repairCommit, head)) {
+    // A squash/rebase preserves the reviewed source branch but changes ancestry.
+    // Require an exact whole-tree integration bridge on actual master history;
+    // matching only this HTML, or merely possessing the old objects, is not enough.
+    const master = commit('refs/remotes/origin/master');
+    const retained = commit('refs/remotes/origin/macbeth01/m3-phase1-closeout');
+    const base = '18f5352070910a867b9729b031aa2e3951785e01';
+    for (const [before, after] of [
+      [base, master],
+      [base, retained],
+      [originalCommit, retained],
+      [repairCommit, retained],
+    ])
+      assert.ok(ancestor(before, after), 'retained source and master must preserve their fixed history');
+    const sourceTree = git('rev-parse', `${retained}^{tree}`).trim();
+    const rows = git('log', '--first-parent', '--max-count=4096', '--format=%H %T', `${base}..${master}`)
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    const bridges = rows
+      .map((row) => {
+        assert.match(row, /^[a-f0-9]{40} [a-f0-9]{40}$/);
+        const [sha, tree] = row.split(' ');
+        return { sha, tree };
+      })
+      .filter(({ tree }) => tree === sourceTree);
+    assert.ok(
+      bridges.some(({ sha }) => ancestor(base, sha) && ancestor(sha, head)),
+      'candidate must descend from the exact retained-source integration tree on master',
+    );
+  }
 
   const blocks = (source) => {
     const scripts = [...source.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
