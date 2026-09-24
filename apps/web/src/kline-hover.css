@@ -75,3 +75,10 @@
     margin-block: 8px;
   }
 }
+
+.candle-detail-tooltip[data-layout='inline'] {
+  position: static;
+  width: 100%;
+  margin: 10px 0;
+  box-shadow: none;
+}

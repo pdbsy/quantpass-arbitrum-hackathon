@@ -61,6 +61,7 @@ test(
     await app.listen({ host: '127.0.0.1', port: 19641 });
     const { chromium } = await import(pathToFileURL(resolve(browserDirectory, 'index.mjs')).href);
     const browser = await chromium.launch({ executablePath: chrome, headless: true });
+    t.diagnostic(`Native browser: ${browser.version()}; executable: ${chrome}`);
     t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width: 1440, height: 1100 }, hasTouch: true });
     t.after(() => context.close());
@@ -91,6 +92,35 @@ test(
     const signed = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + money(Math.abs(n));
     const percent = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(2) + '%';
     const field = (key) => page.locator(`[data-candle-field="${key}"]`).textContent();
+    async function assertUnobscured() {
+      const geometry = await chart.evaluate((svg) => {
+        const panel = svg.parentElement.querySelector('[data-candle-tooltip]');
+        const bounds = (node) => node.getBoundingClientRect().toJSON();
+        const circle = svg.querySelector('#price-cursor circle');
+        const point = svg.createSVGPoint();
+        point.x = Number(circle.getAttribute('cx'));
+        point.y = Number(circle.getAttribute('cy'));
+        const selected = point.matrixTransform(svg.getScreenCTM());
+        return {
+          chart: bounds(svg),
+          panel: bounds(panel),
+          section: bounds(svg.parentElement),
+          note: bounds(svg.parentElement.querySelector('.chart-bottomnote')),
+          selectedX: selected.x,
+        };
+      });
+      const { chart: area, panel, section, note, selectedX } = geometry;
+      assert.ok(
+        panel.top >= area.bottom || selectedX < panel.left - 8 || selectedX > panel.right + 8,
+        'detail panel must not cover the selected candle/crosshair',
+      );
+      assert.ok(
+        panel.top >= section.top && panel.bottom <= section.bottom,
+        'detail stays inside its chart section',
+      );
+      assert.ok(panel.bottom <= note.top, 'detail must not overlap the chart methodology/footer');
+    }
+
     for (const index of [0, 12, 23]) {
       const row = await select(index);
       assert.equal(
@@ -118,6 +148,7 @@ test(
       );
       const box = await page.locator('[data-candle-tooltip]').boundingBox();
       assert.ok(box.x >= 0 && box.x + box.width <= 1440, 'tooltip stays within viewport');
+      await assertUnobscured();
     }
     await page.screenshot({ path: resolve(output, 'desktop.png') });
     await page.mouse.move(0, 0);
@@ -126,6 +157,21 @@ test(
     await chart.focus();
     await page.keyboard.press('ArrowLeft');
     assert.equal(await page.locator('[data-candle-tooltip]').count(), 1);
+    assert.equal(
+      await field('time'),
+      await chart.evaluate(
+        (svg) =>
+          new Date(window.AF.marketData.candles(svg.dataset.strategy, window.AF.view.priceRange)[22].time)
+            .toISOString()
+            .slice(0, 16)
+            .replace('T', ' ') + ' UTC',
+      ),
+    );
+    assert.equal(
+      await chart.evaluate((svg) => Number(svg.querySelector('#price-cursor line').getAttribute('x1'))),
+      16 + (22.5 / 24) * 802,
+    );
+
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('[data-candle-tooltip]').count(), 0);
     await select(12);
@@ -139,20 +185,48 @@ test(
     await page.locator('[data-price-style="line"]').click();
     assert.equal(await page.locator('[data-candle-tooltip]').count(), 0);
     await select(0);
+    await page.locator('[data-price-style="candle"]').click();
+    await select(27);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(150); // existing responsive chart debounce is 80 ms
+    assert.equal(await page.locator('[data-candle-tooltip]').count(), 0, 'resize clears old candle details');
     await select(27);
     const mobileBox = await page.locator('[data-candle-tooltip]').boundingBox();
     assert.ok(mobileBox.x >= 0 && mobileBox.x + mobileBox.width <= 390);
-    const touchBox = await chart.boundingBox();
+    await assertUnobscured();
     await page.mouse.move(0, 0);
-    await page.touchscreen.tap(touchBox.x + touchBox.width / 2, touchBox.y + touchBox.height / 3);
+    const touchPoint = await chart.evaluate((svg) => {
+      const p = svg.createSVGPoint();
+      p.x = 16 + (10.5 / 56) * 802;
+      p.y = 150;
+      const screen = p.matrixTransform(svg.getScreenCTM());
+      const row = window.AF.marketData.candles(svg.dataset.strategy, window.AF.view.priceRange)[10];
+      return {
+        x: screen.x,
+        y: screen.y,
+        time: new Date(row.time).toISOString().slice(0, 16).replace('T', ' ') + ' UTC',
+      };
+    });
+    await page.touchscreen.tap(touchPoint.x, touchPoint.y);
     assert.equal(
       await page.locator('[data-candle-tooltip]').count(),
       1,
       'touch selection remains visible after release',
     );
+    await assertUnobscured();
+    assert.equal(await field('time'), touchPoint.time);
+    assert.equal(
+      await chart.evaluate((svg) => Number(svg.querySelector('#price-cursor line').getAttribute('x1'))),
+      16 + (10.5 / 56) * 802,
+    );
     await page.screenshot({ path: resolve(output, 'mobile.png') });
+    await page.setViewportSize({ width: 900, height: 1000 });
+    await page.waitForTimeout(150);
+    for (const index of [0, 27, 55]) {
+      await select(index);
+      await assertUnobscured();
+    }
+    await page.screenshot({ path: resolve(output, 'narrow-desktop.png') });
     await page.evaluate(() => {
       location.hash = '#/home';
     });

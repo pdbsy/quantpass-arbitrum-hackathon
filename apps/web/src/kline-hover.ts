@@ -25,7 +25,10 @@ const sign = (value: number) => (value > 0 ? '+' : value < 0 ? '−' : '');
 export function candleDetails(row: Candle) {
   const change = finite(row.open) && finite(row.close) ? row.close - row.open : NaN;
   const rate = row.open > 0 ? (change / row.open) * 100 : NaN;
-  const amplitude = row.open > 0 && row.high >= row.low ? ((row.high - row.low) / row.open) * 100 : NaN;
+  const amplitude =
+    finite(row.open) && finite(row.high) && finite(row.low) && row.open > 0 && row.high >= row.low
+      ? ((row.high - row.low) / row.open) * 100
+      : NaN;
   return {
     time:
       finite(row.time) && Math.abs(row.time) <= 8.64e15
@@ -121,10 +124,9 @@ export function installCandleInspection(host: CandleChartHost, doc: Document = d
       const note = doc.createElement('p');
       note.textContent = '涨跌 = 收盘 − 开盘；涨跌幅、振幅均以本根开盘价为基准。价格单位：DEMO / Pass。';
       panel.append(note);
-      container.append(panel);
+      svg.after(panel);
     }
     svg.setAttribute('aria-describedby', panel.id);
-    panel.dataset.side = i < rows.length / 2 ? 'right' : 'left';
     const details = candleDetails(row);
     for (const [key, value] of Object.entries(details)) {
       const element = panel.querySelector<HTMLElement>(`[data-candle-field="${key}"]`)!;
@@ -137,9 +139,24 @@ export function installCandleInspection(host: CandleChartHost, doc: Document = d
               ? 'up'
               : 'down';
     }
-    // Track the SVG's actual rendered top, including responsive aspect-ratio padding.
-    const top = svg.getBoundingClientRect().top - container.getBoundingClientRect().top;
-    panel.style.top = Math.max(0, top + 8) + 'px';
+    // Measure actual chart space rather than assuming a viewport breakpoint or
+    // index half is enough. A narrow chart reserves space below the SVG.
+    panel.dataset.layout = 'overlay';
+    const area = svg.getBoundingClientRect();
+    const frame = container.getBoundingClientRect();
+    const box = panel.getBoundingClientRect();
+    const transform = svg.getScreenCTM();
+    const point = svg.createSVGPoint();
+    point.x = host.charts.G.L + ((i + 0.5) / rows.length) * (host.charts.G.R - host.charts.G.L);
+    const selectedX = transform ? point.matrixTransform(transform).x : (frame.left + frame.right) / 2;
+    const leftSpace = selectedX - frame.left - 24;
+    const rightSpace = frame.right - selectedX - 24;
+    panel.dataset.side = rightSpace > leftSpace ? 'right' : 'left';
+    panel.dataset.layout =
+      box.width + 12 <= Math.max(leftSpace, rightSpace) && box.height + 16 <= area.height
+        ? 'overlay'
+        : 'inline';
+    panel.style.top = Math.max(0, area.top - frame.top + 8) + 'px';
   }
   host.charts.hover = (svg, index) => {
     originalHover(svg, index);

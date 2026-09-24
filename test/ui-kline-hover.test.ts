@@ -66,3 +66,9 @@ test('pointer bins match candle centers and reject axes instead of selecting an 
   assert.equal(candleIndex(100, 1.5, 16, 818), null);
   assert.equal(candleIndex(100, 24, 16, 16), null);
 });
+
+test('amplitude never treats a non-finite price as a valid zero percent', () => {
+  for (const field of ['open', 'high', 'low'] as const)
+    for (const value of [Infinity, -Infinity, NaN])
+      assert.equal(candleDetails({ ...candle, [field]: value }).amplitude, '—', `${field}: ${value}`);
+});
