@@ -2118,7 +2118,7 @@
       "target_path": "test/ui-import.test.mjs",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "91771696fc348750f34c55e49a181a95f8c1994e1f55de3f1fb62c20549e0c69",
-      "migrated_sha256": "fb8fb483bad510bc196c096335d7ec298b0025e5a08cb27662df8748fb5d0bc5",
+      "migrated_sha256": "c40d5dd80e07852e72cb8b402e6af493820cf87f63b29b7e166c4dc0f09b887c",
       "subsequent_revisions": [
         {
           "task": "M3-04-PHASE1-PRODUCT",
@@ -2170,6 +2170,13 @@
           "previous_sha256": "a1a80857376331bf987bad023be31a87b6bf12e3d914c7546ee3102b98ebb438",
           "sha256": "fb8fb483bad510bc196c096335d7ec298b0025e5a08cb27662df8748fb5d0bc5",
           "reason": "Bind current repaired artifact byte count while retaining exact importer output, historical source and whole-tree ancestry assertions."
+        },
+        {
+          "task": "AF-ACCOUNT-WALLET-ETH",
+          "commit": "9c8d54271398ac37b5844f7066d1ee6fde1ba78c",
+          "previous_sha256": "fb8fb483bad510bc196c096335d7ec298b0025e5a08cb27662df8748fb5d0bc5",
+          "sha256": "c40d5dd80e07852e72cb8b402e6af493820cf87f63b29b7e166c4dc0f09b887c",
+          "reason": "Add exact full-tree protected squash qualification for wallet UI source history, including negative tests for missing refs, unrelated heads and mismatched trees. Preserve all original hashes. Local self-review only."
         }
       ]
     },
