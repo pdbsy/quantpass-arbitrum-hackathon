@@ -294,15 +294,28 @@ test(
     const port = server.address().port;
     // The exact fixture exits at its own deadline or through this private
     // connection. Never signal an orphan's numeric PID after it has exited.
-    const descendant = `
+    const descendant = join(root, 'descendant.cjs');
+    writeFileSync(
+      descendant,
+      `
       const fs=require('node:fs'),net=require('node:net');
-      const socket=net.connect(${port},'127.0.0.1',()=>socket.write(${JSON.stringify(token)}+':'+process.pid+'\\n'));
-      const stop=(reason)=>{fs.writeFileSync(${JSON.stringify(marker)},reason);process.exit(0)};
+      const [marker,token,port]=process.argv.slice(2);
+      const socket=net.connect(Number(port),'127.0.0.1',()=>socket.write(token+':'+process.pid+'\\n'));
+      const stop=(reason)=>{fs.writeFileSync(marker,reason);process.exit(0)};
       setTimeout(()=>stop('done'),4500);
-      socket.on('data',bytes=>{if(bytes.toString()==='stop:'+${JSON.stringify(token)})stop('cleanup')});
+      socket.on('data',bytes=>{if(bytes.toString()==='stop:'+token)stop('cleanup')});
       socket.on('error',()=>{});
-    `;
-    const code = `const {spawn}=require('node:child_process');const child=spawn(process.execPath,['-e',${JSON.stringify(descendant)}],{detached:true,stdio:['ignore','inherit','inherit']});child.unref();process.stdout.write(String(child.pid)+'\\n')`;
+    `,
+    );
+    const launcher = join(root, 'launcher.cjs');
+    writeFileSync(
+      launcher,
+      `
+      const {spawn}=require('node:child_process');
+      const child=spawn(process.execPath,process.argv.slice(2),{detached:true,stdio:['ignore','inherit','inherit']});
+      child.unref();process.stdout.write(String(child.pid)+'\\n');
+    `,
+    );
     const waitClosed = async () => {
       let timer;
       try {
@@ -320,7 +333,15 @@ test(
       }
     };
     try {
-      const run = await runLocal({ ...config, jobs: [job(code, { timeoutMs: 800 })] });
+      const run = await runLocal({
+        ...config,
+        jobs: [
+          job('', {
+            args: [launcher, descendant, marker, token, String(port)],
+            timeoutMs: 800,
+          }),
+        ],
+      });
       assertReport(run, expected, 'BLOCKED');
       assert.equal(run.jobs[0].timedOut, true);
       assert.equal(run.jobs[0].processFailure, true);
