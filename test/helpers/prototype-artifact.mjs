@@ -85,8 +85,36 @@ export async function verifiedPrototypeArtifacts(root) {
       ancestor(recorded[i - 1].commit, recorded[i].commit),
       'revisions must preserve prior source history',
     );
-  if (selected)
-    assert.ok(ancestor(selected.commit, head), 'selected revision must belong to candidate history');
+  if (selected && !ancestor(selected.commit, head)) {
+    // Protected master uses squash merges. Keep the original source branch and
+    // require its complete tree to occur on master, not just matching UI bytes.
+    const base = '05a7e16be347ea56bfa51ced4d5277cfdd55058c';
+    const master = commit('refs/remotes/origin/master');
+    const source = commit('refs/remotes/origin/macbeth01/account-wallet-eth');
+    for (const [before, after] of [
+      [base, source],
+      [base, master],
+      [usdcCommit, source],
+    ])
+      assert.ok(ancestor(before, after), 'wallet integration must retain its exact source ancestry');
+    assert.equal(currentSha256, usdcSha256, 'integrated wallet cannot roll back its final source');
+    const tree = git('rev-parse', `${source}^{tree}`).trim();
+    const bridges = git('log', '--first-parent', '--max-count=4096', '--format=%H %T', `${base}..${master}`)
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((row) => {
+        assert.match(row, /^[a-f0-9]{40} [a-f0-9]{40}$/);
+        const [sha, sourceTree] = row.split(' ');
+        return { sha, sourceTree };
+      });
+    assert.ok(
+      bridges.some(
+        ({ sha, sourceTree }) => sourceTree === tree && ancestor(base, sha) && ancestor(sha, head),
+      ),
+      'wallet source must have an exact whole-tree integration on master',
+    );
+  }
   assert.ok(ancestor(originalCommit, previousRepairCommit), 'original must precede the first repair');
   assert.ok(ancestor(previousRepairCommit, repairCommit), 'reviewed repairs must retain their exact chain');
   if (

@@ -306,3 +306,90 @@ test('retained UI history validates a tree-identical master integration without 
   });
   assert.equal(git('status', '--porcelain'), '');
 });
+
+test('wallet UI revisions retain an exact source bridge after protected squash merge', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'af-wallet-history-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const root = resolve(import.meta.dirname, '..');
+  const cwd = join(directory, 'repo');
+  const env = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    GIT_AUTHOR_NAME: 'UI fixture',
+    GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
+    GIT_COMMITTER_NAME: 'UI fixture',
+    GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
+  };
+  const execute = (at, args, input) =>
+    execFileSync(
+      'git',
+      ['--no-replace-objects', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args],
+      { cwd: at, env, input, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 },
+    ).trim();
+  const git = (...args) => execute(cwd, args);
+  const base = '05a7e16be347ea56bfa51ced4d5277cfdd55058c';
+  const sourceRef = 'refs/remotes/origin/macbeth01/account-wallet-eth';
+  const oldSourceRef = 'refs/remotes/origin/macbeth01/m3-phase1-closeout';
+  const masterRef = 'refs/remotes/origin/master';
+  const admitted = await verifiedPrototypeArtifacts(root);
+  let source = execute(root, ['rev-parse', 'HEAD']);
+  try {
+    execute(root, ['merge-base', '--is-ancestor', admitted.usdcCommit, source]);
+  } catch (error) {
+    if (error.status !== 1 || error.signal) throw error;
+    source = execute(root, ['rev-parse', '--verify', sourceRef]);
+  }
+  const oldSource = execute(root, ['rev-parse', '--verify', oldSourceRef]);
+  execute(directory, ['clone', '--no-hardlinks', '--no-checkout', '--single-branch', root, cwd]);
+  git('fetch', '--no-tags', root, source, oldSource);
+  git('update-ref', sourceRef, source);
+  git('update-ref', oldSourceRef, oldSource);
+  const tree = git('rev-parse', `${source}^{tree}`);
+  const master = execute(cwd, ['commit-tree', tree, '-p', base], 'Wallet squash fixture only\n');
+  git('checkout', '--force', '--detach', master);
+  git('update-ref', masterRef, master);
+  await t.test('exact source bytes and complete tree qualify after squash', async () => {
+    const result = await verifiedPrototypeArtifacts(cwd);
+    assert.equal(result.currentSha256, admitted.usdcSha256);
+  });
+  await t.test('missing retained wallet source fails closed', async () => {
+    git('update-ref', '-d', sourceRef);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd));
+    } finally {
+      git('update-ref', sourceRef, source);
+    }
+  });
+  await t.test('matching source bytes without the exact whole tree are insufficient', async () => {
+    const blob = execute(cwd, ['hash-object', '-w', '--stdin'], 'Unrelated source tree\n');
+    git('update-index', '--add', '--cacheinfo', `100644,${blob},source-extra.txt`);
+    const wrongTree = git('write-tree');
+    const wrongSource = execute(cwd, ['commit-tree', wrongTree, '-p', source], 'Wrong source tree fixture\n');
+    git('update-ref', sourceRef, wrongSource);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd));
+    } finally {
+      git('update-ref', sourceRef, source);
+      git('reset', '--hard', master);
+    }
+  });
+  await t.test('a same-tree source without the retained revision ancestors is rejected', async () => {
+    git('update-ref', sourceRef, master);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd));
+    } finally {
+      git('update-ref', sourceRef, source);
+    }
+  });
+  await t.test('an unrelated same-tree head cannot borrow master integration evidence', async () => {
+    const orphan = execute(cwd, ['commit-tree', tree], 'Unrelated wallet fixture\n');
+    git('checkout', '--force', '--detach', orphan);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd));
+    } finally {
+      git('checkout', '--force', '--detach', master);
+    }
+  });
+  assert.equal(git('status', '--porcelain'), '');
+});
