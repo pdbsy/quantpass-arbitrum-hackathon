@@ -19,6 +19,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, delimiter, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createServer } from 'node:net';
 import { boundedRead, inspectEnvironment, readInputs } from '../tools/environment/observe.mjs';
 
 const repository = resolve(import.meta.dirname, '..');
@@ -76,6 +77,45 @@ function fixture(t) {
   };
 }
 const status = (report, id) => report.checks.find((check) => check.id === id)?.status;
+
+test(
+  'native Darwin port probe rejects a real listening demo port without changing its owner',
+  {
+    skip: process.platform !== 'darwin',
+  },
+  async (t) => {
+    const f = fixture(t);
+    const listener = createServer();
+    const owned = await new Promise((accept, reject) => {
+      listener.once('error', (error) => (error.code === 'EADDRINUSE' ? accept(false) : reject(error)));
+      listener.listen(4180, '127.0.0.1', () => accept(true));
+    });
+    t.after(async () => {
+      if (owned)
+        await new Promise((accept, reject) => listener.close((error) => (error ? reject(error) : accept())));
+    });
+    // An existing product listener is also real occupied-port evidence. Never
+    // stop it, bind a different port, or replace the native lsof result.
+    const native = spawnSync('/usr/sbin/lsof', ['-nP', '-iTCP:4180', '-sTCP:LISTEN'], {
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+    assert.equal(native.error, undefined);
+    assert.equal(native.signal, null);
+    assert.equal(native.status, 0);
+    assert.match(native.stdout, /:4180\s+\(LISTEN\)/);
+    if (owned) assert.match(native.stdout, new RegExp(`\\s${process.pid}\\s`));
+    const report = f.inspect();
+    assert.equal(status(report, 'ports'), 'FAIL');
+    assert.equal(report.eligibleForEvidence, false);
+    assert.ok(
+      report.commands.some((command) => command.id === 'ports-lsof' && [0, 1].includes(command.exitCode)),
+      JSON.stringify(report.commands.filter((command) => command.id === 'ports-lsof')),
+    );
+    assert.equal(f.git('status', '--porcelain'), '');
+    if (owned) assert.equal(listener.listening, true);
+  },
+);
 
 test('bounded environment reads reject real replacement and growth before consuming unbound bytes', (t) => {
   const f = fixture(t);

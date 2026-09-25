@@ -104,6 +104,31 @@ function gitOnlyEnvironment(t) {
   return environment;
 }
 
+test('actual Gitleaks gate blocks complete history without the fetched master reference', (t) => {
+  const root = isolatedCheckout(t);
+  fixtureExec('git', ['update-ref', '-d', 'refs/remotes/origin/master'], { cwd: root });
+  const head = fixtureExec('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  const child = spawnSync(process.execPath, [join(root, 'tools/ci/check-gitleaks.mjs')], {
+    cwd: root,
+    env: { ...process.env, GITHUB_EVENT_PATH: '', GITHUB_SHA: '' },
+    encoding: 'utf8',
+    timeout: 30000,
+  });
+  assert.equal(child.error, undefined);
+  assert.equal(child.signal, null);
+  assert.equal(child.status, 2, child.stderr);
+  const report = JSON.parse(child.stdout);
+  assert.equal(report.state, 'BLOCKED');
+  assert.equal(report.reason, 'Fetched master ref required for history coverage');
+  assert.equal(report.history, undefined);
+  assert.equal(report.currentFiles, undefined);
+  assert.equal(fixtureExec('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), head);
+  assert.equal(
+    fixtureExec('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' }),
+    '',
+  );
+});
+
 test('real environment and CI entrypoints reject injected interpreter settings before starting tools', () => {
   for (const [path, args, mode] of [
     ['tools/check-environment.mjs', [], 'dev'],

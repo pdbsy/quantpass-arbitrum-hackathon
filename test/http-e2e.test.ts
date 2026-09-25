@@ -12,7 +12,7 @@ type Vault = ReturnType<typeof view>;
 test(
   'real HTTP process crash/restart retains committed funds and rejects replay mutation',
   { timeout: 30000 },
-  async () => {
+  async (t) => {
     await mkdir('.checks', { recursive: true });
     const directory = await mkdtemp(resolve('.checks/http-e2e-'));
     async function start() {
@@ -71,9 +71,20 @@ test(
       }
       async function stop() {
         if (process.exitCode !== null || process.signalCode !== null) return;
-        const exited = once(process, 'exit');
-        process.kill('SIGKILL');
-        await exited;
+        const exited = once(process, 'exit', { signal: AbortSignal.timeout(5000) });
+        assert.equal(process.kill('SIGKILL'), true);
+        const [code, signal] = await exited;
+        assert.equal(code, null);
+        assert.equal(signal, 'SIGKILL');
+        t.diagnostic(
+          JSON.stringify({
+            fixture: 'http-crash-restart',
+            pid: process.pid,
+            exitCode: code,
+            signal,
+            coverageBoundary: 'SIGKILL cannot emit a complete exit observation; no hits are inferred',
+          }),
+        );
       }
       return { request, stop };
     }
