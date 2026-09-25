@@ -388,6 +388,7 @@ async function assertCompletedJourney(directory) {
 export async function verifyM3CollectorFailure(t, root, tool) {
   const { dirname } = await import('node:path');
   const { prepareCoverage } = await import('../../tools/coverage/prepare.mjs');
+  const { readSourceSnapshot } = await import('../../tools/coverage/inventory.mjs');
   const { collectNodeWorkflow } = await import('../../tools/coverage/collect.mjs');
   const { reportCoverage } = await import('../../tools/coverage/report.mjs');
   const output = resolve(process.env.AF_M3_CLEANUP_TEST_OUTPUT || join(root, 'outputs/m3-cleanup-tests'));
@@ -400,7 +401,9 @@ export async function verifyM3CollectorFailure(t, root, tool) {
         join(root, '.checks/coverage-tools/instrumentation/node_modules'),
     ),
     browserDirectory: dirname(tool),
-    sourceBase: 'e04260432c8a04fcd8e74bcc2ff8d66d5983693b',
+    // This nested fault qualification measures its current clean source, not
+    // the ancestry of a historical feature branch before a squash merge.
+    sourceBase: readSourceSnapshot(root).candidateCommit,
     output: join(directory, 'prepared'),
   };
   const prepared = await prepareCoverage(root, options);
