@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import childProcess, { execFileSync, spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { createServer } from 'node:net';
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -263,30 +263,81 @@ test(
   async (t) => {
     const { root, config, job, expected } = fixture(t);
     const marker = join(root, 'descendant-finished');
-    const descendant = `const fs=require('node:fs');setTimeout(()=>{fs.writeFileSync(${JSON.stringify(marker)},'done');process.exit(0)},4500)`;
+    const token = randomUUID();
+    const sockets = new Set();
+    let ownedSocket;
+    let observedPid;
+    let resolveClosed;
+    const closed = new Promise((resolve) => (resolveClosed = resolve));
+    const server = createServer((socket) => {
+      sockets.add(socket);
+      let message = '';
+      socket.on('data', (bytes) => {
+        message += bytes.toString('utf8');
+        if (message.length > 200) return socket.destroy();
+        if (!message.endsWith('\n')) return;
+        const [receivedToken, pid] = message.trim().split(':');
+        if (receivedToken !== token || !/^[1-9][0-9]*$/.test(pid) || ownedSocket) return socket.destroy();
+        ownedSocket = socket;
+        observedPid = Number(pid);
+      });
+      socket.on('error', () => {});
+      socket.on('close', () => {
+        sockets.delete(socket);
+        if (socket === ownedSocket) resolveClosed();
+      });
+    });
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    const port = server.address().port;
+    // The exact fixture exits at its own deadline or through this private
+    // connection. Never signal an orphan's numeric PID after it has exited.
+    const descendant = `
+      const fs=require('node:fs'),net=require('node:net');
+      const socket=net.connect(${port},'127.0.0.1',()=>socket.write(${JSON.stringify(token)}+':'+process.pid+'\\n'));
+      const stop=(reason)=>{fs.writeFileSync(${JSON.stringify(marker)},reason);process.exit(0)};
+      setTimeout(()=>stop('done'),4500);
+      socket.on('data',bytes=>{if(bytes.toString()==='stop:'+${JSON.stringify(token)})stop('cleanup')});
+      socket.on('error',()=>{});
+    `;
     const code = `const {spawn}=require('node:child_process');const child=spawn(process.execPath,['-e',${JSON.stringify(descendant)}],{detached:true,stdio:['ignore','inherit','inherit']});child.unref();process.stdout.write(String(child.pid)+'\\n')`;
-    let grandchildPid;
-    let cleanupError;
+    const waitClosed = async () => {
+      let timer;
+      try {
+        await Promise.race([
+          closed,
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error('owned descendant did not close its connection')),
+              6000,
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    };
     try {
       const run = await runLocal({ ...config, jobs: [job(code, { timeoutMs: 800 })] });
       assertReport(run, expected, 'BLOCKED');
       assert.equal(run.jobs[0].timedOut, true);
       assert.equal(run.jobs[0].processFailure, true);
-      grandchildPid = Number(readFileSync(join(run.directory, run.jobs[0].stdout.file), 'utf8').trim());
+      const grandchildPid = Number(readFileSync(join(run.directory, run.jobs[0].stdout.file), 'utf8').trim());
       assert.ok(Number.isInteger(grandchildPid) && grandchildPid > 0);
-      const deadline = Date.now() + 6000;
-      while (!existsSync(marker) && Date.now() < deadline)
-        await new Promise((resolve) => setTimeout(resolve, 50));
+      await waitClosed();
+      assert.equal(observedPid, grandchildPid, 'completion belongs to the actual pipe-holding descendant');
       assert.equal(readFileSync(marker, 'utf8'), 'done');
+      assert.equal(ownedSocket.destroyed, true);
     } finally {
-      if (Number.isInteger(grandchildPid) && grandchildPid > 0) {
-        try {
-          process.kill(-grandchildPid, 'SIGKILL');
-        } catch (error) {
-          if (error.code !== 'ESRCH') cleanupError = error;
-        }
+      try {
+        if (ownedSocket && !ownedSocket.destroyed) ownedSocket.write('stop:' + token);
+        await waitClosed();
+      } finally {
+        for (const socket of sockets) socket.destroy();
+        await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
       }
     }
-    assert.ifError(cleanupError);
   },
 );
