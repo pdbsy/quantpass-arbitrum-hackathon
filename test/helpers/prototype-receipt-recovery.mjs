@@ -43,9 +43,9 @@ async function review(page) {
     );
   // Hand-checked frozen Trend fixture: 342 gross + 1 impact + 2 fee = 345.
   assert.equal(rows.Quantity, '1 Pass');
-  assert.equal(rows['Estimated payment (including fees)'], '3.45 DEMO');
-  assert.equal(rows['Simulated fee'], '0.02 DEMO');
-  assert.equal(rows['Maximum payment (slippage limit)'], '3.47 DEMO');
+  assert.equal(rows['Estimated payment (including fees)'], '3.45 ETH');
+  assert.equal(rows['Simulated fee'], '0.02 ETH');
+  assert.equal(rows['Maximum payment (slippage limit)'], '3.47 ETH');
   return rows;
 }
 
@@ -109,12 +109,9 @@ async function receipt(page, state) {
     .evaluateAll((nodes) =>
       Object.fromEntries(nodes.map((node) => [...node.children].map((child) => child.textContent.trim()))),
     );
-  assert.equal(rows['Balance deducted (demo)'], '3.45 DEMO');
+  assert.equal(rows['Balance deducted (demo)'], '3.45 ETH');
   assert.equal(rows['Tradable position'], `${state.exchange.positions.trend.qty} Pass`);
-  assert.equal(
-    rows['Trading balance'],
-    state.exchange.orders.length === 1 ? '9,996.55 DEMO' : '9,993.10 DEMO',
-  );
+  assert.equal(rows['Trading balance'], state.exchange.orders.length === 1 ? '9,996.55 ETH' : '9,993.10 ETH');
   assert.equal(
     await dialog.locator('#pass-review-error, [data-v3-action="commit-order"]').count(),
     0,

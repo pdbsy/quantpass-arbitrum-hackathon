@@ -1,5 +1,7 @@
 import { installCandleInspection, type CandleChartHost } from './kline-hover.ts';
 import './kline-hover.css';
+import './wallet-account.css';
+import { createMockWalletSession, formatMockUsdc } from './mock-wallet.ts';
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
 import { createM3BrowserRuntime, type M3BrowserDeploymentConfig } from './m3-browser-runtime.ts';
@@ -23,8 +25,30 @@ import {
   type M3PassTransferReview,
 } from './m3-product-runtime.ts';
 import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
+interface MockFundingReview {
+  readonly strategy: string;
+  readonly kind: 'deposit' | 'withdraw';
+  readonly amount: number;
+}
 interface Prototype extends CandleChartHost {
-  strategies: { id: string }[];
+  strategies: { id: string; name: string }[];
+  exchange: {
+    read: () => unknown;
+    fundingSnapshot: (id: string) => {
+      cash: number;
+      allocated: number;
+      passQty: number;
+      frozen: number;
+      available: number;
+      maxDeposit: number;
+    };
+    reviewFunding: (request: {
+      strategy: string;
+      kind: 'deposit' | 'withdraw';
+      amount: number;
+    }) => MockFundingReview;
+    executeFunding: (review: MockFundingReview) => unknown;
+  };
   pages: { market: () => string; account: (tab: string) => string; trade: (id: string) => string };
   app: {
     render: (options?: { preserve?: boolean }) => void;
@@ -42,6 +66,13 @@ declare global {
   }
 }
 const AF = window.AF;
+let mockWalletStorage: Storage | undefined;
+try {
+  mockWalletStorage = window.localStorage;
+} catch {
+  /* Session-only demo connection. */
+}
+const mockWallet = createMockWalletSession(() => AF.exchange.read(), AF.strategies, mockWalletStorage);
 installCandleInspection(AF);
 let onchainRuntime = AF.m3OnchainRuntime;
 if (!onchainRuntime && import.meta.env.DEV && new URLSearchParams(location.search).get('m3Fixture') === '1') {
@@ -109,12 +140,14 @@ function hydrate(root: ParentNode): void {
   }
 }
 hydrate(document);
+const footerNote = document.querySelector('.footer-bottom > span');
+if (footerNote) footerNote.textContent = 'Simulated trading · Mock wallet & Testnet preview';
 new MutationObserver((records) => {
   for (const record of records)
     for (const node of record.addedNodes) if (node instanceof Element) hydrate(node);
 }).observe(document.body, { childList: true, subtree: true });
 const status = document.createElement('section');
-status.className = 'wrap';
+status.className = 'wrap local-backend-session';
 status.setAttribute('aria-label', 'Local backend session');
 document.querySelector('main')!.before(status);
 let localError: string | null = null;
@@ -216,6 +249,7 @@ const productPages = extendM3ProductPages(
   },
   {
     accountId: () => adapter.snapshot.user,
+    mockWallet: () => mockWallet.snapshot(),
     contentProvenance: (id) =>
       AF.strategies.some((strategy) => strategy.id === id) ? 'FIXTURE' : 'LOCAL SIMULATION',
     ...(onchainRuntime ? { chain: () => onchainRuntime.snapshot } : {}),
@@ -458,7 +492,7 @@ async function reviewPassTransfer(control: HTMLElement): Promise<void> {
 }
 document.addEventListener('click', (event) => {
   const target = (event.target as Element).closest<HTMLElement>(
-    '[data-product-login],[data-product-refresh],[data-product-retry],[data-product-dismiss],[data-product-command],[data-product-review],[data-product-confirm],[data-product-claim],[data-chain-connect],[data-chain-refresh],[data-chain-action],[data-chain-review],[data-chain-confirm],[data-chain-approve],[data-pass-transfer],[data-pass-review],[data-pass-confirm]',
+    '[data-product-login],[data-product-refresh],[data-product-retry],[data-product-dismiss],[data-product-command],[data-product-review],[data-product-confirm],[data-product-claim],[data-chain-connect],[data-wallet-choice],[data-mock-funding-side],[data-mock-funding-confirm],[data-chain-refresh],[data-chain-action],[data-chain-review],[data-chain-confirm],[data-chain-approve],[data-pass-transfer],[data-pass-review],[data-pass-confirm]',
   );
   if (!target) return;
   event.preventDefault();
@@ -493,8 +527,49 @@ document.addEventListener('click', (event) => {
       localError = null;
       openCommand(target.dataset.productCommand as CommandType);
     } else if (target.hasAttribute('data-chain-connect')) {
-      if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');
-      void run(() => onchainRuntime.connect());
+      if (target.closest('[data-wallet-account]')) {
+        AF.app.openDialog(
+          `<span class="section-label">CHOOSE YOUR WALLET</span><h2>Connect Wallet</h2><div class="wallet-options"><button class="primary-btn" data-wallet-choice="mock">Mock Wallet <span>Demo ETH &amp; Pass · No extension needed</span></button><button class="outline-btn" data-wallet-choice="browser">Browser Wallet <span>Robinhood Chain Testnet</span></button></div>${mockWallet.snapshot() ? '<button class="text-link" data-wallet-choice="disconnect">Disconnect Mock Wallet</button>' : ''}`,
+        );
+      } else {
+        if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');
+        void run(() => onchainRuntime.connect());
+      }
+    } else if (target.hasAttribute('data-mock-funding-side')) {
+      const holding = target.closest<HTMLElement>('[data-wallet-position]');
+      const kind = target.dataset.mockFundingSide;
+      if (!holding || !mockWallet.snapshot() || (kind !== 'deposit' && kind !== 'withdraw')) return;
+      const slot = holding.querySelector<HTMLElement>('[data-wallet-funding-slot]');
+      if (slot) slot.innerHTML = fundingPanel(holding.dataset.walletPosition!, kind);
+    } else if (target.hasAttribute('data-mock-funding-confirm')) {
+      if (!fundingReview || !mockWallet.snapshot()) return;
+      const reviewed = fundingReview;
+      fundingReview = null;
+      try {
+        AF.exchange.executeFunding(reviewed);
+        AF.app.closeDialog();
+        render();
+        AF.app.openDialog(
+          `<span class="section-label">MOCK STRATEGY ALLOCATION</span><h2>${reviewed.kind === 'deposit' ? 'Funds allocated.' : 'Funds returned to your wallet.'}</h2><p>${esc(formatMockUsdc(reviewed.amount))} USDC · ${reviewed.kind === 'deposit' ? 'Pass frozen for use' : 'Pass released'}.</p><p class="small muted">Local simulation. No strategy execution or on-chain transaction.</p><button class="primary-btn" data-close>Done</button>`,
+        );
+      } catch (failure) {
+        showConfirmDialogError(
+          target,
+          failure instanceof Error ? failure.message : 'Unable to update allocation.',
+        );
+      }
+    } else if (target.hasAttribute('data-wallet-choice')) {
+      const choice = target.dataset.walletChoice;
+      if (!['mock', 'browser', 'disconnect'].includes(choice ?? '')) return;
+      fundingReview = null;
+      if (choice === 'mock') mockWallet.connect();
+      else mockWallet.disconnect();
+      AF.app.closeDialog();
+      render();
+      if (choice === 'browser') {
+        if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');
+        void run(() => onchainRuntime.connect());
+      }
     } else if (target.hasAttribute('data-chain-refresh')) {
       if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');
       void run(() => onchainRuntime.refresh());
@@ -594,6 +669,73 @@ document.addEventListener('click', (event) => {
     error(err);
   }
 });
+let fundingReview: MockFundingReview | null = null;
+const fundingMoney = (value: number) => esc(formatMockUsdc(value));
+function fundingPanel(id: string, kind: 'deposit' | 'withdraw' = 'deposit'): string {
+  const state = AF.exchange.fundingSnapshot(id);
+  const maximum = kind === 'deposit' ? state.maxDeposit : state.allocated;
+  return `<section class="wallet-funding sketch-box"><span class="section-label">USE PASS · MOCK STRATEGY</span><h2>Strategy funds</h2><div class="order-side"><button type="button" data-mock-funding-side="deposit" aria-pressed="${kind === 'deposit'}">Deposit</button><button type="button" data-mock-funding-side="withdraw" aria-pressed="${kind === 'withdraw'}">Withdraw</button></div><dl class="order-quote"><div><dt>Wallet available</dt><dd>${fundingMoney(state.cash)} USDC</dd></div><div><dt>Allocated to strategy</dt><dd>${fundingMoney(state.allocated)} USDC</dd></div><div><dt>Available Pass</dt><dd>${fundingMoney(state.available)} Pass</dd></div></dl><form data-mock-funding-form data-strategy="${esc(id)}" data-kind="${kind}"><label for="mock-funding-amount">${kind === 'deposit' ? 'Deposit amount' : 'Withdraw amount'} · USDC</label><div class="pass-amount-wrap"><input id="mock-funding-amount" name="amount" type="text" inputmode="decimal" autocomplete="off" value="${formatMockUsdc(maximum)}" required><span>USDC</span></div><p class="form-error" data-funding-error role="alert"></p><button class="primary-btn full" type="submit" ${maximum === 0 ? 'disabled' : ''}>Review ${kind === 'deposit' ? 'deposit' : 'withdrawal'} ↗</button></form><p class="small muted">1 Pass = 1 USDC capacity. Deposits freeze Pass; withdrawals release them. Mock balances.</p></section>`;
+}
+document.querySelector('dialog')?.addEventListener('close', () => {
+  fundingReview = null;
+});
+document.addEventListener('submit', (event) => {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-mock-funding-form')) return;
+  event.preventDefault();
+  fundingReview = null;
+  try {
+    if (!mockWallet.snapshot()) throw Error('Connect the Mock wallet first.');
+    const strategy = form.dataset.strategy!;
+    const kind = form.dataset.kind;
+    if (kind !== 'deposit' && kind !== 'withdraw') throw Error('Invalid allocation action.');
+    const rawAmount = new FormData(form).get('amount');
+    if (typeof rawAmount !== 'string') throw Error('Enter a USDC amount.');
+    const amount = Number(parseUnits(rawAmount, 6));
+    const reviewed = AF.exchange.reviewFunding({ strategy, kind, amount });
+    const name = AF.strategies.find((item) => item.id === strategy)?.name ?? strategy;
+    fundingReview = reviewed;
+    AF.app.openDialog(
+      `<span class="section-label">USE PASS · REVIEW FUNDING</span><h2>Review ${kind === 'deposit' ? 'deposit' : 'withdrawal'}.</h2><p>${esc(name)}</p><div class="receipt"><div class="receipt-amount">${fundingMoney(amount)} <small>USDC</small></div><p>${kind === 'deposit' ? 'Wallet → Strategy allocation' : 'Strategy allocation → Wallet'}</p><p class="small muted">${fundingMoney(amount)} Pass will be ${kind === 'deposit' ? 'frozen (in use)' : 'released'}. Total Pass ownership stays unchanged. Mock transaction.</p></div><p data-product-dialog-error class="form-error" role="alert"></p><div class="dialog-actions"><button class="primary-btn" data-mock-funding-confirm>Confirm ${kind === 'deposit' ? 'deposit' : 'withdrawal'}</button><button class="text-link" data-close>Cancel</button></div>`,
+    );
+  } catch (failure) {
+    const output = form.querySelector('[data-funding-error]');
+    if (output)
+      output.textContent = failure instanceof Error ? failure.message : 'Unable to review allocation.';
+  }
+});
+// Mount only the selected holding's strategy funding controls.
+document.addEventListener(
+  'toggle',
+  (event) => {
+    const holding = event.target;
+    if (!(holding instanceof HTMLDetailsElement) || !holding.hasAttribute('data-wallet-position')) return;
+    const slot = holding.querySelector<HTMLElement>('[data-wallet-funding-slot]');
+    if (!slot) return;
+    if (!holding.open) {
+      slot.replaceChildren();
+      slot.removeAttribute('id');
+      return;
+    }
+    const id = holding.dataset.walletPosition;
+    const position = mockWallet.snapshot()?.holdings?.find((item) => item.id === id);
+    const strategy = AF.strategies.find((item) => item.id === id);
+    if (!position || !strategy) {
+      holding.open = false;
+      return;
+    }
+    for (const other of document.querySelectorAll<HTMLDetailsElement>('[data-wallet-position]')) {
+      if (other === holding) continue;
+      other.open = false;
+      const otherSlot = other.querySelector('[data-wallet-funding-slot]');
+      otherSlot?.replaceChildren();
+      otherSlot?.removeAttribute('id');
+    }
+    slot.innerHTML = fundingPanel(strategy.id);
+  },
+  true,
+);
+
 document.addEventListener('input', (event) => {
   const input = event.target as HTMLInputElement;
   if (input.hasAttribute('data-product-search')) {
@@ -626,6 +768,7 @@ document.addEventListener('change', (event) => {
   if (rows) rows.innerHTML = catalogueRows();
 });
 window.addEventListener('hashchange', () => {
+  fundingReview = null;
   draft = null;
   claimId = null;
   onchainDraft = null;
@@ -634,6 +777,14 @@ window.addEventListener('hashchange', () => {
 });
 client.subscribe(() => render());
 onchainRuntime?.subscribe(() => render());
+if (window.ethereum) {
+  // Wallet events invalidate the displayed owner immediately through the runtime.
+  // Refresh is read-only and never requests a signature or another account grant.
+  for (const event of ['accountsChanged', 'chainChanged', 'disconnect'] as const)
+    window.ethereum.on(event, () => {
+      void run(() => onchainRuntime!.refresh());
+    });
+}
 void run(async () => {
   await client.refresh();
   await alignVault();

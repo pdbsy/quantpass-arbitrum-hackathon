@@ -90,6 +90,33 @@ class ConfiguredProviderFixture extends ProviderFixture {
   }
 }
 
+test('wallet ETH is read for the selected account even without a Vault deployment', async () => {
+  class BalanceProvider extends ProviderFixture {
+    override chainId = 46630;
+    balance: unknown = '0x1158e460913d0001';
+    override async request(input: Eip1193Request): Promise<unknown> {
+      if (input.method === 'eth_getBalance') {
+        assert.deepEqual(input.params, [OWNER, 'latest']);
+        return this.balance;
+      }
+      return super.request(input);
+    }
+  }
+  const provider = new BalanceProvider();
+  const runtime = createM3BrowserRuntime({ provider });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.wallet.ethBalanceWei, '1250000000000000001');
+  provider.balance = '0x0';
+  await runtime.refresh();
+  assert.equal(runtime.snapshot.wallet.ethBalanceWei, '0');
+  for (const malformed of ['0x', '0x01', '1', '0x' + 'f'.repeat(65), null]) {
+    provider.balance = malformed;
+    await runtime.refresh();
+    assert.equal(runtime.snapshot.wallet.status, 'CONNECTED');
+    assert.equal(runtime.snapshot.wallet.ethBalanceWei, undefined);
+  }
+});
+
 const vaultSnapshot: M3VaultSnapshot = Object.freeze({
   chainId: 46_630,
   owner: OWNER,
@@ -1784,3 +1811,106 @@ for (const lateFailure of [false, true]) {
     assert.equal(provider.requests.filter((x) => x.method === 'eth_sendTransaction').length, 0);
   });
 }
+
+test('refresh hides prior ETH and Pass balances while a new wallet observation is pending', async () => {
+  let release!: () => void;
+  let pause = false;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  class BalanceProvider extends ConfiguredProviderFixture {
+    override passBalance = 2n * 10n ** 18n;
+    override async request(input: Eip1193Request): Promise<unknown> {
+      if (input.method === 'eth_accounts' && pause) await held;
+      if (input.method === 'eth_getBalance') return '0xde0b6b3a7640000';
+      return super.request(input);
+    }
+  }
+  const provider = new BalanceProvider();
+  const runtime = createM3BrowserRuntime({
+    provider,
+    deployment,
+    vaultReader: { readSnapshot: async () => vaultSnapshot },
+  });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.wallet.ethBalanceWei, '1000000000000000000');
+  assert.equal(runtime.snapshot.onchain.passBalanceBaseUnits, '2000000000000000000');
+  pause = true;
+  provider.account = '0x9999999999999999999999999999999999999999';
+  const pending = runtime.refresh();
+  assert.equal(
+    runtime.snapshot.wallet.ethBalanceWei,
+    undefined,
+    'hide the previous owner during observation',
+  );
+  assert.equal(runtime.snapshot.onchain.passBalanceBaseUnits, undefined);
+  release();
+  await pending;
+  assert.equal(runtime.snapshot.wallet.status, 'ACCOUNT_CHANGED');
+  await runtime.refresh();
+  assert.equal(runtime.snapshot.wallet.address, provider.account);
+  assert.equal(
+    runtime.snapshot.onchain.passBalanceBaseUnits,
+    undefined,
+    'a second refresh must not revive the old Pass balance',
+  );
+});
+
+for (const change of ['account', 'chain', 'disconnect'] as const) {
+  test(`late native balance response is discarded after ${change} changes`, async () => {
+    let release!: () => void;
+    let entered!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    class BalanceProvider extends ConfiguredProviderFixture {
+      override async request(input: Eip1193Request): Promise<unknown> {
+        if (input.method === 'eth_getBalance') {
+          entered();
+          await held;
+          return '0xde0b6b3a7640000';
+        }
+        return super.request(input);
+      }
+    }
+    const provider = new BalanceProvider();
+    const runtime = createM3BrowserRuntime({ provider });
+    const pending = runtime.connect().catch(() => {});
+    await ready;
+    if (change === 'account') provider.account = '0x9999999999999999999999999999999999999999';
+    else if (change === 'chain') provider.chainId = 1;
+    else provider.account = null;
+    release();
+    await pending;
+    assert.equal(runtime.snapshot.wallet.ethBalanceWei, undefined);
+    assert.notEqual(runtime.snapshot.wallet.status, 'CONNECTED');
+    assert.equal(
+      provider.requests.some((request) => request.method === 'eth_sendTransaction'),
+      false,
+    );
+  });
+}
+
+test('native balance transport failure clears the prior value without disconnecting the wallet', async () => {
+  let fail = false;
+  class BalanceProvider extends ConfiguredProviderFixture {
+    override async request(input: Eip1193Request): Promise<unknown> {
+      if (input.method === 'eth_getBalance') {
+        if (fail) throw new Error('RPC_UNAVAILABLE');
+        return '0x1';
+      }
+      return super.request(input);
+    }
+  }
+  const provider = new BalanceProvider();
+  const runtime = createM3BrowserRuntime({ provider });
+  await runtime.connect();
+  assert.equal(runtime.snapshot.wallet.ethBalanceWei, '1');
+  fail = true;
+  await runtime.refresh();
+  assert.equal(runtime.snapshot.wallet.status, 'CONNECTED');
+  assert.equal(runtime.snapshot.wallet.ethBalanceWei, undefined);
+});

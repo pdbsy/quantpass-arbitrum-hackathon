@@ -133,15 +133,15 @@ test(
         new Date(row.time).toISOString().slice(0, 16).replace('T', ' ') + ' UTC',
       );
       for (const key of ['open', 'high', 'low', 'close'])
-        assert.equal(await field(key), money(row[key]) + ' DEMO');
-      assert.equal(await field('change'), signed(row.close - row.open) + ' DEMO');
+        assert.equal(await field(key), money(row[key]) + ' ETH');
+      assert.equal(await field('change'), signed(row.close - row.open) + ' ETH');
       assert.equal(await field('changePercent'), percent(((row.close - row.open) / row.open) * 100));
       assert.equal(await field('amplitude'), (((row.high - row.low) / row.open) * 100).toFixed(2) + '%');
       assert.equal(
         await field('volume'),
         new Intl.NumberFormat('en-US', { maximumFractionDigits: 8 }).format(row.volume) + ' Pass',
       );
-      assert.equal(await field('turnover'), money(row.quoteVolume) + ' DEMO');
+      assert.equal(await field('turnover'), money(row.quoteVolume) + ' ETH');
       assert.equal(
         await chart.evaluate((svg) => Number(svg.querySelector('#price-cursor line').getAttribute('x1'))),
         16 + ((index + 0.5) / 24) * 802,

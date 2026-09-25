@@ -1,4 +1,4 @@
-/** Prices and quoteVolume are DEMO cents; volume is whole/fractional Pass units. */
+/** Prices and quoteVolume are hundredths of simulated ETH; volume is whole/fractional Pass units. */
 export interface Candle {
   time: number;
   open: number;
@@ -19,7 +19,7 @@ const number = (value: number, digits: number) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(
     value,
   );
-const money = (value: number | undefined) => (finite(value) ? `${number(value / 100, 2)} DEMO` : '—');
+const money = (value: number | undefined) => (finite(value) ? `${number(value / 100, 2)} ETH` : '—');
 const sign = (value: number) => (value > 0 ? '+' : value < 0 ? '−' : '');
 
 export function candleDetails(row: Candle) {
@@ -122,7 +122,7 @@ export function installCandleInspection(host: CandleChartHost, doc: Document = d
       }
       panel.append(list);
       const note = doc.createElement('p');
-      note.textContent = '涨跌 = 收盘 − 开盘；涨跌幅、振幅均以本根开盘价为基准。价格单位：DEMO / Pass。';
+      note.textContent = '涨跌 = 收盘 − 开盘；涨跌幅、振幅均以本根开盘价为基准。价格单位：ETH / Pass。';
       panel.append(note);
       svg.after(panel);
     }

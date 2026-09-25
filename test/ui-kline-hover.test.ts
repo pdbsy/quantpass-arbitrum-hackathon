@@ -14,27 +14,27 @@ const candle = {
 test('candle details use candle open as baseline and the supplied turnover', () => {
   assert.deepEqual(candleDetails(candle), {
     time: '2026-09-12 00:00 UTC',
-    open: '100.00 DEMO',
-    close: '110.00 DEMO',
-    high: '115.00 DEMO',
-    low: '95.00 DEMO',
-    change: '+10.00 DEMO',
+    open: '100.00 ETH',
+    close: '110.00 ETH',
+    high: '115.00 ETH',
+    low: '95.00 ETH',
+    change: '+10.00 ETH',
     changePercent: '+10.00%',
     amplitude: '20.00%',
     volume: '125.25 Pass',
-    turnover: '12,600.00 DEMO',
+    turnover: '12,600.00 ETH',
   });
   const falling = candleDetails({ ...candle, close: 9500 });
-  assert.equal(falling.change, '−5.00 DEMO');
+  assert.equal(falling.change, '−5.00 ETH');
   assert.equal(falling.changePercent, '−5.00%');
-  assert.equal(candleDetails({ ...candle, close: candle.open }).change, '0.00 DEMO');
+  assert.equal(candleDetails({ ...candle, close: candle.open }).change, '0.00 ETH');
 });
 test('missing or invalid values stay unavailable and zero is not treated as missing', () => {
   const zero = candleDetails({ ...candle, open: 0, volume: 0, quoteVolume: 0 });
   assert.equal(zero.changePercent, '—');
   assert.equal(zero.amplitude, '—');
   assert.equal(zero.volume, '0 Pass');
-  assert.equal(zero.turnover, '0.00 DEMO');
+  assert.equal(zero.turnover, '0.00 ETH');
   const missing = candleDetails({ time: NaN, open: NaN, high: Infinity, low: 9500, close: NaN });
   for (const key of [
     'time',

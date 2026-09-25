@@ -5,7 +5,7 @@ import { verifyRuntimePortJourneys } from './product-runtime-boundaries.mjs';
 import { verifyPrototypeReceiptRecovery } from './prototype-receipt-recovery.mjs';
 import { verifyLegacyApiJourneys, verifyRecoveryJourneys } from './product-recovery-journeys.mjs';
 
-// Exercise the actual loaded browser model. All values are fictional DEMO fixtures;
+// Exercise the actual loaded browser model. All values are fictional ETH fixtures;
 // these checks are separate from visible journeys and never certify chain accounting.
 export async function verifyPrototypeBoundaries(page, { v1Supported = true, unsupportedChecks = [] } = {}) {
   assert.equal(typeof v1Supported, 'boolean');
@@ -1168,7 +1168,7 @@ export async function verifyDamagedDateJourneys(parent) {
         const row = page.locator('.ledger-entry').filter({ hasText: 'Add demo funds' });
         assert.equal(await row.count(), 1);
         assert.match(await row.textContent(), /Date unavailable/);
-        assert.match(await row.locator('.ledger-amount').textContent(), /3\.00\s*DEMO/);
+        assert.match(await row.locator('.ledger-amount').textContent(), /3\.00\s*ETH/);
         assert.deepEqual(await page.locator('.balance-columns strong').allTextContents(), [
           '10,003.00',
           '0.00',
@@ -1396,7 +1396,7 @@ export async function verifyAdditionalReachableJourneys(page) {
   await page.locator('[data-amount="250"]').click();
   assert.equal(await page.locator('#allocate-amount').inputValue(), '250');
   for (const [amount, message] of [
-    ['1000.01', /1,000 DEMO allocation limit/],
+    ['1000.01', /1,000 ETH allocation limit/],
     ['10000.01', /Insufficient idle demo balance/],
   ]) {
     await page.locator('#allocate-amount').fill(amount);

@@ -456,6 +456,7 @@ class M3BrowserRuntime implements M3ProductRuntime {
     authorization?: M3DepositAuthorization,
     passBalanceBaseUnits?: string,
     passVerified = this.#snapshot.onchain.passTransferMode !== 'DISABLED',
+    ethBalanceWei?: string,
   ): M3ProductChainPresentation {
     const contractOwner = snapshot.value.owner;
     const vaultAddress = snapshot.value.contract;
@@ -463,7 +464,11 @@ class M3BrowserRuntime implements M3ProductRuntime {
     const live = snapshot.source === 'CANONICAL';
     const closed = snapshot.value.state.closed;
     return {
-      wallet: { status: 'CONNECTED', address: session.account },
+      wallet: {
+        status: 'CONNECTED',
+        address: session.account,
+        ...(ethBalanceWei === undefined ? {} : { ethBalanceWei }),
+      },
       network: { status: 'CORRECT', chainId: session.chainId },
       transaction: this.#snapshot.transaction,
       onchain: {
@@ -531,6 +536,7 @@ class M3BrowserRuntime implements M3ProductRuntime {
     session: WalletSession,
     snapshot: RuntimeSnapshot,
   ): Promise<M3ProductChainPresentation> {
+    const ethBalanceWei = await this.#readEthBalance(session);
     let passBalanceBaseUnits: string | undefined;
     let passVerified = snapshot.source === 'LIVE_EXIT' || !this.#reader?.readPassSnapshot;
     if (snapshot.source === 'CANONICAL' && this.#reader?.readPassSnapshot) {
@@ -572,7 +578,14 @@ class M3BrowserRuntime implements M3ProductRuntime {
       }
     }
     if (snapshot.source === 'LIVE_EXIT')
-      return this.#presentation(session, snapshot, undefined, passBalanceBaseUnits, passVerified);
+      return this.#presentation(
+        session,
+        snapshot,
+        undefined,
+        passBalanceBaseUnits,
+        passVerified,
+        ethBalanceWei,
+      );
     try {
       return this.#presentation(
         session,
@@ -580,9 +593,30 @@ class M3BrowserRuntime implements M3ProductRuntime {
         await this.#authorization(session, '1'),
         passBalanceBaseUnits,
         passVerified,
+        ethBalanceWei,
       );
     } catch {
-      return this.#presentation(session, snapshot, undefined, passBalanceBaseUnits, passVerified);
+      return this.#presentation(
+        session,
+        snapshot,
+        undefined,
+        passBalanceBaseUnits,
+        passVerified,
+        ethBalanceWei,
+      );
+    }
+  }
+
+  async #readEthBalance(session: WalletSession): Promise<string | undefined> {
+    try {
+      const raw = await this.#provider?.request({
+        method: 'eth_getBalance',
+        params: [session.account, 'latest'],
+      });
+      if (typeof raw !== 'string' || !/^0x(?:0|[1-9a-fA-F][0-9a-fA-F]{0,63})$/.test(raw)) return undefined;
+      return BigInt(raw).toString();
+    } catch {
+      return undefined;
     }
   }
 
@@ -712,9 +746,14 @@ class M3BrowserRuntime implements M3ProductRuntime {
           const session = await this.#connection.connect();
           assertCurrent();
           this.#session = session;
+          const ethBalanceWei = await this.#readEthBalance(session);
           await publish({
             ...this.#snapshot,
-            wallet: { status: 'CONNECTED', address: session.account },
+            wallet: {
+              status: 'CONNECTED',
+              address: session.account,
+              ...(ethBalanceWei === undefined ? {} : { ethBalanceWei }),
+            },
             network: { status: 'CORRECT', chainId: session.chainId },
           });
         }
@@ -749,6 +788,13 @@ class M3BrowserRuntime implements M3ProductRuntime {
   async refresh(): Promise<void> {
     return this.#withSessionRead(async (assertCurrent, publish) => {
       if (!this.#connection) return;
+      // A wallet event can arrive before the provider resolves its new identity.
+      // Hide old-owner balances immediately and only publish freshly bound reads.
+      const { ethBalanceWei, ...wallet } = this.#snapshot.wallet;
+      const { passBalanceBaseUnits: previousPassBalance, ...onchain } = this.#snapshot.onchain;
+      void ethBalanceWei;
+      void previousPassBalance;
+      this.#publish({ ...this.#snapshot, wallet, onchain });
       const observed = await this.#connection.observe();
       assertCurrent();
       if (!observed) {
@@ -902,9 +948,14 @@ class M3BrowserRuntime implements M3ProductRuntime {
         }
         await publish(presentation);
       } else {
+        const ethBalanceWei = await this.#readEthBalance(observed);
         await publish({
           ...this.#snapshot,
-          wallet: { status: 'CONNECTED', address: observed.account },
+          wallet: {
+            status: 'CONNECTED',
+            address: observed.account,
+            ...(ethBalanceWei === undefined ? {} : { ethBalanceWei }),
+          },
           network: {
             status: observed.chainId === ROBINHOOD_CHAIN_TESTNET.chainId ? 'CORRECT' : 'WRONG',
             chainId: observed.chainId,

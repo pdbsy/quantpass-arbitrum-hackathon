@@ -1,6 +1,7 @@
 import { ROBINHOOD_CHAIN_TESTNET } from '../../../packages/robinhood-chain/src/network.ts';
 import { formatUnits } from '../../../packages/domain/src/money.ts';
 import type { Address } from '../../../packages/chain-adapter/src/types.ts';
+import { MOCK_ETH_USDC_RATE, type MockWalletSnapshot } from './mock-wallet.ts';
 import type { WalletSubmission } from './chain-wallet.ts';
 import type { ProductOperationEvidence } from './strategy-adapter.ts';
 
@@ -46,6 +47,8 @@ export type ProductProvenance = 'FIXTURE' | 'LOCAL SIMULATION';
 export interface WalletPresentation {
   readonly status: WalletStatus;
   readonly address?: string;
+  /** Native ETH only, in wei. Never populated from a local demo ledger. */
+  readonly ethBalanceWei?: string;
   readonly errorCode?: string;
   readonly errorMessage?: string;
 }
@@ -135,6 +138,7 @@ export interface M3ProductPages {
 }
 
 export interface M3PageExtensionOptions {
+  readonly mockWallet?: () => MockWalletSnapshot | undefined;
   readonly accountId: () => string | null;
   readonly contentProvenance: (strategyId: string) => ProductProvenance;
   readonly onchain?: () => OnchainProductPresentation | undefined;
@@ -551,11 +555,82 @@ export function renderM3AccountShell(input: AccountShellInput): string {
   )}</section>`;
 }
 
+function walletAmount(raw: string | undefined): string {
+  if (raw === undefined || !/^(0|[1-9][0-9]{0,77})$/.test(raw) || BigInt(raw) >= 2n ** 256n) return '—';
+  const [whole, fraction] = formatUnits(raw, 18).split('.');
+  const trimmed = fraction?.replace(/0+$/, '');
+  return trimmed ? `${whole}.${trimmed}` : whole!;
+}
+
+/** The account landing page shows wallet assets, never the independent local ledgers. */
+export function renderWalletAccount(input: AccountShellInput): string {
+  const wallet = input.wallet ?? unavailableWallet;
+  const network = input.network ?? unavailableNetwork;
+  const address = wallet.address && /^0x[0-9a-fA-F]{40}$/.test(wallet.address) ? wallet.address : undefined;
+  const connected = wallet.status === 'CONNECTED' && !!address;
+  const readable =
+    connected && network.status === 'CORRECT' && network.chainId === ROBINHOOD_CHAIN_TESTNET.chainId;
+  const eth = readable ? walletAmount(wallet.ethBalanceWei) : '—';
+  const pass =
+    readable && input.onchain?.deployment === 'CONFIGURED'
+      ? walletAmount(input.onchain.passBalanceBaseUnits)
+      : '—';
+  const connecting = wallet.status === 'CONNECTING';
+  const label = connecting
+    ? 'Connecting…'
+    : address && ['CONNECTED', 'ACCOUNT_CHANGED'].includes(wallet.status)
+      ? `${address.slice(0, 6)}…${address.slice(-4)}`
+      : 'Connect Wallet';
+  let notice = '';
+  if (network.status === 'WRONG') notice = 'Switch to Robinhood Chain Testnet to view your assets.';
+  else if (wallet.status === 'CONNECTION_REJECTED')
+    notice = 'Connection cancelled. Try again when you’re ready.';
+  else if (wallet.status === 'ACCOUNT_CHANGED')
+    notice = 'Wallet changed. Reconnect to refresh your holdings.';
+  else if (wallet.errorCode === 'WALLET_PROVIDER_UNAVAILABLE')
+    notice = 'Open this page in a wallet-enabled browser.';
+  else if (wallet.errorCode) notice = 'Wallet unavailable. Please reconnect.';
+  const mock = input.onchain?.writeMode === 'INJECTED_MOCK';
+  return `<section class="wrap wallet-account" data-wallet-account aria-label="Wallet account">
+    <header class="wallet-account-header"><div><span class="section-label">MY WORKSHOP</span><h1>My Account</h1></div>
+      <button class="primary-btn wallet-connect" data-chain-connect ${connecting ? 'disabled' : ''}${address ? ` title="${escapeHtml(address)}"` : ''}><span class="wallet-status-dot${connected ? ' connected' : ''}" aria-hidden="true"></span>${label}</button>
+    </header>
+    <div class="wallet-network"><span>${mock ? 'Demo wallet' : 'Robinhood Chain Testnet'}</span>${connected ? '<span class="wallet-connected">Connected</span>' : ''}</div>
+    ${notice ? `<p class="wallet-notice" role="status">${notice}</p>` : ''}
+    <article class="sketch-box wallet-eth"><span class="section-label">ETH balance</span><div class="wallet-amount"><strong>${eth}</strong><span>ETH</span></div><p class="small muted">${connected ? (eth === '—' ? 'Balance unavailable' : 'Available in your wallet') : 'Connect your wallet to view your balance'}</p></article>
+    <section class="wallet-passes" aria-label="Pass holdings"><header><h2>Pass holdings</h2><span class="small muted">Strategy access</span></header>
+      ${pass === '—' ? `<div class="wallet-empty sketch-box"><span class="wallet-pass-icon" aria-hidden="true">α</span><h3>${connected ? 'Pass balance unavailable' : 'Your Passes, in one place'}</h3><p>${connected ? 'No verified Pass balance to display yet.' : 'Connect your wallet to see the Passes you hold.'}</p></div>` : `<article class="wallet-pass-row sketch-box"><span class="wallet-pass-icon" aria-hidden="true">α</span><div><h3>Strategy Pass</h3><span class="small muted" title="${escapeHtml(input.onchain?.passAddress ?? '')}">${escapeHtml(input.onchain?.passAddress ? `${input.onchain.passAddress.slice(0, 6)}…${input.onchain.passAddress.slice(-4)}` : 'Robinhood Chain Testnet')}</span></div><div class="wallet-pass-quantity"><strong>${pass}</strong> <span>Pass</span></div></article>`}
+    </section>
+  </section>`;
+}
+
+function renderMockWalletAccount(mock: MockWalletSnapshot): string {
+  const holdings = mock.holdings
+    ?.map(
+      (holding) =>
+        `<details class="wallet-holding" name="wallet-holdings" data-wallet-position="${escapeHtml(holding.id)}"><summary class="wallet-pass-row sketch-box"><span class="wallet-pass-icon" aria-hidden="true">α</span><div><h3>${escapeHtml(holding.name)}</h3><span class="small muted">Mock Pass · Use Pass</span></div><div class="wallet-pass-quantity"><strong>${escapeHtml(holding.quantity)}</strong> <span>Pass</span><small>Frozen (in use) ${escapeHtml(holding.frozenPass ?? '—')} · Available ${escapeHtml(holding.availablePass ?? '—')}</small><small>Allocated ${escapeHtml(holding.allocatedUsdc ?? '—')} USDC</small></div></summary><div data-wallet-funding-slot></div></details>`,
+    )
+    .join('');
+  return `<section class="wrap wallet-account" data-wallet-account aria-label="Wallet account">
+    <header class="wallet-account-header"><div><span class="section-label">ALPHAFORGE DEMO</span><h1>My Account</h1></div><button class="primary-btn wallet-connect" data-chain-connect title="${escapeHtml(mock.address)}"><span class="wallet-status-dot connected" aria-hidden="true"></span>${escapeHtml(mock.address.slice(0, 6))}…${escapeHtml(mock.address.slice(-4))}</button></header>
+    <div class="wallet-network"><span>Mock wallet · Simulated balances</span><span class="wallet-connected">Connected</span></div>
+    <article class="sketch-box wallet-eth"><span class="section-label">ETH balance</span><div class="wallet-amount"><strong>${escapeHtml(mock.ethBalance ?? '—')}</strong><span>ETH</span></div><p class="small muted">≈ ${escapeHtml(mock.ethValueUsdc ?? '—')} USDC<br>1 ETH = ${MOCK_ETH_USDC_RATE} USDC · Mock rate</p></article>
+    <section class="wallet-passes" aria-label="Pass holdings"><header><h2>Pass holdings</h2><span class="small muted">Strategy access</span></header>${holdings || `<div class="wallet-empty sketch-box"><span class="wallet-pass-icon" aria-hidden="true">α</span><h3>${mock.holdings ? 'No Passes yet' : 'Pass balance unavailable'}</h3><p>${mock.holdings ? 'Explore the market to try a demo trade.' : 'Demo trading records could not be read.'}</p></div>`}</section>
+  </section>`;
+}
+
 export function extendM3ProductPages(pages: M3ProductPages, options: M3PageExtensionOptions): M3ProductPages {
   return {
     account: (tab) => {
+      const mock = options.mockWallet?.();
+      if (tab === 'trades' && mock) return renderMockWalletAccount(mock);
       const chain = options.chain?.();
       const onchain = chain?.onchain ?? options.onchain?.();
+      if (tab === 'trades')
+        return renderWalletAccount({
+          ...(chain ? { wallet: chain.wallet, network: chain.network, transaction: chain.transaction } : {}),
+          ...(onchain ? { onchain } : {}),
+        });
       return (
         renderM3AccountShell({
           accountId: options.accountId(),
@@ -571,24 +646,6 @@ export function extendM3ProductPages(pages: M3ProductPages, options: M3PageExten
         }) + pages.account(tab)
       );
     },
-    trade: (strategyId) => {
-      const chain = options.chain?.();
-      const onchain = chain?.onchain ?? options.onchain?.();
-      return (
-        renderM3StrategyShell({
-          strategyId,
-          contentProvenance: options.contentProvenance(strategyId),
-          ...(chain
-            ? {
-                wallet: chain.wallet,
-                network: chain.network,
-                transaction: chain.transaction,
-                ...(chain.vaultSelection ? { vaultSelection: chain.vaultSelection } : {}),
-              }
-            : {}),
-          ...(onchain ? { onchain } : {}),
-        }) + pages.trade(strategyId)
-      );
-    },
+    trade: (strategyId) => pages.trade(strategyId),
   };
 }
