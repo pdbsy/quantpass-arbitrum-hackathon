@@ -104,9 +104,7 @@ function gitOnlyEnvironment(t) {
   return environment;
 }
 
-test('actual Gitleaks gate blocks complete history without the fetched master reference', (t) => {
-  const root = isolatedCheckout(t);
-  fixtureExec('git', ['update-ref', '-d', 'refs/remotes/origin/master'], { cwd: root });
+function assertHistoryPrerequisiteRejected(root, reason) {
   const head = fixtureExec('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const child = spawnSync(process.execPath, [join(root, 'tools/ci/check-gitleaks.mjs')], {
     cwd: root,
@@ -119,7 +117,7 @@ test('actual Gitleaks gate blocks complete history without the fetched master re
   assert.equal(child.status, 2, child.stderr);
   const report = JSON.parse(child.stdout);
   assert.equal(report.state, 'BLOCKED');
-  assert.equal(report.reason, 'Fetched master ref required for history coverage');
+  assert.equal(report.reason, reason);
   assert.equal(report.history, undefined);
   assert.equal(report.currentFiles, undefined);
   assert.equal(fixtureExec('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), head);
@@ -127,6 +125,32 @@ test('actual Gitleaks gate blocks complete history without the fetched master re
     fixtureExec('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' }),
     '',
   );
+}
+
+for (const remoteDefault of ['master', 'feature']) {
+  test(`actual Gitleaks missing-master rejection is isolated from the ${remoteDefault} clone default`, (t) => {
+    const root = isolatedCheckout(t);
+    const head = fixtureExec('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+    const target = `refs/remotes/origin/${remoteDefault}`;
+    fixtureExec('git', ['update-ref', target, head], { cwd: root });
+    fixtureExec('git', ['symbolic-ref', 'refs/remotes/origin/HEAD', target], { cwd: root });
+    // Isolate the absent baseline from a second defect: a dangling default alias
+    // fails Git fsck before the scanner can report the missing master reference.
+    // Both mutations apply only to this disposable fixture, never the source repo.
+    fixtureExec('git', ['symbolic-ref', '--delete', 'refs/remotes/origin/HEAD'], { cwd: root });
+    fixtureExec('git', ['update-ref', '-d', 'refs/remotes/origin/master'], { cwd: root });
+    fixtureExec('git', ['fsck', '--connectivity-only', '--no-dangling'], { cwd: root });
+    assertHistoryPrerequisiteRejected(root, 'Fetched master ref required for history coverage');
+  });
+}
+
+test('actual Gitleaks gate also rejects a dangling master default before scanning', (t) => {
+  const root = isolatedCheckout(t);
+  fixtureExec('git', ['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/master'], {
+    cwd: root,
+  });
+  fixtureExec('git', ['update-ref', '-d', 'refs/remotes/origin/master'], { cwd: root });
+  assertHistoryPrerequisiteRejected(root, 'Gitleaks Git history prerequisite failed');
 });
 
 test('real environment and CI entrypoints reject injected interpreter settings before starting tools', () => {
