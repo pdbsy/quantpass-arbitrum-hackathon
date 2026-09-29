@@ -23,38 +23,63 @@ export interface ReferenceCapture {
 }
 const MAX_BYTES = 4 * 1024 * 1024;
 const digest = (body: string) => createHash('sha256').update(body).digest('hex');
+async function abortable<T>(action: () => Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) throw new Error('HTTP_REQUEST_TIMEOUT');
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(new Error('HTTP_REQUEST_TIMEOUT'));
+    signal.addEventListener('abort', abort, { once: true });
+    Promise.resolve()
+      .then(() => {
+        if (signal.aborted) throw new Error('HTTP_REQUEST_TIMEOUT');
+        return action();
+      })
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener('abort', abort));
+  });
+}
 async function read(
   url: string,
   transport: ReadTransport,
   now: () => number,
   receipts: SourceReceipt[],
+  signal: AbortSignal,
 ): Promise<unknown> {
+  const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
   let response: Response;
   try {
-    response = await transport(url, {
-      method: 'GET',
-      redirect: 'error',
-      signal: AbortSignal.timeout(10000),
-      headers: { accept: 'application/json' },
-    });
+    response = await abortable(
+      () =>
+        transport(url, {
+          method: 'GET',
+          redirect: 'error',
+          signal: requestSignal,
+          headers: { accept: 'application/json' },
+        }),
+      requestSignal,
+    );
   } catch {
-    throw new Error('HTTP_TRANSPORT_FAILED');
+    throw new Error(requestSignal.aborted ? 'HTTP_REQUEST_TIMEOUT' : 'HTTP_TRANSPORT_FAILED');
   }
-  requireValue(response.ok && !response.redirected, 'HTTP_RESPONSE_REJECTED');
+  if (!response.ok || response.redirected) {
+    void response.body?.cancel().catch(() => {});
+    throw new Error(
+      response.status === 401 || response.status === 403 ? 'HTTP_ACCESS_DENIED' : 'HTTP_RESPONSE_REJECTED',
+    );
+  }
   requireValue(response.body, 'HTTP_EMPTY_BODY');
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let bytes = 0;
   try {
     for (;;) {
-      const part = await reader.read();
+      const part = await abortable(() => reader.read(), requestSignal);
       if (part.done) break;
       bytes += part.value.byteLength;
       requireValue(bytes <= MAX_BYTES, 'HTTP_BODY_TOO_LARGE');
       chunks.push(part.value);
     }
   } finally {
-    await reader.cancel().catch(() => {});
+    void reader.cancel().catch(() => {});
     reader.releaseLock();
   }
   let body: string;
@@ -77,6 +102,7 @@ export async function captureReference(
   maxAgeMs: number,
   transport: ReadTransport = fetch,
   now: () => number = Date.now,
+  signal?: AbortSignal,
 ): Promise<ReferenceCapture> {
   const result: ReferenceCapture = {
     version: 'alphaforge-reference-1',
@@ -87,21 +113,25 @@ export async function captureReference(
     sources: [],
     observation: null,
   };
+  let budget: AbortSignal | undefined;
   try {
     const requested = validateSelection(selection);
     result.selection = requested;
     requireValue(Number.isSafeInteger(maxAgeMs) && maxAgeMs > 0, 'INVALID_TIME_POLICY');
+    budget = AbortSignal.timeout(30000);
+    const captureSignal = signal ? AbortSignal.any([signal, budget]) : budget;
     const first = parseRegistry(
-      await read('https://api.robinhood.com/rhj/assets', transport, now, result.sources),
+      await read('https://api.robinhood.com/rhj/assets', transport, now, result.sources, captureSignal),
     );
     const rawQuote = await read(
       `https://api.robinhood.com/rhj/prices/${requested.symbol}`,
       transport,
       now,
       result.sources,
+      captureSignal,
     );
     const last = parseRegistry(
-      await read('https://api.robinhood.com/rhj/assets', transport, now, result.sources),
+      await read('https://api.robinhood.com/rhj/assets', transport, now, result.sources, captureSignal),
     );
     const receivedAt = result.sources[2]!.receivedAt;
     requireValue(
@@ -113,11 +143,18 @@ export async function captureReference(
     const a = normalizeReference(first, rawQuote, requested, receivedAt, maxAgeMs);
     const b = normalizeReference(last, rawQuote, requested, receivedAt, maxAgeMs);
     requireValue(JSON.stringify(a) === JSON.stringify(b), 'REGISTRY_CHANGED_DURING_CAPTURE');
+    requireValue(!captureSignal.aborted, 'CAPTURE_TIMEOUT');
     result.observation = b;
     result.status = 'ACCEPTED';
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    result.reason = /^[A-Z][A-Z0-9_]{1,80}$/.test(message) ? message : 'CAPTURE_FAILED';
+    result.reason = signal?.aborted
+      ? 'CAPTURE_ABORTED'
+      : budget?.aborted
+        ? 'CAPTURE_TIMEOUT'
+        : /^[A-Z][A-Z0-9_]{1,80}$/.test(message)
+          ? message
+          : 'CAPTURE_FAILED';
   }
   return result;
 }

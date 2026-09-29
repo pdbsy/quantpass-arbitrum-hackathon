@@ -14,7 +14,7 @@
 
 - No mainnet signing or broadcasting. CI remains offline/local/mock.
 - Confirmed user decisions: Robinhood Chain only; Uniswap as the initial execution venue; real-reference-price-mapped test substitutes; platform-managed restricted executor keys; owner-preauthorized limited liquidation after authorization expiry.
-- Uniswap version/router/pools, settlement asset, numeric risk limits and liquidation duration remain unselected. Protocol selection does not authorize arbitrary router commands or mainnet execution.
+- Uniswap V3 with fixed trading pairs and a single-pool path is confirmed. Exact router/pools, settlement asset, numeric risk limits and liquidation duration remain unselected. Protocol selection does not authorize arbitrary router commands or mainnet execution.
 - Registry membership alone cannot prove COMMON_STOCK classification, exchange, or valid oracle deployment.
 - Official REST prices are underlying-equity reference prices, not executable token quotes. Preserve multiplier and provenance.
 - Keep source C / manifest R / snapshot S evidence boundaries. Do not hand-edit generated PASS evidence.
@@ -92,3 +92,17 @@ Interface: replayReference(capture): ReferenceObservation; accepted captures onl
 - [x] Recompute observations using both recorded registry snapshots, verify source identity/digests/timestamps and exact output agreement. No artifact authenticity claim is inferred from a digest.
 - [x] Test drift, wrong sources, future/backward times and normal reopen/replay. Preserve legitimate rejected captures for diagnosis.
 - [ ] Run focused tests, typecheck, lint, full management evidence C/R/S and final npm run check. Keep the branch local.
+
+
+## Task 7: Continuous reference collection
+
+Files: packages/market-data/src/continuous.ts; packages/market-data/src/capture.ts; tools/automata/collect-market.ts; test/continuous-market.test.ts; test/market-capture.test.ts; package.json; tools/management-dashboard/checks.mjs.
+Interfaces: parseContinuousConfig(input): ContinuousConfig; collectReferences(config, journal, transport?, now?, signal?): Promise<CollectionSummary>. Configuration supplies selection, maxAgeMs, intervalMs, maxCaptures (positive count or explicit null), and maxConsecutiveRejections. No sampling, stale-price or failure policy is enabled implicitly. Existing MarketJournal remains the append-only durable source; each committed capture gets its own SQLite ID across restarts.
+
+This delivers the continuous market-input prerequisite, not paper trades, Uniswap execution or strategy permissions. Official REST source identities remain canonical; a test substitute must not rewrite its reference source chain/address into a fake official Testnet deployment. No live daemon or trading asset is enabled by CI.
+
+- [x] Add failing tests for sequential collection and durable restart, rejection limits and reset, terminal access denial, pacing, cancellation before/during transport/body reads, append failure, config mutation and bounded offline CLI validation. Example: abort an uncooperative transport and require STOPPED with a durable REJECTED diagnostic, not an indefinitely pending worker.
+- [x] Add external cancellation to captureReference without changing its original positional arguments. Bound the entire capture and stream reading; reject denied access without retry. Keep existing single-shot capture tests passing.
+- [x] Implement strict configuration, sequential collection with an interval after completion (no catch-up bursts), one append per completed attempt, stop/rejection/failure summaries and restart-safe journal IDs. Configuration errors precede any network or database work.
+- [x] Add collect-market.ts CONFIG_JSON DATABASE_PATH with offline help, bounded regular-file input, explicit policy, SIGINT/SIGTERM shutdown and journal closure. It calls only the existing official GET collector and never reads executor credentials or submits orders.
+- [ ] Register behavior tests in default and management suites. Run focused tests/typecheck/lint/format, freeze source C and collect R/S, then npm run check on the final local head. Preserve failures and leave unknown deployment/risk choices unresolved.

@@ -66,3 +66,9 @@ The collector snapshots its selection before awaiting transport, so a caller can
 ## Validation scope
 
 Offline behavior tests cover canonical code/read references, wrong-chain and reorg races, access denial, malformed/oversized inputs and responses, cancellation, clock faults, CLI atomic output/refusal to overwrite, reference recomputation and persisted projection corruption. CI uses fixtures only. No Solidity, wallet authorization, fee, slippage, settlement asset or liquidation-duration configuration changed in this slice. Self-review is not independent approval; hosted CI and actual chain/fork tests are separate from local checks.
+
+## Testnet connection update
+
+Later on 2026-09-30, the user configured Alchemy and enabled Robinhood Testnet for their app. Chain ID 46630, header consistency and canonical-hash code/call method probes passed; `.checks/market-data/testnet-connectivity-A4GkA1/report.json` preserves the successful original record. Earlier failed attempts remain saved. The public Mainnet denial described above does not block this qualified Testnet endpoint. Its API Key remains in a private local file and is absent from tracked code and evidence.
+
+These are empty-address RPC capability probes. They do not verify a token/router deployment or historical fork coverage. See [continuous reference collection](QINFRA-CONTINUOUS-MARKET.md) and [Uniswap scope](QINFRA-UNISWAP-SCOPE.md) for the next independent components.

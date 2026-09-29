@@ -2,7 +2,7 @@
 
 Recorded 2026-09-30. Status: user selection recorded; execution integration NOT_RUN.
 
-The user selected Robinhood Chain only, then Uniswap as the first venue. This settles the protocol family, not a specific version, router, pool, settlement token or numeric trading permission. No other venue or cross-chain aggregation is implied.
+The user selected Robinhood Chain only and Uniswap V3 as the first venue, with fixed trading pairs and a single-pool path. Exact router, pair/pool, settlement-token deployment and numeric trading permissions remain unconfigured. No other venue or cross-chain aggregation is implied.
 
 ## Confirmed Route C decisions
 
@@ -25,7 +25,7 @@ These are documentation findings, not RPC/code-hash verification, proof of Stock
 
 1. Resolve candidate token identities through the official Robinhood registry. Keep common-stock classification, exchange, ACTIVE status and oracle qualification separate from registry membership.
 2. Inspect candidate Uniswap pools and settlement tokens read-only. Record the queried chain, block number/hash, deployment sources and bytecode evidence. A pool must support both entry and liquidation quotes at explicit test sizes; reference prices alone cannot establish executable liquidity.
-3. Present version/router and settlement choices with the observed liquidity evidence to the user before freezing them. Do not silently choose V3, V4, UniswapX, intermediate tokens, hooks or arbitrary router commands.
+3. Present router, pool-fee and settlement choices with the observed liquidity evidence to the user before freezing them. The user has confirmed V3; do not add V4, UniswapX, intermediate tokens, hooks or arbitrary router commands.
 4. Map the approved execution ABI and behavior to test substitutes. Test substitution must preserve the selected protocol behavior; the existing constant-product AlphaForgeTestVenue is not proof of V3/V4 compatibility.
 5. Require owner-bound assets, venue/router, recipients, spend limits, slippage, expiry and liquidation permissions. All acquired assets and unused funds return to the same Vault; the executor cannot choose a withdrawal recipient.
 6. Verify quote-to-execution bounds, revert handling, transaction identity, finality/reorg handling and fill/position reconciliation in offline tests and the pinned fork. Public Testnet broadcast remains a separately gated action under the repository rules.
@@ -45,3 +45,14 @@ The official Registry returned HTTP 200 with 195 assets. AAPL, MSFT and NVDA sam
 The public mainnet RPC returned HTTP 403 to `eth_chainId`; the official explorer smart-contract API also returned HTTP 403 for the documented Uniswap V3 factory. Thus chain identity, deployed bytecode, pools, liquidity, executable buy/sell quotes and fixed-block fork execution remain BLOCKED/NOT_RUN. No bypass, credentials, signing or broadcasting was used. Robinhood's oracle documentation identifies Chainlink's directory as the feed mapping source; the directory could not be retrieved in this environment (web response-size limit, direct HTTP 403), so exact feed mappings were not inferred from ticker names.
 
 Raw responses, SHA-256 hashes, endpoint URLs, requests and timestamps are retained locally in `.checks/market-data/uniswap-qualification-nassbv8q/`. HTTP failures are preserved as failures. This is a research observation, not generated PASS evidence. A reachable read-only archive RPC will be required for the outstanding block-bound checks; do not ask for or accept private keys to solve this read-only prerequisite.
+
+
+## Testnet-first update, 2026-09-30
+
+The user confirmed V3, fixed trading pairs and a single-pool path. V4, hooks and aggregation are outside this initial execution scope. Pair assets, pool fees, exact router variant/deployment, amounts, permissions and expiration/liquidation durations remain unconfigured. Deployment, signatures and transaction broadcasting have not been performed.
+
+The locally configured Alchemy endpoint now points only to Robinhood Chain Testnet. Read-only chain-ID/header checks and canonical-hash eth_getCode/eth_call probes passed at block 126362810 (`0x49ce7841f203119fc2943566b2ac89852e35148b059b7fbc84970ee7442bffe6`). These empty-address probes establish method acceptance for this endpoint; they do not qualify any deployed trading contract, archive coverage or liquidity. Original results are in `.checks/market-data/testnet-connectivity-A4GkA1/report.json`. Earlier access-denied attempts remain preserved; network configuration began responding successfully afterward.
+
+The current official `/rhj/assets` response contains 195 assets and 195 deployments on chain 4663, with none on 46630. Its original response and SHA-256 (`00098c00bb461a2117e8b94fb491e961602a9ee162107fc692846ca85fec6415`) are saved in `.checks/market-data/testnet-source-review-DVRxl9/`. This proves what that registry listed at capture time, not that no Testnet contracts exist anywhere. No official Robinhood Testnet Uniswap deployment mapping has been verified; direct attempts to retrieve the unified deployment feed/page did not complete. Mainnet addresses must not be treated as Testnet canonical deployments.
+
+Continue the approved real-reference-price-mapped test-substitute route. Its reference identities remain canonical source identities; test execution identities and evidence must be separate. A Mainnet RPC is optional for the separate local-fork research and is not a prerequisite for Testnet development. The old Mainnet public-RPC 403 report is historical evidence and does not describe the now-qualified Testnet endpoint.

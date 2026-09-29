@@ -250,3 +250,49 @@ test('journal replay rejects a rewritten projection even when its payload checks
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('external cancellation terminates an uncooperative HTTP body reader', { timeout: 1000 }, async () => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10);
+  try {
+    const result = await captureReference(
+      selection,
+      30000,
+      async () =>
+        new Response(
+          new ReadableStream({
+            pull() {
+              return new Promise(() => {});
+            },
+            cancel() {
+              return new Promise(() => {});
+            },
+          }),
+        ),
+      () => at,
+      controller.signal,
+    );
+    assert.equal(result.status, 'REJECTED');
+    assert.equal(result.reason, 'CAPTURE_ABORTED');
+    assert.equal(result.observation, null);
+  } finally {
+    clearTimeout(timer);
+  }
+});
+test('cancellation before the queued HTTP request prevents transport from starting', async () => {
+  const controller = new AbortController();
+  let calls = 0;
+  const pending = captureReference(
+    selection,
+    30000,
+    async () => {
+      calls++;
+      return new Response('{}');
+    },
+    () => at,
+    controller.signal,
+  );
+  controller.abort();
+  assert.equal((await pending).reason, 'CAPTURE_ABORTED');
+  assert.equal(calls, 0);
+});
