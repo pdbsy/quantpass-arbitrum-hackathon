@@ -6,7 +6,7 @@ Scope: local/mock Hackathon infrastructure. No chain deployment, signature, broa
 
 - Stage 2 reviewed source: `2a41a343625dd3eac13dc2ac9be502b4faa363a3`, original branch `macbeth01/AF-QINFRA-STAGE-2`, PR #36.
 - Actual master after PR #36: `44823f084a56226b9b3bbe316c47bea2c0c9fa37`. Its complete tree equals the reviewed source tree `36409bf1f6c22c19f81d77795d3780a5cd14dca6`.
-- EMA closeout source: `8d8791b629a95c4eaebffd1b29b5c601dd7e3f61`, original branch `macbeth01/AF-QINFRA-CLOSEOUT`, PR #37. Original source changes were authored by Macbeth01 in `f0eec64a` and `09575035`; exact original commits remain reachable through this branch and their evidence refs.
+- EMA closeout source: `8d8791b629a95c4eaebffd1b29b5c601dd7e3f61`, original branch `macbeth01/AF-QINFRA-CLOSEOUT`, PR #37. Original source changes were authored by Macbeth01 in `f0eec6425eaf2042983135f68f360e23a521c7e2` and `09575035`; exact original commits remain reachable through the original branch and their evidence refs.
 - Vault source remains separate: `cb160573068336e43004b20857d78bdfa29209c0`, PR #38. This integration does not include its implementation.
 
 ## Why a replacement branch
