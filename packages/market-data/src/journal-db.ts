@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { requireValue } from './robinhood.ts';
 /** Dedicated collector DB only; identity prevents connecting to a Vault or another journal. */
-export function openJournalDatabase(path: string, applicationId: number): DatabaseSync {
+export function openJournalDatabase(path: string, applicationId: number, readOnly = false): DatabaseSync {
   requireValue(
     Number.isSafeInteger(applicationId) && applicationId > 0 && applicationId <= 2147483647,
     'INVALID_JOURNAL_APPLICATION_ID',
@@ -20,6 +20,7 @@ export function openJournalDatabase(path: string, applicationId: number): Databa
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
   }
+  requireValue(existing || !readOnly, 'JOURNAL_NOT_FOUND');
   if (existing) {
     const probe = new DatabaseSync(full, { readOnly: true });
     try {
@@ -31,8 +32,12 @@ export function openJournalDatabase(path: string, applicationId: number): Databa
       probe.close();
     }
   }
-  const db = new DatabaseSync(full);
+  const db = new DatabaseSync(full, { readOnly });
   try {
+    if (readOnly) {
+      db.exec('PRAGMA busy_timeout=1000;');
+      return db;
+    }
     db.exec(
       'PRAGMA application_id=' + applicationId + '; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=1000;',
     );

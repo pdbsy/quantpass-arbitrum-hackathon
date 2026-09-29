@@ -64,3 +64,7 @@ The user selected option 3: AF-USDC / test MSFT, AF-USDC / test NVDA and AF-USDC
 The [three-asset input increment](QINFRA-THREE-ASSET-MARKET.md) implements complete reference batches and durable continuous collection. It does not establish pool liquidity, paper fills or actual orders. The first bounded official three-source round was correctly rejected for 5,095 ms quote skew under its explicit 5,000 ms research limit; source receipts remain available. No operational limit was inferred from that research policy.
 
 The subsequent owner decision confirms each asset may use at most one third of runtime capital, inclusive of fees, with unused allocations held as cash. Candle interval remains pending. This input increment does not activate portfolio trading limits or deploy owner grants.
+
+## Subsequent one-minute paper policy
+
+One-minute EMA 15/30 and one-third allocation are now implemented in a separate [reference paper account](QINFRA-REFERENCE-PAPER.md). The user chose 1,000 virtual AF-USDC, 30 bps simulated fee and 10 bps simulated adverse slippage, retain-on-gap and manual liquidation initially. These paper assumptions do not choose a V3 pool fee, router, liquidity, owner grant or chain deployment. All actual V3 execution remains NOT_RUN.

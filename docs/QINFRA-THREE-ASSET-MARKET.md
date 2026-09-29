@@ -41,3 +41,7 @@ The explicit research policy allowed 30,000 ms age, 5,000 ms skew and 30,000 ms 
 The next paper slice requires durable capital/fill/checkpoint events, a confirmed candle/weight policy, fees/slippage, cashflow-neutral NAV and separate public strategy versus personal performance. It must not silently carry forward absent prices or drive EMA from duplicate polls. The old synthetic limits remain until their replacement is verified.
 
 V3 execution requires qualified protocol artifacts/router ABI, separate token/pool deployment evidence, owner-bound grants, quote-to-fill bounds, expiry/liquidation enforcement and receipt/position reconciliation. No public test deployment, approval transaction, restricted execution key or actual order has been created. New publication, merge and broadcast are separately gated; self-review and local test results do not constitute independent or hosted CI approval.
+
+## Subsequent paper increment, 2026-09-30
+
+The user confirmed one-minute samples, EMA 15/30, retain-on-gap, 5-second completion-relative collection, 30-second quote/close age, 10-second skew, 30 bps fee, 10 bps adverse slippage, one-third entry budgets and no forced overweight sale. The initial virtual balance is 1,000 AF-USDC with manual stop only. The [reference paper increment](QINFRA-REFERENCE-PAPER.md) implements isolated virtual accounting and replay; the earlier input-only scope and research observations above retain their historical meaning.
