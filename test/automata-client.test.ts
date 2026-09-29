@@ -48,3 +48,20 @@ test('simulation client sends same-origin credentials and exposes a structured r
     /可用现金不足/,
   );
 });
+test('multi-asset strategy form preserves weights, external mode and the price trigger asset', () => {
+  const p = parametersFromForm({
+    ...form,
+    weight: '30',
+    weightB: '40',
+    strategyMode: 'external',
+    priceAsset: 'rwa-b',
+    mode: 'price',
+    upper: '120',
+    lower: '90',
+  });
+  assert.deepEqual(p.weights, { 'rwa-a': 3000, 'rwa-b': 4000 });
+  assert.equal(p.strategyMode, 'external');
+  assert.deepEqual(p.limits, { mode: 'price', assetId: 'rwa-b', upper: '120000000', lower: '90000000' });
+  assert.throws(() => parametersFromForm({ ...form, weight: '80', weightB: '30' }));
+  assert.throws(() => parametersFromForm({ ...form, strategyMode: 'unknown' }));
+});

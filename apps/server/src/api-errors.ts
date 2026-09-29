@@ -1,5 +1,7 @@
 // Only fixed public codes/messages cross the API boundary; never serialize an Error.
 const conflictCodes = new Set([
+  'STRATEGY_FRAME',
+  'STRATEGY_MODE',
   'BOT_OWNS_ALLOCATION',
   'BOT_VAULT_NOT_READY',
   'BOT_RUN_LIMIT',
@@ -34,6 +36,8 @@ const conflictCodes = new Set([
   'EXCESS_FEE_PAYMENT',
 ]);
 const errors: Readonly<Record<string, { status: number; message: string; retryable: boolean }>> = {
+  STRATEGY_PROTOCOL: { status: 400, message: '策略协议或运行标识不匹配。', retryable: false },
+  STRATEGY_TARGETS: { status: 400, message: '目标仓位超出本次运行的标的或资金范围。', retryable: false },
   INVALID_REQUEST: { status: 400, message: '请求格式或参数无效。', retryable: false },
   SESSION_REQUIRED: { status: 401, message: '请先选择本地演示账户。', retryable: false },
   FORBIDDEN: { status: 403, message: '该操作不可用。', retryable: false },

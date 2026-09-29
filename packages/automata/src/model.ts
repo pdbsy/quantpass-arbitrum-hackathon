@@ -25,6 +25,7 @@ export type Limits =
   | { mode: 'percent'; upperBps?: number; lowerBps?: number }
   | { mode: 'price'; assetId: string; upper?: string; lower?: string };
 export interface Parameters {
+  strategyMode?: 'rebalance' | 'external';
   weights: Record<string, number>;
   deviationBps: number;
   intervalMs: number;
@@ -60,6 +61,13 @@ export interface Trade {
   purpose: 'rebalance' | 'liquidation';
 }
 export interface Run {
+  lastDecision?: {
+    id: string;
+    frameSeq: number;
+    at: number;
+    targets: Record<string, number>;
+    trades: number;
+  };
   version: typeof ENGINE_VERSION;
   id: string;
   parameters: Parameters;
@@ -85,6 +93,7 @@ export interface Run {
   history: { at: number; equity: string; returnBps: number; status: Run['status']; reason: string | null }[];
 }
 export type Action =
+  | { type: 'decision'; id: string; frameSeq: number; targets: Record<string, number> }
   | { type: 'frame'; frame: Frame }
   | { type: 'stop' | 'pause' | 'resume' }
   | { type: 'fund'; direction: 'in' | 'out'; amount: string };
@@ -98,6 +107,10 @@ export function amount(value: string): bigint {
 const integer = (v: number, min: number, max: number) => Number.isSafeInteger(v) && v >= min && v <= max;
 export function validateParameters(p: Parameters) {
   requireThat(p && typeof p === 'object' && p.weights && typeof p.weights === 'object', 'INVALID_PARAMETERS');
+  requireThat(
+    p.strategyMode === undefined || ['rebalance', 'external'].includes(p.strategyMode),
+    'INVALID_PARAMETERS',
+  );
   const entries = Object.entries(p.weights);
   requireThat(
     entries.length > 0 &&

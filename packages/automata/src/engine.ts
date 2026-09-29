@@ -1,5 +1,6 @@
 import { amount, requireThat, validateParameters, ASSETS, ENGINE_VERSION, SCALE, BPS } from './model.ts';
 import type { Action, Frame, Parameters, Quote, Run, Trade } from './model.ts';
+import { validateTargets } from './strategy-protocol.ts';
 
 const ceil = (n: bigint, d: bigint) => (n + d - 1n) / d;
 const min = (a: bigint, b: bigint) => (a < b ? a : b);
@@ -200,16 +201,19 @@ function liquidate(run: Run) {
     run.reason ??= '清仓未完成，等待下一份有效报价';
   }
 }
-function rebalance(run: Run) {
-  if (run.clock < run.nextDecisionAt) return;
-  run.nextDecisionAt = run.clock + run.parameters.intervalMs;
+function rebalance(run: Run, targets = run.parameters.weights, scheduled = true) {
+  if (scheduled) {
+    if (run.clock < run.nextDecisionAt) return;
+    run.nextDecisionAt = run.clock + run.parameters.intervalMs;
+  }
   if (!valuationsFresh(run)) {
     run.reason = '组合估值不完整，暂停新增交易';
     return;
   }
   const nav = equity(run);
   const intents: { id: string; side: 'buy' | 'sell'; quantity: bigint }[] = [];
-  for (const [id, weight] of Object.entries(run.parameters.weights).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const id of Object.keys(run.parameters.weights).sort()) {
+    const weight = targets[id] ?? 0;
     const q = run.quotes[id];
     if (!fresh(run, q)) {
       run.reason = '报价缺失、过期或交易场所不可用';
@@ -301,7 +305,28 @@ export function transition(previous: Run, action: Action): Run {
     }
     limits(run);
     if (run.trigger) liquidate(run);
-    else if (run.status === 'running') rebalance(run);
+    else if (run.status === 'running' && run.parameters.strategyMode !== 'external') rebalance(run);
+  } else if (action.type === 'decision') {
+    requireThat(!run.trigger && run.status === 'running', 'INVALID_STATUS');
+    requireThat(run.parameters.strategyMode === 'external', 'STRATEGY_MODE');
+    requireThat(
+      Number.isSafeInteger(action.frameSeq) && action.frameSeq > 0 && action.frameSeq === run.cursor,
+      'STRATEGY_FRAME',
+    );
+    requireThat(typeof action.id === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(action.id), 'INVALID_ID');
+    validateTargets(action.targets, Object.keys(run.parameters.weights));
+    requireThat(valuationsFresh(run), 'STALE_VALUATION');
+    const before = run.trades.length;
+    limits(run);
+    if (run.trigger) liquidate(run);
+    else rebalance(run, action.targets, false);
+    run.lastDecision = {
+      id: action.id,
+      frameSeq: action.frameSeq,
+      at: run.clock,
+      targets: structuredClone(action.targets),
+      trades: run.trades.length - before,
+    };
   } else if (action.type === 'stop') {
     trigger(run, 'manual');
     liquidate(run);

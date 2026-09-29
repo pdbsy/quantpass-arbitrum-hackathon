@@ -1,6 +1,10 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { ASSETS } from '../../../packages/automata/src/model.ts';
 import { DATASETS } from '../../../packages/automata/src/fixtures.ts';
+import {
+  STRATEGY_PROTOCOL,
+  type StrategyDecision,
+} from '../../../packages/automata/src/strategy-protocol.ts';
 import { AutomataStore, type CreateRun, type RunCommand } from './automata-store.ts';
 import type { LocalStore } from './store.ts';
 
@@ -32,14 +36,21 @@ const limits = {
     },
   ],
 };
-const parameters = object({
-  weights: { ...object(Object.fromEntries(ASSETS.map((a) => [a.id, int(0, 10000)])), []), minProperties: 1 },
-  deviationBps: int(1, 10000),
-  intervalMs: int(1000, 86400000),
-  feeBps: int(0, 1000),
-  maxSlippageBps: int(0, 1000),
-  limits,
-});
+const parameters = object(
+  {
+    strategyMode: { enum: ['rebalance', 'external'] },
+    weights: {
+      ...object(Object.fromEntries(ASSETS.map((a) => [a.id, int(0, 10000)])), []),
+      minProperties: 1,
+    },
+    deviationBps: int(1, 10000),
+    intervalMs: int(1000, 86400000),
+    feeBps: int(0, 1000),
+    maxSlippageBps: int(0, 1000),
+    limits,
+  },
+  ['weights', 'deviationBps', 'intervalMs', 'feeBps', 'maxSlippageBps', 'limits'],
+);
 export function registerAutomataRoutes(
   app: FastifyInstance,
   local: LocalStore,
@@ -97,6 +108,27 @@ export function registerAutomataRoutes(
     async (request) => bots.create(session(request), request.body),
   );
   const common = { id, expectedRevision: int(0, 10000) };
+  app.get<{ Params: { id: string } }>(
+    '/api/v1/automata/:id/strategy-context',
+    { schema: { params: object({ id }) } },
+    async (request) => bots.strategyContext(session(request), request.params.id),
+  );
+  app.post<{ Params: { id: string }; Body: StrategyDecision }>(
+    '/api/v1/automata/:id/decisions',
+    {
+      schema: {
+        params: object({ id }),
+        body: object({
+          ...common,
+          protocol: { const: STRATEGY_PROTOCOL },
+          runId: id,
+          frameSeq: int(1, 10000),
+          targets: object(Object.fromEntries(ASSETS.map((a) => [a.id, int(0, 10000)])), []),
+        }),
+      },
+    },
+    async (request) => bots.decide(session(request), request.params.id, request.body),
+  );
   app.post<{ Params: { id: string }; Body: RunCommand }>(
     '/api/v1/automata/:id/actions',
     {
