@@ -1,0 +1,561 @@
+import { useEffect, useRef, useState } from 'react';
+import {
+  parametersFromForm,
+  requestSimulation as request,
+  SimulationError,
+  type ConfigForm,
+} from './automata-client.ts';
+import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
+import type { AutomataStore } from '../../server/src/automata-store.ts';
+type RunView = ReturnType<AutomataStore['get']> & { runtimeError?: string | null };
+interface Vault {
+  id: string;
+  revision: number;
+  idle: string;
+  activeCash: string;
+  status: string;
+  strategyId: string;
+}
+interface Pending {
+  owner: string;
+  path: string;
+  body: unknown;
+}
+const key = 'alphaforge-automata-pending-v1';
+function readPending(): Pending | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(key) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+const money = (value: string) => formatUnits(value, 6).replace(/0+$/, '').replace(/\.$/, '');
+const states = {
+  running: '运行中',
+  paused: '策略暂停 · 风控仍监控',
+  liquidating: '清仓中',
+  blocked: '清仓受阻',
+  stopped: '已停止',
+};
+const triggerNames = { manual: '手动停止', upper: '触碰上限', lower: '触碰下限' };
+function Curve({ run }: { run: RunView }) {
+  const values = [0, ...run.state.history.map((h) => h.returnBps)];
+  const low = Math.min(-1, ...values),
+    high = Math.max(1, ...values);
+  const points = values
+    .map(
+      (v, i) => `${12 + (i / Math.max(1, values.length - 1)) * 576},${98 - ((v - low) / (high - low)) * 80}`,
+    )
+    .join(' ');
+  return (
+    <figure className="af-curve">
+      <figcaption>
+        单位净值 · 资金进出已调整 <span>{(1 + run.returnBps / 10000).toFixed(4)}</span>
+      </figcaption>
+      <svg viewBox="0 0 600 112" role="img" aria-label="单位净值历史曲线">
+        <line x1="12" x2="588" y1="98" y2="98" className="af-axis" />
+        <polyline points={points} className="af-line" />
+      </svg>
+      <small>本次运行基准 1.0000 · 合成行情，不代表真实策略业绩</small>
+    </figure>
+  );
+}
+export function Automata() {
+  const [owner, setOwner] = useState('');
+  const [vaults, setVaults] = useState<Vault[]>([]);
+  const [runs, setRuns] = useState<RunView[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('请选择本地测试账户。');
+  const [pending, setPending] = useState<Pending | null>(readPending);
+  const [capital, setCapital] = useState('500');
+  const [transfer, setTransfer] = useState('100');
+  const [dataset, setDataset] = useState('trend');
+  const [form, setForm] = useState<ConfigForm>({
+    weight: '50',
+    deviation: '1',
+    seconds: '5',
+    fee: '0.1',
+    slippage: '1',
+    mode: 'percent',
+    upper: '10',
+    lower: '-5',
+  });
+  const lock = useRef(false);
+  const generation = useRef(0);
+  const vault = vaults.find((v) => v.strategyId === 'core-flow-demo');
+  function savePending(value: Pending | null) {
+    setPending(value);
+    try {
+      if (value) sessionStorage.setItem(key, JSON.stringify(value));
+      else sessionStorage.removeItem(key);
+    } catch {
+      /* Keep the current tab's pending request available. */
+    }
+  }
+  async function refresh() {
+    const epoch = ++generation.current;
+    const identity = await request<{ user: string }>('/api/session');
+    const [account, list] = await Promise.all([
+      request<{ items: Vault[] }>('/api/v1/vaults'),
+      request<{ items: RunView[] }>('/api/v1/automata'),
+    ]);
+    if (epoch !== generation.current) return;
+    setOwner(identity.user);
+    setMessage((current) =>
+      current.startsWith('请选择') || current.startsWith('请先选择')
+        ? '本地账户已连接，运行记录已恢复。'
+        : current,
+    );
+    setVaults(account.items);
+    setRuns(list.items);
+  }
+  useEffect(() => {
+    let live = true;
+    const update = () => {
+      if (live && !lock.current)
+        void refresh().catch(() => {
+          if (live) setMessage('请先选择测试账户，或检查本地服务是否可用。');
+        });
+    };
+    update();
+    const timer = setInterval(update, 2000);
+    return () => {
+      live = false;
+      generation.current++;
+      clearInterval(timer);
+    };
+  }, []);
+  async function perform(fn: () => Promise<void>) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    generation.current++;
+    try {
+      await fn();
+      await refresh();
+      setMessage('操作已确认，状态已更新。');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '操作未完成');
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  async function mutate(path: string, body: unknown) {
+    const value = { owner, path, body };
+    savePending(value);
+    try {
+      await request(path, body);
+      savePending(null);
+    } catch (error) {
+      if (error instanceof SimulationError && error.definitive) savePending(null);
+      throw error;
+    }
+  }
+  async function action(run: RunView, fields: Record<string, unknown>) {
+    const current = await request<RunView>(`/api/v1/automata/${run.state.id}`);
+    await mutate(`/api/v1/automata/${run.state.id}/actions`, {
+      id: crypto.randomUUID(),
+      expectedRevision: current.revision,
+      ...fields,
+    });
+  }
+  const disabled = busy || !!pending || !owner;
+  const field = (name: keyof ConfigForm, label: string) => (
+    <label>
+      {label}
+      <input
+        value={form[name]}
+        disabled={disabled}
+        onChange={(e) => setForm({ ...form, [name]: e.target.value })}
+        inputMode="decimal"
+      />
+    </label>
+  );
+  return (
+    <div className="af-shell">
+      <div className="af-banner">LOCAL / MOCK · 合成 RWA 行情 · 不连接钱包、不签名、不使用真实资金</div>
+      <header className="af-header">
+        <a href="/" className="af-brand">
+          AlphaForge <small>HACKATHON</small>
+        </a>
+        <a href="/">返回策略工作台 ↗</a>
+      </header>
+      <main>
+        <section className="af-heading">
+          <div>
+            <p className="af-eyebrow">RWA AUTOMATA / PHASE 01</p>
+            <h1>让策略运行，让每一步可追溯。</h1>
+            <p>回放行情、自动再平衡，以及触发后不会自行恢复的全组合清仓。</p>
+          </div>
+          <label>
+            测试账户
+            <select
+              aria-label="测试账户"
+              value={owner}
+              disabled={busy}
+              onChange={(e) => {
+                const user = e.target.value;
+                if (user)
+                  void perform(async () => {
+                    await request('/api/demo/session', { user });
+                    setRuns([]);
+                    setVaults([]);
+                  });
+              }}
+            >
+              <option value="">选择账户</option>
+              <option value="alice" disabled={!!pending && pending.owner !== 'alice'}>
+                Alice
+              </option>
+              <option value="bob" disabled={!!pending && pending.owner !== 'bob'}>
+                Bob
+              </option>
+            </select>
+          </label>
+        </section>
+        <div className="af-message" role="status">
+          {message}
+        </div>
+        {pending && !busy && (
+          <section className="af-warning">
+            <strong>有一笔结果待确认的请求 · {pending.owner}</strong>
+            <p>先用原请求核对，避免重复变更资金。</p>
+            <button
+              disabled={busy || (owner !== '' && owner !== pending.owner)}
+              onClick={() =>
+                void perform(async () => {
+                  const identity = await request<{ user: string }>('/api/session');
+                  if (identity.user !== pending.owner)
+                    throw new Error('待确认请求属于另一个测试账户，请在原账户核对');
+                  try {
+                    await request(pending.path, pending.body);
+                    savePending(null);
+                  } catch (error) {
+                    if (error instanceof SimulationError && error.definitive) savePending(null);
+                    throw error;
+                  }
+                })
+              }
+            >
+              核对原请求
+            </button>
+          </section>
+        )}
+        <section className="af-funding">
+          <div>
+            <span>闲置余额</span>
+            <strong>
+              {money(vault?.idle ?? '0')} <small>模拟 USDT</small>
+            </strong>
+          </div>
+          <div>
+            <span>运行可用现金</span>
+            <strong>{money(vault?.activeCash ?? '0')}</strong>
+          </div>
+          <button
+            disabled={disabled}
+            onClick={() =>
+              void perform(async () => {
+                if (!vault) {
+                  await request('/api/v1/vaults', { strategyId: 'core-flow-demo' });
+                  return;
+                }
+                const v = await request<Vault>(`/api/v1/vaults/${vault.id}`);
+                await mutate(`/api/v1/vaults/${v.id}/commands`, {
+                  id: crypto.randomUUID(),
+                  expectedRevision: v.revision,
+                  type: 'deposit',
+                  amount: '1000000000',
+                });
+              })
+            }
+          >
+            {vault ? '存入 1,000 模拟资金' : '建立测试 Vault'}
+          </button>
+          {vault?.status === 'stopped' && vault.activeCash !== '0' && (
+            <button
+              disabled={disabled}
+              onClick={() =>
+                void perform(async () => {
+                  const v = await request<Vault>(`/api/v1/vaults/${vault.id}`);
+                  await mutate(`/api/v1/vaults/${v.id}/commands`, {
+                    id: crypto.randomUUID(),
+                    expectedRevision: v.revision,
+                    type: 'deallocate',
+                    amount: v.activeCash,
+                  });
+                })
+              }
+            >
+              将结算现金转为闲置
+            </button>
+          )}
+        </section>
+        <div className="af-layout">
+          <aside className="af-panel">
+            <p className="af-eyebrow">01 / 配置新运行</p>
+            <h2>阈值再平衡 Bot</h2>
+            <p>首个标的 RWA-A 是合成资产，无真实合约地址。参数在启动后冻结。</p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void perform(async () => {
+                  if (!vault) throw new Error('请先建立测试 Vault 并存入模拟资金');
+                  const parameters = parametersFromForm(form);
+                  await mutate('/api/v1/automata', {
+                    id: crypto.randomUUID(),
+                    vaultId: vault.id,
+                    amount: parseUnits(capital, 6),
+                    datasetId: dataset,
+                    parameters,
+                  });
+                });
+              }}
+            >
+              <label>
+                运行资金（模拟 USDT）
+                <input
+                  value={capital}
+                  onChange={(e) => setCapital(e.target.value)}
+                  disabled={disabled}
+                  inputMode="decimal"
+                />
+              </label>
+              <label>
+                行情场景
+                <select value={dataset} onChange={(e) => setDataset(e.target.value)} disabled={disabled}>
+                  <option value="trend">合成上涨行情</option>
+                  <option value="decline">合成下跌行情</option>
+                  <option value="liquidity">合成流动性受阻</option>
+                </select>
+              </label>
+              <div className="af-fields">
+                {field('weight', '股票代币权重 %')}
+                {field('deviation', '再平衡偏离阈值 %')}
+                {field('seconds', '检查间隔（模拟秒）')}
+                {field('fee', '模拟手续费 %')}
+                {field('slippage', '最大滑点 %')}
+              </div>
+              <fieldset>
+                <legend>全组合清仓条件</legend>
+                <label>
+                  模式
+                  <select
+                    value={form.mode}
+                    disabled={disabled}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        mode: e.target.value,
+                        upper: e.target.value === 'price' ? '120' : '10',
+                        lower: e.target.value === 'price' ? '90' : '-5',
+                      })
+                    }
+                  >
+                    <option value="off">仅手动停止清仓</option>
+                    <option value="percent">组合收益率上下限</option>
+                    <option value="price">RWA-A 价格上下限</option>
+                  </select>
+                </label>
+                {form.mode !== 'off' && (
+                  <div className="af-fields">
+                    {field('upper', form.mode === 'price' ? '价格上限（模拟 USDT）' : '收益上限 %')}
+                    {field('lower', form.mode === 'price' ? '价格下限（模拟 USDT）' : '收益下限 %（负数）')}
+                  </div>
+                )}
+                <small>上下限可留空一个；触碰即清仓整个组合。停止后不会自动重启。</small>
+              </fieldset>
+              <button
+                className="af-primary"
+                disabled={disabled || !vault || vault.status !== 'stopped' || vault.activeCash !== '0'}
+              >
+                启动模拟运行
+              </button>
+            </form>
+          </aside>
+          <section className="af-runs">
+            <p className="af-eyebrow">02 / 运行与记录</p>
+            {!runs.length && (
+              <div className="af-empty">
+                <h2>第一条运行记录，从这里开始。</h2>
+                <p>选择账户 → 建立 Vault → 存入模拟资金 → 配置并启动。</p>
+              </div>
+            )}
+            {runs.map((run) => (
+              <article className="af-panel af-run" key={run.state.id}>
+                <header>
+                  <div>
+                    <h2>RWA 再平衡</h2>
+                    <small>
+                      运行 {run.state.id.slice(0, 8)} · {run.datasetId} · 第 {run.state.cursor}/120 帧
+                    </small>
+                  </div>
+                  <span className={`af-state ${run.state.status === 'blocked' ? 'af-blocked' : ''}`}>
+                    {states[run.state.status]}
+                  </span>
+                </header>
+                <div className="af-metrics">
+                  <div>
+                    <span>组合权益</span>
+                    <strong>{money(run.equity)}</strong>
+                  </div>
+                  <div>
+                    <span>调整后收益率</span>
+                    <strong>{(run.returnBps / 100).toFixed(2)}%</strong>
+                  </div>
+                  <div>
+                    <span>累计交易费用</span>
+                    <strong>{money(run.state.fees)}</strong>
+                  </div>
+                </div>
+                {run.state.trigger && (
+                  <p className="af-warning">
+                    清仓原因：{triggerNames[run.state.trigger.reason]} · 触发时权益{' '}
+                    {money(run.state.trigger.equity)}；最终成交以实际记录为准。
+                  </p>
+                )}
+                {run.settlementReleased !== '0' && (
+                  <p>结算时超出额度、已归还闲置：{money(run.settlementReleased)} 模拟 USDT</p>
+                )}
+                {(run.state.reason || run.runtimeError) && (
+                  <p className="af-warning">{run.runtimeError ?? run.state.reason}</p>
+                )}
+                {run.replayComplete && run.state.status !== 'stopped' && (
+                  <p className="af-warning">
+                    固定行情已回放完毕，当前持仓仍保留。可用最后一帧报价执行停止清仓；不会将回放结束视为已停止。
+                  </p>
+                )}
+                <Curve run={run} />
+                <div className="af-actions">
+                  <button
+                    disabled={disabled || run.state.status !== 'running'}
+                    onClick={() => void perform(() => action(run, { type: 'pause' }))}
+                  >
+                    暂停策略
+                  </button>
+                  <button
+                    disabled={disabled || run.state.status !== 'paused'}
+                    onClick={() => void perform(() => action(run, { type: 'resume' }))}
+                  >
+                    继续策略
+                  </button>
+                  <button
+                    disabled={disabled || run.state.status === 'stopped' || run.replayComplete}
+                    onClick={() => void perform(() => action(run, { type: 'step' }))}
+                  >
+                    推进一帧
+                  </button>
+                  <button
+                    className="af-danger"
+                    disabled={disabled || run.state.status === 'stopped'}
+                    onClick={() => void perform(() => action(run, { type: 'stop' }))}
+                  >
+                    停止并立即清仓
+                  </button>
+                </div>
+                {['running', 'paused'].includes(run.state.status) && (
+                  <div className="af-transfer">
+                    <label>
+                      变更运行资金
+                      <input
+                        value={transfer}
+                        onChange={(e) => setTransfer(e.target.value)}
+                        inputMode="decimal"
+                        disabled={disabled}
+                      />
+                    </label>
+                    <button
+                      disabled={disabled}
+                      onClick={() =>
+                        void perform(() =>
+                          action(run, { type: 'fund', direction: 'in', amount: parseUnits(transfer, 6) }),
+                        )
+                      }
+                    >
+                      从闲置追加
+                    </button>
+                    <button
+                      disabled={disabled}
+                      onClick={() =>
+                        void perform(() =>
+                          action(run, { type: 'fund', direction: 'out', amount: parseUnits(transfer, 6) }),
+                        )
+                      }
+                    >
+                      撤回到闲置
+                    </button>
+                    <small>最多撤回 {money(run.state.cash)} 模拟 USDT；不自动卖出持仓。</small>
+                  </div>
+                )}
+                <div className="af-table">
+                  <table>
+                    <caption>当前持仓</caption>
+                    <thead>
+                      <tr>
+                        <th>资产</th>
+                        <th>数量</th>
+                        <th>成本（含买入费）</th>
+                        <th>卖出报价</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(run.state.positions).map(([id, p]) => (
+                        <tr key={id}>
+                          <td>{id.toUpperCase()}</td>
+                          <td>{money(p.quantity)}</td>
+                          <td>{money(p.cost)}</td>
+                          <td>{money(run.state.quotes[id]?.bid ?? '0')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <details>
+                  <summary>成交与运行记录 · {run.state.trades.length} 笔</summary>
+                  <div className="af-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>模拟秒</th>
+                          <th>方向</th>
+                          <th>数量</th>
+                          <th>成交价</th>
+                          <th>费用</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {run.state.trades.map((trade) => (
+                          <tr key={trade.id}>
+                            <td>{trade.at / 1000}</td>
+                            <td>
+                              {trade.side === 'buy' ? '买入' : '卖出'}
+                              {trade.purpose === 'liquidation' ? ' · 清仓' : ''}
+                            </td>
+                            <td>{money(trade.quantity)}</td>
+                            <td>{money(trade.price)}</td>
+                            <td>{money(trade.fee)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="af-provenance">
+                    引擎 {run.state.version}
+                    <br />
+                    数据 SHA-256 {run.datasetHash}
+                    <br />
+                    服务器保存检查点，刷新页面不会重置持仓。
+                  </p>
+                </details>
+              </article>
+            ))}
+          </section>
+        </div>
+      </main>
+      <footer className="af-footer">
+        AlphaForge · 本地交易自动机底座 · 参考股票价格与代币成交报价独立建模
+      </footer>
+    </div>
+  );
+}

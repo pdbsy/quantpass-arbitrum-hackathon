@@ -1,5 +1,14 @@
 // Only fixed public codes/messages cross the API boundary; never serialize an Error.
 const conflictCodes = new Set([
+  'BOT_OWNS_ALLOCATION',
+  'BOT_VAULT_NOT_READY',
+  'BOT_RUN_LIMIT',
+  'INSUFFICIENT_BOT_CASH',
+  'REPLAY_COMPLETE',
+  'RUN_HISTORY_LIMIT',
+  'STALE_VALUATION',
+  'FUNDING_NAV',
+  'UNIT_PRECISION_LIMIT',
   'UNKNOWN_STRATEGY',
   'INVALID_ID',
   'UNKNOWN_COMMAND',
@@ -33,6 +42,7 @@ const errors: Readonly<Record<string, { status: number; message: string; retryab
   CROSS_SITE_REJECTED: { status: 403, message: '请求来源不可用。', retryable: false },
   DEMO_HEADER_REQUIRED: { status: 403, message: '需要本地演示请求标记。', retryable: false },
   VAULT_NOT_FOUND: { status: 404, message: '未找到该 Vault。', retryable: false },
+  BOT_NOT_FOUND: { status: 404, message: '未找到该模拟运行。', retryable: false },
   CHAIN_OPERATION_NOT_FOUND: { status: 404, message: '未找到该链上操作。', retryable: false },
   CHAIN_SUBMISSION_INVALID: { status: 400, message: '链上操作登记无效。', retryable: false },
   CHAIN_OPERATION_CONFLICT: { status: 409, message: '链上操作标识与已有记录冲突。', retryable: false },
