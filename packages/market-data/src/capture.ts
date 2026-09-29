@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto';
-import { lstatSync, realpathSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync } from 'node:sqlite';
+import { openJournalDatabase } from './journal-db.ts';
 import { normalizeReference, parseRegistry, requireValue, validateSelection } from './robinhood.ts';
 import type { ReferenceObservation, Selection } from './robinhood.ts';
 export type ReadTransport = (url: string, init: RequestInit) => Promise<Response>;
@@ -213,34 +212,17 @@ export function replayReference(capture: ReferenceCapture): ReferenceObservation
 export class MarketJournal {
   readonly #db: DatabaseSync;
   constructor(path: string) {
-    const full = resolve(path);
-    requireValue(realpathSync(dirname(full)) === dirname(full), 'JOURNAL_PARENT_SYMLINK');
-    let existing = false;
-    for (const item of [full, full + '-wal', full + '-shm']) {
-      try {
-        const stat = lstatSync(item);
-        if (item === full) existing = true;
-        requireValue(stat.isFile() && stat.nlink === 1, 'JOURNAL_UNSAFE_FILE');
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      }
+    this.#db = openJournalDatabase(path, 0x41464d44);
+    try {
+      this.#db.exec(
+        'CREATE TABLE IF NOT EXISTS reference_captures (id INTEGER PRIMARY KEY, payload TEXT NOT NULL, sha256 TEXT NOT NULL);' +
+          "CREATE TRIGGER IF NOT EXISTS immutable_capture_update BEFORE UPDATE ON reference_captures BEGIN SELECT RAISE(ABORT,'immutable capture'); END;" +
+          "CREATE TRIGGER IF NOT EXISTS immutable_capture_delete BEFORE DELETE ON reference_captures BEGIN SELECT RAISE(ABORT,'immutable capture'); END;",
+      );
+    } catch (error) {
+      this.#db.close();
+      throw error;
     }
-    if (existing) {
-      const probe = new DatabaseSync(full, { readOnly: true });
-      try {
-        requireValue(
-          probe.prepare('PRAGMA application_id').get()?.application_id === 0x41464d44,
-          'JOURNAL_IDENTITY_MISMATCH',
-        );
-      } finally {
-        probe.close();
-      }
-    }
-    this.#db = new DatabaseSync(full);
-    this.#db.exec(`PRAGMA application_id=0x41464d44; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=1000;
-      CREATE TABLE IF NOT EXISTS reference_captures (id INTEGER PRIMARY KEY, payload TEXT NOT NULL, sha256 TEXT NOT NULL);
-      CREATE TRIGGER IF NOT EXISTS immutable_capture_update BEFORE UPDATE ON reference_captures BEGIN SELECT RAISE(ABORT,'immutable capture'); END;
-      CREATE TRIGGER IF NOT EXISTS immutable_capture_delete BEFORE DELETE ON reference_captures BEGIN SELECT RAISE(ABORT,'immutable capture'); END;`);
   }
   append(capture: ReferenceCapture): number {
     if (capture.status === 'ACCEPTED') replayReference(capture);

@@ -22,3 +22,11 @@ Microsoft issuer HTML capture SHA-256: `bd9ec22291e1c7cb0bb9784b1a81ffb8cb570883
 Local raw responses and exact UTC receipt times are in `.checks/market-data/uniswap-qualification-nassbv8q/registry.body`, `report.json`, `microsoft.html` and `issuer-sources.json`. Failed Apple/NVIDIA raw requests are saved as HTTP error bodies; their digests must never be presented as archived issuer content. The observed addresses above are research data, not runtime configuration. The registry observation is historical and must be refreshed before a future eligibility decision.
 
 For every candidate, feed proxy mapping, feed health, canonical deployed code, Uniswap pools, executable quotes and fork execution remain unverified. Review expiry, operational freshness/grace limits and execution permissions have not been set. Therefore none can be loaded as an approved, enabled operational record. Preserve these notes when later adding a complete versioned review rather than rewriting this research state as a historical PASS.
+
+## Additional selected-universe source inspection, 2026-09-30
+
+The user subsequently selected MSFT, NVDA and AAPL for real-reference-price-mapped test substitutes. This changes their test-candidate status, not enabled trading-whitelist status; preserve the earlier exploratory findings above.
+
+Apple’s [FY2025 Form 10-K, cover page](https://s2.q4cdn.com/470004039/files/doc_financials/2025/ar/_10-K-2025-As-Filed.pdf) was inspected through web PDF text and a cover-page screenshot. Its registered-securities table identifies AAPL as common stock on The Nasdaq Stock Market LLC. This adds issuer-filed historical classification evidence to the earlier FAQ finding; it is not a current review-expiry decision, a local raw-file archive, independent approval, or token/oracle/venue qualification. No whitelist entry is enabled.
+
+Current official Uniswap V3 deployment guidance continues to require chain-specific address confirmation. The attempted Robinhood V3 chain-specific document did not load through the web tool in this inspection. No official 46630 router or pool was established and no address was substituted from 4663.
