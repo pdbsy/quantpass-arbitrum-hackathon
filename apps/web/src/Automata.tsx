@@ -72,6 +72,9 @@ export function Automata() {
   const [dataset, setDataset] = useState('trend');
   const [form, setForm] = useState<ConfigForm>({
     weight: '50',
+    weightB: '0',
+    strategyMode: 'rebalance',
+    priceAsset: 'rwa-a',
     deviation: '1',
     seconds: '5',
     fee: '0.1',
@@ -184,9 +187,9 @@ export function Automata() {
       <main>
         <section className="af-heading">
           <div>
-            <p className="af-eyebrow">RWA AUTOMATA / PHASE 01</p>
+            <p className="af-eyebrow">RWA QUANT INFRA / STAGE 02</p>
             <h1>让策略运行，让每一步可追溯。</h1>
-            <p>回放行情、自动再平衡，以及触发后不会自行恢复的全组合清仓。</p>
+            <p>多标的模拟、量化策略接入，以及触发后不会自行恢复的全组合清仓。</p>
           </div>
           <label>
             测试账户
@@ -295,8 +298,8 @@ export function Automata() {
         <div className="af-layout">
           <aside className="af-panel">
             <p className="af-eyebrow">01 / 配置新运行</p>
-            <h2>阈值再平衡 Bot</h2>
-            <p>首个标的 RWA-A 是合成资产，无真实合约地址。参数在启动后冻结。</p>
+            <h2>配置量化策略</h2>
+            <p>RWA-A / RWA-B 均为合成资产。执行与清仓由底座控制，参数在启动后冻结。</p>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -331,12 +334,29 @@ export function Automata() {
                 </select>
               </label>
               <div className="af-fields">
-                {field('weight', '股票代币权重 %')}
+                {field('weight', 'RWA-A 目标权重 %')}
+                {field('weightB', 'RWA-B 目标权重 %')}
                 {field('deviation', '再平衡偏离阈值 %')}
-                {field('seconds', '检查间隔（模拟秒）')}
+                {form.strategyMode !== 'external' && field('seconds', '检查间隔（模拟秒）')}
                 {field('fee', '模拟手续费 %')}
                 {field('slippage', '最大滑点 %')}
               </div>
+              <label>
+                策略来源
+                <select
+                  value={form.strategyMode}
+                  disabled={disabled}
+                  onChange={(e) => setForm({ ...form, strategyMode: e.target.value })}
+                >
+                  <option value="rebalance">内置阈值再平衡</option>
+                  <option value="external">外部量化策略 · JSON 接口</option>
+                </select>
+              </label>
+              <small>
+                {form.strategyMode === 'external'
+                  ? '等待外部策略发送目标仓位；上方权重仅保存为配置参考，不会自动买入。两种资产均可被策略选择。'
+                  : '权重之和不超过 100%，剩余资金保留为现金。'}
+              </small>
               <fieldset>
                 <legend>全组合清仓条件</legend>
                 <label>
@@ -355,9 +375,22 @@ export function Automata() {
                   >
                     <option value="off">仅手动停止清仓</option>
                     <option value="percent">组合收益率上下限</option>
-                    <option value="price">RWA-A 价格上下限</option>
+                    <option value="price">指定资产价格上下限</option>
                   </select>
                 </label>
+                {form.mode === 'price' && (
+                  <label>
+                    触发资产
+                    <select
+                      value={form.priceAsset}
+                      disabled={disabled}
+                      onChange={(e) => setForm({ ...form, priceAsset: e.target.value })}
+                    >
+                      <option value="rwa-a">RWA-A</option>
+                      <option value="rwa-b">RWA-B</option>
+                    </select>
+                  </label>
+                )}
                 {form.mode !== 'off' && (
                   <div className="af-fields">
                     {field('upper', form.mode === 'price' ? '价格上限（模拟 USDT）' : '收益上限 %')}
@@ -386,7 +419,9 @@ export function Automata() {
               <article className="af-panel af-run" key={run.state.id}>
                 <header>
                   <div>
-                    <h2>RWA 再平衡</h2>
+                    <h2>
+                      {run.state.parameters.strategyMode === 'external' ? '外部量化策略' : 'RWA 再平衡'}
+                    </h2>
                     <small>
                       运行 {run.state.id.slice(0, 8)} · {run.datasetId} · 第 {run.state.cursor}/120 帧
                     </small>
@@ -427,6 +462,35 @@ export function Automata() {
                   </p>
                 )}
                 <Curve run={run} />
+                {run.state.parameters.strategyMode === 'external' && (
+                  <details>
+                    <summary>策略接入与信号状态</summary>
+                    <p>
+                      {run.state.lastDecision
+                        ? `最近信号：${run.state.lastDecision.id} · 第 ${run.state.lastDecision.frameSeq} 帧 · ${run.state.lastDecision.trades} 笔成交`
+                        : '尚未收到策略信号；底座不会自行买入。'}
+                    </p>
+                    {run.state.lastDecision && (
+                      <p>
+                        最近目标：
+                        {Object.keys(run.state.parameters.weights)
+                          .map(
+                            (id) =>
+                              `${id.toUpperCase()} ${(run.state.lastDecision!.targets[id] ?? 0) / 100}%`,
+                          )
+                          .join(' / ')}
+                      </p>
+                    )}
+                    <p className="af-provenance">
+                      协议 alphaforge-targets-v1 · 状态版本 {run.revision}
+                      <br />
+                      GET /api/v1/automata/{run.state.id}/strategy-context
+                      <br />
+                      POST /api/v1/automata/{run.state.id}/decisions
+                    </p>
+                    <small>信号仅对当前帧执行一次。部分成交不会自动补单；后续调仓需读取新状态再提交。</small>
+                  </details>
+                )}
                 <div className="af-actions">
                   <button
                     disabled={disabled || run.state.status !== 'running'}
@@ -518,6 +582,7 @@ export function Automata() {
                       <thead>
                         <tr>
                           <th>模拟秒</th>
+                          <th>资产</th>
                           <th>方向</th>
                           <th>数量</th>
                           <th>成交价</th>
@@ -528,6 +593,7 @@ export function Automata() {
                         {run.state.trades.map((trade) => (
                           <tr key={trade.id}>
                             <td>{trade.at / 1000}</td>
+                            <td>{trade.assetId.toUpperCase()}</td>
                             <td>
                               {trade.side === 'buy' ? '买入' : '卖出'}
                               {trade.purpose === 'liquidation' ? ' · 清仓' : ''}

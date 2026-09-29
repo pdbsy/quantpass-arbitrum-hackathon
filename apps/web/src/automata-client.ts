@@ -1,6 +1,9 @@
 import { parseUnits } from '../../../packages/domain/src/money.ts';
 import { validateParameters, type Parameters } from '../../../packages/automata/src/model.ts';
 export interface ConfigForm {
+  weightB?: string;
+  strategyMode?: string;
+  priceAsset?: string;
   weight: string;
   deviation: string;
   seconds: string;
@@ -24,7 +27,7 @@ export function parametersFromForm(form: ConfigForm): Parameters {
       : form.mode === 'price'
         ? {
             mode: 'price',
-            assetId: 'rwa-a',
+            assetId: form.priceAsset ?? 'rwa-a',
             ...(form.upper ? { upper: parseUnits(form.upper, 6) } : {}),
             ...(form.lower ? { lower: parseUnits(form.lower, 6) } : {}),
           }
@@ -34,19 +37,30 @@ export function parametersFromForm(form: ConfigForm): Parameters {
             ...(form.lower ? { lowerBps: percent(form.lower) } : {}),
           };
   const result = {
-    weights: { 'rwa-a': percent(form.weight) },
+    weights: {
+      'rwa-a': percent(form.weight),
+      ...(form.weightB === undefined ? {} : { 'rwa-b': percent(form.weightB) }),
+    },
     deviationBps: percent(form.deviation),
     intervalMs: Number(form.seconds) * 1000,
     feeBps: percent(form.fee),
     maxSlippageBps: percent(form.slippage),
     limits,
   };
+  if (form.strategyMode !== undefined && !['rebalance', 'external'].includes(form.strategyMode))
+    throw new Error('未知策略接入模式');
+  const configured: Parameters = {
+    ...result,
+    ...(form.strategyMode === undefined
+      ? {}
+      : { strategyMode: form.strategyMode as 'rebalance' | 'external' }),
+  };
   try {
-    validateParameters(result);
+    validateParameters(configured);
   } catch {
     throw new Error('请检查权重、上下限及费用范围；收益上限为正、下限为负，价格上限须高于下限');
   }
-  return result;
+  return configured;
 }
 const messages: Record<string, string> = {
   SESSION_REQUIRED: '请先选择测试账户',

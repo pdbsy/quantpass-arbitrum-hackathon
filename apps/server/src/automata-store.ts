@@ -10,6 +10,11 @@ import { amount, ENGINE_VERSION } from '../../../packages/automata/src/model.ts'
 import type { Action, Parameters, Run } from '../../../packages/automata/src/model.ts';
 import { datasetFrames } from '../../../packages/automata/src/fixtures.ts';
 import {
+  STRATEGY_PROTOCOL,
+  validateDecision,
+  type StrategyDecision,
+} from '../../../packages/automata/src/strategy-protocol.ts';
+import {
   assertInvariant,
   balances,
   DomainError,
@@ -32,7 +37,9 @@ export interface CreateRun {
   parameters: Parameters;
 }
 export type RunCommand = { id: string; expectedRevision: number } & (
-  { type: 'step' | 'stop' | 'pause' | 'resume' } | { type: 'fund'; direction: 'in' | 'out'; amount: string }
+  | { type: 'step' | 'stop' | 'pause' | 'resume' }
+  | { type: 'fund'; direction: 'in' | 'out'; amount: string }
+  | ({ type: 'decision' } & StrategyDecision)
 );
 interface RecordState {
   state: Run;
@@ -112,6 +119,36 @@ export class AutomataStore {
   }
   get(owner: string, id: string) {
     return this.view(this.read(owner, id));
+  }
+  strategyContext(owner: string, id: string) {
+    const view = this.get(owner, id),
+      state = view.state;
+    return {
+      protocol: STRATEGY_PROTOCOL,
+      scope: view.scope,
+      runId: id,
+      revision: view.revision,
+      frameSeq: state.cursor,
+      clock: state.clock,
+      mode: state.parameters.strategyMode ?? 'rebalance',
+      status: state.status,
+      ready:
+        state.parameters.strategyMode === 'external' &&
+        state.status === 'running' &&
+        !state.trigger &&
+        state.cursor > 0,
+      cash: state.cash,
+      equity: view.equity,
+      positions: state.positions,
+      quotes: state.quotes,
+      eligibleAssets: Object.keys(state.parameters.weights),
+      parameters: state.parameters,
+      lastDecision: state.lastDecision ?? null,
+      replayComplete: view.replayComplete,
+    };
+  }
+  decide(owner: string, id: string, decision: StrategyDecision) {
+    return this.command(owner, id, { ...decision, type: 'decision' });
   }
   list(owner: string) {
     return this.local.db
@@ -236,6 +273,13 @@ export class AutomataStore {
     validId(command.id);
     return this.transaction(() => {
       const record = this.read(owner, id);
+      if (command.type === 'decision') {
+        try {
+          validateDecision(command, id, Object.keys(record.state.parameters.weights));
+        } catch (error) {
+          throw new DomainError(error instanceof Error ? error.message : 'INVALID_REQUEST');
+        }
+      }
       const fingerprint = hash(JSON.stringify(command));
       if (Object.hasOwn(record.receipts, command.id)) {
         requireValue(record.receipts[command.id] === fingerprint, 'IDEMPOTENCY_CONFLICT');
@@ -268,6 +312,8 @@ export class AutomataStore {
         }
         idleDelta = command.direction === 'in' ? -cash : cash;
         action = { type: 'fund', amount: command.amount, direction: command.direction };
+      } else if (command.type === 'decision') {
+        action = { type: 'decision', id: command.id, frameSeq: command.frameSeq, targets: command.targets };
       } else action = { type: command.type };
       const hadPositions = Object.values(record.state.positions).some((p) => amount(p.quantity) > 0n);
       try {
