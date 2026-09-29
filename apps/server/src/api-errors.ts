@@ -1,5 +1,13 @@
 // Only fixed public codes/messages cross the API boundary; never serialize an Error.
 const conflictCodes = new Set([
+  'PASS_ALREADY_ENABLED',
+  'PASS_ADOPTION_UNSAFE',
+  'PASS_NOT_ENABLED',
+  'VAULT_CLOSED',
+  'INSUFFICIENT_FREE_PASS',
+  'INSUFFICIENT_PASS_PRINCIPAL',
+  'OPEN_PASS_POSITIONS',
+  'VAULT_EXIT_NOT_READY',
   'STRATEGY_FRAME',
   'STRATEGY_MODE',
   'BOT_OWNS_ALLOCATION',

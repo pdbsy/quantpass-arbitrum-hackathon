@@ -82,6 +82,8 @@ const unitTests = [
   'test/threat-model.test.mjs',
   'test/planning.test.mjs',
   'test/domain.test.ts',
+  'test/vault-pass.test.ts',
+  'test/vault-pass-api.test.ts',
   'test/web-messages.test.ts',
   'test/management-dashboard-schema.test.mjs',
   'test/management-dashboard-sources.test.mjs',
