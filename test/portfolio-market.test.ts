@@ -648,3 +648,25 @@ test('invalid database application identities cannot create or mutate a journal'
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('an exhausted safe journal ID rolls back its insert and leaves every existing round readable', async () => {
+  const d = database(),
+    db = new DatabaseSync(d.path);
+  try {
+    const b = await batches.captureReferenceBatch(policy(), transport(), () => time);
+    d.journal.append(b);
+    const payload = JSON.stringify(b);
+    db.prepare('INSERT INTO reference_batches(id,payload,sha256) VALUES (?,?,?)').run(
+      Number.MAX_SAFE_INTEGER,
+      payload,
+      createHash('sha256').update(payload).digest('hex'),
+    );
+    assert.throws(() => d.journal.append(b));
+    assert.equal(db.prepare('SELECT COUNT(*) AS total FROM reference_batches').get()?.total, 2);
+    assert.equal(d.journal.read(1).observations?.length, 3);
+  } finally {
+    db.close();
+    d.journal.close();
+    rmSync(d.dir, { recursive: true, force: true });
+  }
+});

@@ -26,13 +26,20 @@ export class BatchJournal {
     validateReferenceBatch(batch);
     const payload = JSON.stringify(batch);
     requireValue(Buffer.byteLength(payload) <= MAX_BYTES, 'BATCH_TOO_LARGE');
-    const id = Number(
-      this.#db
-        .prepare('INSERT INTO reference_batches(payload,sha256) VALUES (?,?)')
-        .run(payload, digest(payload)).lastInsertRowid,
-    );
-    requireValue(Number.isSafeInteger(id) && id > 0, 'INVALID_BATCH_ID');
-    return id;
+    this.#db.exec('BEGIN IMMEDIATE');
+    try {
+      const id = Number(
+        this.#db
+          .prepare('INSERT INTO reference_batches(payload,sha256) VALUES (?,?)')
+          .run(payload, digest(payload)).lastInsertRowid,
+      );
+      requireValue(Number.isSafeInteger(id) && id > 0, 'INVALID_BATCH_ID');
+      this.#db.exec('COMMIT');
+      return id;
+    } catch (error) {
+      this.#db.exec('ROLLBACK');
+      throw error;
+    }
   }
   read(id: number): ReferenceBatch {
     requireValue(Number.isSafeInteger(id) && id > 0, 'INVALID_BATCH_ID');

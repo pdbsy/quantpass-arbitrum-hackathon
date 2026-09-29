@@ -2,7 +2,7 @@
 
 ## Confirmed scope
 
-The user selected option 3: AF-USDC / test MSFT, AF-USDC / test NVDA and AF-USDC / test AAPL, each a fixed direct Uniswap V3 pair on Robinhood Chain Testnet. The user also confirmed reusing the existing open-source dual-EMA strategy. Portfolio weights and candle interval remain pending. Pool fee, initial liquidity, router/deployment, spend/slippage/expiry/liquidation limits and public broadcast are not configured.
+The user selected option 3: AF-USDC / test MSFT, AF-USDC / test NVDA and AF-USDC / test AAPL, each a fixed direct Uniswap V3 pair on Robinhood Chain Testnet. The user also confirmed reusing the existing open-source dual-EMA strategy. The user confirmed a maximum of one third of runtime capital per asset, with fees included and unused allocation kept as cash. This is a paper-policy decision; it is not implemented as an active trading limit in this input-only increment. Candle interval remains pending. Pool fee, initial liquidity, router/deployment, spend/slippage/expiry/liquidation limits and public broadcast are not configured.
 
 This increment supplies complete reference batches, their dedicated durable journal and a continuous collection CLI. It does not run the EMA, create paper fills, submit V3 orders or enable any underlying whitelist record.
 
@@ -17,7 +17,7 @@ This increment supplies complete reference batches, their dedicated durable jour
 
 ## Persistence and runtime
 
-BatchJournal stores an entire round in one immutable SQLite row, including all member receipts. SQLite insert failure leaves no partial row or committed-progress count. IDs remain stable across process restarts. Its application identity differs from MarketJournal and the Vault ledger; unrelated databases, unsafe links and linked parents are refused. The existing single-reference database format remains unchanged.
+BatchJournal stores an entire round in one immutable SQLite row, including all member receipts. SQLite insert or safe-ID validation failure rolls back the entire insertion and leaves no partial row or committed-progress count. IDs remain stable across process restarts. Its application identity differs from MarketJournal and the Vault ledger; unrelated databases, unsafe links and linked parents are refused. The existing single-reference database format remains unchanged.
 
 The continuous worker adds explicit intervalMs, maxBatches (positive or null) and maxConsecutiveRejections. An accepted complete round resets the rejection streak. Collection waits after completion and persistence, without catch-up bursts. The CLI closes on SIGINT/SIGTERM, returns 130/143 and retains an interrupted diagnostic if the attempt had begun. Invalid input exits 2 before database or network work. Other rejected/failed runs exit 1; only a completed bounded run containing no rejected rounds exits 0.
 
