@@ -1,11 +1,23 @@
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
-import { STRATEGY_PROTOCOL, validateTargets } from '../../packages/automata/src/strategy-protocol.ts';
+import {
+  STRATEGY_PROTOCOL,
+  validateTargets,
+  validateDecision,
+} from '../../packages/automata/src/strategy-protocol.ts';
 
 // A small local/mock reference adapter. A real strategy replaces targets, not the executor.
 export class StrategyClient {
-  constructor({ baseUrl = 'http://127.0.0.1:4180', owner, runId, targets, fetcher = fetch }) {
+  constructor({
+    baseUrl = 'http://127.0.0.1:4180',
+    owner,
+    runId,
+    targets,
+    fetcher = fetch,
+    selectTargets,
+    journal,
+  }) {
     const url = new URL(baseUrl);
     if (
       url.protocol !== 'http:' ||
@@ -31,6 +43,9 @@ export class StrategyClient {
     this.fetcher = fetcher;
     this.cookie = '';
     this.pending = null;
+    this.selectTargets = selectTargets;
+    this.journal = journal;
+    this.journalKey = JSON.stringify([this.baseUrl, owner, runId]);
   }
   async request(path, body) {
     return this.fetcher(`${this.baseUrl}${path}`, {
@@ -53,6 +68,7 @@ export class StrategyClient {
   }
   async tick() {
     if (!this.cookie) throw new Error('Connect to a local demo session first');
+    this.pending ??= this.journal?.load(this.journalKey) ?? null;
     if (!this.pending) {
       const response = await this.request(`/api/v1/automata/${this.runId}/strategy-context`);
       if (!response.ok) throw new Error(`Strategy context rejected (${response.status})`);
@@ -66,29 +82,38 @@ export class StrategyClient {
       if (context.status === 'stopped') return 'finished';
       if (!context.ready || context.lastDecision?.frameSeq === context.frameSeq)
         return context.replayComplete ? 'finished' : 'waiting';
-      validateTargets(this.targets, context.eligibleAssets);
+      const targets = this.selectTargets ? this.selectTargets(context) : this.targets;
+      if (targets === null) return context.replayComplete ? 'finished' : 'waiting';
+      validateTargets(targets, context.eligibleAssets);
       this.pending = JSON.stringify({
         protocol: STRATEGY_PROTOCOL,
         runId: this.runId,
         id: randomUUID(),
         expectedRevision: context.revision,
         frameSeq: context.frameSeq,
-        targets: this.targets,
+        targets,
       });
     }
+    if (this.journal) this.pending = this.journal.prepare(this.journalKey, this.pending);
+    validateDecision(JSON.parse(this.pending), this.runId, ['rwa-a', 'rwa-b']);
     // Network/5xx/invalid-response uncertainty retains the exact serialized request.
     const response = await this.request(`/api/v1/automata/${this.runId}/decisions`, this.pending);
     if (response.status === 409) {
       const result = await response.json();
+      this.journal?.clear(this.journalKey, this.pending);
       this.pending = null;
       if (['REVISION_CONFLICT', 'STRATEGY_FRAME'].includes(result.error)) return 'stale';
       throw new Error('Strategy decision conflicts with current run state');
     }
     if (!response.ok) {
-      if (response.status < 500) this.pending = null;
+      if (response.status < 500) {
+        this.journal?.clear(this.journalKey, this.pending);
+        this.pending = null;
+      }
       throw new Error(`Strategy decision rejected (${response.status})`);
     }
     await response.json();
+    this.journal?.clear(this.journalKey, this.pending);
     this.pending = null;
     return 'accepted';
   }

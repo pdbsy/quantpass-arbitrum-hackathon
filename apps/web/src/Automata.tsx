@@ -331,6 +331,7 @@ export function Automata() {
                   <option value="trend">合成上涨行情</option>
                   <option value="decline">合成下跌行情</option>
                   <option value="liquidity">合成流动性受阻</option>
+                  <option value="ema-cycle">EMA 合成周期 · 先涨后跌</option>
                 </select>
               </label>
               <div className="af-fields">
@@ -420,7 +421,11 @@ export function Automata() {
                 <header>
                   <div>
                     <h2>
-                      {run.state.parameters.strategyMode === 'external' ? '外部量化策略' : 'RWA 再平衡'}
+                      {run.state.id === 'qinfra-ema-demo'
+                        ? '开源 EMA 测试策略'
+                        : run.state.parameters.strategyMode === 'external'
+                          ? '外部量化策略'
+                          : 'RWA 再平衡'}
                     </h2>
                     <small>
                       运行 {run.state.id.slice(0, 8)} · {run.datasetId} · 第 {run.state.cursor}/120 帧
@@ -430,6 +435,15 @@ export function Automata() {
                     {states[run.state.status]}
                   </span>
                 </header>
+                {run.state.id === 'qinfra-ema-demo' && (
+                  <p>
+                    EMA 15/30 · 合成周期测试 ·{' '}
+                    <a href="https://github.com/QuantConnect/Lean/blob/ebd7268d68609ae85f73de8290d9673afb1992ac/Algorithm.Python/MovingAverageCrossAlgorithm.py">
+                      开源策略来源
+                    </a>
+                    。已适配目标仓位接口，不代表原始日线策略收益。
+                  </p>
+                )}
                 <div className="af-metrics">
                   <div>
                     <span>组合权益</span>
