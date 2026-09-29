@@ -9,6 +9,7 @@ import { validateCheckReport } from './schema.mjs';
 import { collectGitState as collectRepositoryGitState } from './sources.mjs';
 
 const unitTests = [
+  'test/pinned-rpc.test.ts',
   'test/asset-whitelist.test.ts',
   'test/market-data.test.ts',
   'test/market-capture.test.ts',

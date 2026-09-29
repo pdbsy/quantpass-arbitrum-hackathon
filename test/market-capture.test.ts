@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -6,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { captureReference, MarketJournal } from '../packages/market-data/src/capture.ts';
+import { captureReference, MarketJournal, replayReference } from '../packages/market-data/src/capture.ts';
 const addr = '0x' + '12'.repeat(20);
 const selection = { chainId: 4663 as const, contractAddress: addr, symbol: 'AAPL' };
 const at = Date.parse('2026-09-30T01:00:00Z');
@@ -155,6 +156,95 @@ test('collector refuses unrelated SQLite databases and leaves their data intact'
       assert.equal(checked.prepare('SELECT amount FROM sentinel').get()?.amount, 100);
     } finally {
       checked.close();
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('replay derives token prices from original receipts and rejects fabricated normalized results', async () => {
+  const captured = await captureReference(selection, 30000, fetcher, () => at);
+  assert.deepEqual(replayReference(captured), captured.observation);
+  const changed = structuredClone(captured);
+  changed.observation!.tokenBidUsd18 = '999999999999999999999';
+  assert.throws(() => replayReference(changed), /OBSERVATION_MISMATCH/);
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-replay-')));
+  const journal = new MarketJournal(join(dir, 'capture.sqlite'));
+  try {
+    assert.throws(() => journal.append(changed), /OBSERVATION_MISMATCH/);
+  } finally {
+    journal.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+test('replay rejects wrong source identities, changed bodies and inconsistent receipt times', async () => {
+  const captured = await captureReference(selection, 30000, fetcher, () => at);
+  for (const change of [
+    (c: typeof captured) => {
+      c.sources[0]!.url = 'https://untrusted.example/registry';
+    },
+    (c: typeof captured) => {
+      c.sources[1]!.body = '{}';
+    },
+    (c: typeof captured) => {
+      c.sources[0]!.receivedAt = at + 1;
+    },
+    (c: typeof captured) => {
+      c.sources.pop();
+    },
+    (c: typeof captured) => {
+      c.status = 'REJECTED';
+    },
+  ]) {
+    const copy = structuredClone(captured);
+    change(copy);
+    assert.throws(() => replayReference(copy));
+  }
+});
+
+test('an in-flight request snapshots its asset selection before callers mutate their object', async () => {
+  const mutable = { ...selection };
+  const pending = captureReference(
+    mutable,
+    30000,
+    async (url, init) => {
+      mutable.symbol = 'MSFT';
+      return fetcher(url, init);
+    },
+    () => at,
+  );
+  const result = await pending;
+  assert.equal(result.status, 'ACCEPTED');
+  assert.equal(result.selection.symbol, 'AAPL');
+  assert.deepEqual(replayReference(result), result.observation);
+});
+test('journal replay rejects a rewritten projection even when its payload checksum was refreshed', async () => {
+  const capture = await captureReference(selection, 30000, fetcher, () => at);
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-replay-corrupt-')));
+  try {
+    const path = join(dir, 'capture.sqlite');
+    const journal = new MarketJournal(path);
+    const id = journal.append(capture);
+    journal.close();
+    capture.observation!.tokenAskUsd18 = '999';
+    const payload = JSON.stringify(capture);
+    // Deliberately corrupt only this synthetic test database, as a faulty external exporter might.
+    const db = new DatabaseSync(path);
+    try {
+      db.exec('DROP TRIGGER immutable_capture_update');
+      db.prepare('UPDATE reference_captures SET payload=?,sha256=? WHERE id=?').run(
+        payload,
+        createHash('sha256').update(payload).digest('hex'),
+        id,
+      );
+    } finally {
+      db.close();
+    }
+    const restored = new MarketJournal(path);
+    try {
+      assert.throws(() => restored.read(id), /OBSERVATION_MISMATCH/);
+    } finally {
+      restored.close();
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });

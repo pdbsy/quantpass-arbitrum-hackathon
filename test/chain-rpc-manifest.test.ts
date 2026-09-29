@@ -577,3 +577,17 @@ test('fetch transport enforces status, declared size, empty body and UTF-8 bound
     code: 'RPC_INVALID_RESPONSE',
   });
 });
+
+test('bytecode reads pin the same canonical block hash as contract calls', async () => {
+  const seen: unknown[] = [];
+  const rpc = new JsonRpcClient([ENDPOINT], {
+    transport: async (_endpoint, request) => {
+      seen.push(request.params);
+      return { status: 200, body: JSON.stringify({ jsonrpc: '2.0', id: request.id, result: '0x6000' }) };
+    },
+  });
+  assert.equal(await rpc.code(CONTRACT, { blockHash: BLOCK_HASH, requireCanonical: true }), '0x6000');
+  assert.deepEqual(seen, [[CONTRACT, { blockHash: BLOCK_HASH, requireCanonical: true }]]);
+  await assert.rejects(() => rpc.code(CONTRACT, { blockHash: BLOCK_HASH, requireCanonical: false } as never));
+  assert.equal(seen.length, 1);
+});

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { lstatSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
 import { normalizeReference, parseRegistry, requireValue, validateSelection } from './robinhood.ts';
 import type { ReferenceObservation, Selection } from './robinhood.ts';
@@ -88,6 +89,7 @@ export async function captureReference(
   };
   try {
     const requested = validateSelection(selection);
+    result.selection = requested;
     requireValue(Number.isSafeInteger(maxAgeMs) && maxAgeMs > 0, 'INVALID_TIME_POLICY');
     const first = parseRegistry(
       await read('https://api.robinhood.com/rhj/assets', transport, now, result.sources),
@@ -119,6 +121,57 @@ export async function captureReference(
   }
   return result;
 }
+// Recompute, do not trust a stored projection merely because its payload was hashed.
+// This verifies consistency; source authenticity still depends on the trusted collector.
+export function replayReference(capture: ReferenceCapture): ReferenceObservation {
+  requireValue(
+    capture?.version === 'alphaforge-reference-1' && capture.status === 'ACCEPTED' && capture.reason === null,
+    'CAPTURE_NOT_ACCEPTED',
+  );
+  const selection = validateSelection(capture.selection);
+  requireValue(Number.isSafeInteger(capture.maxAgeMs) && capture.maxAgeMs > 0, 'INVALID_TIME_POLICY');
+  requireValue(Array.isArray(capture.sources) && capture.sources.length === 3, 'INVALID_CAPTURE_SOURCES');
+  const urls = [
+    'https://api.robinhood.com/rhj/assets',
+    `https://api.robinhood.com/rhj/prices/${selection.symbol}`,
+    'https://api.robinhood.com/rhj/assets',
+  ];
+  for (let i = 0; i < capture.sources.length; i++) {
+    const source = capture.sources[i]!;
+    requireValue(source && source.url === urls[i], 'SOURCE_IDENTITY_MISMATCH');
+    requireValue(
+      typeof source.body === 'string' &&
+        Buffer.byteLength(source.body) <= MAX_BYTES &&
+        digest(source.body) === source.sha256,
+      'SOURCE_INTEGRITY_FAILED',
+    );
+    requireValue(
+      Number.isSafeInteger(source.receivedAt) &&
+        source.receivedAt >= 0 &&
+        (i === 0 || source.receivedAt >= capture.sources[i - 1]!.receivedAt),
+      'CLOCK_REGRESSION',
+    );
+  }
+  const [before, quote, after] = capture.sources;
+  const a = normalizeReference(
+    parseRegistry(JSON.parse(before!.body)),
+    JSON.parse(quote!.body),
+    selection,
+    after!.receivedAt,
+    capture.maxAgeMs,
+  );
+  const b = normalizeReference(
+    parseRegistry(JSON.parse(after!.body)),
+    JSON.parse(quote!.body),
+    selection,
+    after!.receivedAt,
+    capture.maxAgeMs,
+  );
+  requireValue(isDeepStrictEqual(a, b), 'REGISTRY_CHANGED_DURING_CAPTURE');
+  requireValue(isDeepStrictEqual(b, capture.observation), 'OBSERVATION_MISMATCH');
+  return b;
+}
+
 // Dedicated collector database. It never connects to the Vault ledger.
 export class MarketJournal {
   readonly #db: DatabaseSync;
@@ -153,6 +206,7 @@ export class MarketJournal {
       CREATE TRIGGER IF NOT EXISTS immutable_capture_delete BEFORE DELETE ON reference_captures BEGIN SELECT RAISE(ABORT,'immutable capture'); END;`);
   }
   append(capture: ReferenceCapture): number {
+    if (capture.status === 'ACCEPTED') replayReference(capture);
     const payload = JSON.stringify(capture);
     requireValue(Buffer.byteLength(payload) <= MAX_BYTES * 4, 'CAPTURE_TOO_LARGE');
     return Number(
@@ -173,6 +227,7 @@ export class MarketJournal {
       capture.sources.every((source) => digest(source.body) === source.sha256),
       'SOURCE_INTEGRITY_FAILED',
     );
+    if (capture.status === 'ACCEPTED') replayReference(capture);
     return capture;
   }
   close(): void {

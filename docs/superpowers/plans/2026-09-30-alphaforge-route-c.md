@@ -71,3 +71,24 @@ Inputs are trusted collector/review artifacts supplied by backend integration, n
 - [x] Run `node --test test/asset-whitelist.test.ts test/market-data.test.ts test/market-capture.test.ts`, typecheck and lint. Register the new tests in the existing suite.
 - [x] Document the trust boundary and pending source collection. Keep every real asset disabled until complete evidence exists.
 - [ ] Freeze source C, collect management evidence, commit manifest R and generated snapshots S; run the full local check. Do not publish or merge.
+
+## Task 5: Pinned read-only chain evidence
+
+Files: packages/chain-adapter/src/rpc.ts; packages/market-data/src/pinned-rpc.ts; tools/automata/probe-rpc.ts; test/pinned-rpc.test.ts; test/chain-rpc-manifest.test.ts.
+Interfaces: ReadonlyRpc.code(address, ChainCallBlock); capturePinnedState(request, endpoint, transport?, now?). Request supplies a chain, explicit block selector/hash and contract addresses/read calls; output is CAPTURED or REJECTED with sanitized request receipts and observations. It is never trade eligibility or finality proof.
+
+- [x] First demonstrate failure for canonical-hash eth_getCode and a missing snapshot collector. Example: `await rpc.code(contract, { blockHash, requireCanonical: true })` must emit the object reference unchanged.
+- [x] Reuse JsonRpcClient; normalize EIP-1898 references for both code and eth_call. Pin a single endpoint for the complete capture; reject chain drift, reorg, wrong block, absent bytecode and unsupported hash reads without a latest fallback.
+- [x] Bound input sizes, request count, response sizes and capture time. Preserve response hashes/statuses, not secret-bearing endpoint URLs or upstream error messages. Keep incomplete observations unavailable after rejection.
+- [x] Add an explicit read-only CLI with offline help, new-file-only output and endpoint supplied from local environment. Never sign, broadcast, introduce credentials or enable the application's mainnet runtime.
+- [x] Test request identity, chain/reorg races, hash pinning, malformed/oversize/error responses, timeout, output privacy and CLI validation with offline transports.
+
+## Task 6: Recompute stored reference observations
+
+Files: packages/market-data/src/capture.ts, test/market-capture.test.ts.
+Interface: replayReference(capture): ReferenceObservation; accepted captures only. MarketJournal append/read verifies accepted capture consistency using the raw registry/quote/registry receipts.
+
+- [x] Write a failing test that alters an accepted normalized price before append while retaining the original raw receipts. The journal must reject it even though the serialized payload could receive a fresh digest.
+- [x] Recompute observations using both recorded registry snapshots, verify source identity/digests/timestamps and exact output agreement. No artifact authenticity claim is inferred from a digest.
+- [x] Test drift, wrong sources, future/backward times and normal reopen/replay. Preserve legitimate rejected captures for diagnosis.
+- [ ] Run focused tests, typecheck, lint, full management evidence C/R/S and final npm run check. Keep the branch local.
