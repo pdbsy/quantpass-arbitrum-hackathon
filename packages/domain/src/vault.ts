@@ -47,7 +47,7 @@ export interface VaultState {
   readonly events: readonly {
     readonly revision: number;
     readonly commandId: string;
-    readonly type: Command['type'];
+    readonly type: Command['type'] | 'automataCheckpoint';
     readonly actorId: string;
   }[];
 }
@@ -56,7 +56,12 @@ type WorkingState = Mutable<Omit<VaultState, 'orders' | 'pendingWithdrawals' | '
   orders: Record<string, string>;
   pendingWithdrawals: Record<string, string>;
   receipts: Record<string, { fingerprint: string; revision: number }>;
-  events: { revision: number; commandId: string; type: Command['type']; actorId: string }[];
+  events: {
+    revision: number;
+    commandId: string;
+    type: Command['type'] | 'automataCheckpoint';
+    actorId: string;
+  }[];
 };
 export type Command = { readonly id: string; readonly expectedRevision: number } & (
   | { readonly type: 'deposit' | 'allocate' | 'deallocate' | 'requestWithdrawal'; readonly amount: string }

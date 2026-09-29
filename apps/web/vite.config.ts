@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 export default defineConfig({
   publicDir: '../../docs',
@@ -37,6 +38,15 @@ export default defineConfig({
       },
     },
   ],
-  build: { outDir: 'dist', sourcemap: false },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      input: {
+        product: fileURLToPath(new URL('./index.html', import.meta.url)),
+        automata: fileURLToPath(new URL('./automata.html', import.meta.url)),
+      },
+    },
+  },
   server: { host: '127.0.0.1' },
 });

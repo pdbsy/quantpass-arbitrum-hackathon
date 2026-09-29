@@ -12,6 +12,7 @@ import { apiError } from './api-errors.ts';
 import { view, accountView } from './product-views.ts';
 
 import { registerProductRoutes } from './product-routes.ts';
+import { registerAutomataRoutes } from './automata-routes.ts';
 import { registerChainEvidenceRoutes } from './chain-routes.ts';
 import type { M3ChainRuntime } from './m3-chain-runtime.ts';
 import { idSchema, amountSchema, limitSchema } from './api-schema.ts';
@@ -52,6 +53,7 @@ export async function buildApp(options: {
   origin: string;
   webRoot?: string;
   chainRuntime?: M3ChainRuntime;
+  automataReplay?: boolean;
 }) {
   readConfig(options.env);
   const origin = new URL(options.origin);
@@ -290,6 +292,7 @@ export async function buildApp(options: {
       },
     );
   registerProductRoutes(app, store, session);
+  registerAutomataRoutes(app, store, session, options.automataReplay);
   if (options.chainRuntime) registerChainEvidenceRoutes(app, options.chainRuntime.chainEvidence);
   if (options.webRoot)
     await app.register(staticFiles, {

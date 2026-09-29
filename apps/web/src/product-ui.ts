@@ -66,6 +66,11 @@ declare global {
   }
 }
 const AF = window.AF;
+const automataLink = document.createElement('a');
+automataLink.href = '/automata.html';
+automataLink.className = 'outline-btn';
+automataLink.textContent = 'RWA 模拟运行';
+document.querySelector('.nav-right')?.prepend(automataLink);
 let mockWalletStorage: Storage | undefined;
 try {
   mockWalletStorage = window.localStorage;

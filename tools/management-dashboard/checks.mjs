@@ -9,6 +9,10 @@ import { validateCheckReport } from './schema.mjs';
 import { collectGitState as collectRepositoryGitState } from './sources.mjs';
 
 const unitTests = [
+  'test/automata-engine.test.ts',
+  'test/automata-store.test.ts',
+  'test/automata-api.test.ts',
+  'test/automata-client.test.ts',
   'test/management-public-entry-boundaries.test.mjs',
   'test/environment-public-entry-boundaries.test.mjs',
   'test/html-source-ranges.test.mjs',
