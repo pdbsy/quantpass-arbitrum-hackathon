@@ -1,4 +1,4 @@
-import { unsigned, signed, TEST_CASH } from './money.ts';
+import { unsigned, signed, TEST_CASH, MAX_INTEGER } from './money.ts';
 
 export class DomainError extends Error {
   readonly code: string;
@@ -21,7 +21,14 @@ export interface Actor {
   readonly id: string;
   readonly role: 'owner' | 'executor';
 }
+export interface PassLock {
+  readonly version: 1;
+  readonly principal: string;
+  readonly closed: boolean;
+  readonly withdrawals: Readonly<Record<string, { readonly profit: string; readonly principal: string }>>;
+}
 export interface VaultState {
+  readonly passLock?: PassLock;
   readonly scope: 'TEST_ONLY';
   readonly schemaVersion: 1;
   readonly id: string;
@@ -66,7 +73,7 @@ type WorkingState = Mutable<Omit<VaultState, 'orders' | 'pendingWithdrawals' | '
 export type Command = { readonly id: string; readonly expectedRevision: number } & (
   | { readonly type: 'deposit' | 'allocate' | 'deallocate' | 'requestWithdrawal'; readonly amount: string }
   | { readonly type: 'confirmWithdrawal' | 'cancelWithdrawal'; readonly withdrawalId: string }
-  | { readonly type: 'start' | 'stop' }
+  | { readonly type: 'start' | 'stop' | 'enablePassLocking' | 'closeVault' }
   | { readonly type: 'reserveBuy'; readonly orderId: string; readonly amount: string }
   | { readonly type: 'cancelOrder' | 'fillBuy'; readonly orderId: string }
   | { readonly type: 'markPosition'; readonly value: string }
@@ -100,6 +107,117 @@ export function balances(state: VaultState) {
   const allowance = unsigned(state.passes) * 10n ** BigInt(TEST_CASH.decimals);
   return { reserved, pending, unrealized, activeGross, activeNet, equity, allowance };
 }
+export function capacityToPassRaw(usdcRaw: string): string {
+  const raw = unsigned(usdcRaw);
+  ensure(raw <= MAX_INTEGER / 1000000000000n, 'AMOUNT_OVERFLOW');
+  return (raw * 1000000000000n).toString();
+}
+export function passRawToCapacity(passRaw: string): string {
+  const raw = unsigned(passRaw);
+  ensure(raw % 1000000000000n === 0n, 'INEXACT_PASS_AMOUNT');
+  return (raw / 1000000000000n).toString();
+}
+// Pass amounts use settlement micro-units internally: one whole Pass permits one cash unit.
+export function passAccounting(state: VaultState) {
+  const lock = state.passLock;
+  if (!lock) return null;
+  const total = unsigned(state.passes) * 1000000n;
+  const principal = unsigned(lock.principal);
+  const reservedProfit = Object.values(lock.withdrawals).reduce((n, w) => n + unsigned(w.profit), 0n);
+  const reservedPrincipal = Object.values(lock.withdrawals).reduce((n, w) => n + unsigned(w.principal), 0n);
+  const cash =
+    unsigned(state.idle) +
+    unsigned(state.activeCash) +
+    sum(state.pendingWithdrawals) -
+    unsigned(state.feeLiability);
+  const profit = cash > principal + reservedProfit ? cash - principal - reservedProfit : 0n;
+  const exposed =
+    unsigned(state.positionCost) > 0n ||
+    unsigned(state.positionValue) > 0n ||
+    Object.keys(state.orders).length > 0;
+  const idle = unsigned(state.idle);
+  const withdrawalLimit = lock.closed ? 0n : exposed ? (idle < profit ? idle : profit) : idle;
+  return {
+    principal: lock.principal,
+    totalPassRaw: capacityToPassRaw(total.toString()),
+    lockedPassRaw: capacityToPassRaw(principal.toString()),
+    freePassRaw: capacityToPassRaw((total - principal).toString()),
+    passDecimals: 18,
+    capacityDecimals: 6,
+    closed: lock.closed,
+    withdrawable: withdrawalLimit.toString(),
+    availableProfit: profit.toString(),
+    reservedPrincipal: reservedPrincipal.toString(),
+    withdrawals: lock.withdrawals,
+  };
+}
+function applyPassCommand(state: VaultState, command: Command): PassLock | undefined {
+  if (command.type === 'enablePassLocking') {
+    ensure(!state.passLock, 'PASS_ALREADY_ENABLED');
+    ensure(
+      state.status === 'stopped' &&
+        state.withdrawalsPaid === '0' &&
+        !Object.keys(state.pendingWithdrawals).length &&
+        state.positionCost === '0' &&
+        state.positionValue === '0' &&
+        !Object.keys(state.orders).length &&
+        state.feeLiability === '0' &&
+        unsigned(state.deposits) <= balances(state).allowance,
+      'PASS_ADOPTION_UNSAFE',
+    );
+    return { version: 1, principal: state.deposits, closed: false, withdrawals: {} };
+  }
+  if (!state.passLock) {
+    ensure(command.type !== 'closeVault', 'PASS_NOT_ENABLED');
+    return undefined;
+  }
+  ensure(!state.passLock.closed, 'VAULT_CLOSED');
+  const lock = state.passLock;
+  const withdrawals = { ...lock.withdrawals };
+  let principal = unsigned(lock.principal);
+  const a = passAccounting(state)!;
+  if (command.type === 'deposit') {
+    const amount = unsigned(command.amount);
+    ensure(amount <= unsigned(passRawToCapacity(a.freePassRaw)), 'INSUFFICIENT_FREE_PASS');
+    principal += amount;
+  } else if (command.type === 'requestWithdrawal') {
+    const amount = unsigned(command.amount),
+      availableProfit = unsigned(a.availableProfit);
+    const profit = amount < availableProfit ? amount : availableProfit;
+    const principalPart = amount - profit;
+    ensure(principalPart <= principal - unsigned(a.reservedPrincipal), 'INSUFFICIENT_PASS_PRINCIPAL');
+    if (principalPart > 0n)
+      ensure(
+        state.positionCost === '0' && state.positionValue === '0' && !Object.keys(state.orders).length,
+        'OPEN_PASS_POSITIONS',
+      );
+    withdrawals[command.id] = { profit: profit.toString(), principal: principalPart.toString() };
+  } else if (command.type === 'confirmWithdrawal' || command.type === 'cancelWithdrawal') {
+    ensure(Object.hasOwn(withdrawals, command.withdrawalId), 'WITHDRAWAL_NOT_PENDING');
+    if (command.type === 'confirmWithdrawal') {
+      const principalPart = unsigned(withdrawals[command.withdrawalId]!.principal);
+      if (principalPart > 0n)
+        ensure(
+          state.positionCost === '0' && state.positionValue === '0' && !Object.keys(state.orders).length,
+          'OPEN_PASS_POSITIONS',
+        );
+      principal -= principalPart;
+    }
+    delete withdrawals[command.withdrawalId];
+  } else if (command.type === 'closeVault') {
+    ensure(
+      state.status === 'stopped' &&
+        state.positionCost === '0' &&
+        state.positionValue === '0' &&
+        !Object.keys(state.orders).length &&
+        !Object.keys(state.pendingWithdrawals).length &&
+        state.feeLiability === '0',
+      'VAULT_EXIT_NOT_READY',
+    );
+    return { version: 1, principal: '0', closed: true, withdrawals: {} };
+  }
+  return { ...lock, principal: principal.toString(), withdrawals };
+}
 export function assertInvariant(state: VaultState): void {
   ensure(state.scope === 'TEST_ONLY' && state.schemaVersion === 1, 'UNSUPPORTED_SCOPE');
   for (const field of ['id', 'ownerId', 'executorId', 'strategyId'] as const) validId(state[field]);
@@ -124,6 +242,39 @@ export function assertInvariant(state: VaultState): void {
       validId(id);
       ensure(unsigned(amount) > 0n, 'EMPTY_RESERVATION');
     }
+  if (state.passLock) {
+    const lock = state.passLock;
+    capacityToPassRaw((unsigned(state.passes) * 1000000n).toString());
+    ensure(lock.version === 1 && typeof lock.closed === 'boolean', 'INVALID_PASS_LOCK');
+    ensure(unsigned(lock.principal) <= unsigned(state.passes) * 1000000n, 'INVALID_PASS_LOCK');
+    ensure(
+      Object.keys(lock.withdrawals).length === Object.keys(state.pendingWithdrawals).length,
+      'INVALID_PASS_LOCK',
+    );
+    let reservedPrincipal = 0n;
+    for (const [id, w] of Object.entries(lock.withdrawals)) {
+      ensure(
+        Object.hasOwn(state.pendingWithdrawals, id) &&
+          unsigned(w.profit) + unsigned(w.principal) === unsigned(state.pendingWithdrawals[id]!),
+        'INVALID_PASS_LOCK',
+      );
+      reservedPrincipal += unsigned(w.principal);
+    }
+    ensure(reservedPrincipal <= unsigned(lock.principal), 'INVALID_PASS_LOCK');
+    if (lock.closed)
+      ensure(
+        lock.principal === '0' &&
+          state.status === 'stopped' &&
+          state.idle === '0' &&
+          state.activeCash === '0' &&
+          state.positionCost === '0' &&
+          state.positionValue === '0' &&
+          state.feeLiability === '0' &&
+          !Object.keys(state.orders).length &&
+          !Object.keys(state.pendingWithdrawals).length,
+        'INVALID_PASS_LOCK',
+      );
+  }
   const b = balances(state);
   unsigned(b.allowance.toString());
   ensure(b.activeNet >= 0n, 'NEGATIVE_ACTIVE_EQUITY');
@@ -154,6 +305,11 @@ export function assertInvariant(state: VaultState): void {
 }
 
 function freeze(state: WorkingState): VaultState {
+  if (state.passLock) {
+    for (const w of Object.values(state.passLock.withdrawals)) Object.freeze(w);
+    Object.freeze(state.passLock.withdrawals);
+    Object.freeze(state.passLock);
+  }
   Object.freeze(state.orders);
   Object.freeze(state.pendingWithdrawals);
   for (const receipt of Object.values(state.receipts)) Object.freeze(receipt);
@@ -169,6 +325,7 @@ export function createVault(input: {
   strategyId: string;
   passes: string;
   scope: 'TEST_ONLY';
+  passLock?: PassLock;
 }): VaultState {
   const state: WorkingState = {
     ...input,
@@ -220,6 +377,8 @@ export function execute(
     'payFees',
   ];
   const ownerTypes: readonly string[] = [
+    'enablePassLocking',
+    'closeVault',
     'deposit',
     'allocate',
     'deallocate',
@@ -255,9 +414,22 @@ export function execute(
   const next = structuredClone(state) as WorkingState;
   const amount = 'amount' in command ? unsigned(command.amount) : 0n;
   if ('amount' in command) ensure(amount > 0n, 'NON_POSITIVE_AMOUNT');
+  const passLock = applyPassCommand(state, command);
+  if (passLock) next.passLock = passLock;
   const b = balances(state);
   const available = unsigned(state.activeCash) - unsigned(state.feeLiability);
   switch (command.type) {
+    case 'enablePassLocking':
+      break;
+    case 'closeVault':
+      next.withdrawalsPaid = (
+        unsigned(next.withdrawalsPaid) +
+        unsigned(next.idle) +
+        unsigned(next.activeCash)
+      ).toString();
+      next.idle = '0';
+      next.activeCash = '0';
+      break;
     case 'deposit':
       next.idle = (unsigned(next.idle) + amount).toString();
       next.deposits = (unsigned(next.deposits) + amount).toString();

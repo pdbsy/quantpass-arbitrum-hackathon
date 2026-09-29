@@ -80,6 +80,8 @@ const commandFields: Record<CommandType, readonly string[]> = {
   requestWithdrawal: ['amount'],
   confirmWithdrawal: ['withdrawalId'],
   cancelWithdrawal: ['withdrawalId'],
+  enablePassLocking: [],
+  closeVault: [],
   start: [],
   stop: [],
   reserveBuy: ['orderId', 'amount'],
