@@ -110,7 +110,7 @@ export class LocalStore {
     const items = rows.slice(0, options.limit).map((row) => this.decode(row));
     return { items, nextCursor: rows.length > options.limit ? items.at(-1)!.id : null };
   }
-  obtainTestPasses(owner: string, strategy: string): VaultState {
+  obtainTestPasses(owner: string, strategy: string, passPolicy?: 'principal-v1'): VaultState {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       const row = this.db
@@ -128,6 +128,9 @@ export class LocalStore {
         executorId: 'local-simulator',
         strategyId: strategy,
         passes: '1000',
+        ...(passPolicy === 'principal-v1'
+          ? { passLock: { version: 1 as const, principal: '0', closed: false, withdrawals: {} } }
+          : {}),
       });
       const json = JSON.stringify(state);
       this.db

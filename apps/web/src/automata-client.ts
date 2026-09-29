@@ -63,6 +63,15 @@ export function parametersFromForm(form: ConfigForm): Parameters {
   return configured;
 }
 const messages: Record<string, string> = {
+  INSUFFICIENT_FREE_PASS: '可用 Pass 不足，请降低存入金额',
+  OPEN_PASS_POSITIONS: '仍有持仓或挂单，不能取出本金及解冻 Pass；请先停止并完成清仓',
+  PASS_ADOPTION_UNSAFE:
+    '历史账本暂不能启用：请先停止清仓；存在已付款记录、待取出或本金超额时不能推断历史冻结',
+  PASS_ALREADY_ENABLED: '已经启用 Pass 冻结规则，请刷新',
+  VAULT_CLOSED: '该 Vault 已完整退出，只保留历史',
+  VAULT_EXIT_NOT_READY: '请先停止并清仓，处理待取出金额和费用后再完整退出',
+  WITHDRAWAL_NOT_PENDING: '这笔取出已处理，请刷新状态',
+
   SESSION_REQUIRED: '请先选择测试账户',
   INSUFFICIENT_BOT_CASH: 'Bot 可用现金不足，请降低撤回金额；不会自动卖出持仓',
   INSUFFICIENT_IDLE: '闲置余额不足，请先存入模拟资金',

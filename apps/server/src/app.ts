@@ -38,7 +38,7 @@ const shape = (types: string[], fields: Record<string, unknown> = {}) => ({
 const commandSchema = {
   oneOf: [
     shape(['deposit', 'allocate', 'deallocate', 'requestWithdrawal', 'payFees'], { amount: amountSchema }),
-    shape(['start', 'stop']),
+    shape(['start', 'stop', 'enablePassLocking', 'closeVault']),
     shape(['reserveBuy'], { orderId: idSchema, amount: amountSchema }),
     shape(['cancelOrder', 'fillBuy'], { orderId: idSchema }),
     shape(['confirmWithdrawal', 'cancelWithdrawal'], { withdrawalId: idSchema }),
@@ -220,7 +220,7 @@ export async function buildApp(options: {
     },
   );
   for (const url of ['/api/vaults', '/api/v1/vaults'])
-    app.post<{ Body: { strategyId: string } }>(
+    app.post<{ Body: { strategyId: string; passPolicy?: 'principal-v1' } }>(
       url,
       {
         schema: {
@@ -228,7 +228,7 @@ export async function buildApp(options: {
             type: 'object',
             additionalProperties: false,
             required: ['strategyId'],
-            properties: { strategyId: idSchema },
+            properties: { strategyId: idSchema, passPolicy: { const: 'principal-v1' } },
           },
         },
       },
@@ -236,7 +236,7 @@ export async function buildApp(options: {
         const owner = session(request);
         if (!STRATEGIES.some((s) => s.id === request.body.strategyId))
           throw new DomainError('UNKNOWN_STRATEGY');
-        return view(store.obtainTestPasses(owner, request.body.strategyId));
+        return view(store.obtainTestPasses(owner, request.body.strategyId, request.body.passPolicy));
       },
     );
   app.get<{ Params: { id: string } }>(

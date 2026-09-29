@@ -47,6 +47,7 @@ test('owner-scoped strategy context and decisions expose only observed frames an
   assert.equal(initial.statusCode, 200, initial.body);
   assert.equal(initial.json().ready, false);
   assert.deepEqual(initial.json().quotes, {});
+  assert.deepEqual(initial.json().observations, []);
   const bob = await h.login('bob');
   assert.equal((await h.request(bob, '/api/v1/automata/external/strategy-context')).statusCode, 404);
   assert.equal((await h.request(bob, '/api/v1/automata/external/decisions', envelope())).statusCode, 404);
@@ -59,6 +60,8 @@ test('owner-scoped strategy context and decisions expose only observed frames an
   assert.equal(context.protocol, 'alphaforge-targets-v1');
   assert.equal(context.scope, 'TEST_ONLY');
   assert.equal(context.frameSeq, 1);
+  assert.equal(context.observations.length, 1);
+  assert.equal(context.observations[0].seq, 1);
   assert.equal(context.revision, 1);
   assert.equal(context.ready, true);
   assert.equal(context.clock, 1000);

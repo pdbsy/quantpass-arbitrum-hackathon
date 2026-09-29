@@ -1783,7 +1783,7 @@
       "target_path": "apps/server/src/api-errors.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3 chain evidence, canonical projection, and submission registration APIs add fixed public responses",
       "original_sha256": "f443db4ca178fcbcafc6763d20a21b97d9074f81559fcba321290b3d06872ef8",
-      "migrated_sha256": "1419bb9f96c0388ff89afedcae6f6222e402172ac4e6410d457b944c2026e5e1",
+      "migrated_sha256": "44e9ade7c02d84490b8277d1f6d6036e187ccca02413fb2c842473595682c252",
       "subsequent_adaptations": [
         {
           "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
@@ -1800,6 +1800,14 @@
           "previous_sha256": "f0f611f10f1b226651bca18438cc62f0e25b51349c9312b7355116a057f97471",
           "current_sha256": "1419bb9f96c0388ff89afedcae6f6222e402172ac4e6410d457b944c2026e5e1",
           "reason": "User-authorized language-independent strategy API adds fixed public errors; historical source identities and prior adaptations are preserved."
+        },
+        {
+          "commit": "d4de4501beeb36e3c50086f0af5d10a3b2e97547",
+          "agent": "Macbeth01",
+          "task": "AF-VAULT-PASS",
+          "previous_sha256": "1419bb9f96c0388ff89afedcae6f6222e402172ac4e6410d457b944c2026e5e1",
+          "current_sha256": "44e9ade7c02d84490b8277d1f6d6036e187ccca02413fb2c842473595682c252",
+          "reason": "User-authorized local Pass capacity reference model and owner withdrawal lifecycle; original source identity and history remain preserved."
         }
       ]
     },
@@ -1821,7 +1829,7 @@
       "target_path": "apps/server/src/app.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3 optionally composes the concrete same-process chain runtime and its read routes",
       "original_sha256": "1e190fd90786c8eac9dff5fa89acc461c1d8f8359bef5aa92c964d76d91cce55",
-      "migrated_sha256": "f7eaf91c30bfb41c8bb5f36a9c0ff015c124a94c2dcfaf9cde0994531f2ef94f",
+      "migrated_sha256": "5b64bc9a88ca84835eea16cd66dd5f7c387222c15eb87bf5826b179ca7084a26",
       "subsequent_adaptations": [
         {
           "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
@@ -1830,6 +1838,14 @@
           "previous_sha256": "135d5c4364f58dabd9533d54f21b9bc55d12ec69ee88c791f68e97dcac4eb5f9",
           "current_sha256": "f7eaf91c30bfb41c8bb5f36a9c0ff015c124a94c2dcfaf9cde0994531f2ef94f",
           "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
+        },
+        {
+          "commit": "d4de4501beeb36e3c50086f0af5d10a3b2e97547",
+          "agent": "Macbeth01",
+          "task": "AF-VAULT-PASS",
+          "previous_sha256": "f7eaf91c30bfb41c8bb5f36a9c0ff015c124a94c2dcfaf9cde0994531f2ef94f",
+          "current_sha256": "5b64bc9a88ca84835eea16cd66dd5f7c387222c15eb87bf5826b179ca7084a26",
+          "reason": "User-authorized local Pass capacity reference model and owner withdrawal lifecycle; original source identity and history remain preserved."
         }
       ]
     },
@@ -1861,7 +1877,17 @@
       "target_path": "apps/server/src/product-views.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "ba120a7cd0b1c26dd21041da2e86e9ed74554bc003636577fc6c2ca22e1c36b5",
-      "migrated_sha256": "b759516467cd3ee2b15b462f9783c64eb237723883bf0d0760db89baac5dbc47"
+      "migrated_sha256": "717e9466649a400dc67dc95142e3e908a56eda1990782d4114fe1fd9129fa687",
+      "subsequent_adaptations": [
+        {
+          "commit": "d4de4501beeb36e3c50086f0af5d10a3b2e97547",
+          "agent": "Macbeth01",
+          "task": "AF-VAULT-PASS",
+          "previous_sha256": "b759516467cd3ee2b15b462f9783c64eb237723883bf0d0760db89baac5dbc47",
+          "current_sha256": "717e9466649a400dc67dc95142e3e908a56eda1990782d4114fe1fd9129fa687",
+          "reason": "User-authorized local Pass capacity reference model and owner withdrawal lifecycle; original source identity and history remain preserved."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1871,7 +1897,7 @@
       "target_path": "apps/server/src/store.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "4ae7f1c680af7acd4218a6189344176b3d10ef0cb09f75e5b98b7db8767ffe5f",
-      "migrated_sha256": "4a11118c50c605a7ecbd8b693f37d976768ea9fbe8b512bb244ecfa2cd059077",
+      "migrated_sha256": "d343a39ae350ef7c90e1cb15537cc6b9e6dbcbff98fbcc616ffcb47a72f1b402",
       "subsequent_adaptations": [
         {
           "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
@@ -1880,6 +1906,14 @@
           "previous_sha256": "4ae7f1c680af7acd4218a6189344176b3d10ef0cb09f75e5b98b7db8767ffe5f",
           "current_sha256": "4a11118c50c605a7ecbd8b693f37d976768ea9fbe8b512bb244ecfa2cd059077",
           "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
+        },
+        {
+          "commit": "d4de4501beeb36e3c50086f0af5d10a3b2e97547",
+          "agent": "Macbeth01",
+          "task": "AF-VAULT-PASS",
+          "previous_sha256": "4a11118c50c605a7ecbd8b693f37d976768ea9fbe8b512bb244ecfa2cd059077",
+          "current_sha256": "d343a39ae350ef7c90e1cb15537cc6b9e6dbcbff98fbcc616ffcb47a72f1b402",
+          "reason": "User-authorized local Pass capacity reference model and owner withdrawal lifecycle; original source identity and history remain preserved."
         }
       ]
     },
@@ -2038,7 +2072,17 @@
       "target_path": "apps/web/src/product-client.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md); PR11 review remediation: atomic product snapshot, identity lifecycle or bounded logical-message Forum as applicable",
       "original_sha256": "f43567f177f78af12f48779ed3b868c7adee57ffb0cdaa0c2189c7e55147b143",
-      "migrated_sha256": "a79b8984e8f409b17e4ca6b7345cd33c77e45d9e7795ddceafe530d2ad583b9a"
+      "migrated_sha256": "9213cfe39f9b6c125f88fb412550067fff850774a4817ead3d581fa406add469",
+      "subsequent_adaptations": [
+        {
+          "commit": "d4de4501beeb36e3c50086f0af5d10a3b2e97547",
+          "agent": "Macbeth01",
+          "task": "AF-VAULT-PASS",
+          "previous_sha256": "a79b8984e8f409b17e4ca6b7345cd33c77e45d9e7795ddceafe530d2ad583b9a",
+          "current_sha256": "9213cfe39f9b6c125f88fb412550067fff850774a4817ead3d581fa406add469",
+          "reason": "User-authorized local Pass capacity reference model and owner withdrawal lifecycle; original source identity and history remain preserved."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",

@@ -1,6 +1,7 @@
 import type { Frame } from './model.ts';
 
 export const DATASETS = Object.freeze([
+  { id: 'ema-cycle', title: 'EMA 合成周期', description: '先横盘、后上涨再下跌；合成周期，不代表日线。' },
   { id: 'trend', title: '合成上涨行情', description: '100 起步，逐步上涨；用于验证上限清仓。' },
   { id: 'decline', title: '合成下跌行情', description: '100 起步，逐步下跌；用于验证下限清仓。' },
   {
@@ -16,7 +17,14 @@ export function datasetFrames(id: string): Frame[] {
     const at = seq * 1000;
     const shift = BigInt(Math.min(index, 60)) * 500000n;
     const price = (
-      id === 'decline' ? 100000000n - shift : id === 'trend' ? 100000000n + shift : 100000000n
+      id === 'ema-cycle'
+        ? BigInt(index < 30 ? 100 : index < 60 ? 100 + index - 29 : Math.max(70, 130 - (index - 59) * 2)) *
+          1000000n
+        : id === 'decline'
+          ? 100000000n - shift
+          : id === 'trend'
+            ? 100000000n + shift
+            : 100000000n
     ).toString();
     return {
       seq,

@@ -141,6 +141,7 @@ export class AutomataStore {
       equity: view.equity,
       positions: state.positions,
       quotes: state.quotes,
+      observations: datasetFrames(view.datasetId).slice(0, state.cursor),
       eligibleAssets: Object.keys(state.parameters.weights),
       parameters: state.parameters,
       lastDecision: state.lastDecision ?? null,

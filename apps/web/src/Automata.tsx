@@ -6,9 +6,13 @@ import {
   type ConfigForm,
 } from './automata-client.ts';
 import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
+import type { passAccounting } from '../../../packages/domain/src/vault.ts';
 import type { AutomataStore } from '../../server/src/automata-store.ts';
 type RunView = ReturnType<AutomataStore['get']> & { runtimeError?: string | null };
 interface Vault {
+  passAccounting?: NonNullable<ReturnType<typeof passAccounting>>;
+  pendingWithdrawals: Record<string, string>;
+  withdrawalsPaid: string;
   id: string;
   revision: number;
   idle: string;
@@ -30,6 +34,7 @@ function readPending(): Pending | null {
   }
 }
 const money = (value: string) => formatUnits(value, 6).replace(/0+$/, '').replace(/\.$/, '');
+const passMoney = (value: string) => formatUnits(value, 18).replace(/0+$/, '').replace(/\.$/, '');
 const states = {
   running: '运行中',
   paused: '策略暂停 · 风控仍监控',
@@ -67,6 +72,7 @@ export function Automata() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('请选择本地测试账户。');
   const [pending, setPending] = useState<Pending | null>(readPending);
+  const [vaultAmount, setVaultAmount] = useState('100');
   const [capital, setCapital] = useState('500');
   const [transfer, setTransfer] = useState('100');
   const [dataset, setDataset] = useState('trend');
@@ -163,6 +169,15 @@ export function Automata() {
       ...fields,
     });
   }
+  async function vaultCommand(fields: Record<string, unknown>) {
+    if (!vault) return;
+    const current = await request<Vault>(`/api/v1/vaults/${vault.id}`);
+    await mutate(`/api/v1/vaults/${vault.id}/commands`, {
+      id: crypto.randomUUID(),
+      expectedRevision: current.revision,
+      ...fields,
+    });
+  }
   const disabled = busy || !!pending || !owner;
   const field = (name: keyof ConfigForm, label: string) => (
     <label>
@@ -249,50 +264,164 @@ export function Automata() {
           <div>
             <span>闲置余额</span>
             <strong>
-              {money(vault?.idle ?? '0')} <small>模拟 USDT</small>
+              {money(vault?.idle ?? '0')} <small>模拟 AF-USDC</small>
             </strong>
           </div>
           <div>
             <span>运行可用现金</span>
             <strong>{money(vault?.activeCash ?? '0')}</strong>
           </div>
-          <button
-            disabled={disabled}
-            onClick={() =>
-              void perform(async () => {
-                if (!vault) {
-                  await request('/api/v1/vaults', { strategyId: 'core-flow-demo' });
-                  return;
-                }
-                const v = await request<Vault>(`/api/v1/vaults/${vault.id}`);
-                await mutate(`/api/v1/vaults/${v.id}/commands`, {
-                  id: crypto.randomUUID(),
-                  expectedRevision: v.revision,
-                  type: 'deposit',
-                  amount: '1000000000',
-                });
-              })
-            }
-          >
-            {vault ? '存入 1,000 模拟资金' : '建立测试 Vault'}
-          </button>
-          {vault?.status === 'stopped' && vault.activeCash !== '0' && (
+          <div>
+            <span>累计取出</span>
+            <strong>{money(vault?.withdrawalsPaid ?? '0')}</strong>
+          </div>
+        </section>
+        <section className="af-panel af-vault" aria-label="Vault 与 Pass">
+          <h2>Vault 与 Pass</h2>
+          {!vault ? (
             <button
               disabled={disabled}
               onClick={() =>
                 void perform(async () => {
-                  const v = await request<Vault>(`/api/v1/vaults/${vault.id}`);
-                  await mutate(`/api/v1/vaults/${v.id}/commands`, {
-                    id: crypto.randomUUID(),
-                    expectedRevision: v.revision,
-                    type: 'deallocate',
-                    amount: v.activeCash,
+                  await request('/api/v1/vaults', {
+                    strategyId: 'core-flow-demo',
+                    passPolicy: 'principal-v1',
                   });
                 })
               }
             >
-              将结算现金转为闲置
+              建立测试 Vault
             </button>
+          ) : !vault.passAccounting ? (
+            <>
+              <p>历史额度模式 · 尚未启用 Pass 冻结。旧记录保持原样。</p>
+              <button
+                disabled={disabled}
+                onClick={() => void perform(() => vaultCommand({ type: 'enablePassLocking' }))}
+              >
+                启用本金冻结规则
+              </button>
+              <small>需要停止并清仓、没有历史已付款或待处理提现，且原始存入本金不超过持有 Pass。</small>
+            </>
+          ) : (
+            <>
+              <div className="af-vault-balances">
+                <div>
+                  <span>可用 Pass</span>
+                  <strong>{passMoney(vault.passAccounting.freePassRaw)}</strong>
+                </div>
+                <div>
+                  <span>已冻结 Pass</span>
+                  <strong>{passMoney(vault.passAccounting.lockedPassRaw)}</strong>
+                </div>
+                <div>
+                  <span>剩余本金基准</span>
+                  <strong>{money(vault.passAccounting.principal)}</strong>
+                </div>
+                <div>
+                  <span>当前可申请取出</span>
+                  <strong>{money(vault.passAccounting.withdrawable)}</strong>
+                </div>
+              </div>
+              <p>
+                存入 1 单位本金冻结 1 Pass。取出先扣利润，再扣本金；仅本金部分解冻。Bot
+                现金转回闲置余额不解冻。
+              </p>
+              {vault.passAccounting.closed ? (
+                <p role="status">Vault 已完整退出，Pass 已全部释放；此 Vault 保留历史，不再接收存入。</p>
+              ) : (
+                <>
+                  <label>
+                    存入 / 取出金额（模拟 AF-USDC）
+                    <input
+                      inputMode="decimal"
+                      disabled={disabled}
+                      value={vaultAmount}
+                      onChange={(e) => setVaultAmount(e.target.value)}
+                    />
+                  </label>
+                  <div className="af-actions">
+                    <button
+                      disabled={disabled}
+                      onClick={() =>
+                        void perform(() =>
+                          vaultCommand({ type: 'deposit', amount: parseUnits(vaultAmount, 6) }),
+                        )
+                      }
+                    >
+                      存入并冻结 Pass
+                    </button>
+                    <button
+                      disabled={disabled}
+                      onClick={() =>
+                        void perform(() =>
+                          vaultCommand({ type: 'requestWithdrawal', amount: parseUnits(vaultAmount, 6) }),
+                        )
+                      }
+                    >
+                      申请取出到模拟钱包
+                    </button>
+                    {vault.status === 'stopped' && vault.activeCash !== '0' && (
+                      <button
+                        disabled={disabled}
+                        onClick={() =>
+                          void perform(async () => {
+                            const current = await request<Vault>(`/api/v1/vaults/${vault.id}`);
+                            await mutate(`/api/v1/vaults/${vault.id}/commands`, {
+                              id: crypto.randomUUID(),
+                              expectedRevision: current.revision,
+                              type: 'deallocate',
+                              amount: current.activeCash,
+                            });
+                          })
+                        }
+                      >
+                        将结算现金转为闲置
+                      </button>
+                    )}
+                    <button
+                      disabled={
+                        disabled ||
+                        vault.status !== 'stopped' ||
+                        Object.keys(vault.pendingWithdrawals).length > 0
+                      }
+                      onClick={() => void perform(() => vaultCommand({ type: 'closeVault' }))}
+                    >
+                      完整退出并释放全部 Pass
+                    </button>
+                  </div>
+                  <small>
+                    有持仓时不能取出本金。完整退出要求停止、无持仓及待处理提现；亏损不扣减
+                    Pass，退出时释放全部剩余冻结。这里只改变本地模拟账本。
+                  </small>
+                </>
+              )}
+              {Object.entries(vault.pendingWithdrawals).map(([id, amount]) => (
+                <div className="af-withdrawal" key={id}>
+                  <strong>待取出 {money(amount)}</strong>
+                  <p>
+                    利润 {money(vault.passAccounting!.withdrawals[id]!.profit)} · 本金{' '}
+                    {money(vault.passAccounting!.withdrawals[id]!.principal)} · 确认前 Pass 仍冻结
+                  </p>
+                  <button
+                    disabled={disabled}
+                    onClick={() =>
+                      void perform(() => vaultCommand({ type: 'confirmWithdrawal', withdrawalId: id }))
+                    }
+                  >
+                    模拟确认到账
+                  </button>{' '}
+                  <button
+                    disabled={disabled}
+                    onClick={() =>
+                      void perform(() => vaultCommand({ type: 'cancelWithdrawal', withdrawalId: id }))
+                    }
+                  >
+                    取消取出
+                  </button>
+                </div>
+              ))}
+            </>
           )}
         </section>
         <div className="af-layout">
@@ -317,7 +446,7 @@ export function Automata() {
               }}
             >
               <label>
-                运行资金（模拟 USDT）
+                运行资金（模拟 AF-USDC）
                 <input
                   value={capital}
                   onChange={(e) => setCapital(e.target.value)}
@@ -331,6 +460,7 @@ export function Automata() {
                   <option value="trend">合成上涨行情</option>
                   <option value="decline">合成下跌行情</option>
                   <option value="liquidity">合成流动性受阻</option>
+                  <option value="ema-cycle">EMA 合成周期 · 先涨后跌</option>
                 </select>
               </label>
               <div className="af-fields">
@@ -393,15 +523,24 @@ export function Automata() {
                 )}
                 {form.mode !== 'off' && (
                   <div className="af-fields">
-                    {field('upper', form.mode === 'price' ? '价格上限（模拟 USDT）' : '收益上限 %')}
-                    {field('lower', form.mode === 'price' ? '价格下限（模拟 USDT）' : '收益下限 %（负数）')}
+                    {field('upper', form.mode === 'price' ? '价格上限（模拟 AF-USDC）' : '收益上限 %')}
+                    {field(
+                      'lower',
+                      form.mode === 'price' ? '价格下限（模拟 AF-USDC）' : '收益下限 %（负数）',
+                    )}
                   </div>
                 )}
                 <small>上下限可留空一个；触碰即清仓整个组合。停止后不会自动重启。</small>
               </fieldset>
               <button
                 className="af-primary"
-                disabled={disabled || !vault || vault.status !== 'stopped' || vault.activeCash !== '0'}
+                disabled={
+                  disabled ||
+                  !vault?.passAccounting ||
+                  vault.passAccounting.closed ||
+                  vault.status !== 'stopped' ||
+                  vault.activeCash !== '0'
+                }
               >
                 启动模拟运行
               </button>
@@ -420,7 +559,11 @@ export function Automata() {
                 <header>
                   <div>
                     <h2>
-                      {run.state.parameters.strategyMode === 'external' ? '外部量化策略' : 'RWA 再平衡'}
+                      {run.state.id === 'qinfra-ema-demo'
+                        ? '开源 EMA 测试策略'
+                        : run.state.parameters.strategyMode === 'external'
+                          ? '外部量化策略'
+                          : 'RWA 再平衡'}
                     </h2>
                     <small>
                       运行 {run.state.id.slice(0, 8)} · {run.datasetId} · 第 {run.state.cursor}/120 帧
@@ -430,6 +573,15 @@ export function Automata() {
                     {states[run.state.status]}
                   </span>
                 </header>
+                {run.state.id === 'qinfra-ema-demo' && (
+                  <p>
+                    EMA 15/30 · 合成周期测试 ·{' '}
+                    <a href="https://github.com/QuantConnect/Lean/blob/ebd7268d68609ae85f73de8290d9673afb1992ac/Algorithm.Python/MovingAverageCrossAlgorithm.py">
+                      开源策略来源
+                    </a>
+                    。已适配目标仓位接口，不代表原始日线策略收益。
+                  </p>
+                )}
                 <div className="af-metrics">
                   <div>
                     <span>组合权益</span>
@@ -451,7 +603,7 @@ export function Automata() {
                   </p>
                 )}
                 {run.settlementReleased !== '0' && (
-                  <p>结算时超出额度、已归还闲置：{money(run.settlementReleased)} 模拟 USDT</p>
+                  <p>结算时超出额度、已归还闲置：{money(run.settlementReleased)} 模拟 AF-USDC</p>
                 )}
                 {(run.state.reason || run.runtimeError) && (
                   <p className="af-warning">{run.runtimeError ?? run.state.reason}</p>
@@ -549,7 +701,7 @@ export function Automata() {
                     >
                       撤回到闲置
                     </button>
-                    <small>最多撤回 {money(run.state.cash)} 模拟 USDT；不自动卖出持仓。</small>
+                    <small>最多撤回 {money(run.state.cash)} 模拟 AF-USDC；不自动卖出持仓。</small>
                   </div>
                 )}
                 <div className="af-table">

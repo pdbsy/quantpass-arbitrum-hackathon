@@ -1,4 +1,4 @@
-import type { VaultState } from '../../../packages/domain/src/vault.ts';
+import { passAccounting, type VaultState } from '../../../packages/domain/src/vault.ts';
 import { SIMULATION_STATISTICS } from './simulation.ts';
 const balances = SIMULATION_STATISTICS.snapshot;
 import { TEST_CASH, unsigned } from '../../../packages/domain/src/money.ts';
@@ -14,6 +14,7 @@ export function view(state: VaultState) {
   const calculated = balances(state);
   return {
     schemaVersion: 1,
+    ...(state.passLock ? { passAccounting: passAccounting(state) } : {}),
     scope: state.scope,
     vaultId: state.id,
     asset: PRODUCT_ASSET,
