@@ -1783,7 +1783,17 @@
       "target_path": "apps/server/src/api-errors.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3 chain evidence, canonical projection, and submission registration APIs add fixed public responses",
       "original_sha256": "f443db4ca178fcbcafc6763d20a21b97d9074f81559fcba321290b3d06872ef8",
-      "migrated_sha256": "93aaf6e40ef72603b0aae917dc29e8e32c62c92e894f93a39ce4a4704a8d406a"
+      "migrated_sha256": "f0f611f10f1b226651bca18438cc62f0e25b51349c9312b7355116a057f97471",
+      "subsequent_adaptations": [
+        {
+          "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
+          "agent": "Macbeth01",
+          "task": "AF-P1-RWA-AUTOMATA",
+          "previous_sha256": "93aaf6e40ef72603b0aae917dc29e8e32c62c92e894f93a39ce4a4704a8d406a",
+          "current_sha256": "f0f611f10f1b226651bca18438cc62f0e25b51349c9312b7355116a057f97471",
+          "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1803,7 +1813,17 @@
       "target_path": "apps/server/src/app.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3 optionally composes the concrete same-process chain runtime and its read routes",
       "original_sha256": "1e190fd90786c8eac9dff5fa89acc461c1d8f8359bef5aa92c964d76d91cce55",
-      "migrated_sha256": "135d5c4364f58dabd9533d54f21b9bc55d12ec69ee88c791f68e97dcac4eb5f9"
+      "migrated_sha256": "f7eaf91c30bfb41c8bb5f36a9c0ff015c124a94c2dcfaf9cde0994531f2ef94f",
+      "subsequent_adaptations": [
+        {
+          "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
+          "agent": "Macbeth01",
+          "task": "AF-P1-RWA-AUTOMATA",
+          "previous_sha256": "135d5c4364f58dabd9533d54f21b9bc55d12ec69ee88c791f68e97dcac4eb5f9",
+          "current_sha256": "f7eaf91c30bfb41c8bb5f36a9c0ff015c124a94c2dcfaf9cde0994531f2ef94f",
+          "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1843,7 +1863,17 @@
       "target_path": "apps/server/src/store.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "4ae7f1c680af7acd4218a6189344176b3d10ef0cb09f75e5b98b7db8767ffe5f",
-      "migrated_sha256": "4ae7f1c680af7acd4218a6189344176b3d10ef0cb09f75e5b98b7db8767ffe5f"
+      "migrated_sha256": "4a11118c50c605a7ecbd8b693f37d976768ea9fbe8b512bb244ecfa2cd059077",
+      "subsequent_adaptations": [
+        {
+          "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
+          "agent": "Macbeth01",
+          "task": "AF-P1-RWA-AUTOMATA",
+          "previous_sha256": "4ae7f1c680af7acd4218a6189344176b3d10ef0cb09f75e5b98b7db8767ffe5f",
+          "current_sha256": "4a11118c50c605a7ecbd8b693f37d976768ea9fbe8b512bb244ecfa2cd059077",
+          "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -2010,7 +2040,7 @@
       "target_path": "apps/web/src/product-ui.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3-04-PRODUCT-UI adds the manifest-bound Vault runtime, finite approval review and canonical evidence readback",
       "original_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38",
-      "migrated_sha256": "2779668a9c1c8bf17b38776711bc87b6efaadf498b35e3ba7ed58e8040aefa23",
+      "migrated_sha256": "2b6d08da9e5ea51b4c8e593fbf12f7a24e88dcae9a13d2192b7a42e073c187a6",
       "subsequent_adaptations": [
         {
           "task": "M3-01-PHASE1-CLOSEOUT",
@@ -2039,6 +2069,14 @@
           "previous_sha256": "74355acb8c7fcd743f0795417fa83f91003d225674db73e95fbd05afd4f10761",
           "current_sha256": "2779668a9c1c8bf17b38776711bc87b6efaadf498b35e3ba7ed58e8040aefa23",
           "reason": "Apply user-directed USDC funding with one Pass per USDC principal capacity, frozen/available Pass, and maximum default deposits. ETH remains a separate asset with a fixed user-defined 2688 USDC valuation. Retain/refund legacy ETH allocations. Local self-verification only."
+        },
+        {
+          "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
+          "agent": "Macbeth01",
+          "task": "AF-P1-RWA-AUTOMATA",
+          "previous_sha256": "2779668a9c1c8bf17b38776711bc87b6efaadf498b35e3ba7ed58e8040aefa23",
+          "current_sha256": "2b6d08da9e5ea51b4c8e593fbf12f7a24e88dcae9a13d2192b7a42e073c187a6",
+          "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
         }
       ],
       "subsequent_revisions": [
@@ -2108,7 +2146,17 @@
       "target_path": "apps/web/vite.config.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "89412b0489e5ccb3d9d86ff20375eaeb9bdca5daad2e5a472057087d9858810f",
-      "migrated_sha256": "848464b255416f8de8afbbf4dd44f5dfe5dfe68e19c031a040d6e922dab00edb"
+      "migrated_sha256": "514f438d0c7d192534d7b22cd3d160b7a0c8eecf6ab2a1939e2e56f79842f104",
+      "subsequent_adaptations": [
+        {
+          "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
+          "agent": "Macbeth01",
+          "task": "AF-P1-RWA-AUTOMATA",
+          "previous_sha256": "848464b255416f8de8afbbf4dd44f5dfe5dfe68e19c031a040d6e922dab00edb",
+          "current_sha256": "514f438d0c7d192534d7b22cd3d160b7a0c8eecf6ab2a1939e2e56f79842f104",
+          "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",

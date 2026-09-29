@@ -152,6 +152,15 @@ export class LocalStore {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       const previous = this.get(id, owner);
+      const hasBots = this.db
+        .prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='automata_runs'")
+        .get();
+      if (
+        hasBots &&
+        this.db.prepare('SELECT id FROM automata_runs WHERE vault_id=? AND active=1').get(id) &&
+        !['deposit', 'requestWithdrawal', 'cancelWithdrawal', 'confirmWithdrawal'].includes(command.type)
+      )
+        throw new DomainError('BOT_OWNS_ALLOCATION');
       const state = execute(previous, actor, command, policy);
       if (state === previous) {
         this.db.exec('COMMIT');

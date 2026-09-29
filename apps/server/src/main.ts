@@ -8,6 +8,7 @@ const { app } = await buildApp({
   dbPath: fileURLToPath(new URL('.data/demo.sqlite', root)),
   env: process.env,
   origin: 'http://127.0.0.1:4180',
+  automataReplay: true,
   webRoot: fileURLToPath(new URL('apps/web/dist/', root)),
 });
 await app.listen({ host: '127.0.0.1', port: 4180 });
