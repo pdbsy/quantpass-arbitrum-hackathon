@@ -9,6 +9,9 @@ import { validateCheckReport } from './schema.mjs';
 import { collectGitState as collectRepositoryGitState } from './sources.mjs';
 
 const unitTests = [
+  'test/asset-whitelist.test.ts',
+  'test/market-data.test.ts',
+  'test/market-capture.test.ts',
   'test/automata-engine.test.ts',
   'test/automata-store.test.ts',
   'test/automata-api.test.ts',
