@@ -132,3 +132,24 @@ test('failed durable preparation cannot be bypassed by retrying the in-memory pe
   assert.equal(preparations, 2);
   assert.equal(decisionCalls, 0);
 });
+
+// Replacing bound parameters with interpolation must fail these isolation assertions.
+test('journal treats SQL-shaped keys and envelopes as opaque data', () => {
+  const journal = new DecisionJournal(':memory:');
+  const key = "owner'); DROP TABLE pending_decisions; --";
+  const body = '{"id":"\'); DELETE FROM pending_decisions; --"}';
+  try {
+    journal.prepare('other', 'retained');
+    assert.equal(journal.prepare(key, body), body);
+    assert.equal(journal.load(key), body);
+    assert.equal(journal.load("' OR 1=1 --"), null);
+    journal.clear(key, 'different envelope');
+    assert.equal(journal.load(key), body);
+    journal.clear(key, body);
+    assert.equal(journal.load(key), null);
+    assert.equal(journal.load('other'), 'retained');
+    assert.equal(journal.prepare('after', 'still usable'), 'still usable');
+  } finally {
+    journal.close();
+  }
+});

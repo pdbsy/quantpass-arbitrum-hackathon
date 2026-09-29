@@ -55,3 +55,7 @@ Files: new `tools/automata/research.mjs`, `test/automata-research.test.mjs`, `do
 Final evidence collection follows the source commit: full collector → manifest-only R → snapshot-only S → exact-head check. Its completion is recorded by generated evidence and command logs, not by editing this source plan after collection. Public publication remains separately gated.
 
 Local verification before source freeze: 56 automata tests pass; 1,540 total tests, 1,534 pass, 6 skip, zero failures. Browser confirmed four fills and flat stopped positions; 390px viewport has no horizontal overflow. Review was performed by the same worker under the user's no-workers instruction; independent approval is NOT_RUN.
+
+## Hosted CI follow-up — 2026-09-29
+
+The first hosted scan at source 9d3d23df146c reported `af.js-sql-taint` in `DecisionJournal.load` (run 36538619485). The queries already bind parameters. Keep the scanner rules and qualification canaries unchanged; compile the three constant statements once during construction, before request data is processed. Add a real SQLite regression with SQL-shaped keys/envelopes to prove opaque storage, exact acknowledgement deletion, isolation and continued usability. Existing crash/restart and write-before-send regressions remain required. Collect fresh C/R/S and require hosted Semgrep on the resulting head; same-worker analysis is not independent approval.
