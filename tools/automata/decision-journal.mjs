@@ -2,6 +2,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { lstatSync } from 'node:fs';
 import { resolve, dirname, parse } from 'node:path';
 export class DecisionJournal {
+  #read;
+  #insert;
+  #delete;
   constructor(file) {
     if (file !== ':memory:') {
       file = resolve(file);
@@ -24,17 +27,21 @@ export class DecisionJournal {
     this.db.exec(
       'PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS pending_decisions (key TEXT PRIMARY KEY, body TEXT NOT NULL)',
     );
+    // Compile fixed SQL once, before any envelope enters the journal.
+    this.#read = this.db.prepare('SELECT body FROM pending_decisions WHERE key=?');
+    this.#insert = this.db.prepare('INSERT OR IGNORE INTO pending_decisions VALUES (?,?)');
+    this.#delete = this.db.prepare('DELETE FROM pending_decisions WHERE key=? AND body=?');
   }
   load(key) {
-    return this.db.prepare('SELECT body FROM pending_decisions WHERE key=?').get(key)?.body ?? null;
+    return this.#read.get(key)?.body ?? null;
   }
   prepare(key, body) {
     if (typeof body !== 'string' || body.length > 32768) throw new Error('Invalid decision journal body');
-    this.db.prepare('INSERT OR IGNORE INTO pending_decisions VALUES (?,?)').run(key, body);
+    this.#insert.run(key, body);
     return this.load(key);
   }
   clear(key, body) {
-    this.db.prepare('DELETE FROM pending_decisions WHERE key=? AND body=?').run(key, body);
+    this.#delete.run(key, body);
   }
   close() {
     this.db.close();
