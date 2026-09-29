@@ -1783,7 +1783,7 @@
       "target_path": "apps/server/src/api-errors.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3 chain evidence, canonical projection, and submission registration APIs add fixed public responses",
       "original_sha256": "f443db4ca178fcbcafc6763d20a21b97d9074f81559fcba321290b3d06872ef8",
-      "migrated_sha256": "f0f611f10f1b226651bca18438cc62f0e25b51349c9312b7355116a057f97471",
+      "migrated_sha256": "1419bb9f96c0388ff89afedcae6f6222e402172ac4e6410d457b944c2026e5e1",
       "subsequent_adaptations": [
         {
           "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
@@ -1792,6 +1792,14 @@
           "previous_sha256": "93aaf6e40ef72603b0aae917dc29e8e32c62c92e894f93a39ce4a4704a8d406a",
           "current_sha256": "f0f611f10f1b226651bca18438cc62f0e25b51349c9312b7355116a057f97471",
           "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
+        },
+        {
+          "commit": "8bae9f2af1adaea08d17886e6c71d08bd61d87bb",
+          "agent": "Macbeth01",
+          "task": "AF-QINFRA-STAGE-2",
+          "previous_sha256": "f0f611f10f1b226651bca18438cc62f0e25b51349c9312b7355116a057f97471",
+          "current_sha256": "1419bb9f96c0388ff89afedcae6f6222e402172ac4e6410d457b944c2026e5e1",
+          "reason": "User-authorized language-independent strategy API adds fixed public errors; historical source identities and prior adaptations are preserved."
         }
       ]
     },
