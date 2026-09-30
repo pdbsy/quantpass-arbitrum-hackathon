@@ -9,7 +9,7 @@
     "platforms": {
       "darwin-arm64": {
         "requirements": "tools/security/requirements-semgrep-darwin-arm64.lock",
-        "requirementsSha256": "8db28ae77abdf0c0480715607a5b270ea0844d8cc7fed4abe4606b0ce8e16166",
+        "requirementsSha256": "59cac5c3d68fae3c62dfaf6b4b9eb972d416c4108954958b4d5f6a976a511860",
         "wheelFiles": [
           "annotated_types-0.8.0-py3-none-any.whl",
           "anyio-4.15.1-py3-none-any.whl",
@@ -66,7 +66,7 @@
           "ruamel_yaml-0.19.1-py3-none-any.whl",
           "ruamel_yaml_clib-0.2.15-cp312-cp312-macosx_11_0_arm64.whl",
           "semantic_version-2.10.0-py2.py3-none-any.whl",
-          "semgrep-1.177.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl",
+          "semgrep-1.177.0-1alphaforge1-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl",
           "sse_starlette-3.4.11-py3-none-any.whl",
           "starlette-1.6.0-py3-none-any.whl",
           "tomli-2.4.1-cp312-cp312-macosx_11_0_arm64.whl",
@@ -81,7 +81,7 @@
       },
       "linux-x64": {
         "requirements": "tools/security/requirements-semgrep-linux-x64.lock",
-        "requirementsSha256": "9f49be2a6ab67e01337ce765a48ab059ddd123675c8da3b933ac8a41d58abb80",
+        "requirementsSha256": "ce3b1e1252ff6e901810a98042ffeb1678d3975bf32575eb895d0a2118097f43",
         "wheelFiles": [
           "annotated_types-0.8.0-py3-none-any.whl",
           "anyio-4.15.1-py3-none-any.whl",
@@ -138,7 +138,7 @@
           "ruamel_yaml-0.19.1-py3-none-any.whl",
           "ruamel_yaml_clib-0.2.15-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
           "semantic_version-2.10.0-py2.py3-none-any.whl",
-          "semgrep-1.177.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl",
+          "semgrep-1.177.0-1alphaforge1-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl",
           "sse_starlette-3.4.11-py3-none-any.whl",
           "starlette-1.6.0-py3-none-any.whl",
           "tomli-2.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
@@ -760,7 +760,31 @@
         "sha256": "042ec3bb8f319c147b1301f2393bc19dba6e176b7da446853406d041c36c7828",
         "license": "BSD",
         "url": "https://files.pythonhosted.org/packages/9f/81/5d931d78d0eb732b95dc3ddaeeb71c8bb572fb01356e9133916cd729ecdd/wrapt-1.17.3-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl"
+      },
+      "semgrep-1.177.0-1alphaforge1-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl": {
+        "name": "semgrep",
+        "version": "1.177.0",
+        "filename": "semgrep-1.177.0-1alphaforge1-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl",
+        "sha256": "3859d7b11d0656151b2e85498e2ac6c06aef3cc29f099cb65af407d26cf389a5",
+        "license": "LGPL-2.1-or-later",
+        "derivedFrom": "semgrep-1.177.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-macosx_11_0_arm64.whl"
+      },
+      "semgrep-1.177.0-1alphaforge1-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl": {
+        "name": "semgrep",
+        "version": "1.177.0",
+        "filename": "semgrep-1.177.0-1alphaforge1-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl",
+        "sha256": "eaf5ceb4b3bebc417ee30afe53a86456205f44d96d73f65de27b6e295800bada",
+        "license": "LGPL-2.1-or-later",
+        "derivedFrom": "semgrep-1.177.0-cp310.cp311.cp312.cp313.cp314.py310.py311.py312.py313.py314-none-manylinux_2_34_x86_64.whl"
       }
+    },
+    "dependencyPatch": {
+      "buildId": "AlphaForge-Semgrep-1.177.0-pyjwt-2.14-patch1",
+      "recipe": "tools/security/patch_semgrep.py",
+      "recipeSha256": "83132f9d6ccaf75fa1f0f0915d0410d69bc36908362fb4c6d58cb9ef8a3dfe7d",
+      "patch": "tools/security/semgrep-pyjwt.patch",
+      "patchSha256": "70a2d9c60a4433db89e35a80b1fbc8586795aa52d616595133655b939ea9a223",
+      "scope": "Only the PyJWT requirement in METADATA changes. RECORD and deterministic ZIP serialization are regenerated. All other member bytes and permission attributes are preserved."
     }
   },
   "osv": {

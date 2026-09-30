@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { buildInventory, parsePythonLock, scannerTargets } from '../tools/security/inputs.mjs';
-import { verifyBytes, selectPlatform } from '../tools/security/bootstrap.mjs';
+import { verifyBytes, selectPlatform, validateDerivedWheel } from '../tools/security/bootstrap.mjs';
 import { classifySemgrep, classifyOSV, classifyGitleaks } from '../tools/security/results.mjs';
 import { stageSources } from '../tools/security/staging.mjs';
 import {
@@ -691,4 +691,61 @@ test('artifact download stream enforces origin, size and hash before atomically 
     readdirSync(parent).some((name) => name.endsWith('.tmp')),
     false,
   );
+});
+
+test('AlphaForge wheel provenance refuses arbitrary recipes, nested sources and mislabeled builds', () => {
+  const filename = 'semgrep-1.177.0-py3-none-any.whl';
+  const source = { name: 'semgrep', version: '1.177.0', filename, sha256: 'a'.repeat(64) };
+  const derived = {
+    ...source,
+    filename: filename.replace('1.177.0-', '1.177.0-1alphaforge1-'),
+    sha256: 'b'.repeat(64),
+    derivedFrom: filename,
+  };
+  const tool = {
+    version: '1.177.0',
+    wheels: { [filename]: source },
+    dependencyPatch: {
+      buildId: 'AlphaForge-Semgrep-1.177.0-pyjwt-2.14-patch1',
+      recipe: 'tools/security/patch_semgrep.py',
+      recipeSha256: 'c'.repeat(64),
+      patch: 'tools/security/semgrep-pyjwt.patch',
+      patchSha256: 'd'.repeat(64),
+    },
+  };
+  assert.deepEqual(validateDerivedWheel(derived, tool), source);
+  for (const mutate of [
+    (a, t) => {
+      t.dependencyPatch.recipe = '../arbitrary.py';
+    },
+    (a, t) => {
+      t.dependencyPatch.buildId = 'official';
+    },
+    (a, t) => {
+      t.dependencyPatch.recipeSha256 = 'missing';
+    },
+    (a, t) => {
+      t.wheels[filename].derivedFrom = 'nested';
+    },
+    (a, t) => {
+      t.wheels[filename].name = 'other';
+    },
+    (a) => {
+      a.filename = filename;
+    },
+    (a) => {
+      a.name = 'other';
+    },
+    (a) => {
+      a.sha256 = 'missing';
+    },
+    (a) => {
+      a.derivedFrom = '../source.whl';
+    },
+  ]) {
+    const a = structuredClone(derived),
+      t = structuredClone(tool);
+    mutate(a, t);
+    assert.throws(() => validateDerivedWheel(a, t), /Unqualified AlphaForge wheel derivation/);
+  }
 });
