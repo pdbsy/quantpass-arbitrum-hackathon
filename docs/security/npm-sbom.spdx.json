@@ -3,7 +3,7 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "alphaforge-robinhood-chain-hackathon-0.1.0-npm-lock",
-  "documentNamespace": "https://github.com/pdbsy/quantpass-arbitrum-hackathon/sbom/cd2d7fea6c442391a8b9da0b53fd9d417e9f049cbfe8bf9d3e965283bb98dd6a",
+  "documentNamespace": "https://github.com/pdbsy/quantpass-arbitrum-hackathon/sbom/0fba5b1259118653481eacdf198e4627ed3866bd38c376eee9f0d6076e4fb94a",
   "creationInfo": {
     "created": "2026-09-08T00:00:00Z",
     "creators": [
@@ -359,15 +359,15 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-328e68fa33dd77ca4fd4",
+      "SPDXID": "SPDXRef-Package-25e4f03a2284627ca486",
       "name": "fast-uri",
-      "versionInfo": "3.1.7",
-      "downloadLocation": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.7.tgz",
+      "versionInfo": "3.1.8",
+      "downloadLocation": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.8.tgz",
       "filesAnalyzed": false,
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "74EBD95738DD65DCFBA6177DBFA8C26F0C6B056DDF2BA9FC45CD02B5D98CE1BBA6CCC9F1CB005886EA61E89F35F51470FE4BBEACB6DE9707CCBA792DBB35551E"
+          "checksumValue": "19932D6544CD4693952040A85F02CD652E7150613E99535B4C1F21FFB4708764C559C05088FCD3832662D39045F543192A42C9BFC5C14494E553BCE0F3E65F32"
         }
       ],
       "licenseConcluded": "NOASSERTION",
@@ -378,7 +378,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/fast-uri@3.1.7"
+          "referenceLocator": "pkg:npm/fast-uri@3.1.8"
         }
       ]
     },
@@ -1775,15 +1775,15 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-0959c9623645f45373b6",
+      "SPDXID": "SPDXRef-Package-89a0d60e81b1fff3125f",
       "name": "fast-uri",
-      "versionInfo": "3.1.7",
-      "downloadLocation": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.7.tgz",
+      "versionInfo": "3.1.8",
+      "downloadLocation": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.8.tgz",
       "filesAnalyzed": false,
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "74EBD95738DD65DCFBA6177DBFA8C26F0C6B056DDF2BA9FC45CD02B5D98CE1BBA6CCC9F1CB005886EA61E89F35F51470FE4BBEACB6DE9707CCBA792DBB35551E"
+          "checksumValue": "19932D6544CD4693952040A85F02CD652E7150613E99535B4C1F21FFB4708764C559C05088FCD3832662D39045F543192A42C9BFC5C14494E553BCE0F3E65F32"
         }
       ],
       "licenseConcluded": "NOASSERTION",
@@ -1794,7 +1794,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/fast-uri@3.1.7"
+          "referenceLocator": "pkg:npm/fast-uri@3.1.8"
         }
       ]
     },
@@ -1895,15 +1895,15 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-0fbfccc35846acc1ef3e",
+      "SPDXID": "SPDXRef-Package-a56e9685d0e281473974",
       "name": "brace-expansion",
-      "versionInfo": "5.0.9",
-      "downloadLocation": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.9.tgz",
+      "versionInfo": "5.0.12",
+      "downloadLocation": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.12.tgz",
       "filesAnalyzed": false,
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "49C43822EBC8105D533253FB66DFAF8C9FFFF7394F6F64837315B13376E4F2CEADE8619D27B28ED5D09C4E274E3C929E3D6DF42C4FF6713EF00B23E1A3DFD6C6"
+          "checksumValue": "628BD0DEBCE168B308AC38CD0CC90D4B4D6D79AF77AA11211B9C72F1FEBE47497E770DCA8BEE6C0A822823DE368AE2D94C75A881692D830543854D3D88D12299"
         }
       ],
       "licenseConcluded": "NOASSERTION",
@@ -1914,7 +1914,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/brace-expansion@5.0.9"
+          "referenceLocator": "pkg:npm/brace-expansion@5.0.12"
         }
       ]
     },
@@ -2519,15 +2519,15 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-7d579621fbabc6a2d5de",
+      "SPDXID": "SPDXRef-Package-80ba63c845180943c0d4",
       "name": "fast-uri",
-      "versionInfo": "3.1.7",
-      "downloadLocation": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.7.tgz",
+      "versionInfo": "3.1.8",
+      "downloadLocation": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.8.tgz",
       "filesAnalyzed": false,
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "74EBD95738DD65DCFBA6177DBFA8C26F0C6B056DDF2BA9FC45CD02B5D98CE1BBA6CCC9F1CB005886EA61E89F35F51470FE4BBEACB6DE9707CCBA792DBB35551E"
+          "checksumValue": "19932D6544CD4693952040A85F02CD652E7150613E99535B4C1F21FFB4708764C559C05088FCD3832662D39045F543192A42C9BFC5C14494E553BCE0F3E65F32"
         }
       ],
       "licenseConcluded": "NOASSERTION",
@@ -2538,7 +2538,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/fast-uri@3.1.7"
+          "referenceLocator": "pkg:npm/fast-uri@3.1.8"
         }
       ]
     },
@@ -2615,15 +2615,15 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-0d710570edbee37dc59c",
+      "SPDXID": "SPDXRef-Package-2a72a1f76ae696caa8a2",
       "name": "fast-uri",
-      "versionInfo": "4.1.4",
-      "downloadLocation": "https://registry.npmjs.org/fast-uri/-/fast-uri-4.1.4.tgz",
+      "versionInfo": "4.1.5",
+      "downloadLocation": "https://registry.npmjs.org/fast-uri/-/fast-uri-4.1.5.tgz",
       "filesAnalyzed": false,
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "74E0D7AC8C654BD25276002784850A3A8B0A575A0CB54D95B55C3CED045A1F3CA5E63C4EDBDD088B9B4465F09FCDF58D1E2DE3296C0149D423D2A232B2175975"
+          "checksumValue": "BD97A83110787A936BED07DD1F17A5EED7BF45C5F5E82C725C8D3B242093156640DACE2FD5ACC63444918FED84A1A1D269614BFD9DC698A4F68C5E80DB4DA32E"
         }
       ],
       "licenseConcluded": "NOASSERTION",
@@ -2634,7 +2634,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/fast-uri@4.1.4"
+          "referenceLocator": "pkg:npm/fast-uri@4.1.5"
         }
       ]
     },
@@ -5400,7 +5400,7 @@
     {
       "spdxElementId": "SPDXRef-Package-a29f10d9f599ea7fa142",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package-0d710570edbee37dc59c"
+      "relatedSpdxElement": "SPDXRef-Package-2a72a1f76ae696caa8a2"
     },
     {
       "spdxElementId": "SPDXRef-Package-f8921d85e46dcde91bb3",
@@ -5410,7 +5410,7 @@
     {
       "spdxElementId": "SPDXRef-Package-f8921d85e46dcde91bb3",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package-328e68fa33dd77ca4fd4"
+      "relatedSpdxElement": "SPDXRef-Package-25e4f03a2284627ca486"
     },
     {
       "spdxElementId": "SPDXRef-Package-f8921d85e46dcde91bb3",
@@ -5775,7 +5775,7 @@
     {
       "spdxElementId": "SPDXRef-Package-7902f66739ed83fcd762",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package-0959c9623645f45373b6"
+      "relatedSpdxElement": "SPDXRef-Package-89a0d60e81b1fff3125f"
     },
     {
       "spdxElementId": "SPDXRef-Package-7902f66739ed83fcd762",
@@ -5798,7 +5798,7 @@
       "relatedSpdxElement": "SPDXRef-Package-08ffab3ad5074785ded9"
     },
     {
-      "spdxElementId": "SPDXRef-Package-0fbfccc35846acc1ef3e",
+      "spdxElementId": "SPDXRef-Package-a56e9685d0e281473974",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-Package-5ac17317aab98efcbf0f"
     },
@@ -6060,7 +6060,7 @@
     {
       "spdxElementId": "SPDXRef-Package-5e7e671d17172c655e06",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package-0d710570edbee37dc59c"
+      "relatedSpdxElement": "SPDXRef-Package-2a72a1f76ae696caa8a2"
     },
     {
       "spdxElementId": "SPDXRef-Package-5e7e671d17172c655e06",
@@ -6080,7 +6080,7 @@
     {
       "spdxElementId": "SPDXRef-Package-ce2afca2b550d31aa2ef",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package-7d579621fbabc6a2d5de"
+      "relatedSpdxElement": "SPDXRef-Package-80ba63c845180943c0d4"
     },
     {
       "spdxElementId": "SPDXRef-Package-ce2afca2b550d31aa2ef",
@@ -6380,7 +6380,7 @@
     {
       "spdxElementId": "SPDXRef-Package-d472ba2e48b696293efb",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-Package-0fbfccc35846acc1ef3e"
+      "relatedSpdxElement": "SPDXRef-Package-a56e9685d0e281473974"
     },
     {
       "spdxElementId": "SPDXRef-Package-a8c2053b9cf4ab279411",

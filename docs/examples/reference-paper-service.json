@@ -37,6 +37,6 @@
     }
   },
   "intervalMs": 5000,
-  "maxBytes": 2000000000,
+  "maxBytes": 8000000000,
   "backupIntervalMs": 86400000
 }
