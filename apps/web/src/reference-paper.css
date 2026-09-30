@@ -1,0 +1,128 @@
+.af-paper-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+.af-paper-main > * {
+  min-width: 0;
+}
+.af-paper-main .af-heading,
+.af-paper-main .af-message {
+  margin-bottom: 0;
+}
+.af-paper-login {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.af-paper-login label {
+  min-width: 130px;
+}
+.af-paper-status,
+.af-paper-operations {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+}
+.af-paper-status strong {
+  font-size: 32px;
+}
+.af-paper-status progress {
+  width: 180px;
+  accent-color: #426952;
+}
+.af-paper-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 30px;
+}
+.af-paper-metrics strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.af-paper-curve {
+  width: 100%;
+  max-height: 290px;
+  background: #f9faf6;
+  border-radius: 12px;
+}
+.af-paper-curve text {
+  font-size: 12px;
+  fill: #637769;
+}
+.af-paper-line {
+  fill: none;
+  stroke: #426952;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.af-paper-grid {
+  stroke: #d9dfd5;
+}
+.af-paper-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.af-paper-controls label {
+  min-width: 180px;
+  flex: 1;
+}
+.af-paper-stop {
+  border-color: #985439;
+  color: #7d3b27;
+}
+.af-paper-table-scroll {
+  overflow-x: auto;
+}
+.af-paper-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+.af-paper-table th {
+  color: #637769;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.af-paper-table th,
+.af-paper-table td {
+  padding: 14px 10px;
+  border-bottom: 1px solid #e4e8e0;
+}
+.af-paper-table td {
+  font-variant-numeric: tabular-nums;
+}
+.af-paper-main .af-message button {
+  margin-left: 16px;
+}
+.af-paper-empty {
+  min-height: 100px;
+  display: grid;
+  place-content: center;
+  color: #637769;
+}
+@media (max-width: 800px) {
+  .af-paper-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .af-paper-status,
+  .af-paper-operations {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .af-paper-login {
+    width: 100%;
+  }
+  .af-paper-main .af-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 420px) {
+  .af-paper-metrics {
+    grid-template-columns: 1fr;
+  }
+}

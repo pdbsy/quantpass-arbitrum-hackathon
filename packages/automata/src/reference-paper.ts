@@ -1,10 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import {
-  exactFields,
-  parseBatchPolicy,
-  replayReferenceBatch,
-  validateReferenceBatch,
-} from '../../market-data/src/batch.ts';
+import { exactFields, parseBatchPolicy, validateReferenceBatch } from '../../market-data/src/batch.ts';
 import type { BatchPolicy, ReferenceBatch } from '../../market-data/src/batch.ts';
 import { requireValue } from '../../market-data/src/robinhood.ts';
 import type { ReferenceObservation } from '../../market-data/src/robinhood.ts';
@@ -365,7 +360,7 @@ function buyBudget(state: PaperState, id: string): bigint {
   return low;
 }
 export function applyPaperBatch(before: PaperState, batch: ReferenceBatch): PaperResult {
-  validateReferenceBatch(batch);
+  const observations = validateReferenceBatch(batch);
   requireValue(
     isDeepStrictEqual(before.config.market, parseBatchPolicy(batch.policy)),
     'PAPER_POLICY_MISMATCH',
@@ -388,7 +383,7 @@ export function applyPaperBatch(before: PaperState, batch: ReferenceBatch): Pape
   state.clock = batch.completedAt;
   if (batch.status === 'REJECTED')
     return { state, events: [{ kind: 'REFERENCE_REJECTED', at: state.clock, reason: batch.reason }] };
-  const observations = replayReferenceBatch(batch);
+  requireValue(observations, 'BATCH_NOT_ACCEPTED');
   let minuteResult;
   try {
     minuteResult = advanceMinutes(state.minutes, observations, state.config.minuteCloseMaxAgeMs);

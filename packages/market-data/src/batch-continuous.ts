@@ -7,7 +7,7 @@ import { requireValue } from './robinhood.ts';
 export interface BatchCollectionConfig extends BatchPolicy {
   intervalMs: number;
   maxBatches: number | null;
-  maxConsecutiveRejections: number;
+  maxConsecutiveRejections: number | null;
 }
 export interface BatchCollectionSummary {
   status: 'COMPLETED' | 'STOPPED' | 'REJECTED' | 'FAILED';
@@ -39,7 +39,8 @@ export function parseBatchCollectionConfig(input: unknown): BatchCollectionConfi
     ...policy,
     intervalMs,
     maxBatches: row.maxBatches === null ? null : batchInteger(row.maxBatches),
-    maxConsecutiveRejections: batchInteger(row.maxConsecutiveRejections),
+    maxConsecutiveRejections:
+      row.maxConsecutiveRejections === null ? null : batchInteger(row.maxConsecutiveRejections),
   };
 }
 export async function collectReferenceBatches(
@@ -95,7 +96,7 @@ export async function collectReferenceBatches(
     }
     if (signal?.aborted) return finish('STOPPED', 'OPERATOR_STOPPED');
     if (captured.reason === 'HTTP_ACCESS_DENIED') return finish('REJECTED', 'HTTP_ACCESS_DENIED');
-    if (consecutive >= config.maxConsecutiveRejections)
+    if (config.maxConsecutiveRejections !== null && consecutive >= config.maxConsecutiveRejections)
       return finish('REJECTED', 'CONSECUTIVE_REJECTION_LIMIT');
     if (config.maxBatches !== null && summary.batches >= config.maxBatches) return summary;
     if (summary.batches === Number.MAX_SAFE_INTEGER) return finish('FAILED', 'COLLECTION_COUNTER_LIMIT');

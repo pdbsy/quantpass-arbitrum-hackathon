@@ -1,8 +1,10 @@
 # AlphaForge one-minute reference paper trading
 
+The dedicated continuous service and page are described in [QINFRA-REFERENCE-PAPER-SERVICE.md](QINFRA-REFERENCE-PAPER-SERVICE.md). The bounded-probe observations below remain historical evidence. Earlier planning prose called the entry comparison 15 bps; that unit description was incorrect. The existing strategy comparison is preserved unchanged.
+
 ## Confirmed first-run policy
 
-MSFT, NVDA and AAPL use sampled one-minute closes and the existing Apache-2.0 QuantConnect-derived EMA 15/30 with its original 15 bps entry hysteresis. Each asset may use at most one third of current virtual NAV, inclusive of entry fees. Inactive signals keep cash. Price appreciation or cash withdrawal can make an existing position overweight; this blocks additional buying without an automatic sale.
+MSFT, NVDA and AAPL use sampled one-minute closes and the existing Apache-2.0 QuantConnect-derived EMA 15/30 with its original integer entry comparison fast × 100000 > slow × 100015 (0.015%, or 1.5 bps). Each asset may use at most one third of current virtual NAV, inclusive of entry fees. Inactive signals keep cash. Price appreciation or cash withdrawal can make an existing position overweight; this blocks additional buying without an automatic sale.
 
 The owner confirmed 1,000 virtual AF-USDC, manual stop liquidation initially, a 30 bps simulated fee, and 10 bps adverse simulated slippage. Buy uses the reference ask; sell uses the reference bid. These are configurable research assumptions, not observed Uniswap fees, executable pool prices or actual trading costs. Virtual AF-USDC is valued at one USD by construction; this is not verification of a deployed settlement token's peg.
 

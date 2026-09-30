@@ -63,7 +63,7 @@ export function parseBatchPolicy(input: unknown): BatchPolicy {
 function timestamp(value: unknown): asserts value is number {
   requireValue(typeof value === 'number' && Number.isSafeInteger(value) && value >= 0, 'INVALID_BATCH_CLOCK');
 }
-function inspect(batch: ReferenceBatch): BatchPolicy {
+function inspect(batch: ReferenceBatch): { policy: BatchPolicy; observations: ReferenceObservation[] } {
   requireValue(batch?.version === 'alphaforge-reference-batch-1', 'INVALID_BATCH_VERSION');
   const policy = parseBatchPolicy(batch.policy);
   timestamp(batch.startedAt);
@@ -72,6 +72,7 @@ function inspect(batch: ReferenceBatch): BatchPolicy {
     Array.isArray(batch.captures) && batch.captures.length <= policy.selections.length,
     'INVALID_BATCH_MEMBERS',
   );
+  const observations: ReferenceObservation[] = [];
   for (let i = 0; i < batch.captures.length; i++) {
     const c = batch.captures[i]!;
     requireValue(
@@ -98,17 +99,17 @@ function inspect(batch: ReferenceBatch): BatchPolicy {
       );
       timestamp(s.receivedAt);
     }
-    if (c.status === 'ACCEPTED') replayReference(c);
+    if (c.status === 'ACCEPTED') observations.push(replayReference(c));
     else
       requireValue(
         c.observation === null && typeof c.reason === 'string' && /^[A-Z][A-Z0-9_]{1,80}$/.test(c.reason),
         'INVALID_REJECTED_CAPTURE',
       );
   }
-  return policy;
+  return { policy, observations };
 }
 function derive(batch: ReferenceBatch): ReferenceObservation[] {
-  const policy = inspect(batch);
+  const { policy, observations } = inspect(batch);
   requireValue(
     batch.completedAt >= batch.startedAt &&
       batch.captures.every((c) =>
@@ -122,7 +123,6 @@ function derive(batch: ReferenceBatch): ReferenceObservation[] {
       batch.captures.every((c) => c.status === 'ACCEPTED'),
     'BATCH_MEMBER_REJECTED',
   );
-  const observations = batch.captures.map(replayReference);
   requireValue(
     observations.every(
       (o) => o.generatedAt <= batch.completedAt && batch.completedAt - o.generatedAt <= policy.maxAgeMs,
@@ -140,11 +140,8 @@ export function replayReferenceBatch(batch: ReferenceBatch): ReferenceObservatio
   requireValue(isDeepStrictEqual(observations, batch.observations), 'BATCH_OBSERVATION_MISMATCH');
   return observations;
 }
-export function validateReferenceBatch(batch: ReferenceBatch): void {
-  if (batch?.status === 'ACCEPTED') {
-    replayReferenceBatch(batch);
-    return;
-  }
+export function validateReferenceBatch(batch: ReferenceBatch): ReferenceObservation[] | null {
+  if (batch?.status === 'ACCEPTED') return replayReferenceBatch(batch);
   inspect(batch);
   requireValue(
     batch.status === 'REJECTED' &&
@@ -153,6 +150,7 @@ export function validateReferenceBatch(batch: ReferenceBatch): void {
       /^[A-Z][A-Z0-9_]{1,80}$/.test(batch.reason),
     'INVALID_REJECTED_BATCH',
   );
+  return null;
 }
 export async function captureReferenceBatch(
   input: unknown,
