@@ -48,3 +48,7 @@ Alice/Bob 是本地测试会话，不是钱包签名或生产认证。账户绑�
 专用离线账户用于页面追加/撤回/现金不足/清仓/备份验收，与官方真实参考账户隔离。官方持续账户已实际跨过 30 个有效分钟并产生模拟买入；这只是参考行情驱动的模拟闭环，不能称为链上成交或经验证的公开业绩。24 小时调度使用可控时钟完成行为测试；真实 24 小时连续运行仍待观察。
 
 本轮为单人实现与技术自审，不能当作外部独立安全审批。本地检查证据按 source C → manifest R → snapshot S 绑定；缺失 Foundry/fuzz/invariant/Slither 前置条件保留 NOT_RUN，未运行的 GitHub CI、链上部署或真实订单不得报 PASS。没有新增 push/PR/merge 授权。
+
+## 线上 CI 候选
+
+当前候选使用已登记的 macbeth01/AF-LIVE-MARKET 任务分支，保留历史 codex/AF-LIVE-MARKET 分支及全部提交。分支切换后重新生成绑定当前分支的 C/R/S 检查证据，不手改历史报告。GitHub Engineering checks 验证 Linux、Windows、ARM Mac，并执行已登记的合约、source policy、dependency delta、Semgrep CE、OSV 和 Gitleaks 检查。线上结果以准确候选提交的实际运行记录为准；CI 通过后再开始正式长跑验收，不因 CI 请求自动合并 master。
