@@ -2,4 +2,4 @@
 +++ alphaforge/semgrep-1.177.0.dist-info/METADATA
 @@
 -Requires-Dist: pyjwt[crypto]~=2.13.0
-+Requires-Dist: pyjwt[crypto]~=2.14.0
++Requires-Dist: pyjwt[crypto]~=2.15.0

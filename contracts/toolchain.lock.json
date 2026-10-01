@@ -39,7 +39,7 @@
     "officialSource": "https://github.com/crytic/slither/releases/tag/0.11.3",
     "index": "https://pypi.org/project/slither-analyzer/0.11.3/",
     "requirements": "requirements-slither.lock",
-    "requirementsSha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f",
+    "requirementsSha256": "d5c5c390cfbbd5d255d450c4dfadb01cc3eff70f040ec71b504ca9278503d751",
     "platform": "CPython 3.12 / macOS arm64; 47 exact binary wheels",
     "cryticCompile": "0.3.11"
   },

@@ -61,7 +61,7 @@ class DerivationTests(unittest.TestCase):
                 if name not in (METADATA, RECORD):
                     self.assertEqual(source.read(name), derived.read(name))
                 self.assertEqual(source.getinfo(name).external_attr, derived.getinfo(name).external_attr)
-            self.assertEqual(derived.read(METADATA), source.read(METADATA).replace(b"~=2.13.0", b"~=2.14.0"))
+            self.assertEqual(derived.read(METADATA), source.read(METADATA).replace(b"~=2.13.0", b"~=2.15.0"))
             for name, value, size in csv.reader(io.StringIO(derived.read(RECORD).decode())):
                 if name == RECORD:
                     self.assertEqual((value, size), ("", ""))

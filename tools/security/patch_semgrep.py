@@ -1,7 +1,7 @@
-"""AlphaForge dependency patch 1: Semgrep 1.177.0 metadata only.
+"""AlphaForge dependency patch 2: Semgrep 1.177.0 metadata only.
 
 Retains the upstream distribution version and all source/native/license bytes.
-The distinct 1alphaforge1 wheel build tag and repository lock identify this
+The distinct 1alphaforge2 wheel build tag and repository lock identify this
 modified distribution. ZIP_STORED avoids host-dependent compression output.
 """
 import base64
@@ -18,7 +18,7 @@ import zipfile
 METADATA = "semgrep-1.177.0.dist-info/METADATA"
 RECORD = "semgrep-1.177.0.dist-info/RECORD"
 OLD = b"Requires-Dist: pyjwt[crypto]~=2.13.0\n"
-NEW = b"Requires-Dist: pyjwt[crypto]~=2.14.0\n"
+NEW = b"Requires-Dist: pyjwt[crypto]~=2.15.0\n"
 MAX_BYTES = 512 * 1024 * 1024
 
 

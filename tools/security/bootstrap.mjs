@@ -93,7 +93,7 @@ export function validateDerivedWheel(artifact, tool) {
   const source = tool.wheels[artifact.derivedFrom];
   if (
     tool.version !== '1.177.0' ||
-    patch?.buildId !== 'AlphaForge-Semgrep-1.177.0-pyjwt-2.14-patch1' ||
+    patch?.buildId !== 'AlphaForge-Semgrep-1.177.0-pyjwt-2.15-patch2' ||
     patch.recipe !== 'tools/security/patch_semgrep.py' ||
     patch.patch !== 'tools/security/semgrep-pyjwt.patch' ||
     !/^[a-f0-9]{64}$/.test(patch.recipeSha256) ||
@@ -109,7 +109,7 @@ export function validateDerivedWheel(artifact, tool) {
     !source.filename.endsWith('.whl') ||
     !/^[a-f0-9]{64}$/.test(source.sha256) ||
     !/^[a-f0-9]{64}$/.test(artifact.sha256) ||
-    artifact.filename !== source.filename.replace('semgrep-1.177.0-', 'semgrep-1.177.0-1alphaforge1-')
+    artifact.filename !== source.filename.replace('semgrep-1.177.0-', 'semgrep-1.177.0-1alphaforge2-')
   )
     throw new Error('Unqualified AlphaForge wheel derivation');
   return source;

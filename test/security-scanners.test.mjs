@@ -698,7 +698,7 @@ test('AlphaForge wheel provenance refuses arbitrary recipes, nested sources and 
   const source = { name: 'semgrep', version: '1.177.0', filename, sha256: 'a'.repeat(64) };
   const derived = {
     ...source,
-    filename: filename.replace('1.177.0-', '1.177.0-1alphaforge1-'),
+    filename: filename.replace('1.177.0-', '1.177.0-1alphaforge2-'),
     sha256: 'b'.repeat(64),
     derivedFrom: filename,
   };
@@ -706,7 +706,7 @@ test('AlphaForge wheel provenance refuses arbitrary recipes, nested sources and 
     version: '1.177.0',
     wheels: { [filename]: source },
     dependencyPatch: {
-      buildId: 'AlphaForge-Semgrep-1.177.0-pyjwt-2.14-patch1',
+      buildId: 'AlphaForge-Semgrep-1.177.0-pyjwt-2.15-patch2',
       recipe: 'tools/security/patch_semgrep.py',
       recipeSha256: 'c'.repeat(64),
       patch: 'tools/security/semgrep-pyjwt.patch',

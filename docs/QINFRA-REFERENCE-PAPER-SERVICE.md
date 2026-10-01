@@ -77,3 +77,15 @@ Alice/Bob 是本地测试会话，不是钱包签名或生产认证。账户绑�
 引导时必须完成原始包完整性验证、原 RECORD 校验、派生行为测试、输出摘要校验、只含选定 wheel 的私有安装目录、完整 hash-locked pip resolver 和 `pip check`；原有 22 条 OSS 规则的 44 个正负样本继续执行，CI 报告明确输出补丁身份和派生摘要。macOS 原生实际安装与正负样本资格测试已通过；Linux 执行及最终源候选资格仍必须以新的真实 CI 为准。MCP 服务不在本轮启用范围。
 
 此前两个失败 run 永久保留。新的 source C → manifest R → snapshot S 需重新采集；正式长跑仍等待准确 S 的所有九项 CI 成功。本轮未获得合并授权。
+
+## 2026-10-01 合并前新增安全公告
+
+用户于 2026-10-01 明确授权本版通过门禁后合入 master。原准确候选 `83fb9d49bff725fde1211ad8b69aff204f8fe803` 的正式 24 小时观察及截止后自动备份独立副本复算已完成；原始结果、摘要和日志保留。这些记录只证明原候选的验收，不能改标为后续依赖更新版本的长跑结果。
+
+PR #40 的 [Engineering run 36837673050](https://github.com/pdbsy/quantpass-arbitrum-hackathon/actions/runs/36837673050) 为八项成功、OSV 失败。新增收录的公告包括 [Fastify GHSA-4mh8-r7rc-xpvc](https://github.com/advisories/GHSA-4mh8-r7rc-xpvc)、[PyJWT GHSA-42vr-xj54-vc7v](https://github.com/advisories/GHSA-42vr-xj54-vc7v)，以及 urllib3 的 [GHSA-8988-9cw3-xx77](https://github.com/advisories/GHSA-8988-9cw3-xx77)、[GHSA-gh4c-6fx4-qh6g](https://github.com/advisories/GHSA-gh4c-6fx4-qh6g)、[GHSA-vxq7-64xx-v4gw](https://github.com/advisories/GHSA-vxq7-64xx-v4gw)。公告被收录的时间晚于原成功检查；不重写原成功或本次失败记录，也不把软件版本命中直接断言为本项目存在可利用路径。
+
+用户随后明确批准仅升级 Fastify 5.12.3 → 5.12.5、PyJWT 2.14.0 → 2.15.0、Slither 依赖 urllib3 2.7.0 → 2.8.0，并重建相关锁和验收证据。审查了 [Fastify 5.12.5 官方发布](https://github.com/fastify/fastify/releases/tag/v5.12.5)、[PyJWT 2.15.0 官方发布](https://github.com/jpadilla/pyjwt/releases/tag/2.15.0) 及官方 Registry/PyPI 的精确下载元数据。npm 图仍为 217 个包，只有 Fastify 包版本及对应 root 声明、下载地址和完整性摘要变化。urllib3 使用 Semgrep 图已锁定的同一个 2.8.0 wheel，不扩大合约工具版本范围。
+
+Semgrep 上游版本仍为 1.177.0，新的派生构建身份为 `AlphaForge-Semgrep-1.177.0-pyjwt-2.15-patch2`、wheel build tag 为 `1alphaforge2`。仍从原固定官方 wheel 开始，唯一内容修改为 PyJWT METADATA 约束 `~=2.13.0` → `~=2.15.0`；其他成员字节与权限属性保留，重新生成 RECORD 和确定性 ZIP。PyJWT 官方 wheel SHA-256 为 `7a3742debf6b879e912dbb9819ceec1594be812452b78c5f2e2dfc56564954f8`。实际派生 macOS wheel 摘要为 `149e07f08f9273b22d104cce330b522184a5cb08f481574379a0fa53522655e1`，Linux 为 `7e3096a27e42d71503d0f6dd5cb6b05fc09137fc89a3c142c6e6f0181b50657f`。真实产物测试先观察旧生成器不满足新约束，再确认新生成器通过；这些局部结果不代替完整 CI。
+
+更新在独立完整历史副本内完成，不复用运行中服务的可写依赖或 SQLite。原本机参考模拟盘继续使用原候选运行，不自动重启、停盘或变更资金和策略。更新版须重新完成 source C → manifest R → snapshot S、准确 S 的完整检查、全部九项 hosted CI；保护合并后还须验证实际 master。没有获得测试网部署、签名、广播或真实交易授权。
