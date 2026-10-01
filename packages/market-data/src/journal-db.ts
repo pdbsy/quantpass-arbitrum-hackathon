@@ -1,0 +1,57 @@
+import { lstatSync, realpathSync, openSync, closeSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { DatabaseSync, backup } from 'node:sqlite';
+import { requireValue } from './robinhood.ts';
+/** Dedicated collector DB only; identity prevents connecting to a Vault or another journal. */
+export function openJournalDatabase(path: string, applicationId: number, readOnly = false): DatabaseSync {
+  requireValue(
+    Number.isSafeInteger(applicationId) && applicationId > 0 && applicationId <= 2147483647,
+    'INVALID_JOURNAL_APPLICATION_ID',
+  );
+  const full = resolve(path);
+  requireValue(realpathSync(dirname(full)) === dirname(full), 'JOURNAL_PARENT_SYMLINK');
+  let existing = false;
+  for (const item of [full, full + '-wal', full + '-shm']) {
+    try {
+      const stat = lstatSync(item);
+      if (item === full) existing = true;
+      requireValue(stat.isFile() && stat.nlink === 1, 'JOURNAL_UNSAFE_FILE');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+  requireValue(existing || !readOnly, 'JOURNAL_NOT_FOUND');
+  if (existing) {
+    const probe = new DatabaseSync(full, { readOnly: true });
+    try {
+      requireValue(
+        probe.prepare('PRAGMA application_id').get()?.application_id === applicationId,
+        'JOURNAL_IDENTITY_MISMATCH',
+      );
+    } finally {
+      probe.close();
+    }
+  }
+  const db = new DatabaseSync(full, { readOnly });
+  try {
+    if (readOnly) {
+      db.exec('PRAGMA busy_timeout=1000;');
+      return db;
+    }
+    db.exec(
+      'PRAGMA application_id=' + applicationId + '; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=1000;',
+    );
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
+}
+
+/** Exclusively claim a new snapshot; never overwrite an existing file. */
+export async function backupJournalDatabase(db: DatabaseSync, path: string): Promise<number> {
+  const full = resolve(path);
+  requireValue(realpathSync(dirname(full)) === dirname(full), 'JOURNAL_PARENT_SYMLINK');
+  closeSync(openSync(full, 'wx', 0o600));
+  return backup(db, full);
+}

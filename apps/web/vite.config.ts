@@ -45,6 +45,7 @@ export default defineConfig({
       input: {
         product: fileURLToPath(new URL('./index.html', import.meta.url)),
         automata: fileURLToPath(new URL('./automata.html', import.meta.url)),
+        referencePaper: fileURLToPath(new URL('./reference-paper.html', import.meta.url)),
       },
     },
   },

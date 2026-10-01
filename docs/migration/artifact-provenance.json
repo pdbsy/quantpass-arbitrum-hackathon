@@ -1100,7 +1100,17 @@
       "target_path": "contracts/requirements-slither.lock",
       "method": "unchanged local-only contract source/toolchain lock",
       "original_sha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f",
-      "migrated_sha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f"
+      "migrated_sha256": "d5c5c390cfbbd5d255d450c4dfadb01cc3eff70f040ec71b504ca9278503d751",
+      "subsequent_adaptations": [
+        {
+          "commit": "43239fe1ed8ee8ff4030901fdbfc873a76176156",
+          "agent": "Macbeth01",
+          "task": "AF-LIVE-MARKET",
+          "previous_sha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f",
+          "current_sha256": "d5c5c390cfbbd5d255d450c4dfadb01cc3eff70f040ec71b504ca9278503d751",
+          "reason": "User-approved pre-merge urllib3 2.7.0 to 2.8.0 security update and matching Slither requirements digest. Preserve original Macbeth04 source identity, original bytes and earlier hashes."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1160,7 +1170,17 @@
       "target_path": "contracts/toolchain.lock.json",
       "method": "unchanged local-only contract source/toolchain lock",
       "original_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338",
-      "migrated_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338"
+      "migrated_sha256": "437e0cc6b6f938838f289b676fd61ba5f3c7292555be1ae70ac2339d8c359907",
+      "subsequent_adaptations": [
+        {
+          "commit": "43239fe1ed8ee8ff4030901fdbfc873a76176156",
+          "agent": "Macbeth01",
+          "task": "AF-LIVE-MARKET",
+          "previous_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338",
+          "current_sha256": "437e0cc6b6f938838f289b676fd61ba5f3c7292555be1ae70ac2339d8c359907",
+          "reason": "User-approved pre-merge urllib3 2.7.0 to 2.8.0 security update and matching Slither requirements digest. Preserve original Macbeth04 source identity, original bytes and earlier hashes."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1829,7 +1849,7 @@
       "target_path": "apps/server/src/app.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3 optionally composes the concrete same-process chain runtime and its read routes",
       "original_sha256": "1e190fd90786c8eac9dff5fa89acc461c1d8f8359bef5aa92c964d76d91cce55",
-      "migrated_sha256": "5b64bc9a88ca84835eea16cd66dd5f7c387222c15eb87bf5826b179ca7084a26",
+      "migrated_sha256": "fb2463abb05bc15af99573b3c0b01e81c7964dc63401bcec7b4e077a0078995b",
       "subsequent_adaptations": [
         {
           "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
@@ -1846,6 +1866,14 @@
           "previous_sha256": "f7eaf91c30bfb41c8bb5f36a9c0ff015c124a94c2dcfaf9cde0994531f2ef94f",
           "current_sha256": "5b64bc9a88ca84835eea16cd66dd5f7c387222c15eb87bf5826b179ca7084a26",
           "reason": "User-authorized local Pass capacity reference model and owner withdrawal lifecycle; original source identity and history remain preserved."
+        },
+        {
+          "commit": "10da83ccd8e22a5e92f3426870828e7daed8965d",
+          "agent": "Macbeth01",
+          "task": "AF-LIVE-MARKET",
+          "previous_sha256": "5b64bc9a88ca84835eea16cd66dd5f7c387222c15eb87bf5826b179ca7084a26",
+          "current_sha256": "fb2463abb05bc15af99573b3c0b01e81c7964dc63401bcec7b4e077a0078995b",
+          "reason": "User-authorized local reference paper service and dedicated acceptance page; optional owner-scoped routes, separate loopback session namespace and web build entry. Original authors, source identity and historical digests remain preserved."
         }
       ]
     },
@@ -2198,7 +2226,7 @@
       "target_path": "apps/web/vite.config.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "89412b0489e5ccb3d9d86ff20375eaeb9bdca5daad2e5a472057087d9858810f",
-      "migrated_sha256": "514f438d0c7d192534d7b22cd3d160b7a0c8eecf6ab2a1939e2e56f79842f104",
+      "migrated_sha256": "92fe035c6a683e1ff189efb23b1c4f158df95997ef7cbd49c101f9489158db92",
       "subsequent_adaptations": [
         {
           "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
@@ -2207,6 +2235,14 @@
           "previous_sha256": "848464b255416f8de8afbbf4dd44f5dfe5dfe68e19c031a040d6e922dab00edb",
           "current_sha256": "514f438d0c7d192534d7b22cd3d160b7a0c8eecf6ab2a1939e2e56f79842f104",
           "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
+        },
+        {
+          "commit": "10da83ccd8e22a5e92f3426870828e7daed8965d",
+          "agent": "Macbeth01",
+          "task": "AF-LIVE-MARKET",
+          "previous_sha256": "514f438d0c7d192534d7b22cd3d160b7a0c8eecf6ab2a1939e2e56f79842f104",
+          "current_sha256": "92fe035c6a683e1ff189efb23b1c4f158df95997ef7cbd49c101f9489158db92",
+          "reason": "User-authorized local reference paper service and dedicated acceptance page; optional owner-scoped routes, separate loopback session namespace and web build entry. Original authors, source identity and historical digests remain preserved."
         }
       ]
     },

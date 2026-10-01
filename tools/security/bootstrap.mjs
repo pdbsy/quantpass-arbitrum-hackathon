@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -87,6 +88,62 @@ export async function downloadArtifact(artifact, cache) {
   return target;
 }
 
+export function validateDerivedWheel(artifact, tool) {
+  const patch = tool.dependencyPatch;
+  const source = tool.wheels[artifact.derivedFrom];
+  if (
+    tool.version !== '1.177.0' ||
+    patch?.buildId !== 'AlphaForge-Semgrep-1.177.0-pyjwt-2.15-patch2' ||
+    patch.recipe !== 'tools/security/patch_semgrep.py' ||
+    patch.patch !== 'tools/security/semgrep-pyjwt.patch' ||
+    !/^[a-f0-9]{64}$/.test(patch.recipeSha256) ||
+    !/^[a-f0-9]{64}$/.test(patch.patchSha256) ||
+    !source ||
+    source.derivedFrom ||
+    source.name !== 'semgrep' ||
+    source.version !== tool.version ||
+    artifact.version !== tool.version ||
+    artifact.name !== 'semgrep' ||
+    basename(source.filename) !== source.filename ||
+    !source.filename.startsWith('semgrep-1.177.0-') ||
+    !source.filename.endsWith('.whl') ||
+    !/^[a-f0-9]{64}$/.test(source.sha256) ||
+    !/^[a-f0-9]{64}$/.test(artifact.sha256) ||
+    artifact.filename !== source.filename.replace('semgrep-1.177.0-', 'semgrep-1.177.0-1alphaforge2-')
+  )
+    throw new Error('Unqualified AlphaForge wheel derivation');
+  return source;
+}
+
+async function prepareDerivedWheel(artifact, tool, cache, env) {
+  const source = validateDerivedWheel(artifact, tool);
+  const patch = tool.dependencyPatch;
+  verifyBytes(readFileSync(join(root, patch.recipe)), patch.recipeSha256);
+  verifyBytes(readFileSync(join(root, patch.patch)), patch.patchSha256);
+  const qualification = run('python3.12', [join(root, 'tools/security/test_patch_semgrep.py')], { env });
+  if (qualification.status !== 0 || qualification.signal || qualification.error)
+    throw new Error('AlphaForge wheel recipe qualification failed');
+  const upstream = await downloadArtifact(source, cache);
+  const target = join(cache, artifact.filename);
+  if (existsSync(target)) {
+    if (!lstatSync(target).isFile() || realpathSync(target) !== target)
+      throw new Error('Invalid cached derived wheel');
+    verifyBytes(readFileSync(target), artifact.sha256);
+    return target;
+  }
+  const temporary = `${target}.${process.pid}.tmp`;
+  try {
+    const result = run('python3.12', [join(root, patch.recipe), upstream, temporary, source.sha256], { env });
+    if (result.status !== 0 || result.signal || result.error || result.stdout.trim() !== artifact.sha256)
+      throw new Error('AlphaForge derived wheel mismatch');
+    verifyBytes(readFileSync(temporary), artifact.sha256);
+    renameSync(temporary, target);
+    return target;
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+}
+
 export async function installScanner(name) {
   if (!['semgrep', 'osv', 'gitleaks'].includes(name)) throw new Error('Unknown scanner');
   const platform = selectPlatform(process.platform, process.arch);
@@ -121,11 +178,17 @@ export async function installScanner(name) {
       verifyBytes(readFileSync(requirements), selected.requirementsSha256);
       if (!Array.isArray(selected.wheelFiles) || selected.wheelFiles.length < 1)
         throw new Error('Missing scanner wheel graph');
+      const wheelhouse = directory(join(install, 'wheels'));
       for (const filename of selected.wheelFiles) {
         const artifact = tool.wheels[filename];
         if (artifact?.filename !== filename || !filename.endsWith('.whl'))
           throw new Error('Scanner must use qualified binary wheels');
-        await downloadArtifact(artifact, cache);
+        const asset = artifact.derivedFrom
+          ? await prepareDerivedWheel(artifact, tool, cache, env)
+          : await downloadArtifact(artifact, cache);
+        const staged = join(wheelhouse, filename);
+        copyFileSync(asset, staged);
+        verifyBytes(readFileSync(staged), artifact.sha256);
       }
       const venv = join(install, 'venv');
       const create = run('python3.12', ['-m', 'venv', venv], { env });
@@ -140,7 +203,7 @@ export async function installScanner(name) {
           'install',
           '--no-index',
           '--find-links',
-          cache,
+          wheelhouse,
           '--require-hashes',
           '--only-binary=:all:',
           '-r',
@@ -186,6 +249,13 @@ export async function installScanner(name) {
       env,
       directory: install,
       version: tool.version,
+      buildId: tool.dependencyPatch?.buildId ?? null,
+      wheelSha256:
+        name === 'semgrep'
+          ? selected.wheelFiles
+              .filter((filename) => tool.wheels[filename].name === 'semgrep')
+              .map((filename) => tool.wheels[filename].sha256)
+          : [],
       lockSha256: createHash('sha256').update(lockBytes).digest('hex'),
       cleanup: () => rmSync(install, { recursive: true, force: true }),
     };

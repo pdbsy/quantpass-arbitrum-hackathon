@@ -92,6 +92,8 @@ await main(import.meta.url, async () => {
       ...coverage,
       ...canaries,
       version: tool.version,
+      buildId: tool.buildId,
+      wheelSha256: tool.wheelSha256,
       scannerLockSha256: tool.lockSha256,
       rulesSha256: createHash('sha256').update(readFileSync(config)).digest('hex'),
       boundary:
