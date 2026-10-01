@@ -299,7 +299,7 @@ test('npm PURLs preserve scoped namespace separators', () => {
   const scoped = sbom.packages.find((item) => item.name === '@types/node');
   assert.equal(scoped.externalRefs[0].referenceLocator, 'pkg:npm/%40types/node@24.13.3');
   const unscoped = sbom.packages.find((item) => item.name === 'fastify');
-  assert.equal(unscoped.externalRefs[0].referenceLocator, 'pkg:npm/fastify@5.12.3');
+  assert.equal(unscoped.externalRefs[0].referenceLocator, 'pkg:npm/fastify@5.12.5');
 });
 
 test('engineering workflow avoids duplicate merge-queue push runs', () => {

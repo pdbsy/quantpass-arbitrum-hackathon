@@ -1100,7 +1100,17 @@
       "target_path": "contracts/requirements-slither.lock",
       "method": "unchanged local-only contract source/toolchain lock",
       "original_sha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f",
-      "migrated_sha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f"
+      "migrated_sha256": "d5c5c390cfbbd5d255d450c4dfadb01cc3eff70f040ec71b504ca9278503d751",
+      "subsequent_adaptations": [
+        {
+          "commit": "43239fe1ed8ee8ff4030901fdbfc873a76176156",
+          "agent": "Macbeth01",
+          "task": "AF-LIVE-MARKET",
+          "previous_sha256": "955418d72e668fcb5cc25766044ef541d9265c2a6ad5cc04b5d59aef5b72522f",
+          "current_sha256": "d5c5c390cfbbd5d255d450c4dfadb01cc3eff70f040ec71b504ca9278503d751",
+          "reason": "User-approved pre-merge urllib3 2.7.0 to 2.8.0 security update and matching Slither requirements digest. Preserve original Macbeth04 source identity, original bytes and earlier hashes."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1160,7 +1170,17 @@
       "target_path": "contracts/toolchain.lock.json",
       "method": "unchanged local-only contract source/toolchain lock",
       "original_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338",
-      "migrated_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338"
+      "migrated_sha256": "437e0cc6b6f938838f289b676fd61ba5f3c7292555be1ae70ac2339d8c359907",
+      "subsequent_adaptations": [
+        {
+          "commit": "43239fe1ed8ee8ff4030901fdbfc873a76176156",
+          "agent": "Macbeth01",
+          "task": "AF-LIVE-MARKET",
+          "previous_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338",
+          "current_sha256": "437e0cc6b6f938838f289b676fd61ba5f3c7292555be1ae70ac2339d8c359907",
+          "reason": "User-approved pre-merge urllib3 2.7.0 to 2.8.0 security update and matching Slither requirements digest. Preserve original Macbeth04 source identity, original bytes and earlier hashes."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
