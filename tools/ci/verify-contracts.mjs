@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { root, inspect, assertUnchanged, run, emit, main } from './context.mjs';
+import { evaluateSlitherAdmissions } from './slither-review.mjs';
 
 export function validateContractHost(host) {
   if (
@@ -117,6 +118,17 @@ function readSlitherReport(path) {
     return { ...evidence, state: 'BLOCKED', reason: 'Slither report has an invalid result shape' };
   // Slither 0.11.3 omits detectors when there are no findings.
   const findings = value.results.detectors?.length ?? 0;
+  if (value.success && value.error === null && findings > 0) {
+    try {
+      const review = JSON.parse(
+        readFileSync(resolve(root, 'contracts/deployment/slither-admissions.json'), 'utf8'),
+      );
+      const admitted = evaluateSlitherAdmissions(value, review, root);
+      return { ...evidence, state: 'PASS', success: true, findings, errorPresent: false, ...admitted };
+    } catch {
+      /* Unapproved, changed or expired findings retain the original failure state. */
+    }
+  }
   const state = value.success && value.error === null && findings === 0 ? 'PASS' : 'FAIL';
   return { ...evidence, state, success: value.success, findings, errorPresent: value.error !== null };
 }

@@ -342,3 +342,36 @@ test('private CodeQL job has only read access to Actions metadata', async () => 
     /Invalid supply-chain state/,
   );
 });
+
+test('an approved package license admission cannot spread to another version, integrity or license', () => {
+  const candidatePolicy = structuredClone(policy);
+  const candidateLock = structuredClone(lockfile);
+  const path = 'node_modules/tslib';
+  const entry = candidateLock.packages[path];
+  assert.ok(entry);
+  candidatePolicy.dependencyPolicy.licenseAdmissions = [
+    {
+      name: 'tslib',
+      version: '2.7.0',
+      license: '0BSD',
+      integrity: entry.integrity,
+      expiresAt: '2026-11-01T00:00:00Z',
+      approvalRef: 'docs/specs/AF-TESTNET-DEPENDENCY-REVIEW.md',
+    },
+  ];
+  assert.doesNotThrow(() => validatePackageLock(candidateLock, packageJson, candidatePolicy));
+  for (const mutate of [
+    (row) => (row.version = '2.7.1'),
+    (row) => (row.license = 'GPL-3.0-only'),
+    (row) => (row.integrity = 'sha512-' + 'AA'.repeat(43) + '=='),
+  ]) {
+    const tampered = structuredClone(candidateLock);
+    mutate(tampered.packages[path]);
+    assert.throws(() => validatePackageLock(tampered, packageJson, candidatePolicy));
+  }
+  candidatePolicy.dependencyPolicy.licenseAdmissions[0].expiresAt = '2026-09-01T00:00:00Z';
+  assert.throws(
+    () => validatePackageLock(candidateLock, packageJson, candidatePolicy),
+    /license admission expired/,
+  );
+});

@@ -1,0 +1,27 @@
+[Unit]
+Description=AlphaForge restricted Testnet executor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alphaforge-executor
+Group=alphaforge-status
+WorkingDirectory=/opt/alphaforge/releases/REPLACE_WITH_RELEASE_SHA
+EnvironmentFile=/etc/alphaforge/executor.env
+# Enable only after Dots receives the separate signing authorization and owner grants.
+ExecStart=/opt/alphaforge/node-24.21.0/bin/node tools/testnet/executor.ts --run-testnet --enable-signing /etc/alphaforge/executor/operator.json
+Restart=no
+KillSignal=SIGTERM
+TimeoutStopSec=120
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/alphaforge-executor /run/alphaforge-status
+ReadOnlyPaths=/etc/alphaforge/executor
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

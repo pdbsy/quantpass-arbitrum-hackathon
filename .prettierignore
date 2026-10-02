@@ -13,3 +13,8 @@ work
 
 # Historical evidence keeps original formatting after explicit privacy redaction.
 docs/migration/legacy-quantpass/tree/
+
+# Untouched upstream artifacts; original SHA-256 is checked before use.
+deploy/testnet/vendor/factory.json
+deploy/testnet/vendor/router.json
+deploy/testnet/vendor/quoter.json

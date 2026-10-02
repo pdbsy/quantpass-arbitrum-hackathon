@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "profile": "M3_READONLY_TESTNET",
+  "chainId": 46630,
+  "origin": "http://127.0.0.1:4180",
+  "dataDirectory": "/srv/alphaforge/data/testnet",
+  "syncIntervalMs": 5000,
+  "vaults": []
+}

@@ -51,6 +51,40 @@ export function validateSupplyChainPolicy(policy) {
   const licenses = policy.dependencyPolicy?.allowedLicenses;
   requireCondition(Array.isArray(licenses) && licenses.length > 0, 'allowedLicenses must not be empty');
   requireCondition(new Set(licenses).size === licenses.length, 'allowedLicenses contains duplicates');
+  const admissions = policy.dependencyPolicy.licenseAdmissions ?? [];
+  requireCondition(Array.isArray(admissions), 'licenseAdmissions must be an array');
+  const admitted = new Set();
+  for (const entry of admissions) {
+    requireCondition(
+      entry &&
+        typeof entry === 'object' &&
+        Object.keys(entry).sort().join(',') === 'approvalRef,expiresAt,integrity,license,name,version',
+      'license admission fields must be exact',
+    );
+    requireCondition(
+      typeof entry.name === 'string' && /^(?:@[a-z0-9-]+\/)?[a-z0-9-]+$/.test(entry.name),
+      'invalid license admission package',
+    );
+    requireCondition(
+      typeof entry.version === 'string' && /^\d+\.\d+\.\d+$/.test(entry.version),
+      'license admission must bind an exact version',
+    );
+    requireString(entry.license, 'license admission license');
+    integrityChecksum(entry.integrity, 'sha512');
+    requireCondition(
+      typeof entry.expiresAt === 'string' &&
+        Number.isFinite(Date.parse(entry.expiresAt)) &&
+        new Date(entry.expiresAt).toISOString().replace('.000Z', 'Z') === entry.expiresAt,
+      'invalid license admission expiry',
+    );
+    requireCondition(
+      typeof entry.approvalRef === 'string' && /^docs\/specs\/[A-Z0-9-]+\.md$/.test(entry.approvalRef),
+      'invalid license admission approval source',
+    );
+    const identity = `${entry.name}@${entry.version}`;
+    requireCondition(!admitted.has(identity), 'duplicate license admission');
+    admitted.add(identity);
+  }
   for (const severity of ['critical', 'high', 'moderate', 'low']) {
     const days = policy.dependencyPolicy?.vulnerabilitySlaDays?.[severity];
     requireCondition(Number.isInteger(days) && days > 0, `${severity} SLA must be a positive integer`);
@@ -166,6 +200,9 @@ export function validatePackageLock(lockfile, packageJson, policy) {
   }
 
   const allowedLicenses = new Set(policy.dependencyPolicy.allowedLicenses);
+  const admissions = policy.dependencyPolicy.licenseAdmissions ?? [];
+  for (const entry of admissions)
+    requireCondition(Date.parse(entry.expiresAt) > Date.now(), 'license admission expired');
   const registry = new URL(policy.dependencyPolicy.registryOrigin);
   const packages = [];
   for (const [path, entry] of Object.entries(lockfile.packages)) {
@@ -185,7 +222,17 @@ export function validatePackageLock(lockfile, packageJson, policy) {
     );
     requireString(entry.integrity, `${path}.integrity`);
     integrityChecksum(entry.integrity, policy.dependencyPolicy.requiredIntegrityAlgorithm);
-    requireCondition(allowedLicenses.has(entry.license), `${path} uses disallowed license ${entry.license}`);
+    requireCondition(
+      allowedLicenses.has(entry.license) ||
+        admissions.some(
+          (admission) =>
+            admission.name === packageNameFromPath(path) &&
+            admission.version === entry.version &&
+            admission.license === entry.license &&
+            admission.integrity === entry.integrity,
+        ),
+      `${path} uses disallowed license ${entry.license}`,
+    );
     packages.push({ path, name: packageNameFromPath(path), entry });
   }
   requireCondition(packages.length > 0, 'lockfile must contain resolved packages');

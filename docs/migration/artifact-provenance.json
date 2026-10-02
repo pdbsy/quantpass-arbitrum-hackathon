@@ -1130,7 +1130,17 @@
       "target_path": "contracts/script/check-local.sh",
       "method": "unchanged local-only contract source/toolchain lock; PR11 pragma-only dependency derivation / current verification documentation",
       "original_sha256": "360464a57d2dfd3cd2126647efd0c72bade819dcf43f1ae3e0fa2be3a5105b91",
-      "migrated_sha256": "93918fc4859204150c0a3da5ea19f51012937496c35d6b9d8df96a167d61c531"
+      "migrated_sha256": "a266fd90bdf0ade485a2737bb963a4a8fdb686dbc35cbf29e98f720f82c8378c",
+      "subsequent_revisions": [
+        {
+          "commit": "bc0dac7bf04b26ab4e08fb68d2d2a009a7524367",
+          "agent": "Macbeth01",
+          "task": "AF-TESTNET-PREP",
+          "previous_sha256": "93918fc4859204150c0a3da5ea19f51012937496c35d6b9d8df96a167d61c531",
+          "sha256": "a266fd90bdf0ade485a2737bb963a4a8fdb686dbc35cbf29e98f720f82c8378c",
+          "reason": "Apply the user-approved exact nine source-bound Testnet Slither findings while retaining the complete raw reports and strict rejection of new, changed, expired or unreviewed findings. Preserve original migration metadata and prior digests."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -2226,7 +2236,7 @@
       "target_path": "apps/web/vite.config.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md",
       "original_sha256": "89412b0489e5ccb3d9d86ff20375eaeb9bdca5daad2e5a472057087d9858810f",
-      "migrated_sha256": "92fe035c6a683e1ff189efb23b1c4f158df95997ef7cbd49c101f9489158db92",
+      "migrated_sha256": "f4e9b76158bcafd3a34ad06f3c71faeee898a1b6cecc5fbed842b5833edcc75d",
       "subsequent_adaptations": [
         {
           "commit": "cdde050a541af25fd72edcc9dcd098821a76edb4",
@@ -2243,6 +2253,14 @@
           "previous_sha256": "514f438d0c7d192534d7b22cd3d160b7a0c8eecf6ab2a1939e2e56f79842f104",
           "current_sha256": "92fe035c6a683e1ff189efb23b1c4f158df95997ef7cbd49c101f9489158db92",
           "reason": "User-authorized local reference paper service and dedicated acceptance page; optional owner-scoped routes, separate loopback session namespace and web build entry. Original authors, source identity and historical digests remain preserved."
+        },
+        {
+          "commit": "bc0dac7bf04b26ab4e08fb68d2d2a009a7524367",
+          "agent": "Macbeth01",
+          "task": "AF-TESTNET-PREP",
+          "previous_sha256": "92fe035c6a683e1ff189efb23b1c4f158df95997ef7cbd49c101f9489158db92",
+          "current_sha256": "f4e9b76158bcafd3a34ad06f3c71faeee898a1b6cecc5fbed842b5833edcc75d",
+          "reason": "User-authorized dedicated public Testnet build entry; original migrated source identity, author and historical digests remain preserved."
         }
       ]
     },

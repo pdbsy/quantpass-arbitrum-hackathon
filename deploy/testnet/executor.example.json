@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "profile": "RESTRICTED_TESTNET_EXECUTOR",
+  "chainId": 46630,
+  "dataDirectory": "/var/lib/alphaforge-executor",
+  "maxStorageBytes": 4000000000,
+  "executor": "",
+  "keeper": "",
+  "minOrderUsdc": "",
+  "deadlineSeconds": null,
+  "gas": {
+    "gasLimit": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "maxGasCostWei": ""
+  },
+  "maxTotalGasCostWei": "",
+  "referenceFile": "reference-admission.json",
+  "referenceDigest": "",
+  "vaults": []
+}
