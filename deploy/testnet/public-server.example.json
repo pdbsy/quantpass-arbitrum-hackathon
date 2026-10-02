@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "profile": "PUBLIC_TESTNET",
+  "chainId": 46630,
+  "origin": "https://testnet.example.invalid",
+  "dataDirectory": "/var/lib/alphaforge-web",
+  "syncIntervalMs": 5000,
+  "challengeTtlMs": 300000,
+  "sessionTtlMs": 3600000,
+  "maxAuthRows": 1000,
+  "maxStorageBytes": 4000000000,
+  "vaults": []
+}

@@ -1,0 +1,26 @@
+[Unit]
+Description=AlphaForge public Testnet owner interface
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alphaforge-web
+Group=alphaforge-web
+WorkingDirectory=/opt/alphaforge/releases/REPLACE_WITH_RELEASE_SHA
+EnvironmentFile=/etc/alphaforge/web.env
+ExecStart=/opt/alphaforge/node-24.21.0/bin/node tools/testnet/server.ts --serve /etc/alphaforge/web/operator.json 4190
+Restart=no
+KillSignal=SIGTERM
+TimeoutStopSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/alphaforge-web
+ReadOnlyPaths=/etc/alphaforge/web /run/alphaforge-status
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

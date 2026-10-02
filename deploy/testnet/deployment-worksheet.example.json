@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "chainId": 46630,
+  "kind": "UNSIGNED_TESTNET_DEPLOYMENT",
+  "deployer": "",
+  "creator": "",
+  "executor": "",
+  "keeper": "",
+  "nonce": null,
+  "owners": [],
+  "strategyId": "",
+  "strategyRef": "",
+  "usdcSupply": "",
+  "passSupply": "",
+  "stockSupplies": ["", "", ""],
+  "maxPriceAge": 30,
+  "weth": "",
+  "factoryV2": "",
+  "positionManager": ""
+}

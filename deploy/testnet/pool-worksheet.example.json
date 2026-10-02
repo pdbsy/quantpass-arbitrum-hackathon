@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "chainId": 46630,
+  "owner": "",
+  "seeder": "",
+  "pools": [
+    {
+      "stock": "",
+      "pool": "",
+      "tickLower": null,
+      "tickUpper": null,
+      "liquidity": "",
+      "maxUsdc": "",
+      "maxStock": ""
+    },
+    {
+      "stock": "",
+      "pool": "",
+      "tickLower": null,
+      "tickUpper": null,
+      "liquidity": "",
+      "maxUsdc": "",
+      "maxStock": ""
+    },
+    {
+      "stock": "",
+      "pool": "",
+      "tickLower": null,
+      "tickUpper": null,
+      "liquidity": "",
+      "maxUsdc": "",
+      "maxStock": ""
+    }
+  ]
+}
