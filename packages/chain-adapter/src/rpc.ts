@@ -59,6 +59,9 @@ export interface ChainLog {
 }
 
 export interface ChainReceipt {
+  readonly contractAddress?: Address | null;
+  readonly gasUsed?: bigint;
+  readonly effectiveGasPrice?: bigint;
   readonly transactionHash: TransactionHash;
   readonly blockNumber: bigint;
   readonly blockHash: BlockHash;
@@ -69,6 +72,19 @@ export interface ChainReceipt {
   readonly logs: readonly ChainLog[];
 }
 
+export interface ChainTransaction {
+  readonly hash: TransactionHash;
+  readonly chainId: number;
+  readonly from: Address;
+  readonly to: Address | null;
+  readonly data: HexData;
+  readonly value: bigint;
+  readonly nonce: bigint;
+  readonly blockHash: BlockHash | null;
+  readonly blockNumber: bigint | null;
+  readonly transactionIndex: number | null;
+}
+
 export interface ChainLogFilter {
   readonly address: Address;
   readonly fromBlock: bigint;
@@ -77,6 +93,7 @@ export interface ChainLogFilter {
 }
 
 export interface ChainCall {
+  readonly from?: Address;
   readonly to: Address;
   readonly data: HexData;
 }
@@ -93,6 +110,7 @@ export interface ReadonlyRpc {
   block(number: bigint | 'latest'): Promise<ChainBlock | null>;
   code(address: Address, block: ChainCallBlock): Promise<HexData>;
   receipt(hash: TransactionHash): Promise<ChainReceipt | null>;
+  transaction?(hash: TransactionHash): Promise<ChainTransaction | null>;
   logs(filter: ChainLogFilter): Promise<readonly ChainLog[]>;
   call(request: ChainCall, block: ChainCallBlock): Promise<HexData>;
 }
@@ -263,6 +281,11 @@ function parseReceipt(value: unknown): ChainReceipt | null {
     const receiptStatus = quantity(row.status);
     if (receiptStatus !== 0n && receiptStatus !== 1n) throw new RpcFailure('RPC_INVALID_RESPONSE');
     return Object.freeze({
+      ...(row.contractAddress === undefined
+        ? {}
+        : { contractAddress: row.contractAddress === null ? null : asAddress(String(row.contractAddress)) }),
+      ...(row.gasUsed === undefined ? {} : { gasUsed: quantity(row.gasUsed) }),
+      ...(row.effectiveGasPrice === undefined ? {} : { effectiveGasPrice: quantity(row.effectiveGasPrice) }),
       transactionHash: asTransactionHash(String(row.transactionHash)),
       blockNumber: quantity(row.blockNumber),
       blockHash: asBlockHash(String(row.blockHash)),
@@ -365,6 +388,34 @@ export class JsonRpcClient implements ReadonlyRpc {
 
   async receipt(hash: TransactionHash): Promise<ChainReceipt | null> {
     return parseReceipt(await this.#request('eth_getTransactionReceipt', [hash]));
+  }
+
+  async transaction(hash: TransactionHash): Promise<ChainTransaction | null> {
+    const raw = await this.#request('eth_getTransactionByHash', [hash]);
+    if (raw === null) return null;
+    try {
+      const row = object(raw),
+        chainId = safeIndex(row.chainId);
+      const actualHash = asTransactionHash(String(row.hash));
+      if (actualHash.toLowerCase() !== hash.toLowerCase()) throw new Error();
+      const pending = row.blockHash === null && row.blockNumber === null && row.transactionIndex === null;
+      if (!pending && (row.blockHash === null || row.blockNumber === null || row.transactionIndex === null))
+        throw new Error();
+      return Object.freeze({
+        hash: actualHash,
+        chainId,
+        from: asAddress(String(row.from)),
+        to: row.to === null ? null : asAddress(String(row.to)),
+        data: asHexData(String(row.input)),
+        value: quantity(row.value),
+        nonce: quantity(row.nonce),
+        blockHash: pending ? null : asBlockHash(String(row.blockHash)),
+        blockNumber: pending ? null : quantity(row.blockNumber),
+        transactionIndex: pending ? null : safeIndex(row.transactionIndex),
+      });
+    } catch {
+      throw new RpcFailure('RPC_INVALID_RESPONSE');
+    }
   }
 
   async code(address: Address, block: ChainCallBlock): Promise<HexData> {

@@ -20,7 +20,17 @@
       "high": 3,
       "moderate": 14,
       "low": 30
-    }
+    },
+    "licenseAdmissions": [
+      {
+        "name": "tslib",
+        "version": "2.7.0",
+        "license": "0BSD",
+        "integrity": "sha512-gLXCKdN1/j47AiHiOkJN69hJmcbGTHI0ImLmbYLHykhgeN0jVGola9yVjFgzCUklsZQMW55o+dW7IXv3RCXDzA==",
+        "expiresAt": "2026-11-01T00:00:00Z",
+        "approvalRef": "docs/specs/AF-TESTNET-DEPENDENCY-REVIEW.md"
+      }
+    ]
   },
   "actionPolicy": {
     "allowedOwners": ["actions", "github"],

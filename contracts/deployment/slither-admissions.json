@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "slitherVersion": "0.11.3",
+  "expiresAt": "2026-11-01T00:00:00Z",
+  "approvalRef": "docs/specs/AF-TESTNET-SLITHER-REVIEW.md",
+  "sourceHashes": [
+    {
+      "path": "contracts/src/AlphaForgeTradingVault.sol",
+      "sha256": "6ce6905715b2391b99c6113409944bb731a280239712a08069dc57bd36e423c1"
+    },
+    {
+      "path": "contracts/src/AlphaForgeTestStock.sol",
+      "sha256": "d608c5d8281a22a1fbe7664055af3dae07151185da052c1f20b9a4c898104b44"
+    },
+    {
+      "path": "contracts/src/interfaces/ISinglePoolRouter02.sol",
+      "sha256": "c08548751eb49c6cacc638737d9d68de137a8acd31f20d015e6df2d9dde1860e"
+    },
+    {
+      "path": "contracts/test/AlphaForgeTradingVault.t.sol",
+      "sha256": "b96598442be68fdd2b0079e18e2fe84d641a245be45a544369e43e4e5f0cbaff"
+    },
+    {
+      "path": "contracts/test/AlphaForgeTradingV3.protocol.t.sol",
+      "sha256": "60d85fb70117fa4fdc9747aae0f5d7b1e369d9266b64086ebb419f2a18f56628"
+    },
+    {
+      "path": "contracts/src/PassLocker.sol",
+      "sha256": "441a82fd4cfa9b986f19a869be61357b49eb40ba01acb1661e7c6c07033cf522"
+    }
+  ],
+  "findings": [
+    {
+      "id": "86cafb9de5f84b0720436d28ec763eb9ea4c6a6e38532b1fda90e58467b84881",
+      "check": "reentrancy-no-eth",
+      "impact": "Medium",
+      "confidence": "Medium",
+      "function": "AlphaForgeTradingVault.execute",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "All mutable Vault entry points use the same nonReentrant guard. The fixed router cannot change custody recipients or call arbitrary owner actions. Exact token deltas, minimum output and allowance cleanup precede completed accounting. Public read getters may expose pre-booking values during the router call; no external lending/collateral consumer is supported and offchain reads use committed canonical blocks. This is a bounded Testnet risk acceptance, not an independent audit.",
+      "evidence": [
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_RouterCannotReenterPublicRiskMutation",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_RouterMismatchRollsBackMovementAccountingAndApproval",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ThreeStockAccountingAndDustCannotGrantCustody"
+      ]
+    },
+    {
+      "id": "9cda1796d6b451e73d9237270392a568e71547e50e4f173022602d64d8996873",
+      "check": "reentrancy-benign",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeTradingVault.execute",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "All mutable Vault entry points use the same nonReentrant guard. The fixed router cannot change custody recipients or call arbitrary owner actions. Exact token deltas, minimum output and allowance cleanup precede completed accounting. Public read getters may expose pre-booking values during the router call; no external lending/collateral consumer is supported and offchain reads use committed canonical blocks. This is a bounded Testnet risk acceptance, not an independent audit.",
+      "evidence": [
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_RouterCannotReenterPublicRiskMutation",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_RouterMismatchRollsBackMovementAccountingAndApproval",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ThreeStockAccountingAndDustCannotGrantCustody"
+      ]
+    },
+    {
+      "id": "36b37c863dc3451668fea95e03fe6d3d95f0709ddcd78286efd6b5fdc3d559af",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeTradingVault._beginLiquidation",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp comparisons deliberately enforce grant expiry, bounded sell-only closing authority, order deadlines and freshness. Chain timestamp is not randomness or a profitability signal. Exact-second tests include expiry, last-second close, past deadlines, stale/future/duplicate observations and immutable closing limits. Sequencer timestamp/liveness risk remains; no mainnet or hard finality claim.",
+      "evidence": [
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiredGrantAndPastOrderDeadlineNeverMoveFunds",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryUsesPreauthorizedWindowWithoutReopeningBuys",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryWindowAllowsLastSecondSellAndStopCannotExtendIt",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_FutureDuplicateAndZeroReferenceUpdatesReject",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_StalePriceAndForeignAssetNeverMoveFunds"
+      ]
+    },
+    {
+      "id": "3aac34772f190dfc0f12b04f8d74a41a82fd555873e9df20d254c7222f6a92a6",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeTradingVault._validateAuthority",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp comparisons deliberately enforce grant expiry, bounded sell-only closing authority, order deadlines and freshness. Chain timestamp is not randomness or a profitability signal. Exact-second tests include expiry, last-second close, past deadlines, stale/future/duplicate observations and immutable closing limits. Sequencer timestamp/liveness risk remains; no mainnet or hard finality claim.",
+      "evidence": [
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiredGrantAndPastOrderDeadlineNeverMoveFunds",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryUsesPreauthorizedWindowWithoutReopeningBuys",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryWindowAllowsLastSecondSellAndStopCannotExtendIt",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_FutureDuplicateAndZeroReferenceUpdatesReject",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_StalePriceAndForeignAssetNeverMoveFunds"
+      ]
+    },
+    {
+      "id": "92e9196be50053c083c02cc2b06bf046e574f0793ac470295b97a63e4e4f18d6",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeTradingVault.checkRisk",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp comparisons deliberately enforce grant expiry, bounded sell-only closing authority, order deadlines and freshness. Chain timestamp is not randomness or a profitability signal. Exact-second tests include expiry, last-second close, past deadlines, stale/future/duplicate observations and immutable closing limits. Sequencer timestamp/liveness risk remains; no mainnet or hard finality claim.",
+      "evidence": [
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiredGrantAndPastOrderDeadlineNeverMoveFunds",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryUsesPreauthorizedWindowWithoutReopeningBuys",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryWindowAllowsLastSecondSellAndStopCannotExtendIt",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_FutureDuplicateAndZeroReferenceUpdatesReject",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_StalePriceAndForeignAssetNeverMoveFunds"
+      ]
+    },
+    {
+      "id": "96f19323b824b754fd96121c7d972d1133014afeeed075577aa3dccc35ccfde5",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeTradingVault.execute",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp comparisons deliberately enforce grant expiry, bounded sell-only closing authority, order deadlines and freshness. Chain timestamp is not randomness or a profitability signal. Exact-second tests include expiry, last-second close, past deadlines, stale/future/duplicate observations and immutable closing limits. Sequencer timestamp/liveness risk remains; no mainnet or hard finality claim.",
+      "evidence": [
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiredGrantAndPastOrderDeadlineNeverMoveFunds",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryUsesPreauthorizedWindowWithoutReopeningBuys",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryWindowAllowsLastSecondSellAndStopCannotExtendIt",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_FutureDuplicateAndZeroReferenceUpdatesReject",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_StalePriceAndForeignAssetNeverMoveFunds"
+      ]
+    },
+    {
+      "id": "f26b5d023868cd2d351e272c5cca6acce8c479a1bc0cf5cfa4e4f301a11e812a",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeTradingVault.authorizeExecutor",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp comparisons deliberately enforce grant expiry, bounded sell-only closing authority, order deadlines and freshness. Chain timestamp is not randomness or a profitability signal. Exact-second tests include expiry, last-second close, past deadlines, stale/future/duplicate observations and immutable closing limits. Sequencer timestamp/liveness risk remains; no mainnet or hard finality claim.",
+      "evidence": [
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiredGrantAndPastOrderDeadlineNeverMoveFunds",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryUsesPreauthorizedWindowWithoutReopeningBuys",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryWindowAllowsLastSecondSellAndStopCannotExtendIt",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_FutureDuplicateAndZeroReferenceUpdatesReject",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_StalePriceAndForeignAssetNeverMoveFunds"
+      ]
+    },
+    {
+      "id": "f95399654a690c2599d619a20bd7756cf09147c94833e1f02230440f9b19087d",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeTestReferenceFeed.update",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp comparisons deliberately enforce grant expiry, bounded sell-only closing authority, order deadlines and freshness. Chain timestamp is not randomness or a profitability signal. Exact-second tests include expiry, last-second close, past deadlines, stale/future/duplicate observations and immutable closing limits. Sequencer timestamp/liveness risk remains; no mainnet or hard finality claim.",
+      "evidence": [
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiredGrantAndPastOrderDeadlineNeverMoveFunds",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryUsesPreauthorizedWindowWithoutReopeningBuys",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryWindowAllowsLastSecondSellAndStopCannotExtendIt",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_FutureDuplicateAndZeroReferenceUpdatesReject",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_StalePriceAndForeignAssetNeverMoveFunds"
+      ]
+    },
+    {
+      "id": "f95f7b27409e13962776ecdbbe97f7eb5a923ffbe7ff4fbc22483975eef7896c",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeTradingVault._price",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp comparisons deliberately enforce grant expiry, bounded sell-only closing authority, order deadlines and freshness. Chain timestamp is not randomness or a profitability signal. Exact-second tests include expiry, last-second close, past deadlines, stale/future/duplicate observations and immutable closing limits. Sequencer timestamp/liveness risk remains; no mainnet or hard finality claim.",
+      "evidence": [
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiredGrantAndPastOrderDeadlineNeverMoveFunds",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryUsesPreauthorizedWindowWithoutReopeningBuys",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_ExpiryWindowAllowsLastSecondSellAndStopCannotExtendIt",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_FutureDuplicateAndZeroReferenceUpdatesReject",
+        "contracts/test/AlphaForgeTradingVault.t.sol#test_StalePriceAndForeignAssetNeverMoveFunds"
+      ]
+    }
+  ]
+}

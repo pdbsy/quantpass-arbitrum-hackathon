@@ -60,5 +60,14 @@ forge fmt --check
 forge build --offline
 "$TASK_PYTHON" -c 'import sys; sys.path.insert(0, "script"); from pinned_dependency import verify_forge_output; verify_forge_output()'
 forge test --offline
-# Fail on any finding. Do not suppress findings to manufacture a clean result.
+# Keep all raw findings. Pedantic exit remains enforced unless the exact user-reviewed set qualifies.
+set +e
 slither . --compile-force-framework foundry --exclude-dependencies --fail-pedantic --foundry-out-directory ../.checks/af-chain01/out --json - > ../.checks/af-chain01/evidence/slither.json
+TASK_SLITHER_EXIT=$?
+set -e
+if [ "$TASK_SLITHER_EXIT" -ne 0 ] && [ "$TASK_SLITHER_EXIT" -ne 255 ]; then
+  exit "$TASK_SLITHER_EXIT"
+fi
+"$TASK_PYTHON" script/slither_admissions.py \
+  --report ../.checks/af-chain01/evidence/slither.json \
+  --review deployment/slither-admissions.json --root ..

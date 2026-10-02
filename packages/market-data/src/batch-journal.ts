@@ -16,6 +16,10 @@ export interface BatchEntry {
 export class BatchJournal {
   readonly #db: DatabaseSync;
   readonly #readOnly: boolean;
+  /** Private service backup integration only; never returned by an HTTP route. */
+  get database(): DatabaseSync {
+    return this.#db;
+  }
   constructor(path: string, options: { readOnly?: boolean } = {}) {
     this.#readOnly = options.readOnly === true;
     this.#db = openJournalDatabase(path, 0x41464d42, this.#readOnly);
