@@ -5,6 +5,7 @@ import { validateReferenceBatch } from './batch.ts';
 import type { ReferenceBatch } from './batch.ts';
 import { openJournalDatabase, backupJournalDatabase } from './journal-db.ts';
 import { encodeBatchPayload, decodeBatchPayload, MAX_BATCH_BYTES } from './batch-codec.ts';
+export const REFERENCE_BATCH_APPLICATION_ID = 0x41464d42;
 const digest = (payload: string) => createHash('sha256').update(payload).digest('hex');
 const MAX_BYTES = MAX_BATCH_BYTES;
 export interface BatchEntry {
@@ -22,7 +23,7 @@ export class BatchJournal {
   }
   constructor(path: string, options: { readOnly?: boolean } = {}) {
     this.#readOnly = options.readOnly === true;
-    this.#db = openJournalDatabase(path, 0x41464d42, this.#readOnly);
+    this.#db = openJournalDatabase(path, REFERENCE_BATCH_APPLICATION_ID, this.#readOnly);
     try {
       if (this.#readOnly) {
         this.#db.prepare('SELECT id,payload,sha256 FROM reference_batches LIMIT 0').all();

@@ -97,3 +97,5 @@ Record actual source/lock/artifact digests, host identity, HTTPS/proxy access, w
 首轮部署者与 Vault owner 使用普通 EOA 地址。带代码的 owner（包括委托代码账户）不在首轮交易范围内；登录验证不能替代交易适配。生成部署证据前核验这一条件，服务快照也会拒绝带代码 owner。
 
 Reference publication completes one archived three-asset batch before another batch can replace it; validated prices permit strategy evaluation so five-second capture cannot continually preempt orders. All original batches and paused/gap observations remain replayable.
+
+The new Testnet evidence journal uses schema 2: raw contract events and ordered event sets are stored by verified digest; NAV snapshots reference them without repeating cumulative event payloads every five seconds. Reorg event versions remain retained. Draft schema-1 Testnet files are not automatically converted or deleted; keep such local draft copies separate. The existing reference-paper and phase-one storage schemas are unchanged.

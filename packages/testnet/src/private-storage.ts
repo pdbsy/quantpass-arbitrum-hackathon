@@ -10,6 +10,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 
 /** Runtime storage only. No historical deletion, automatic lock recovery, key storage or external paths. */
@@ -123,8 +124,14 @@ export function privateServerStorage(folder: string, maxBytes: number) {
         return false;
       }
     },
-    databasePath: (name: string) => {
-      if (closed || !/^[a-z][a-z0-9-]{0,63}$/.test(name)) throw new Error('TESTNET_STORAGE_INPUT');
+    databasePath: (name: string, applicationId?: number) => {
+      if (
+        closed ||
+        !/^[a-z][a-z0-9-]{0,63}$/.test(name) ||
+        (applicationId !== undefined &&
+          (!Number.isSafeInteger(applicationId) || applicationId < 1 || applicationId > 2147483647))
+      )
+        throw new Error('TESTNET_STORAGE_INPUT');
       assertRoot();
       const path = join(folder, name + '.sqlite');
       for (const suffix of ['', '-wal', '-shm']) {
@@ -134,6 +141,7 @@ export function privateServerStorage(folder: string, maxBytes: number) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
         }
       }
+      let claimed = false;
       try {
         const file = openSync(
           path,
@@ -141,10 +149,23 @@ export function privateServerStorage(folder: string, maxBytes: number) {
           0o600,
         );
         closeSync(file);
+        claimed = true;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
       }
-      inspectFile(path);
+      const before = inspectFile(path);
+      if (applicationId !== undefined) {
+        const db = new DatabaseSync(path, { readOnly: !claimed });
+        try {
+          if (claimed) db.exec('PRAGMA application_id=' + applicationId);
+          if (db.prepare('PRAGMA application_id').get()?.application_id !== applicationId)
+            throw new Error('TESTNET_STORAGE_DATABASE_IDENTITY');
+        } finally {
+          db.close();
+        }
+        const after = inspectFile(path);
+        if (before.dev !== after.dev || before.ino !== after.ino) throw new Error('TESTNET_STORAGE_UNSAFE');
+      }
       return path;
     },
     close: () => {

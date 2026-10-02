@@ -131,8 +131,8 @@ test('a canonical replacement preserves orphaned history and appends corrected N
       .prepare('SELECT payload FROM evidence_records ORDER BY sequence')
       .all()
       .map((row) => JSON.parse(String(row.payload)));
-    assert.equal(records[0].events[2].blockHash, hash);
-    assert.equal(records[1].events[2].blockHash, forkHash);
+    assert.equal(runtime.evidence.eventsFor(records[0].eventSetDigest)[2]!.blockHash, hash);
+    assert.equal(runtime.evidence.eventsFor(records[1].eventSetDigest)[2]!.blockHash, forkHash);
   } finally {
     await runtime.close();
     rmSync(folder, { recursive: true, force: true });

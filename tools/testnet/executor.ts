@@ -11,7 +11,10 @@ import { JsonRpcClient } from '../../packages/chain-adapter/src/rpc.ts';
 import { readTradingSnapshot } from '../../packages/testnet/src/trading-reader.ts';
 import { privateServerStorage } from '../../packages/testnet/src/private-storage.ts';
 import { OrderJournal } from '../../packages/testnet/src/order-journal.ts';
-import { BatchJournal } from '../../packages/market-data/src/batch-journal.ts';
+import {
+  BatchJournal,
+  REFERENCE_BATCH_APPLICATION_ID,
+} from '../../packages/market-data/src/batch-journal.ts';
 import { evidenceHash } from '../../packages/testnet/src/executor-plan.ts';
 import {
   TestnetExecutorService,
@@ -154,7 +157,7 @@ export async function executorCli(
     }
     storage = privateServerStorage(config.dataDirectory, config.maxStorageBytes);
     orders = new OrderJournal(storage.databasePath('orders'), identity);
-    batches = new BatchJournal(storage.databasePath('reference-batches'));
+    batches = new BatchJournal(storage.databasePath('reference-batches', REFERENCE_BATCH_APPLICATION_ID));
     batches.database.exec('PRAGMA synchronous=FULL');
     const ledger = orders,
       capture = batches,

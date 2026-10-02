@@ -92,3 +92,49 @@ test('mutated NAV, source payload or hash-chain tip cannot produce a successful 
     rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test('five-second NAV snapshots reuse verified raw event sets instead of duplicating cumulative history', async () => {
+  const journal = new EvidenceJournal(':memory:', '0x' + 'ab'.repeat(32));
+  try {
+    const e = await evidence();
+    journal.append(e.snapshot, e.events, 1800000000000);
+    const second = journal.append(
+      { ...e.snapshot, blockNumber: '17', blockHash: '0x' + 'ef'.repeat(32), blockTimestamp: '1001' },
+      e.events,
+      1800000005000,
+    );
+    assert.equal(journal.verify().records, 2);
+    assert.equal(journal.verify().tip, second.hash);
+    assert.equal(journal.db.prepare('SELECT count(*) AS n FROM evidence_raw_events').get()!.n, 4);
+    assert.equal(journal.db.prepare('SELECT count(*) AS n FROM evidence_event_sets').get()!.n, 1);
+    const rows = journal.db
+      .prepare('SELECT payload FROM evidence_records ORDER BY sequence')
+      .all()
+      .map((r) => JSON.parse(String(r.payload)));
+    assert.equal(rows[0].events, undefined);
+    assert.equal(rows[0].eventSetDigest, rows[1].eventSetDigest);
+    journal.db.exec("UPDATE evidence_raw_events SET payload='{}' WHERE sequence=1");
+    assert.throws(() => journal.verify(), /EVIDENCE/);
+  } finally {
+    journal.close();
+  }
+});
+
+test('draft evidence schema is rejected without silently migrating or deleting retained records', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'alphaforge-evidence-schema-')),
+    path = join(folder, 'evidence.sqlite'),
+    identity = '0x' + 'ab'.repeat(32);
+  const journal = new EvidenceJournal(path, identity);
+  try {
+    const e = await evidence();
+    journal.append(e.snapshot, e.events, 1800000000000);
+    journal.db.exec('PRAGMA user_version=1');
+    journal.close();
+    const before = readFileSync(path);
+    assert.throws(() => new EvidenceJournal(path, identity), /EVIDENCE_SCHEMA/);
+    assert.deepEqual(readFileSync(path), before);
+  } finally {
+    journal.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
