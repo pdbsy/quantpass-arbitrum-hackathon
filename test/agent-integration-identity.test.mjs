@@ -708,3 +708,44 @@ test('release history rejects grafted ancestry and ignores replacement parents',
   writeFileSync(join(f.root, graftPath), [candidate, ...parents].join(' ') + '\n');
   assert.throws(check, /UNMODIFIED_HISTORY_REQUIRED/);
 });
+
+test('release history binds the supplied root to the effective Git repository', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  const nested = join(f.root, 'nested-source');
+  mkdirSync(nested);
+  assert.throws(
+    () =>
+      verifyReleaseHistory({
+        root: nested,
+        base: f.base,
+        head: f.git('rev-parse', 'HEAD'),
+        sources: releaseHeads(f),
+      }),
+    /RELEASE_ROOT_REQUIRED/,
+  );
+});
+
+test('release history rejects environment substitution of an identical external Git context', (t) => {
+  const f = fixture(t);
+  const foreign = join(f.root, 'foreign-copy');
+  f.git('clone', '--no-hardlinks', '--quiet', f.root, foreign);
+  const input = { root: f.root, base: f.base, head: f.git('rev-parse', 'HEAD'), sources: releaseHeads(f) };
+  const moduleUrl = new URL('../tools/check-release-history.mjs', import.meta.url).href;
+  const source = `import {verifyReleaseHistory} from ${JSON.stringify(moduleUrl)};try {console.log(JSON.stringify(verifyReleaseHistory(${JSON.stringify(input)})))} catch(error) {console.log(error.message);process.exitCode=2}`;
+  for (const environment of [
+    { GIT_DIR: join(foreign, '.git') },
+    { GIT_WORK_TREE: foreign },
+    { GIT_OBJECT_DIRECTORY: join(foreign, '.git/objects') },
+  ]) {
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', source], {
+      cwd: f.root,
+      env: { ...process.env, ...environment },
+      encoding: 'utf8',
+      timeout: 5000,
+      maxBuffer: 4096,
+    });
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stdout, /UNMODIFIED_GIT_CONTEXT_REQUIRED/);
+  }
+});
