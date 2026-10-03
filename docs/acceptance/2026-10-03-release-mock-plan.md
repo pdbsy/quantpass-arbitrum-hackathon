@@ -55,3 +55,9 @@ Files: tools/testing/alphaforge-release-mock/run.mjs; docs/acceptance/RELEASE-MO
 - [x] Local typecheck/lint/format for new files and focused tests, commit harness, rerun same commit for evidence. Record baseline tests separately.
 - [ ] Report exact W5 root script request and immutable candidate inputs. Await W5 candidate/ref and W1 route matrix/W2 contract/W3 image; rerun API/browser against integrated source without editing peer checkout.
 - [ ] Final report source/head/tree/commit/commands/counts/rawlogs/digests/failures/skips/notrun/boundaries/rollback/remaining inputs. No24h execution.
+
+## Manager interface follow-ups
+
+After initial baseline collection, consume W2 fixed interface14d3a613 and W1 matrix9aa7cdc read-only. Add required integrated-runtime cases for injected clocks,90-second projection/30-second per-asset reference deadlines, per-Vault sync isolation, status/readiness/archive/MCP authentication/sanitization and namespace/nonce metadata recovery. Missing integrated modules remain NOT_RUN on base and block full PASS. Do not merge worker production code or edit peer checkouts.
+
+Add the manager's atomic owner envelope contract to API and real two-tab/negative/slow-response browser cases. Keep baseline red evidence until W5 freezes the corrected combined source. Cover W1's six canonical account tabs and documented fallbacks using effective content/navigation, not URL-only checks. Keep baseline external JSON API acceptance separate from new textarea/preview/confirm UI acceptance, including current owner/run/revision/frame and negative decisions. Deliver exact committed harness and root registration requests to W5; rerun only the supplied immutable integrated candidate for final release acceptance.

@@ -5,7 +5,7 @@ import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { verifyInstallation, sha256 } from '../../coverage/toolchain.mjs';
 import { buildApp } from '../../../apps/server/src/app.ts';
-import { createReleaseSession, OWNER_A, mockSignature } from './session.mjs';
+import { createReleaseSession, OWNER_A, OWNER_B, mockSignature } from './session.mjs';
 
 export async function createBrowserHarness({ demo = false, viewport = { width: 1440, height: 1000 } } = {}) {
   const descriptor = JSON.parse(readFileSync('planning/coverage-toolchain.lock.json'));
@@ -21,7 +21,7 @@ export async function createBrowserHarness({ demo = false, viewport = { width: 1
     context,
     page,
     closed = false;
-  const faults = { api: 'NONE' },
+  const faults = { api: 'NONE', vaultOwner: 'NONE', vaultReadBarrier: null },
     blockedRequests = [],
     errors = [],
     requests = [];
@@ -151,7 +151,7 @@ export async function createBrowserHarness({ demo = false, viewport = { width: 1
       }
       const rawHeaders = await request.allHeaders(),
         payload = request.postData();
-      const response = demo
+      let response = demo
         ? await demoApp.app.inject({
             method: request.method(),
             url: url.pathname + url.search,
@@ -164,6 +164,30 @@ export async function createBrowserHarness({ demo = false, viewport = { width: 1
             rawHeaders.cookie ?? '',
             { ...rawHeaders, host: new URL(origin).host, 'x-forwarded-proto': 'https' },
           );
+      if (!demo && url.pathname === '/api/testnet/vaults' && response.statusCode === 200) {
+        const barrier = faults.vaultReadBarrier;
+        if (barrier) {
+          faults.vaultReadBarrier = null;
+          barrier.reached();
+          await barrier.wait;
+        }
+        if (faults.vaultOwner !== 'NONE') {
+          const value = response.json();
+          if (faults.vaultOwner === 'MISSING') delete value.owner;
+          else value.owner = faults.vaultOwner === 'MALFORMED' ? { mock: 'invalid-owner' } : OWNER_B;
+          const payload = Buffer.from(JSON.stringify(value));
+          response = { ...response, body: payload.toString(), rawPayload: payload };
+          requests.push({
+            mode: 'MOCK',
+            method: request.method(),
+            path: url.pathname,
+            status: 200,
+            injectedFault: 'VAULT_OWNER_' + faults.vaultOwner,
+            response: value,
+            responseSha256: sha256(payload),
+          });
+        }
+      }
       if (demo && url.pathname.startsWith('/api/')) {
         let responseBody;
         try {

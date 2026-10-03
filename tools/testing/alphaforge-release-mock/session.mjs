@@ -45,6 +45,10 @@ export async function createReleaseSession({
   directory,
   webRoot,
   now = Date.parse('2026-10-03T00:00:00Z'),
+  blockTimestamp,
+  referenceObservedAt = {},
+  runtimeStatus,
+  executionStatus,
 } = {}) {
   assert.equal(process.versions.node, '24.21.0', 'release mock requires approved Node');
   const root = resolve('.checks/release-mock');
@@ -53,6 +57,9 @@ export async function createReleaseSession({
   assert.ok(folder.startsWith(root + '/') && folder !== root, 'MOCK_SESSION_DIRECTORY');
   mkdirSync(folder, { recursive: true });
   const storage = privateServerStorage(join(folder, 'data'), 64 * 1024 * 1024);
+  // Additive W2 interface. Baseline lacks it; the dedicated integrated phase
+  // requires and verifies the sidecar rather than silently qualifying its absence.
+  storage.bindIdentity?.('PUBLIC_TESTNET', FIXTURE_IDENTITY);
   const scenario = releaseScenario(),
     fixture = tradingRpcFixture('NONE', scenario.options);
   let clock = now,
@@ -80,13 +87,28 @@ export async function createReleaseSession({
   };
   const rpc = {
     chainId: () => guard('chainId', () => (fault === 'CHAIN' ? 4663 : fixture.client.chainId())),
-    block: (n) => guard('block', () => fixture.client.block(n)),
+    block: (n) =>
+      guard('block', async () => {
+        const block = await fixture.client.block(n);
+        return blockTimestamp === undefined ? block : { ...block, timestamp: BigInt(blockTimestamp) };
+      }),
     code: (a, b) => guard('code', () => fixture.client.code(a, b)),
     receipt: (h) => guard('receipt', () => fixture.client.receipt(h)),
     transaction: (h) => guard('transaction', () => fixture.client.transaction(h)),
     logs: (f) => guard('logs', () => fixture.client.logs(f)),
     call: (request, block) =>
       guard('call', async () => {
+        if (
+          request.data.slice(0, 10) === feedInterface.getFunction('price').selector &&
+          referenceObservedAt[request.to] !== undefined
+        )
+          return asHexData(
+            feedInterface.encodeFunctionResult('price', [
+              100000000n,
+              BigInt(referenceObservedAt[request.to]),
+              '0x' + 'ab'.repeat(32),
+            ]),
+          );
         if (fault === 'STALE' && request.data.slice(0, 10) === feedInterface.getFunction('price').selector)
           return asHexData(
             feedInterface.encodeFunctionResult('price', [100000000n, 960n, '0x' + 'ab'.repeat(32)]),
@@ -106,6 +128,7 @@ export async function createReleaseSession({
       manifest: fixture.manifest,
       inventory: fixture.inventory,
       rpc,
+      now: () => clock,
     });
     orders = new OrderJournal(storage.databasePath('orders'), FIXTURE_IDENTITY);
     backups = new ServerBackups(storage, FIXTURE_IDENTITY, [
@@ -118,6 +141,8 @@ export async function createReleaseSession({
       origin,
       auth,
       now: () => clock,
+      ...(runtimeStatus ? { runtimeStatus } : {}),
+      ...(executionStatus ? { executionStatus } : {}),
       verifyOwner: async (message, signature, owner) => signature === mockSignature(message, owner),
       runtimes: [{ id: 'mock-owner-a', runtime }],
       canWrite: () => writable,

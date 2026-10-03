@@ -118,6 +118,59 @@ for (const outcome of ['CANCEL', 'UNKNOWN', 'TIMEOUT', 'HASH'])
       assert.deepEqual(h.errors, []);
     }));
 
+test('all nine owner actions reach the closed mock wallet with exactly the reviewed unsigned envelope', async () => {
+  for (const kind of [
+    'APPROVE_USDC',
+    'APPROVE_PASS',
+    'DEPOSIT',
+    'ALLOCATE',
+    'DEALLOCATE',
+    'WITHDRAW',
+    'AUTHORIZE',
+    'STOP',
+    'REVOKE',
+  ])
+    await browserCase('mock-submit-' + kind, async (h) => {
+      await h.goto();
+      await h.login();
+      const fields =
+        kind === 'AUTHORIZE'
+          ? {
+              executor: h.s.executor,
+              expiresAt: '1100',
+              liquidationWindow: '60',
+              maxOrder: '1.000001',
+              maxTotal: '3.000003',
+              maxSlippageBps: '40',
+            }
+          : ['STOP', 'REVOKE'].includes(kind)
+            ? {}
+            : { amount: '1.000001' };
+      await h.preview(kind, fields);
+      const preview = JSON.parse(await h.page.locator('.review pre').innerText());
+      assert.equal(preview.kind, kind);
+      const reviewed = readFileSync(join(h.s.directory, 'api.jsonl'), 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+        .findLast((record) => record.url.endsWith('/prepare')).response.transaction;
+      await h.page.getByRole('button', { name: '在 owner 钱包中确认', exact: true }).click();
+      await h.page.getByRole('status').filter({ hasText: '交易哈希已记录' }).waitFor();
+      const sends = h.s.walletRequests.filter((request) => request.method === 'eth_sendTransaction');
+      assert.equal(sends.length, 1, kind);
+      assert.equal(reviewed.kind, kind);
+      const envelope = Object.fromEntries(
+        ['from', 'to', 'data', 'value', 'chainId'].map((key) => [key, reviewed[key]]),
+      );
+      assert.deepEqual(sends[0].params, [envelope]);
+      assert.equal(sends[0].params[0].from, OWNER_A);
+      assert.equal(sends[0].params[0].chainId, '0xb626');
+      assert.equal(sends[0].params[0].value, '0x0');
+      assert.equal(h.s.broadcasts, 0);
+      assert.deepEqual(h.errors, []);
+    });
+});
+
 test('owner and chain change invalidate mounted personal data; reconnect uses current identity only', async () =>
   browserCase('identity-races', async (h) => {
     await h.goto();
@@ -139,6 +192,78 @@ test('owner and chain change invalidate mounted personal data; reconnect uses cu
     );
     await h.login();
     assert.deepEqual(h.errors, []);
+  }));
+
+async function assertOwnerReauthentication(page) {
+  await page
+    .getByRole('status')
+    .filter({ hasText: /账户|身份|登录|不一致/ })
+    .waitFor();
+  assert.equal(await page.locator('.vault-card').count(), 0);
+  assert.equal(await page.getByRole('button', { name: '预览待签交易', exact: true }).count(), 0);
+  await page.getByRole('button', { name: /重新登录|连接钱包并登录/ }).waitFor();
+}
+
+test('another tab changes the shared authenticated cookie while the first wallet remains A', async () =>
+  browserCase('cross-tab-cookie-owner', async (h) => {
+    await h.goto();
+    await h.login();
+    const other = await h.context.newPage();
+    await other.goto(h.origin);
+    await other.evaluate((owner) => {
+      window.__releaseMockWallet.state.owner = owner;
+    }, OWNER_B);
+    await other.getByRole('button', { name: '连接钱包并登录', exact: true }).click();
+    await other.getByRole('heading', { name: '尚无已配置的 Vault', exact: true }).waitFor();
+    assert.equal(await h.page.evaluate(() => window.__releaseMockWallet.state.owner), OWNER_A);
+    await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
+    await assertOwnerReauthentication(h.page);
+    assert.equal(h.s.walletRequests.filter((r) => r.method === 'eth_sendTransaction').length, 0);
+  }));
+
+for (const kind of ['MISSING', 'MALFORMED', 'MISMATCH'])
+  test(`successful Vault envelope with ${kind} owner clears claims and requires manual login`, async () =>
+    browserCase('vault-envelope-' + kind, async (h) => {
+      await h.goto();
+      await h.login();
+      h.faults.vaultOwner = kind;
+      await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
+      await assertOwnerReauthentication(h.page);
+      assert.equal(h.s.walletRequests.filter((r) => r.method === 'eth_sendTransaction').length, 0);
+    }));
+
+test('delayed A read cannot republish personal data after the wallet and session change to B', async () =>
+  browserCase('delayed-owner-read', async (h) => {
+    await h.goto();
+    await h.login();
+    let reached, release;
+    const observed = new Promise((resolve) => {
+      reached = resolve;
+    });
+    const wait = new Promise((resolve) => {
+      release = resolve;
+    });
+    h.faults.vaultReadBarrier = { reached, wait };
+    try {
+      await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
+      await observed;
+      await h.page.evaluate((owner) => window.__releaseMockWallet.changeOwner(owner), OWNER_B);
+      await h.page.getByRole('button', { name: '连接钱包并登录', exact: true }).click();
+      await h.page.getByRole('heading', { name: '尚无已配置的 Vault', exact: true }).waitFor();
+      const completed = h.page.waitForResponse((response) => response.url().endsWith('/api/testnet/vaults'));
+      release();
+      // The original A response is actually fulfilled before checking the settled B UI.
+      await completed;
+      await h.page.evaluate(
+        () =>
+          new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve))),
+      );
+      await h.page.getByRole('heading', { name: '尚无已配置的 Vault', exact: true }).waitFor();
+      assert.equal(await h.page.getByRole('heading', { name: 'mock-owner-a', exact: true }).count(), 0);
+      assert.equal(h.s.walletRequests.filter((r) => r.method === 'eth_sendTransaction').length, 0);
+    } finally {
+      release();
+    }
   }));
 
 test('current public API failure is visible and stale healthy action preview fails closed', async () =>
@@ -219,14 +344,50 @@ test('six demo strategy routes render their own chart and actual hover evidence'
     { demo: true },
   ));
 
-test('all account subroutes remove legacy diagnosis while maintaining navigation', async () =>
-  browserCase(
-    'account-subroutes',
-    async (h) => {
-      for (const tab of ['trades', 'saved', 'notes', 'trial', 'funds', 'settings']) {
+// W1 matrix 9aa7cdc and immutable prototype router: six canonical tabs;
+// trials/activity are documented fallback aliases. Singular trial is a fallback,
+// not a seventh canonical section. Assert the effective content, not just a URL.
+for (const tab of ['trades', 'passes', 'saved', 'notes', 'funds', 'settings'])
+  test(`canonical account ${tab} retains its own content/navigation without legacy diagnosis`, async () =>
+    browserCase(
+      'account-' + tab,
+      async (h) => {
         await h.goto('/#/account/' + tab);
         await h.page.locator('#main h1').waitFor();
+        assert.equal(await h.page.evaluate(() => window.location.hash), '#/account/' + tab);
+        if (tab === 'trades') assert.equal(await h.page.locator('[data-wallet-account]').count(), 1);
+        else {
+          assert.equal(await h.page.locator('.account-page').count(), 1);
+          assert.equal(await h.page.evaluate(() => window.AF.view.accountTab), tab);
+          assert.equal(
+            await h.page
+              .locator(`[aria-label="Account sections"] a[href="#/account/${tab}"][aria-current="page"]`)
+              .count(),
+            1,
+          );
+        }
         assert.equal(await h.page.locator('[aria-label="M3 account chain status"]').count(), 0, tab);
+        await h.capture('account-' + tab);
+      },
+      { demo: true },
+    ));
+
+test('documented account aliases and invalid account tab normalize to actual Pass content rather than home coverage', async () =>
+  browserCase(
+    'account-fallbacks',
+    async (h) => {
+      for (const tab of ['trials', 'activity', 'trial', 'release-invalid-tab']) {
+        await h.goto('/#/account/' + tab);
+        await h.page.locator('.account-page').waitFor();
+        assert.equal(await h.page.evaluate(() => window.AF.view.accountTab), 'passes');
+        assert.equal(
+          await h.page
+            .locator('[aria-label="Account sections"] a[href="#/account/passes"][aria-current="page"]')
+            .count(),
+          1,
+        );
+        assert.equal(await h.page.locator('[aria-label="M3 account chain status"]').count(), 0);
+        await h.capture('account-fallback-' + tab);
       }
     },
     { demo: true },
@@ -326,6 +487,137 @@ test('external JSON uses current browser API contract, creates fills once and UI
       assert.equal(account.passAccounting.closed, true);
       assert.equal(account.passAccounting.lockedPassRaw, '0');
       assert.equal(account.activeCash, '0');
+      assert.deepEqual(h.errors, []);
+    },
+    { demo: true },
+  ));
+
+async function externalUiSetup(h) {
+  await h.goto('/automata.html');
+  const { page } = h;
+  await page.getByLabel('测试账户').selectOption('alice');
+  await page.getByRole('button', { name: '建立测试 Vault', exact: true }).click();
+  await page.getByLabel('存入 / 取出金额').fill('1000');
+  await page.getByRole('button', { name: '存入并冻结 Pass', exact: true }).click();
+  await page.getByLabel('运行资金').fill('500');
+  await page.getByLabel('策略来源').selectOption('external');
+  await page.locator('fieldset select').first().selectOption('off');
+  await page.getByRole('button', { name: '启动模拟运行', exact: true }).click();
+  await page.locator('.af-run').waitFor();
+  await page.getByRole('button', { name: '推进一帧', exact: true }).click();
+  await page.waitForFunction(() =>
+    document.querySelector('.af-run small')?.textContent?.includes('第 1/120 帧'),
+  );
+  await page.getByText('策略接入与信号状态', { exact: true }).click();
+  await page.getByLabel('外部策略目标 JSON', { exact: true }).waitFor();
+}
+const readDemoRun = async (page) =>
+  page.evaluate(async () => (await (await fetch('/api/v1/automata')).json()).items[0]);
+const decisionPosts = (h) =>
+  readFileSync(join(h.s.directory, 'demo-api.jsonl'), 'utf8')
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line))
+    .filter((record) => record.method === 'POST' && record.path.endsWith('/decisions'));
+
+test('native external textarea preview and double-confirm submit the reviewed owner/run/revision/frame once and complete exit', async () =>
+  browserCase(
+    'external-json-native-ui',
+    async (h) => {
+      await externalUiSetup(h);
+      const { page } = h;
+      const before = await readDemoRun(page);
+      assert.equal(
+        await page.evaluate(async () => (await (await fetch('/api/session')).json()).user),
+        'alice',
+      );
+      await page.getByLabel('外部策略目标 JSON', { exact: true }).fill('{"rwa-a":5000,"rwa-b":5000}');
+      await page.getByRole('button', { name: '预览 JSON 信号', exact: true }).click();
+      await page.locator('[data-external-preview]').waitFor();
+      const reviewed = JSON.parse(await page.locator('[data-external-preview] pre').innerText());
+      assert.equal(reviewed.runId, before.state.id);
+      assert.equal(reviewed.expectedRevision, before.revision);
+      assert.equal(reviewed.frameSeq, before.state.cursor);
+      assert.equal(decisionPosts(h).length, 0);
+      await page.getByRole('button', { name: '确认提交 JSON 信号', exact: true }).dblclick();
+      await page.waitForFunction(() =>
+        document.querySelector('.af-run details')?.textContent?.includes('最近信号：'),
+      );
+      const posts = decisionPosts(h);
+      assert.equal(posts.length, 1);
+      assert.equal(posts[0].status, 200);
+      assert.deepEqual(posts[0].request, reviewed);
+      const filled = await readDemoRun(page);
+      assert.equal(filled.state.trades.filter((trade) => trade.side === 'buy').length, 2);
+      await page.reload();
+      await page.getByRole('button', { name: '停止并立即清仓', exact: true }).click();
+      await page.locator('.af-state').filter({ hasText: '已停止' }).waitFor();
+      await page.getByRole('button', { name: '将结算现金转为闲置', exact: true }).click();
+      await page.getByRole('button', { name: '完整退出并释放全部 Pass', exact: true }).click();
+      await page.getByRole('status').filter({ hasText: 'Vault 已完整退出' }).waitFor();
+      const account = await page.evaluate(
+        async () => (await (await fetch('/api/v1/vaults')).json()).items[0],
+      );
+      assert.equal(account.passAccounting.closed, true);
+      assert.equal(account.passAccounting.lockedPassRaw, '0');
+      assert.deepEqual(h.errors, []);
+    },
+    { demo: true },
+  ));
+
+test('native external JSON refuses malformed targets, changed frame/revision and clears drafts on owner change', async () =>
+  browserCase(
+    'external-json-native-refusals',
+    async (h) => {
+      await externalUiSetup(h);
+      const { page } = h;
+      const input = page.getByLabel('外部策略目标 JSON', { exact: true });
+      for (const value of ['{', '{"rwa-a":10001}', '{"outside-asset":1000}']) {
+        await input.fill(value);
+        const fetched = page.waitForResponse((response) => response.url().endsWith('/strategy-context'));
+        await page.getByRole('button', { name: '预览 JSON 信号', exact: true }).click();
+        await fetched;
+        await page
+          .getByRole('status')
+          .filter({ hasText: /有效目标 JSON|整数基点/ })
+          .waitFor();
+        assert.equal(await page.locator('[data-external-preview]').count(), 0);
+        assert.equal(decisionPosts(h).length, 0);
+      }
+      const preview = async () => {
+        await input.fill('{"rwa-a":3000}');
+        await page.getByRole('button', { name: '预览 JSON 信号', exact: true }).click();
+        await page.locator('[data-external-preview]').waitFor();
+        return JSON.parse(await page.locator('[data-external-preview] pre').innerText());
+      };
+      const frameOne = await preview();
+      await page.getByRole('button', { name: '推进一帧', exact: true }).click();
+      await page.waitForFunction(() =>
+        document.querySelector('.af-run small')?.textContent?.includes('第 2/120 帧'),
+      );
+      await page.getByRole('button', { name: '确认提交 JSON 信号', exact: true }).click();
+      await page.getByRole('status').filter({ hasText: '行情帧或账户状态已变化' }).waitFor();
+      assert.equal(await page.locator('[data-external-preview]').count(), 0);
+      assert.equal(decisionPosts(h).length, 0);
+      const frameTwo = await preview();
+      assert.notEqual(frameTwo.frameSeq, frameOne.frameSeq);
+      await page.getByRole('button', { name: '暂停策略', exact: true }).click();
+      await page.locator('.af-state').filter({ hasText: '已暂停' }).waitFor();
+      await page.getByRole('button', { name: '确认提交 JSON 信号', exact: true }).click();
+      await page.getByRole('status').filter({ hasText: '行情帧或账户状态已变化' }).waitFor();
+      assert.equal(decisionPosts(h).length, 0);
+      await page.getByRole('button', { name: '继续策略', exact: true }).click();
+      await preview();
+      await page.getByLabel('测试账户').selectOption('bob');
+      await page.waitForFunction(() => !document.querySelector('.af-run'));
+      assert.equal(await page.locator('[data-external-preview]').count(), 0);
+      await page.getByLabel('测试账户').selectOption('alice');
+      await page.locator('.af-run').waitFor();
+      await page.getByText('策略接入与信号状态', { exact: true }).click();
+      assert.equal(await input.inputValue(), '');
+      assert.equal(await page.locator('[data-external-preview]').count(), 0);
+      assert.equal(decisionPosts(h).length, 0);
+      assert.equal((await readDemoRun(page)).state.trades.length, 0);
       assert.deepEqual(h.errors, []);
     },
     { demo: true },

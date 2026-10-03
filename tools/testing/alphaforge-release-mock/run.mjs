@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { sourceIdentity, summarizeTap, acceptanceState, fileRecords, digest } from './evidence.mjs';
 const args = process.argv.slice(2);
@@ -67,6 +67,31 @@ if (args.includes('--help')) {
     'test/release-mock-evidence.test.mjs',
   ];
   run('api-recovery', process.execPath, ['--test', '--test-reporter=tap', ...apiFiles], true);
+  const integratedInterfaces = [
+    'packages/testnet/src/network-identity.ts',
+    'packages/testnet/src/nonce-ownership.ts',
+    'packages/testnet/src/runtime-status.ts',
+  ];
+  const missingInterfaces = integratedInterfaces.filter((file) => !existsSync(join(root, file)));
+  if (missingInterfaces.length) {
+    const phase = {
+      name: 'integrated-runtime',
+      state: 'NOT_RUN',
+      reason: 'W2_INTERFACES_NOT_IN_PINNED_SOURCE',
+      missingInterfaces,
+      exitCode: null,
+      eligible: false,
+      testsExecuted: false,
+    };
+    phases.push(phase);
+    process.stdout.write(JSON.stringify(phase) + '\n');
+  } else
+    run(
+      'integrated-runtime',
+      process.execPath,
+      ['--test', '--test-reporter=tap', 'test/release-mock-runtime.test.mjs'],
+      true,
+    );
   run(
     'http-process',
     process.execPath,

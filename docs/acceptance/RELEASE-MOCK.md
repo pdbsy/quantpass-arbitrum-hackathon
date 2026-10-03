@@ -14,6 +14,8 @@ fnm exec --using=24.21.0 node tools/testing/alphaforge-release-mock/run.mjs --ex
 
 The runner refuses dirty source by default and checks Node/npm, complete history, expected HEAD, tree and lock. It builds the current web bundle and executes three independent phases: API/recovery/evidence tests, an actual loopback child lifecycle test, and actual built browser tests. A failure is propagated; required skipped tests cannot qualify a phase. Each run creates new source-C, manifest-R, snapshot-S and digest inventory files under `.checks/release-mock/acceptance-*`. These are diagnostic release artifacts, separate from the repository's shared management C/R/S workflow, which W5 owns.
 
+The additive integrated-runtime phase requires W2 network/nonce/status interfaces. On the pinned pre-W2 base it records `NOT_RUN/W2_INTERFACES_NOT_IN_PINNED_SOURCE`, with no invented test count, and full acceptance cannot PASS. On W5's integrated candidate it runs `test/release-mock-runtime.test.mjs` separately. Test-only clock/reference observations and status callbacks compose the real runtime; they are unavailable through production CLIs. Fresh W2 sessions bind the namespace sidecar before creating databases.
+
 For iteration `--diagnostic` permits dirty code, but cannot produce PASS. `--api-only` leaves browser NOT_RUN and returns nonzero for full acceptance. Preserve both initial errors and later retries; never add a retry as a new unique test.
 
 ## Isolation and transports
@@ -48,6 +50,14 @@ Logs omit opaque cookies and login material. All owner/manifest/transaction info
 | account/mobile           | browser                                   | all listed account subroutes remove M3 diagnosis; closed menu accessible label says Expand/Open; viewport bounds                                          |
 
 External JSON has a documented API contract but no JSON textarea/submit control in the baseline research page. The external test submits real JSON from the browser origin through that documented API and checks the resulting visible UI. It does not claim a native JSON-input UI was present. EMA runs through the production local reference adapter and is observed in the built research page; a dedicated EMA launch control is not present in the baseline page.
+
+Two separate native JSON tests consume W1's added textarea, preview and explicit confirm controls. They require the actual UI to bind the current owner/run/revision/frame, submit the reviewed command once on double click, finish settlement/full exit, refuse malformed/overspent/unknown-asset targets, reject changed frame/revision without POST, and clear private drafts on owner change. They are expected red gates on the baseline lacking those controls; the API test never substitutes for them.
+
+W1 matrix at `9aa7cdc4dfa55bc9ed91964ea11068f5e7a25d08` and the immutable prototype router define six canonical account tabs: trades, passes, saved, notes, funds, settings. Each has its own case and verifies effective account content/navigation. Documented trials/activity fallback aliases are checked separately. Singular trial and an invalid account tab normalize to Pass content in the existing router; they are not counted as distinct canonical routes or mistaken for home-page coverage.
+
+The atomic Vault response contract requires authenticated top-level owner on every successful response, including empty and null snapshots. Real two-tab cookie sharing, missing/malformed/mismatched owner envelopes, and a held A response completed after a B identity change are separate browser cases. Response fault bytes and delayed real response completion are preserved; no alternate owner hint grants server scope.
+
+Integrated runtime acceptance checks 90-second projection and 30-second per-asset reference freshness, independent per-Vault sync/reconnect, authenticated/sanitized owner-scoped status/readiness/archives, and the read-only stateless JSON-RPC MCP compatibility surface. A local compatibility request does not qualify an actual connected Codex plugin. Full mock restore verifies SQLite snapshots plus separately retained namespace and nonce identity digests; a DB-only copy is rejected. This rehearsal does not qualify operational relocation or migrate any real directory.
 
 Timeout fixtures inject transport timeout failures; the current browser fetch uses its production10-second abort deadline. A timeout fixture proves the failure path and no-resend state, not external RPC latency characteristics. Sustained24h is WAIVED_BY_USER. External wallet/chain, real TLS/proxy, deployed executor/mainnet and real shared D1 remain NOT_RUN.
 
