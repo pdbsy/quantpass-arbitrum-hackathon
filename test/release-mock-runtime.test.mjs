@@ -256,7 +256,7 @@ test('30-second market deadline checks each asset even with a fresh process and 
 
 test('a real isolated failing runtime cannot starve another runtime and recovery preserves both databases', async () => {
   const a = await createReleaseSession({ now: 1000000 }),
-    b = await createReleaseSession({ now: 1000000 });
+    b = await createReleaseSession({ now: 1000000, owner: OWNER_B });
   try {
     a.setFault('DISCONNECTED');
     b.advance(1000);
@@ -266,7 +266,11 @@ test('a real isolated failing runtime cannot starve another runtime and recovery
     );
     assert.equal(a.runtime.status(), 'DEGRADED');
     assert.equal(b.runtime.observation().observedAt, b.now);
-    assert.equal(b.runtime.ownedView(OWNER_A).status, 'HEALTHY');
+    assert.equal(b.runtime.ownedView(OWNER_B).status, 'HEALTHY');
+    const cookie = await b.login(OWNER_B);
+    const response = await b.request('/api/testnet/vaults', undefined, cookie);
+    assert.equal(response.json().owner, OWNER_B);
+    assert.equal(response.json().vaults[0].snapshot.owner, OWNER_B);
     a.setFault('NONE');
     await syncPublicRuntimes([a.runtime, b.runtime], () => true);
     assert.equal(a.runtime.ownedView(OWNER_A).status, 'HEALTHY');
@@ -289,9 +293,9 @@ test('full mock recovery includes namespace and nonce identity metadata alongsid
     assert.deepEqual(readFileSync(sidecar), sidecarBytes);
     const nonceRoot = join(s.directory, 'host-nonce');
     mkdirSync(nonceRoot, { mode: 0o700 });
-    const lease = claimNonceOwnership(nonceRoot, [s.executor], FIXTURE_IDENTITY);
+    const lease = claimNonceOwnership(nonceRoot, [s.executor], s.namespaceDigest);
     try {
-      assert.throws(() => claimNonceOwnership(nonceRoot, [s.executor], FIXTURE_IDENTITY), /LOCKED/);
+      assert.throws(() => claimNonceOwnership(nonceRoot, [s.executor], s.namespaceDigest), /LOCKED/);
     } finally {
       lease.close();
     }
@@ -324,7 +328,7 @@ test('full mock recovery includes namespace and nonce identity metadata alongsid
     try {
       copyFileSync(sidecar, join(restoreRoot, 'network-identity.json'));
       chmodSync(join(restoreRoot, 'network-identity.json'), 0o600);
-      restoredStorage.bindIdentity('PUBLIC_TESTNET', FIXTURE_IDENTITY);
+      restoredStorage.bindIdentity('PUBLIC_TESTNET', s.namespaceDigest);
       copyFileSync(join(backupRoot, 'orders.sqlite'), join(restoreRoot, 'orders.sqlite'));
       chmodSync(join(restoreRoot, 'orders.sqlite'), 0o600);
       restoredOrders = new OrderJournal(restoredStorage.databasePath('orders'), FIXTURE_IDENTITY);
@@ -336,7 +340,7 @@ test('full mock recovery includes namespace and nonce identity metadata alongsid
       chmodSync(join(restoredNonce, nonceName), 0o600);
       assert.equal(digest(readFileSync(join(restoreRoot, 'network-identity.json'))), digest(sidecarBytes));
       assert.equal(digest(readFileSync(join(restoredNonce, nonceName))), digest(nonceBytes));
-      const restoredLease = claimNonceOwnership(restoredNonce, [s.executor], FIXTURE_IDENTITY);
+      const restoredLease = claimNonceOwnership(restoredNonce, [s.executor], s.namespaceDigest);
       restoredLease.close();
       assert.throws(
         () => claimNonceOwnership(restoredNonce, [s.executor], '0x' + '8'.repeat(64)),
@@ -364,7 +368,7 @@ test('full mock recovery includes namespace and nonce identity metadata alongsid
       copyFileSync(join(backupRoot, 'orders.sqlite'), file);
       chmodSync(file, 0o600);
       const bytes = readFileSync(file);
-      assert.throws(() => dbOnly.bindIdentity('PUBLIC_TESTNET', FIXTURE_IDENTITY), /MIGRATION_REQUIRED/);
+      assert.throws(() => dbOnly.bindIdentity('PUBLIC_TESTNET', s.namespaceDigest), /MIGRATION_REQUIRED/);
       assert.deepEqual(readFileSync(file), bytes);
     } finally {
       dbOnly.close();

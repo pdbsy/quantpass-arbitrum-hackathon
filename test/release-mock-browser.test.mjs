@@ -203,11 +203,26 @@ async function assertOwnerReauthentication(page) {
   assert.equal(await page.getByRole('button', { name: '预览待签交易', exact: true }).count(), 0);
   await page.getByRole('button', { name: /重新登录|连接钱包并登录/ }).waitFor();
 }
+async function manuallyRestoreOwnerA(h) {
+  await h.page.getByRole('button', { name: /重新登录|连接钱包并登录/ }).click();
+  await h.page.locator('.vault-card h2').filter({ hasText: 'mock-owner-a' }).waitFor();
+}
 
 test('another tab changes the shared authenticated cookie while the first wallet remains A', async () =>
   browserCase('cross-tab-cookie-owner', async (h) => {
     await h.goto();
     await h.login();
+    await h.page.evaluate(() => {
+      window.__releaseMockWallet.state.outcome = 'UNKNOWN';
+    });
+    await h.preview('DEPOSIT', { amount: '0.000001' });
+    await h.page.getByRole('button', { name: '在 owner 钱包中确认', exact: true }).click();
+    await h.page.getByRole('status').filter({ hasText: '提交结果未知' }).waitFor();
+    const pending = await h.page.evaluate(() =>
+      Object.fromEntries(
+        Object.entries(localStorage).filter(([key]) => key.startsWith('alphaforge-testnet-intent:')),
+      ),
+    );
     const other = await h.context.newPage();
     await other.goto(h.origin);
     await other.evaluate((owner) => {
@@ -216,9 +231,30 @@ test('another tab changes the shared authenticated cookie while the first wallet
     await other.getByRole('button', { name: '连接钱包并登录', exact: true }).click();
     await other.getByRole('heading', { name: '尚无已配置的 Vault', exact: true }).waitFor();
     assert.equal(await h.page.evaluate(() => window.__releaseMockWallet.state.owner), OWNER_A);
+    const logins = h.s.walletRequests.filter((r) => r.method === 'personal_sign').length;
     await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
     await assertOwnerReauthentication(h.page);
-    assert.equal(h.s.walletRequests.filter((r) => r.method === 'eth_sendTransaction').length, 0);
+    assert.equal(h.s.walletRequests.filter((r) => r.method === 'personal_sign').length, logins);
+    assert.deepEqual(
+      await h.page.evaluate(() =>
+        Object.fromEntries(
+          Object.entries(localStorage).filter(([key]) => key.startsWith('alphaforge-testnet-intent:')),
+        ),
+      ),
+      pending,
+    );
+    await manuallyRestoreOwnerA(h);
+    await h.page.locator('.review h3').filter({ hasText: '待核验交易' }).waitFor();
+    assert.equal(h.s.walletRequests.filter((r) => r.method === 'personal_sign').length, logins + 1);
+    assert.equal(h.s.walletRequests.filter((r) => r.method === 'eth_sendTransaction').length, 1);
+    assert.deepEqual(
+      await h.page.evaluate(() =>
+        Object.fromEntries(
+          Object.entries(localStorage).filter(([key]) => key.startsWith('alphaforge-testnet-intent:')),
+        ),
+      ),
+      pending,
+    );
   }));
 
 for (const kind of ['MISSING', 'MALFORMED', 'MISMATCH'])
@@ -229,6 +265,8 @@ for (const kind of ['MISSING', 'MALFORMED', 'MISMATCH'])
       h.faults.vaultOwner = kind;
       await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
       await assertOwnerReauthentication(h.page);
+      h.faults.vaultOwner = 'NONE';
+      await manuallyRestoreOwnerA(h);
       assert.equal(h.s.walletRequests.filter((r) => r.method === 'eth_sendTransaction').length, 0);
     }));
 

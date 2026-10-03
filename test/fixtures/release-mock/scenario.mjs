@@ -11,8 +11,9 @@ export const canonicalHash = (n) =>
 
 // Historical deposit/allocation/three actual ABI fill events reconcile the existing
 // RPC fixture's measured cash and positions. None of these are external receipts.
-export function releaseScenario() {
+export function releaseScenario(owner = OWNER_A) {
   const options = {
+    owner,
     historical: true,
     head: 16,
     logs: [],

@@ -49,6 +49,7 @@ export async function createReleaseSession({
   referenceObservedAt = {},
   runtimeStatus,
   executionStatus,
+  owner = OWNER_A,
 } = {}) {
   assert.equal(process.versions.node, '24.21.0', 'release mock requires approved Node');
   const root = resolve('.checks/release-mock');
@@ -56,12 +57,43 @@ export async function createReleaseSession({
   const folder = directory ? resolve(directory) : mkdtempSync(join(root, 'session-'));
   assert.ok(folder.startsWith(root + '/') && folder !== root, 'MOCK_SESSION_DIRECTORY');
   mkdirSync(folder, { recursive: true });
+  const scenario = releaseScenario(owner),
+    fixture = tradingRpcFixture('NONE', scenario.options),
+    vaultId = owner === OWNER_A ? 'mock-owner-a' : 'mock-owner-b';
+  assert.equal(fixture.inventory.owner, owner, 'MOCK_OWNER_FIXTURE_INTERFACE_REQUIRED');
+  if (existsSync(join(folder, 'fixture.json'))) {
+    const retained = JSON.parse(readFileSync(join(folder, 'fixture.json')));
+    assert.equal(retained.mode, 'MOCK');
+    assert.equal(retained.identity, FIXTURE_IDENTITY);
+    assert.equal(retained.inventory.owner, fixture.inventory.owner, 'MOCK_SESSION_OWNER_IDENTITY');
+    assert.equal(retained.manifest.manifestDigest, fixture.manifest.manifestDigest);
+  }
   const storage = privateServerStorage(join(folder, 'data'), 64 * 1024 * 1024);
+  const namespaceDigest =
+    '0x' +
+    createHash('sha256')
+      .update(
+        JSON.stringify(
+          {
+            mode: 'MOCK',
+            profile: 'PUBLIC_TESTNET',
+            chainId: 46630,
+            dataDirectory: storage.folder,
+            manifest: fixture.manifest,
+            inventory: fixture.inventory,
+          },
+          (_key, value) => (typeof value === 'bigint' ? String(value) : value),
+        ),
+      )
+      .digest('hex');
   // Additive W2 interface. Baseline lacks it; the dedicated integrated phase
   // requires and verifies the sidecar rather than silently qualifying its absence.
-  storage.bindIdentity?.('PUBLIC_TESTNET', FIXTURE_IDENTITY);
-  const scenario = releaseScenario(),
-    fixture = tradingRpcFixture('NONE', scenario.options);
+  try {
+    storage.bindIdentity?.('PUBLIC_TESTNET', namespaceDigest);
+  } catch (error) {
+    storage.close();
+    throw error;
+  }
   let clock = now,
     fault = 'NONE',
     writable = true,
@@ -144,7 +176,7 @@ export async function createReleaseSession({
       ...(runtimeStatus ? { runtimeStatus } : {}),
       ...(executionStatus ? { executionStatus } : {}),
       verifyOwner: async (message, signature, owner) => signature === mockSignature(message, owner),
-      runtimes: [{ id: 'mock-owner-a', runtime }],
+      runtimes: [{ id: vaultId, runtime }],
       canWrite: () => writable,
       ...(webRoot ? { webRoot } : {}),
       backup: async () => {
@@ -178,6 +210,7 @@ export async function createReleaseSession({
         {
           mode: 'MOCK',
           identity: FIXTURE_IDENTITY,
+          namespaceDigest,
           origin,
           clock,
           ownerA: OWNER_A,
@@ -243,6 +276,8 @@ export async function createReleaseSession({
     rpcRequests,
     walletRequests,
     executor: address(40),
+    vaultId,
+    namespaceDigest,
     storage,
     broadcasts: 0,
     get now() {
