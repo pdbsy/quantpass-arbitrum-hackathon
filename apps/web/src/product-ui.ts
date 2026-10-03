@@ -1,3 +1,5 @@
+import { productSessionPresentation } from './product-session.ts';
+import { installProductNavigation } from './product-navigation.ts';
 import { installCandleInspection, type CandleChartHost } from './kline-hover.ts';
 import './kline-hover.css';
 import './wallet-account.css';
@@ -71,6 +73,13 @@ automataLink.href = '/automata.html';
 automataLink.className = 'outline-btn';
 automataLink.textContent = 'RWA 模拟运行';
 document.querySelector('.nav-right')?.prepend(automataLink);
+const testnetLink = document.createElement('a');
+testnetLink.href = '/testnet.html';
+testnetLink.className = 'text-link';
+testnetLink.textContent = 'Testnet owner workspace';
+testnetLink.title =
+  'Wallet-only Testnet preview; live operations require the dedicated configured Testnet server.';
+document.querySelector('.nav-right')?.prepend(testnetLink);
 let mockWalletStorage: Storage | undefined;
 try {
   mockWalletStorage = window.localStorage;
@@ -79,6 +88,7 @@ try {
 }
 const mockWallet = createMockWalletSession(() => AF.exchange.read(), AF.strategies, mockWalletStorage);
 installCandleInspection(AF);
+installProductNavigation();
 let onchainRuntime = AF.m3OnchainRuntime;
 if (!onchainRuntime && import.meta.env.DEV && new URLSearchParams(location.search).get('m3Fixture') === '1') {
   const fixtureModule = await import('./m3-injected-runtime-fixture.ts');
@@ -221,6 +231,9 @@ function balances(v: ProductVault): string {
 }
 function account(): string {
   const s = adapter.snapshot;
+  const session = productSessionPresentation(s, adapter.mode);
+  if (!session.usable)
+    return `<section class="wrap section" aria-label="API account unavailable"><h2>Backend account unavailable</h2><p>${esc(session.hint)}</p><p>Browser workshop records below are separate local mock data.</p></section>`;
   return `<section class="wrap section"><span class="section-label">API ACCOUNT / ${esc(s.user ?? 'NO SESSION')}</span><h2>Backend vaults & test access.</h2><p>${adapter.mode === 'legacy' ? 'Legacy API capability: unavailable financial fields are shown explicitly.' : 'Canonical account and strategy relationships from the local backend.'}</p>${
     s.account
       ? `<p>Account owner: ${esc(s.account.ownerId)} · ${s.account.strategies.length} registered strategy relationships.</p><div class="receipt-lines">${s.account.strategies
@@ -233,6 +246,9 @@ function account(): string {
   }${s.vaults.length ? s.vaults.map((v) => `<article class="sketch-box"><h3>${esc(v.strategyId)}</h3><p>Owner ${esc(v.ownerId)} · ${esc(v.status)} · revision ${v.revision}</p><p class="small">Vault ${esc(v.vaultId)}</p>${balances(v)}<a class="text-link" data-product-strategy="${esc(v.strategyId)}" href="#/trade/${encodeURIComponent(v.strategyId)}">Open ${esc(v.strategyId)} workspace ↗</a></article>`).join('') : '<p>EMPTY — No backend vaults for this identity. Claim test access from the API catalogue.</p>'}<p class="dialog-notice">MOCK / FIXTURE below: the original browser trial funds and Pass exchange are independent from these API balances.</p></section>`;
 }
 function workspace(id: string): string {
+  const session = productSessionPresentation(adapter.snapshot, adapter.mode);
+  if (!session.usable)
+    return `<div class="wrap inner-page"><h1>API strategy workspace</h1><p>${esc(session.hint)}</p></div>`;
   const s = adapter.snapshot,
     item = s.strategies.find((v) => v.strategyId === id),
     detail = s.details.find((v) => v.strategyId === id),
@@ -264,7 +280,8 @@ AF.pages.account = productPages.account;
 AF.pages.trade = productPages.trade;
 function render(): void {
   const s = adapter.snapshot;
-  status.innerHTML = `<div class="dialog-notice"><div class="inline-actions"><strong data-product-state role="status">${localError ? 'ERROR' : s.phase}</strong><span>API ${esc(s.user ?? 'no session')} · ${adapter.mode === 'v1' ? 'v1' : adapter.mode === 'legacy' ? 'legacy compatibility' : 'connecting'}</span><button class="text-link" data-product-login="alice" ${s.phase === 'LOADING' ? 'disabled' : ''}>Alice</button><button class="text-link" data-product-login="bob" ${s.phase === 'LOADING' ? 'disabled' : ''}>Bob</button><button class="text-link" data-product-refresh ${s.phase === 'LOADING' ? 'disabled' : ''}>Refresh API</button>${s.pending && !s.pending.rejection ? `<button class="outline-btn" data-product-retry ${adapter.retryAfterSeconds ? 'disabled' : ''}>Retry original request${adapter.retryAfterSeconds ? ` after ${adapter.retryAfterSeconds}s` : ''}</button>` : ''}${s.pending?.rejection ? '<button class="text-link" data-product-dismiss>Dismiss reviewed rejection</button>' : ''}</div>${localError || s.error ? `<p role="alert">${esc(localError ?? s.error)}</p>` : ''}${s.notice ? `<p>${esc(s.notice)}</p>` : ''}${s.pending ? `<p>Unresolved ${esc(s.pending.command.type)} · ${esc(s.pending.command.id)} · reviewed revision ${s.pending.command.expectedRevision}. No new command may be submitted.</p>` : ''}</div>`;
+  const session = productSessionPresentation(s, adapter.mode);
+  status.innerHTML = `<div class="dialog-notice"><div class="inline-actions"><strong data-product-state role="status">${localError ? 'ERROR' : s.phase}</strong><span>API ${esc(s.user ?? 'no session')} · ${esc(session.mode)}</span><button class="text-link" data-product-login="alice" ${s.phase === 'LOADING' ? 'disabled' : ''}>Alice</button><button class="text-link" data-product-login="bob" ${s.phase === 'LOADING' ? 'disabled' : ''}>Bob</button><button class="text-link" data-product-refresh ${s.phase === 'LOADING' ? 'disabled' : ''}>Refresh API</button>${s.pending && !s.pending.rejection ? `<button class="outline-btn" data-product-retry ${adapter.retryAfterSeconds ? 'disabled' : ''}>Retry original request${adapter.retryAfterSeconds ? ` after ${adapter.retryAfterSeconds}s` : ''}</button>` : ''}${s.pending?.rejection ? '<button class="text-link" data-product-dismiss>Dismiss reviewed rejection</button>' : ''}</div><p data-product-session-hint>${esc(session.hint)}</p>${localError || s.error ? `<p role="alert">${esc(localError ?? s.error)}</p>` : ''}${s.notice ? `<p>${esc(s.notice)}</p>` : ''}${s.pending ? `<p>Unresolved ${esc(s.pending.command.type)} · ${esc(s.pending.command.id)} · reviewed revision ${s.pending.command.expectedRevision}. No new command may be submitted.</p>` : ''}</div>`;
   AF.app.render({ preserve: true });
 }
 async function run(action: () => Promise<void>): Promise<void> {

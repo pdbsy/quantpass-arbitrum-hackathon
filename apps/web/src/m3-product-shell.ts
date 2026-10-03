@@ -622,28 +622,18 @@ function renderMockWalletAccount(mock: MockWalletSnapshot): string {
 export function extendM3ProductPages(pages: M3ProductPages, options: M3PageExtensionOptions): M3ProductPages {
   return {
     account: (tab) => {
+      if (tab !== 'trades') return pages.account(tab);
+      const navigation = `<nav class="wrap account-tabs" aria-label="Account sections"><a href="#/account/trades" aria-current="page">Pass Holdings</a><a href="#/account/passes">Trial Passes</a><a href="#/account/saved">Saved strategies</a><a href="#/account/notes">My notes</a><a href="#/account/funds">Demo funds</a><a href="#/account/settings">Settings</a></nav>`;
       const mock = options.mockWallet?.();
-      if (tab === 'trades' && mock) return renderMockWalletAccount(mock);
+      if (mock) return navigation + renderMockWalletAccount(mock);
       const chain = options.chain?.();
       const onchain = chain?.onchain ?? options.onchain?.();
-      if (tab === 'trades')
-        return renderWalletAccount({
+      return (
+        navigation +
+        renderWalletAccount({
           ...(chain ? { wallet: chain.wallet, network: chain.network, transaction: chain.transaction } : {}),
           ...(onchain ? { onchain } : {}),
-        });
-      return (
-        renderM3AccountShell({
-          accountId: options.accountId(),
-          ...(chain
-            ? {
-                wallet: chain.wallet,
-                network: chain.network,
-                transaction: chain.transaction,
-                ...(chain.vaultSelection ? { vaultSelection: chain.vaultSelection } : {}),
-              }
-            : {}),
-          ...(onchain ? { onchain } : {}),
-        }) + pages.account(tab)
+        })
       );
     },
     trade: (strategyId) => pages.trade(strategyId),

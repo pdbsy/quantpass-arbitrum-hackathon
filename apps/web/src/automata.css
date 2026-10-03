@@ -410,3 +410,23 @@ summary {
   border-top: 1px solid #dce3d9;
   margin-top: 16px;
 }
+
+.af-run textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px;
+  font: inherit;
+  background: #fff;
+  color: #18352d;
+  border: 1px solid #bcc8bd;
+  border-radius: 7px;
+  resize: vertical;
+}
+.af-run pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.af-run textarea:focus-visible {
+  outline: 2px solid #18352d;
+  outline-offset: 3px;
+}
