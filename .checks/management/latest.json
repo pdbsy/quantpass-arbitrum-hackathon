@@ -3,115 +3,115 @@
   "complete": true,
   "profile": "full",
   "branch": "codex/alphaforge-release-integration-20261003",
-  "commit": "635b2b363616aba890608582820d4c3a1024b606",
-  "tree": "200093daaa6786dd572832858f67b40b604b598d",
-  "startedAt": "2026-10-03T02:39:27.337Z",
-  "finishedAt": "2026-10-03T02:42:14.825Z",
+  "commit": "ab889e8635e3539cf17d4d5916329297b1764669",
+  "tree": "1780343f3a681e5998263c266a090f121b3c7269",
+  "startedAt": "2026-10-03T04:22:13.686Z",
+  "finishedAt": "2026-10-03T04:24:51.326Z",
   "checks": [
     {
       "id": "typecheck",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:39:27.337Z",
-      "finishedAt": "2026-10-03T02:39:32.725Z",
-      "durationMs": 5388,
+      "startedAt": "2026-10-03T04:22:13.686Z",
+      "finishedAt": "2026-10-03T04:22:18.453Z",
+      "durationMs": 4767,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/typecheck.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/typecheck.log"
     },
     {
       "id": "lint",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:39:32.790Z",
-      "finishedAt": "2026-10-03T02:39:36.774Z",
-      "durationMs": 3984,
+      "startedAt": "2026-10-03T04:22:18.512Z",
+      "finishedAt": "2026-10-03T04:22:22.372Z",
+      "durationMs": 3860,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/lint.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/lint.log"
     },
     {
       "id": "format",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:39:36.833Z",
-      "finishedAt": "2026-10-03T02:39:40.322Z",
-      "durationMs": 3489,
+      "startedAt": "2026-10-03T04:22:22.431Z",
+      "finishedAt": "2026-10-03T04:22:26.208Z",
+      "durationMs": 3777,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/format.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/format.log"
     },
     {
       "id": "unit",
-      "status": "FAIL",
-      "startedAt": "2026-10-03T02:39:40.385Z",
-      "finishedAt": "2026-10-03T02:42:08.487Z",
-      "durationMs": 148102,
-      "exitCode": 1,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/unit.log"
+      "status": "PASS",
+      "startedAt": "2026-10-03T04:22:26.267Z",
+      "finishedAt": "2026-10-03T04:24:45.818Z",
+      "durationMs": 139551,
+      "exitCode": 0,
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/unit.log"
     },
     {
       "id": "integration",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:42:08.553Z",
-      "finishedAt": "2026-10-03T02:42:09.183Z",
-      "durationMs": 630,
+      "startedAt": "2026-10-03T04:24:45.889Z",
+      "finishedAt": "2026-10-03T04:24:46.505Z",
+      "durationMs": 616,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/integration.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/integration.log"
     },
     {
       "id": "e2e",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:42:09.242Z",
-      "finishedAt": "2026-10-03T02:42:09.720Z",
-      "durationMs": 478,
+      "startedAt": "2026-10-03T04:24:46.568Z",
+      "finishedAt": "2026-10-03T04:24:47.037Z",
+      "durationMs": 469,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/e2e.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/e2e.log"
     },
     {
       "id": "secret-scan",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:42:09.782Z",
-      "finishedAt": "2026-10-03T02:42:10.017Z",
-      "durationMs": 235,
+      "startedAt": "2026-10-03T04:24:47.100Z",
+      "finishedAt": "2026-10-03T04:24:47.325Z",
+      "durationMs": 225,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/secret-scan.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/secret-scan.log"
     },
     {
       "id": "public-metadata",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:42:10.078Z",
-      "finishedAt": "2026-10-03T02:42:11.902Z",
-      "durationMs": 1824,
+      "startedAt": "2026-10-03T04:24:47.385Z",
+      "finishedAt": "2026-10-03T04:24:49.195Z",
+      "durationMs": 1810,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/public-metadata.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/public-metadata.log"
     },
     {
       "id": "dependency-audit",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:42:11.962Z",
-      "finishedAt": "2026-10-03T02:42:13.119Z",
-      "durationMs": 1157,
+      "startedAt": "2026-10-03T04:24:49.253Z",
+      "finishedAt": "2026-10-03T04:24:50.074Z",
+      "durationMs": 821,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/dependency-audit.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/dependency-audit.log"
     },
     {
       "id": "build",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:42:13.187Z",
-      "finishedAt": "2026-10-03T02:42:14.306Z",
-      "durationMs": 1119,
+      "startedAt": "2026-10-03T04:24:50.145Z",
+      "finishedAt": "2026-10-03T04:24:50.817Z",
+      "durationMs": 672,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/build.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/build.log"
     },
     {
       "id": "planning-consistency",
       "status": "PASS",
-      "startedAt": "2026-10-03T02:42:14.371Z",
-      "finishedAt": "2026-10-03T02:42:14.505Z",
-      "durationMs": 134,
+      "startedAt": "2026-10-03T04:24:50.879Z",
+      "finishedAt": "2026-10-03T04:24:51.005Z",
+      "durationMs": 126,
       "exitCode": 0,
-      "evidence": ".checks/management/2026-10-03T02-39-27-336Z-635b2b363616/planning-consistency.log"
+      "evidence": ".checks/management/2026-10-03T04-22-13-685Z-ab889e8635e3/planning-consistency.log"
     },
     {
       "id": "foundry",
       "status": "NOT_RUN",
-      "startedAt": "2026-10-03T02:42:14.568Z",
-      "finishedAt": "2026-10-03T02:42:14.568Z",
+      "startedAt": "2026-10-03T04:24:51.069Z",
+      "finishedAt": "2026-10-03T04:24:51.069Z",
       "durationMs": 0,
       "exitCode": null,
       "reason": "NOT_REGISTERED_IN_MANAGEMENT_COLLECTOR"
@@ -119,8 +119,8 @@
     {
       "id": "fuzz",
       "status": "NOT_RUN",
-      "startedAt": "2026-10-03T02:42:14.637Z",
-      "finishedAt": "2026-10-03T02:42:14.637Z",
+      "startedAt": "2026-10-03T04:24:51.131Z",
+      "finishedAt": "2026-10-03T04:24:51.131Z",
       "durationMs": 0,
       "exitCode": null,
       "reason": "NOT_REGISTERED_IN_MANAGEMENT_COLLECTOR"
@@ -128,8 +128,8 @@
     {
       "id": "invariant",
       "status": "NOT_RUN",
-      "startedAt": "2026-10-03T02:42:14.696Z",
-      "finishedAt": "2026-10-03T02:42:14.696Z",
+      "startedAt": "2026-10-03T04:24:51.198Z",
+      "finishedAt": "2026-10-03T04:24:51.198Z",
       "durationMs": 0,
       "exitCode": null,
       "reason": "NOT_REGISTERED_IN_MANAGEMENT_COLLECTOR"
@@ -137,8 +137,8 @@
     {
       "id": "slither",
       "status": "NOT_RUN",
-      "startedAt": "2026-10-03T02:42:14.763Z",
-      "finishedAt": "2026-10-03T02:42:14.763Z",
+      "startedAt": "2026-10-03T04:24:51.265Z",
+      "finishedAt": "2026-10-03T04:24:51.265Z",
       "durationMs": 0,
       "exitCode": null,
       "reason": "NOT_REGISTERED_IN_MANAGEMENT_COLLECTOR"
