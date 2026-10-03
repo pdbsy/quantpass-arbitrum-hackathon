@@ -13,7 +13,7 @@
 ## Global constraints
 
 - Fixed base3cb9caa810e34d8ff9f9a6c68b5ef674f489689e/tree66edd0027fd2ae564a3a485e6ea5c5bc577fea5c, full clone and independent dependencies/storage.
-- Only new tools/testing/alphaforge-release-mock, test/release-*.test.*, test/fixtures/release-mock and subsystem acceptance docs. No root scripts/production/existing tests modifications.
+- Only new tools/testing/alphaforge-release-mock, test/release-_.test._, test/fixtures/release-mock and subsystem acceptance docs. No root scripts/production/existing tests modifications.
 - No credentials, real signer, network broadcast, shared D1 writes, mainnet, deployment, master merge or child workers.
 - No generated PASS editing. Current API/browser runs distinct; preserve failures and skips; sustained24h WAIVED_BY_USER.
 
@@ -21,6 +21,7 @@
 
 Files: tools/testing/alphaforge-release-mock/session.mjs; test/fixtures/release-mock/scenario.mjs; test/release-mock-api.test.mjs.
 Interfaces: createReleaseSession({directory?, webRoot?, now?}) -> session with origin, headers, app, auth, runtime, fixture, request, login, advance, restart, close. mockSignature(message,owner) -> deterministic hex fixture bytes (not cryptographic signature).
+
 - [x] Add fixture test importing createReleaseSession; assert distinct directory/DB per run, MOCK metadata, no production mock routes, A/B access isolation and injected verifier only.
 - [x] Run `fnm exec --using=24.21.0 node --test --test-reporter=tap test/release-mock-api.test.mjs`; retain failing import as RED evidence (harness absent).
 - [x] Implement disk-backed auth/chain/evidence/orders under unique .checks/release-mock/session-*, challenge verifier from deterministic fixture digest, readonly RPC from existing fixture, canonical seeded deposit/allocation/three fill events. Never create wallet keys.
@@ -29,6 +30,7 @@ Interfaces: createReleaseSession({directory?, webRoot?, now?}) -> session with o
 ### Task2: real API lifecycle/fault acceptance
 
 Files: test/release-mock-api.test.mjs; test/release-mock-recovery.test.mjs.
+
 - [x] Valid login via challenge/verify, invalid/expired/replayed/wrong-owner/domain challenges; logout/expiry and opaque-cookie persistence.
 - [x] Owner list and typed previews APPROVE_USDC/PASS, DEPOSIT, ALLOCATE, DEALLOCATE, AUTHORIZE, STOP, REVOKE, WITHDRAW; decode ABI and assert6/18 unit mapping, exact finite budgets, reject extra/chain/mainnet fields.
 - [x] Mock transaction envelopes/receipts only; unknown stays pending, wrong-envelope/revert/reorg do not publish success. Restart retains intent and nonce reservation; no auto resend.
@@ -38,6 +40,7 @@ Files: test/release-mock-api.test.mjs; test/release-mock-recovery.test.mjs.
 ### Task3: actual built browser journeys
 
 Files: tools/testing/alphaforge-release-mock/browser.mjs; test/release-mock-browser.test.mjs.
+
 - [x] Build current `npm run build:web`, preserve full output.
 - [x] Validate repository browser descriptor archive/inventory; use local Chrome with fresh context. Test public source through intercept-to-Fastify route and injected mock wallet; visible MOCK banner added only by harness transport.
 - [x] Login/logout/owner-switch/wrong-chain/cancel/timeout/duplicate/reload/unknown, all action previews and finite grant; verify browser local pending storage and API logs. Do not clear ambiguous state to resume.
@@ -47,6 +50,7 @@ Files: tools/testing/alphaforge-release-mock/browser.mjs; test/release-mock-brow
 ### Task4: immutable evidence and integration
 
 Files: tools/testing/alphaforge-release-mock/run.mjs; docs/acceptance/RELEASE-MOCK.md; manager task-4-report.md.
+
 - [x] Runner writes unique evidence directory, command/exitcode/log digests/HEAD/tree/lock/fixture/tool identity; refuses dirty source for formal acceptance. No PASS based only on fixture success.
 - [x] Local typecheck/lint/format for new files and focused tests, commit harness, rerun same commit for evidence. Record baseline tests separately.
 - [ ] Report exact W5 root script request and immutable candidate inputs. Await W5 candidate/ref and W1 route matrix/W2 contract/W3 image; rerun API/browser against integrated source without editing peer checkout.

@@ -28,24 +28,24 @@ Logs omit opaque cookies and login material. All owner/manifest/transaction info
 
 ## Acceptance matrix
 
-| Path | Evidence | Required outcome |
-| --- | --- | --- |
-| public challenge/session | API tests + browser login | valid only; expired/replay/wrong owner/signature/domain/chain rejected; logout/expiry/restart durable |
-| public ingress | API tests | wrong Host/Origin/protocol/cross-site rejected; no demo/mock/sign/executor routes |
-| owner isolation | API + browser | B gets no A Vault/operation/preview; account/chain change clears personal view |
-| nine owner actions | API decoded ABI + built browser previews | unsigned exact6/18 units, PASS=USDCraw×10^12, finite grant, zero ETH value, chain46630 |
-| mock wallet outcomes | built browser | cancellation clears pending; unknown/timeout/hash persists across reload; no repeat; actual double click sends once |
-| observed transactions | API/recovery | wrong sender/chain/target/calldata/value rejected; unknown stays SUBMITTED; reverted stays failure; canonical event+exact envelope required for CONFIRMED |
-| projection/refresh | recovery tests | confirmed receipt/snapshot/performance agree after close/reopen; no unverified fill or personal NAV |
-| outage/chain/reorg | recovery + browser | degraded publication suppressed; orphaned raw history retained; corrected canonical events append; stale healthy browser controls fail gate |
-| private nonce | OrderJournal/recovery | reservation blocks executor across restart and independent restored copy |
-| backup/restore | production ServerBackups | independent digest/table/replay verification, tamper/rate/schema rejection, original bytes preserved |
-| process lifecycle | actual loopback child | SIGTERM exit0, listener stopped, database/submitted-intent restart consistency |
-| demo export | actual browser download | parse actual JSON; AlphaForge/LOCAL_PROTOTYPE_ONLY, saved trend bookmark, ledgers and pass market present |
-| six demo specimens | browser screenshot+tooltip | trend/factor/mean/rotate/breakout/pairs chart routes, actual mouse hover and exact close price |
-| external JSON | browser-origin actual API+UI | UI creates isolated run; documented JSON contract creates two fills once; UI stop/deallocate/close releases PASS |
-| EMA | production pinned adapter+current browser |120-frame synthetic cycle, two buys/two sells, zero positions, current research UI displays completed run |
-| account/mobile | browser | all listed account subroutes remove M3 diagnosis; closed menu accessible label says Expand/Open; viewport bounds |
+| Path                     | Evidence                                  | Required outcome                                                                                                                                          |
+| ------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| public challenge/session | API tests + browser login                 | valid only; expired/replay/wrong owner/signature/domain/chain rejected; logout/expiry/restart durable                                                     |
+| public ingress           | API tests                                 | wrong Host/Origin/protocol/cross-site rejected; no demo/mock/sign/executor routes                                                                         |
+| owner isolation          | API + browser                             | B gets no A Vault/operation/preview; account/chain change clears personal view                                                                            |
+| nine owner actions       | API decoded ABI + built browser previews  | unsigned exact6/18 units, PASS=USDCraw×10^12, finite grant, zero ETH value, chain46630                                                                    |
+| mock wallet outcomes     | built browser                             | cancellation clears pending; unknown/timeout/hash persists across reload; no repeat; actual double click sends once                                       |
+| observed transactions    | API/recovery                              | wrong sender/chain/target/calldata/value rejected; unknown stays SUBMITTED; reverted stays failure; canonical event+exact envelope required for CONFIRMED |
+| projection/refresh       | recovery tests                            | confirmed receipt/snapshot/performance agree after close/reopen; no unverified fill or personal NAV                                                       |
+| outage/chain/reorg       | recovery + browser                        | degraded publication suppressed; orphaned raw history retained; corrected canonical events append; stale healthy browser controls fail gate               |
+| private nonce            | OrderJournal/recovery                     | reservation blocks executor across restart and independent restored copy                                                                                  |
+| backup/restore           | production ServerBackups                  | independent digest/table/replay verification, tamper/rate/schema rejection, original bytes preserved                                                      |
+| process lifecycle        | actual loopback child                     | SIGTERM exit0, listener stopped, database/submitted-intent restart consistency                                                                            |
+| demo export              | actual browser download                   | parse actual JSON; AlphaForge/LOCAL_PROTOTYPE_ONLY, saved trend bookmark, ledgers and pass market present                                                 |
+| six demo specimens       | browser screenshot+tooltip                | trend/factor/mean/rotate/breakout/pairs chart routes, actual mouse hover and exact close price                                                            |
+| external JSON            | browser-origin actual API+UI              | UI creates isolated run; documented JSON contract creates two fills once; UI stop/deallocate/close releases PASS                                          |
+| EMA                      | production pinned adapter+current browser | 120-frame synthetic cycle, two buys/two sells, zero positions, current research UI displays completed run                                                 |
+| account/mobile           | browser                                   | all listed account subroutes remove M3 diagnosis; closed menu accessible label says Expand/Open; viewport bounds                                          |
 
 External JSON has a documented API contract but no JSON textarea/submit control in the baseline research page. The external test submits real JSON from the browser origin through that documented API and checks the resulting visible UI. It does not claim a native JSON-input UI was present. EMA runs through the production local reference adapter and is observed in the built research page; a dedicated EMA launch control is not present in the baseline page.
 
