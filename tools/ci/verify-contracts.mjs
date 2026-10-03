@@ -16,13 +16,11 @@ import { root, inspect, assertUnchanged, run, emit, main } from './context.mjs';
 import { evaluateSlitherAdmissions } from './slither-review.mjs';
 
 export function validateContractHost(host) {
-  if (
-    host.platform !== 'darwin' ||
-    host.arch !== 'arm64' ||
-    host.python !== '3.12.9' ||
-    host.pythonArch !== 'arm64'
-  )
-    throw new Error('Contract CI requires Darwin arm64 and native CPython 3.12.9');
+  const nativePlatform =
+    (host.platform === 'darwin' && host.arch === 'arm64' && host.pythonArch === 'arm64') ||
+    (host.platform === 'linux' && host.arch === 'x64' && host.pythonArch === 'x86_64');
+  if (!nativePlatform || host.python !== '3.12.9')
+    throw new Error('Contract CI requires Darwin arm64 or Linux x64 with native CPython 3.12.9');
 }
 const maxSlitherBytes = 16 * 1024 * 1024;
 
@@ -218,7 +216,7 @@ await main(import.meta.url, () => {
   );
   assertUnchanged(before, inspect());
   emit({
-    gate: 'contracts-m3-macos',
+    gate: process.platform === 'linux' ? 'contracts-m3-linux' : 'contracts-m3-macos',
     ...before,
     contractLockSha256: createHash('sha256').update(lockBytes).digest('hex'),
     python: JSON.parse(probe.stdout),

@@ -72,6 +72,20 @@ test('contract host rejects unsupported execution environments before tool insta
     assert.throws(() => validateContractHost({ ...host, ...patch }));
 });
 
+test('native Linux contract host requires x64 Node and exact x86_64 CPython', () => {
+  const host = { platform: 'linux', arch: 'x64', python: '3.12.9', pythonArch: 'x86_64' };
+  assert.doesNotThrow(() => validateContractHost(host));
+  for (const patch of [
+    { platform: 'darwin' },
+    { platform: 'win32' },
+    { arch: 'arm64' },
+    { python: '3.12.10' },
+    { pythonArch: 'arm64' },
+    { pythonArch: 'x64' },
+  ])
+    assert.throws(() => validateContractHost({ ...host, ...patch }));
+});
+
 test('contract stages stop on bootstrap/probe/test failure and never invent ABI success', () => {
   for (const [failAt, expected, completed] of [
     [0, 'BLOCKED', 1],
