@@ -6,7 +6,26 @@ This is the engineering preparation runbook for a later authorized deployment. L
 
 The final bundle inventory must include the immutable integration source C, its tree, lock SHA-256, report R, snapshot S, original worker heads/authors, actual Node/npm/Python/Forge/solc/Slither identities, raw command log digests and first failure/skip inventory. Retain the full Git history and evidence refs. Source/config/ABI/deployment/RPC/reorg/data namespace identity is network-bound; mainnet remains unconfigured/disabled.
 
-Image build and runtime identity is pending W3 delivery. Record the actual OCI image digest and platform only after a verified build; a source Dockerfile digest or image tag is not an image digest. Example public/executor config hashes identify examples only. Operational config digests stay `NOT_PROVIDED` until Luis hashes his protected inputs without disclosing their values. Missing artifacts never acquire invented digests.
+W3 source delivery is reviewed and integrated. The final transferable package's `release-manifest.json` records each actual W5 candidate build, immutable local image ID, platform, archive filename/hash and observed RepoDigests. A local image ID is not a published registry manifest digest. Until a registry path is explicitly supplied with verified identity, publication is `NOT_PUBLISHED`; load the exact supplied archive and inspect its image ID/platform/source label. A source Dockerfile digest or mutable image tag cannot substitute for that identity. Example public/executor config hashes identify examples only. Operational config digests stay `NOT_PROVIDED` until Luis hashes his protected inputs without disclosing their values. Missing or failed builds remain unavailable in the manifest.
+
+The local integration branch has not been pushed and master has not been merged. Transfer the accepted package as a whole. Verify `SHA256SUMS`, then inspect the full-history `alphaforge-release.bundle` in a fresh directory:
+
+```sh
+sha256sum -c SHA256SUMS
+git init bundle-inspection
+git -C bundle-inspection bundle verify ../alphaforge-release.bundle
+git clone alphaforge-release.bundle alphaforge-release
+cd alphaforge-release
+git fetch ../alphaforge-release.bundle 'refs/evidence/*:refs/evidence/*'
+git switch --detach refs/evidence/release-snapshot-S
+git rev-parse HEAD
+git rev-parse HEAD^{tree}
+git rev-parse --is-shallow-repository
+git status --porcelain=v1 --untracked-files=all
+node tools/check-release-history.mjs
+```
+
+Compare every observed identity to `release-manifest.json`, including immutable source C, report R, snapshot S and all four original worker heads. The package retains full source history/authors and evidence refs, including failed preparation evidence; it does not rely on a remote master pull. Do not use a source-only archive when full-history admission is required. Actual source/image archive digests and qualification limits live in the final manifest, which must be accepted alongside this source runbook.
 
 ## Host evidence request
 

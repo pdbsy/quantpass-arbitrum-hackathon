@@ -72,13 +72,13 @@
 
 **Interfaces:** Consume report/base/head/tree/commit/files/tests/root requests; produce exact review verdicts and preserved head refs. Application fixes are never made by W5.
 
-- [ ] Read each final worker report. Verify recorded base and immutable Git head/tree in the owner's checkout; a mutable branch name alone is insufficient.
-- [ ] Fetch each owner branch into `refs/remotes/wN/<branch>` using local Git transport and retain `refs/evidence/release-wN` at the reviewed exact head.
-- [ ] Run `git merge-base --is-ancestor <base> <head>` and `git diff --stat <base> <head>`, then read every affected runtime/test/config path.
-- [ ] Stage-one review: verify assigned ownership, mock/production boundaries, default no signing, per-owner auth, honest status, immutable identities and required feature acceptance.
-- [ ] Stage-two review: inspect failure paths, races, restart/unknown nonce persistence, schema/reorg behavior, permissions/sanitization, resource budgets and tests for actual behavior.
-- [ ] For findings record priority, exact commit/file/line, user/runtime impact, reproduction, owner, expected fix and retest. Send only unresolved blockers through the manager.
-- [ ] An unfinished report or unresolved important finding stays unaccepted. Do not convert a worker's self-review into independent approval.
+- [x] Read each final worker report. Verify recorded base and immutable Git head/tree in the owner's checkout; a mutable branch name alone is insufficient.
+- [x] Fetch each owner branch into `refs/remotes/wN/<branch>` using local Git transport and retain `refs/evidence/release-wN` at the reviewed exact head.
+- [x] Run `git merge-base --is-ancestor <base> <head>` and `git diff --stat <base> <head>`, then read every affected runtime/test/config path.
+- [x] Stage-one review: verify assigned ownership, mock/production boundaries, default no signing, per-owner auth, honest status, immutable identities and required feature acceptance.
+- [x] Stage-two review: inspect failure paths, races, restart/unknown nonce persistence, schema/reorg behavior, permissions/sanitization, resource budgets and tests for actual behavior.
+- [x] For findings record priority, exact commit/file/line, user/runtime impact, reproduction, owner, expected fix and retest. Send only unresolved blockers through the manager.
+- [x] An unfinished report or unresolved important finding stays unaccepted. Do not convert a worker's self-review into independent approval.
 
 ### Task 4: Preserve history and wire root commands/CI
 
@@ -88,13 +88,13 @@ Independent root preparation adds `npm run release:history` = `node tools/check-
 
 Run the scoped root cycle with `node --test --test-name-pattern='release history' test/agent-integration-identity.test.mjs`; then run the complete existing integration-identity file. The tests are already present in the normal root and management unit registries.
 
-- [ ] Merge exact accepted refs with `git merge --no-ff <reviewed-head>`; preserve every original worker commit/author and baseline ref.
-- [ ] Resolve only W5-owned metadata/root conflicts; report application conflicts to the manager for owner resolution.
-- [ ] Add W3/W4 exact finite entry commands and normal/evidence test registration after independently reading their command implementations.
-- [ ] For changed root behavior first add negative regression cases to the applicable existing root-tool/CI tests; run them and preserve the expected failure before implementation.
-- [ ] Keep all existing required job names/events/permissions and pinned Actions. Extend workflow policy/admission alongside any new Linux/container job; no bypass or wildcard privilege exception.
-- [ ] Run focused root/CI/planning/governance/supply tests, typecheck/lint/format and actual reviewed worker scripts; preserve each original failed run.
-- [ ] Commit integration source, verify branch/HEAD/tree/lock/clean state and save fixed candidate identity before acceptance.
+- [x] Merge exact accepted refs with `git merge --no-ff <reviewed-head>`; preserve every original worker commit/author and baseline ref.
+- [x] Resolve only W5-owned metadata/root conflicts; report application conflicts to the manager for owner resolution.
+- [x] Add W3/W4 exact finite entry commands and normal/evidence test registration after independently reading their command implementations.
+- [x] For changed root behavior first add negative regression cases to the applicable existing root-tool/CI tests; run them and preserve the expected failure before implementation.
+- [x] Keep all existing required job names/events/permissions and pinned Actions. Extend workflow policy/admission alongside any new Linux/container job; no bypass or wildcard privilege exception.
+- [x] Run focused root/CI/planning/governance/supply tests and root quality checks; preserve each original failed run. Actual final worker-script execution is covered by Task 5.
+- [ ] Commit final integration source, verify branch/HEAD/tree/lock/clean state and save fixed candidate identity before acceptance.
 
 ### Task 5: Validate the fixed candidate and build honest evidence
 

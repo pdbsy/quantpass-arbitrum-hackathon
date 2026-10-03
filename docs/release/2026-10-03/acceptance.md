@@ -41,6 +41,8 @@ Linux Node/npm checks, Linux native contract qualification and Docker lifecycle 
 
 ## Source/report/snapshot sequence
 
+Dedicated release commands are `npm run test:release-mock:api` for the isolated API/recovery/runtime/process tests and `npm run test:release-mock -- --expected-source=<exact-C>` for all five mandatory acceptance phases. The complete command uses the separately qualified native browser driver and installed Chrome with private mock state. Its two pure evidence tests also belong to the root and management unit profiles; overlapping cases are never added to unique totals. Container commands are `container:prepare-inputs`, `container:test`, `container:verify-runtime -- <immutable-image-ID>` and `container:lifecycle:mock -- <immutable-verification-image-ID>`. Preparation downloads only locked reviewed artifacts; image inspection/lifecycle require an actual built image ID. Platform-specific qualification remains separate from cross-platform root unit checks.
+
 1. Commit all source/config/docs/root changes as source C on the named integration branch and retain an exact source ref. Confirm clean state and fixed lock/tool identity.
 2. Run actual `npm run management:checks` from C. Capture original output and every per-check log. Collector contract/fuzz/invariant/Slither entries remain `NOT_RUN` when not registered; separate contract evidence cannot be inserted as their PASS.
 3. Commit only `.checks/management/latest.json` as R.
