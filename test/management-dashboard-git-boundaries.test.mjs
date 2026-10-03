@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -88,7 +88,51 @@ test('recorded Git real malformed base reference fails closed with a generic que
   assert.equal(r.commit, undefined);
   assert.doesNotMatch(JSON.stringify(r), /malformed-ref|fatal|\.checks/);
 });
-test('recorded Git missing intermediate commit object produces real Git fatal graph failures', async (t) => {
+test('recorded Git ordinary non-ancestor remains a commit mismatch with empty native stderr', async (t) => {
+  const f = await fixture(t);
+  git(f.root, ['switch', '--quiet', '-c', 'unrelated', f.base]);
+  await writeFile(join(f.root, 'README.md'), 'other branch\n');
+  git(f.root, ['add', '.']);
+  git(f.root, ['commit', '--quiet', '-m', 'other branch']);
+  const other = git(f.root, ['rev-parse', 'HEAD']);
+  const tree = git(f.root, ['rev-parse', 'HEAD^{tree}']);
+  git(f.root, ['switch', '--quiet', branch]);
+  let native;
+  try {
+    git(f.root, ['merge-base', '--is-ancestor', other, f.commit]);
+    assert.fail('must be a non-ancestor');
+  } catch (error) {
+    native = error;
+  }
+  assert.equal(native.status, 1);
+  assert.equal(native.stderr.toString(), '');
+  assert.equal(await isGitCommitAncestor(f.root, other, f.commit), false);
+  const r = await collectRecordedGitState(f.root, 'master', { ...f.recorded, commit: other, tree });
+  assert.equal(r.status, 'DATA_SOURCE_ERROR');
+  assert.equal(r.error, 'RECORDED_GIT_COMMIT_MISMATCH');
+  assert.equal(r.commit, undefined);
+});
+test('recorded Git disconnected valid history remains a graph mismatch with empty native stderr', async (t) => {
+  const f = await fixture(t);
+  const orphan = git(f.root, ['commit-tree', f.tree, '-m', 'unrelated root']);
+  git(f.root, ['update-ref', 'refs/heads/master', orphan]);
+  let native;
+  try {
+    git(f.root, ['merge-base', orphan, f.commit]);
+    assert.fail('must have no merge base');
+  } catch (error) {
+    native = error;
+  }
+  assert.equal(native.status, 1);
+  assert.equal(native.stderr.toString(), '');
+  const r = await collectRecordedGitState(f.root, 'master', f.recorded);
+  assert.equal(r.status, 'DATA_SOURCE_ERROR');
+  assert.equal(r.error, 'RECORDED_GIT_GRAPH_MISMATCH');
+  assert.equal(r.commit, undefined);
+  git(f.root, ['update-ref', 'refs/heads/master', f.base, orphan]);
+  assert.equal((await collectRecordedGitState(f.root, 'master', f.recorded)).status, 'READY');
+});
+test('recorded Git missing intermediate commit object fails closed and recovers after exact restoration', async (t) => {
   const f = await fixture(t);
   const intermediate = f.commit;
   await writeFile(join(f.root, 'README.md'), 'descendant\n');
@@ -96,7 +140,9 @@ test('recorded Git missing intermediate commit object produces real Git fatal gr
   git(f.root, ['commit', '--quiet', '-m', 'descendant']);
   const child = git(f.root, ['rev-parse', 'HEAD']);
   const tree = git(f.root, ['rev-parse', 'HEAD^{tree}']);
-  await rm(join(f.root, '.git/objects', intermediate.slice(0, 2), intermediate.slice(2)));
+  const objectPath = join(f.root, '.git/objects', intermediate.slice(0, 2), intermediate.slice(2));
+  const objectBytes = await readFile(objectPath);
+  await rm(objectPath);
   for (const args of [
     ['merge-base', '--is-ancestor', f.base, child],
     ['merge-base', f.base, child],
@@ -110,14 +156,63 @@ test('recorded Git missing intermediate commit object produces real Git fatal gr
     }
     assert.equal(typeof native.status, 'number');
     assert.notEqual(native.status, 0);
-    assert.notEqual(native.status, 1, 'fatal native graph error, not an ancestor miss');
     assert.match(native.stderr.toString(), /could not read|unable to read|bad object/i);
+    assert.ok(
+      native.stderr.toString().includes(intermediate),
+      'native diagnostic names the missing intermediate',
+    );
   }
   assert.equal(await isGitCommitAncestor(f.root, f.base, child), false);
   const r = await collectRecordedGitState(f.root, 'master', { ...f.recorded, commit: child, tree });
+  await writeFile(objectPath, objectBytes);
+  assert.deepEqual(await readFile(objectPath), objectBytes);
+  assert.equal(await isGitCommitAncestor(f.root, f.base, child), true);
+  const restored = await collectRecordedGitState(f.root, 'master', { ...f.recorded, commit: child, tree });
+  assert.equal(restored.status, 'READY');
+  assert.equal(restored.commit, child);
+  assert.deepEqual(restored.aheadBehind, { ahead: 2, behind: 0 });
   assert.equal(r.status, 'DATA_SOURCE_ERROR');
   assert.equal(r.error, 'RECORDED_GIT_QUERY_FAILED');
   assert.equal(r.commit, undefined);
+});
+test('recorded Git merge queue ancestry rejects a missing intermediate and recovers after restoration', async (t) => {
+  const f = await fixture(t);
+  await writeFile(join(f.root, 'README.md'), 'queue descendant\n');
+  git(f.root, ['add', '.']);
+  git(f.root, ['commit', '--quiet', '-m', 'queue descendant']);
+  const child = git(f.root, ['rev-parse', 'HEAD']);
+  const tree = git(f.root, ['rev-parse', 'HEAD^{tree}']);
+  const queue = 'gh-readonly-queue/master/fixture';
+  for (const [ref, commit] of [
+    ['master', f.base],
+    [branch, child],
+    [queue, child],
+  ])
+    git(f.root, ['update-ref', 'refs/remotes/origin/' + ref, commit]);
+  git(f.root, ['switch', '--quiet', '--detach', child]);
+  const options = {
+    environment: {
+      GITHUB_ACTIONS: 'true',
+      GITHUB_EVENT_NAME: 'merge_group',
+      GITHUB_REF: 'refs/heads/' + queue,
+      GITHUB_SHA: child,
+    },
+  };
+  const recorded = { ...f.recorded, commit: child, tree };
+  assert.equal((await collectRecordedGitState(f.root, 'master', recorded, options)).status, 'READY');
+  const objectPath = join(f.root, '.git/objects', f.commit.slice(0, 2), f.commit.slice(2));
+  const objectBytes = await readFile(objectPath);
+  await rm(objectPath);
+  const r = await collectRecordedGitState(f.root, 'master', recorded, options);
+  await writeFile(objectPath, objectBytes);
+  assert.deepEqual(await readFile(objectPath), objectBytes);
+  const restored = await collectRecordedGitState(f.root, 'master', recorded, options);
+  assert.equal(restored.status, 'READY');
+  assert.equal(restored.commit, child);
+  assert.equal(r.status, 'DATA_SOURCE_ERROR');
+  assert.equal(r.error, 'RECORDED_GIT_QUERY_FAILED');
+  assert.equal(r.commit, undefined);
+  assert.doesNotMatch(JSON.stringify(r), /Could not read|\.checks|queue descendant/);
 });
 for (const collector of ['collectGitState', 'collectRecordedGitState'])
   test(`${collector} waits for an owned Git probe after another probe rejects`, async (t) => {

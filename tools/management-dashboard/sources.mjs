@@ -496,7 +496,8 @@ async function requireRecordedAncestor(root, recordedCommit, logicalHead) {
   try {
     await git(root, ['merge-base', '--is-ancestor', recordedCommit, logicalHead]);
   } catch (error) {
-    if (error?.code === 1) throw new SourceError('RECORDED_GIT_COMMIT_MISMATCH');
+    // Git 2.43 can also return 1 for a damaged graph, with diagnostics on stderr.
+    if (error?.code === 1 && error.stderr === '') throw new SourceError('RECORDED_GIT_COMMIT_MISMATCH');
     throw error;
   }
 }
@@ -506,7 +507,7 @@ async function mergeBase(root, first, second) {
   try {
     commit = await git(root, ['merge-base', first, second]);
   } catch (error) {
-    if (error?.code === 1) throw new SourceError('RECORDED_GIT_GRAPH_MISMATCH');
+    if (error?.code === 1 && error.stderr === '') throw new SourceError('RECORDED_GIT_GRAPH_MISMATCH');
     throw error;
   }
   if (!gitCommitPattern.test(commit)) throw new SourceError('RECORDED_GIT_GRAPH_MISMATCH');
