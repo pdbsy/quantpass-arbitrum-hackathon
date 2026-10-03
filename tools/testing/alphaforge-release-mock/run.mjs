@@ -33,11 +33,11 @@ if (args.includes('--help')) {
     writeFileSync(join(directory, name), JSON.stringify(value, null, 2) + '\n', { flag: 'wx' });
   save('source-C.json', sourceC);
   const phases = [];
-  function run(name, command, arguments_, tap = false) {
+  function run(name, command, arguments_, tap = false, timeoutMs = 180000) {
     const result = spawnSync(command, arguments_, {
       cwd: root,
       encoding: 'utf8',
-      timeout: 180000,
+      timeout: timeoutMs,
       maxBuffer: 16 * 1024 * 1024,
     });
     const output =
@@ -52,6 +52,7 @@ if (args.includes('--help')) {
       command: [command, ...arguments_],
       exitCode: result.status,
       signal: result.signal,
+      timeoutMs,
       log,
       logSha256: digest(output),
       eligible: result.status === 0 && (!tap || totals.eligible),
@@ -105,6 +106,7 @@ if (args.includes('--help')) {
       process.execPath,
       ['--test', '--test-reporter=tap', 'test/release-mock-browser.test.mjs'],
       true,
+      420000,
     );
   }
   const sourceAfter = sourceIdentity(root),

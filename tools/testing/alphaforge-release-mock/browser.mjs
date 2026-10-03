@@ -32,7 +32,7 @@ export async function createBrowserHarness({ demo = false, viewport = { width: 1
         env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
         origin,
         webRoot: resolve('apps/web/dist'),
-        automataReplay: true,
+        automataReplay: false,
       });
     browser = await chromium.launch({
       executablePath:
