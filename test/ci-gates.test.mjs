@@ -249,6 +249,7 @@ test('actual CI gate contracts reject skipped, replaced and weakened jobs', asyn
   assert.doesNotThrow(() => validateCIGateWorkflows(stringify(workflow)));
   for (const job of [
     'contracts-m3-macos',
+    'contracts-m3-linux',
     'source-policy-js',
     'dependency-delta-audit',
     'semgrep-ce',
@@ -284,7 +285,7 @@ test('actual CI gate contracts reject skipped, replaced and weakened jobs', asyn
 
 test('Python gate qualification refuses version, architecture and floating setup drift', async () => {
   const workflow = parse(await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
-  for (const job of ['contracts-m3-macos', 'semgrep-ce']) {
+  for (const job of ['contracts-m3-macos', 'contracts-m3-linux', 'semgrep-ce']) {
     for (const patch of [
       { 'python-version': '3.12.10' },
       { architecture: 'unsupported' },

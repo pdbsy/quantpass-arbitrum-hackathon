@@ -365,6 +365,7 @@ const workflowProfiles = new Map([
         ['verify-windows', readContents],
         ['verify-macos', readContents],
         ['contracts-m3-macos', readContents],
+        ['contracts-m3-linux', readContents],
         ['source-policy-js', readContents],
         ['dependency-delta-audit', readContents],
         ['semgrep-ce', readContents],

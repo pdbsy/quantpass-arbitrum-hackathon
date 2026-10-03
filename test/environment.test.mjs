@@ -140,6 +140,7 @@ test('admission rejects wrong tools, architecture, registry, TLS, omission and h
 test('new CI gates are admitted only on their assigned native platform', () => {
   for (const [job, platform, arch] of [
     ['contracts-m3-macos', 'darwin', 'arm64'],
+    ['contracts-m3-linux', 'linux', 'x64'],
     ['source-policy-js', 'linux', 'x64'],
     ['dependency-delta-audit', 'linux', 'x64'],
     ['semgrep-ce', 'linux', 'x64'],

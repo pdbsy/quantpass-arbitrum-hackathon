@@ -8,6 +8,7 @@ export function validateCIGateWorkflows(text) {
   const workflow = parse(text);
   for (const [jobId, runner, command] of [
     ['contracts-m3-macos', 'macos-15', 'node tools/ci/verify-contracts.mjs'],
+    ['contracts-m3-linux', 'ubuntu-24.04', 'node tools/ci/verify-contracts.mjs'],
     ['source-policy-js', 'ubuntu-24.04', 'node tools/ci/check-source-policy.mjs'],
     ['dependency-delta-audit', 'ubuntu-24.04', 'node tools/ci/check-dependency-delta.mjs'],
     ['semgrep-ce', 'ubuntu-24.04', 'node tools/ci/check-semgrep.mjs'],
@@ -37,8 +38,9 @@ export function validateCIGateWorkflows(text) {
       'node tools/bootstrap-ci-npm.mjs',
       'node tools/check-environment.mjs --ci',
     ];
-    if (['contracts-m3-macos', 'semgrep-ce'].includes(jobId)) expected.push(python);
-    if (jobId !== 'contracts-m3-macos') expected.push('npm ci --ignore-scripts');
+    if (['contracts-m3-macos', 'contracts-m3-linux', 'semgrep-ce'].includes(jobId)) expected.push(python);
+    if (!['contracts-m3-macos', 'contracts-m3-linux'].includes(jobId))
+      expected.push('npm ci --ignore-scripts');
     if (['dependency-delta-audit', 'semgrep-ce', 'osv-scanner', 'gitleaks'].includes(jobId))
       expected.push('npm run supply:check');
     expected.push(command);
@@ -49,7 +51,7 @@ export function validateCIGateWorkflows(text) {
     )
       fail();
     if (
-      ['contracts-m3-macos', 'semgrep-ce'].includes(jobId) &&
+      ['contracts-m3-macos', 'contracts-m3-linux', 'semgrep-ce'].includes(jobId) &&
       !isDeepStrictEqual(job.steps[4].with, {
         'python-version': '3.12.9',
         architecture: jobId === 'contracts-m3-macos' ? 'arm64' : 'x64',
