@@ -1,0 +1,6 @@
+FROM --platform=linux/amd64 python:3.12.9-slim-bookworm@sha256:32432ed74044491491c7bd9e11f78d25f7053218ca39af3d5bb038280610086b
+WORKDIR /src
+COPY contracts/ contracts/
+COPY --from=reviewed-artifacts native/ .checks/af-chain01/toolchain/downloads/
+RUN --network=none python3.12 contracts/script/bootstrap.py
+ENTRYPOINT ["bash", "contracts/script/check-local.sh"]

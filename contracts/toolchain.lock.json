@@ -41,7 +41,9 @@
     "requirements": "requirements-slither.lock",
     "requirementsSha256": "d5c5c390cfbbd5d255d450c4dfadb01cc3eff70f040ec71b504ca9278503d751",
     "platform": "CPython 3.12 / macOS arm64; 47 exact binary wheels",
-    "cryticCompile": "0.3.11"
+    "cryticCompile": "0.3.11",
+    "wheelManifest": "slither-darwin-arm64-wheels.json",
+    "wheelManifestSha256": "f304ac60a5d3cd9936a407a298ba65c66797e444543097638bfd0bb445f9cae9"
   },
   "compilerSettings": {
     "evmVersion": "paris",
@@ -53,7 +55,42 @@
   },
   "verificationLimits": [
     "Registry/release digest verification is integrity verification, not independent provenance verification.",
-    "Other platforms and production chain compatibility are NOT RUN.",
+    "Native Linux x86_64 and Darwin arm64 must be qualified independently; platform eligibility is not executed qualification.",
     "No deployed Vault, signatures, key custody, RPC or broadcasts."
-  ]
+  ],
+  "platforms": {
+    "linux-x64": {
+      "foundry": {
+        "version": "1.5.1",
+        "commit": "b0a9dd9ceda36f63e2326ce530c10e6916f4b8a2",
+        "license": "MIT OR Apache-2.0",
+        "officialSource": "https://github.com/foundry-rs/foundry/releases/tag/v1.5.1",
+        "url": "https://registry.npmjs.org/@foundry-rs/forge-linux-amd64/-/forge-linux-amd64-1.5.1.tgz",
+        "filename": "forge-linux-amd64-1.5.1.tgz",
+        "integrity": "sha512-lq6hou/m1PDoJVF5t3fxfwJp/J0H4QoKE7XB/fz67PZW81ThstyJwGPRS/4i0sKwVgtBSdegGEcAT8ik9KavKg==",
+        "sha256": "5a5a1da4bbbc13bd25600d9475a2aa1c22c9978a73920a7ccfe5321585c563e6"
+      },
+      "solc": {
+        "version": "0.8.31",
+        "longVersion": "0.8.31+commit.fd3a2265",
+        "license": "GPL-3.0",
+        "officialSource": "https://github.com/argotorg/solidity/releases/tag/v0.8.31",
+        "url": "https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/linux-amd64/solc-linux-amd64-v0.8.31+commit.fd3a2265",
+        "filename": "solc-linux-amd64.cdn",
+        "sha256": "aac9cd0116e9ae0cd3d8f64a8641381845dc9f12e2a52653de36fb619323e557"
+      },
+      "slither": {
+        "version": "0.11.3",
+        "license": "AGPL-3.0",
+        "officialSource": "https://github.com/crytic/slither/releases/tag/0.11.3",
+        "index": "https://pypi.org/project/slither-analyzer/0.11.3/",
+        "requirements": "requirements-slither-linux-x64.lock",
+        "requirementsSha256": "88a89e743616db6149f874491a25612b4e3a34f5b8576fdd2cf09f7970faa3e5",
+        "platform": "CPython 3.12.9 / Linux x86_64 glibc>=2.28; 47 exact binary wheels",
+        "cryticCompile": "0.3.11",
+        "wheelManifest": "slither-linux-x64-wheels.json",
+        "wheelManifestSha256": "8c0c1ec896c722f9bca1eb8cf5813c3d9087f6c448b32a657cf49d86ad71824c"
+      }
+    }
+  }
 }
