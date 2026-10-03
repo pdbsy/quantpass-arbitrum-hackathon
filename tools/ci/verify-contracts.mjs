@@ -12,7 +12,7 @@ import {
   renameSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { root, inspect, assertUnchanged, run, emit, main } from './context.mjs';
+import { root, inspect, assertUnchanged, run, emit, main, cleanEnvironment } from './context.mjs';
 import { evaluateSlitherAdmissions } from './slither-review.mjs';
 
 export function validateContractHost(host) {
@@ -152,7 +152,13 @@ export function runContractStages(execute, slitherReportPath) {
         };
       }
     }
-    const result = execute(file, args);
+    const environment = cleanEnvironment();
+    // Native bootstrap rejects inherited pip configuration and invokes pip with
+    // its own --isolated/--require-hashes flags. Keep later gate controls intact.
+    if (stage === 'bootstrap')
+      for (const key of ['PIP_CONFIG_FILE', 'PIP_NO_INPUT', 'PIP_DISABLE_PIP_VERSION_CHECK'])
+        delete environment[key];
+    const result = execute(file, args, { env: environment });
     const incomplete = Boolean(result.error || result.signal || !Number.isInteger(result.status));
     const state =
       incomplete || (result.status !== 0 && stage !== 'contracts-and-abi')
@@ -204,8 +210,8 @@ await main(import.meta.url, () => {
   const lockBytes = readFileSync(resolve(root, 'contracts/toolchain.lock.json'));
   const lock = JSON.parse(lockBytes);
   const report = runContractStages(
-    (file, args) => {
-      const result = run(file, args, { timeout: 20 * 60 * 1000 });
+    (file, args, options) => {
+      const result = run(file, args, { ...options, timeout: 20 * 60 * 1000 });
       if (result.stdout) console.log(result.stdout);
       if (result.stderr) console.error(result.stderr);
       if (file.endsWith('/solc') && result.status === 0 && !result.stdout.includes(lock.solc.longVersion))

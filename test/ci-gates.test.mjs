@@ -10,6 +10,8 @@ import { scanSources, sourceTargets } from '../tools/ci/check-source-policy.mjs'
 import { compareLocks, classifyAudit, candidateRefs } from '../tools/ci/check-dependency-delta.mjs';
 import { validateCIGateWorkflows } from '../tools/ci/workflow-contract.mjs';
 import { assertUnchanged } from '../tools/ci/context.mjs';
+import { cleanEnvironment } from '../tools/ci/context.mjs';
+import { spawnSync } from 'node:child_process';
 
 test('source policy rejects a real aggregate byte overflow before linting any files', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'alphaforge-source-byte-limit-'));
@@ -107,6 +109,26 @@ test('contract stages stop on bootstrap/probe/test failure and never invent ABI 
   assert.equal(report.state, 'PASS');
   assert.equal(report.abi, 'PASS');
   assert.deepEqual(calls[2], ['/bin/bash', ['contracts/script/check-phase1-contracts.sh']]);
+});
+
+test('native bootstrap child receives no pip configuration while later stages retain isolated controls', () => {
+  const observed = [];
+  const report = runContractStages((_file, _args, options) => {
+    const child = spawnSync(process.execPath, ['-e', 'console.log(JSON.stringify(process.env))'], {
+      encoding: 'utf8',
+      env: options?.env ?? cleanEnvironment(),
+    });
+    assert.equal(child.status, 0);
+    observed.push(JSON.parse(child.stdout));
+    return { status: 0, signal: null };
+  });
+  assert.equal(report.state, 'PASS');
+  for (const key of ['PIP_CONFIG_FILE', 'PIP_NO_INPUT', 'PIP_DISABLE_PIP_VERSION_CHECK']) {
+    assert.equal(observed[0][key], undefined, 'bootstrap rejects any inherited pip configuration');
+    assert.equal(observed[1][key], cleanEnvironment()[key]);
+    assert.equal(observed[2][key], cleanEnvironment()[key]);
+  }
+  assert.equal(observed[0].PYTHONNOUSERSITE, '1');
 });
 
 test('Phase One contract gate cannot skip artifact manifest and rehearsal failures', () => {
