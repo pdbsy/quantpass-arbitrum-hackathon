@@ -17,15 +17,15 @@ git -C bundle-inspection bundle verify ../alphaforge-release.bundle
 git clone alphaforge-release.bundle alphaforge-release
 cd alphaforge-release
 git fetch ../alphaforge-release.bundle 'refs/evidence/*:refs/evidence/*'
-git switch --detach refs/evidence/release-snapshot-S
-git rev-parse HEAD
+git switch codex/alphaforge-release-integration-20261003
+git rev-parse HEAD refs/evidence/release-snapshot-S
 git rev-parse HEAD^{tree}
 git rev-parse --is-shallow-repository
 git status --porcelain=v1 --untracked-files=all
 node tools/check-release-history.mjs
 ```
 
-Compare every observed identity to `release-manifest.json`, including immutable source C, report R, snapshot S and all four original worker heads. The package retains full source history/authors and evidence refs, including failed preparation evidence; it does not rely on a remote master pull. Do not use a source-only archive when full-history admission is required. Actual source/image archive digests and qualification limits live in the final manifest, which must be accepted alongside this source runbook.
+The two commit IDs printed by `git rev-parse HEAD refs/evidence/release-snapshot-S` must both equal the accepted snapshot S in `release-manifest.json`. Stop on any difference; do not reset or force a preexisting branch. The clone retains the named integration branch, which `release:history` requires; detached HEAD is not an admitted operator verification context. Compare every observed identity to the manifest, including immutable source C, report R, snapshot S and all four original worker heads. The package retains full source history/authors and evidence refs, including failed preparation evidence; it does not rely on a remote master pull. Do not use a source-only archive when full-history admission is required. Actual source/image archive digests and qualification limits live in the final manifest, which must be accepted alongside this source runbook.
 
 ## Host evidence request
 
