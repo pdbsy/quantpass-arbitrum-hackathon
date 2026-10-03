@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { lstatSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,6 +37,14 @@ function ancestor(directory, older, newer, code) {
 
 export function verifyReleaseHistory({ root: directory, base: baseline, head, sources }) {
   requireCondition(commit.test(baseline) && commit.test(head), 'EXACT_COMMIT_REQUIRED');
+  requireCondition(!process.env.GIT_GRAFT_FILE, 'UNMODIFIED_HISTORY_REQUIRED');
+  const graftPath = git(directory, 'rev-parse', '--path-format=absolute', '--git-path', 'info/grafts');
+  try {
+    lstatSync(graftPath);
+    throw new Error('UNMODIFIED_HISTORY_REQUIRED');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
   requireCondition(
     git(directory, 'rev-parse', '--is-shallow-repository') === 'false',
     'FULL_HISTORY_REQUIRED',

@@ -681,3 +681,30 @@ test('release history rejects an unrelated worker commit and shallow provenance'
     /FULL_HISTORY_REQUIRED/,
   );
 });
+
+test('release history rejects grafted ancestry and ignores replacement parents', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  f.git('switch', '-qc', 'unmerged-release-candidate', f.base);
+  f.git('commit', '--allow-empty', '-qm', 'Candidate contains no worker source');
+  const candidate = f.git('rev-parse', 'HEAD');
+  const check = () =>
+    verifyReleaseHistory({ root: f.root, base: f.base, head: candidate, sources: releaseHeads(f) });
+  assert.throws(check, /SOURCE_NOT_IN_CANDIDATE/);
+  const parents = [f.base, ...f.sources.map((source) => source.head)];
+  // A replacement commit has all fake parents, but the actual candidate object does not.
+  const tree = f.git('rev-parse', candidate + '^{tree}');
+  const replacement = f.git(
+    'commit-tree',
+    tree,
+    ...parents.flatMap((parent) => ['-p', parent]),
+    '-m',
+    'Fake parents',
+  );
+  f.git('replace', candidate, replacement);
+  assert.throws(check, /SOURCE_NOT_IN_CANDIDATE/);
+  f.git('replace', '-d', candidate);
+  const graftPath = f.git('rev-parse', '--git-path', 'info/grafts');
+  writeFileSync(join(f.root, graftPath), [candidate, ...parents].join(' ') + '\n');
+  assert.throws(check, /UNMODIFIED_HISTORY_REQUIRED/);
+});
