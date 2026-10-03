@@ -35,6 +35,7 @@
 | `docs/release/2026-10-03/luis-dots-handoff.md` | Concrete deployment/runbook contract and rollback constraints. |
 | `planning/release-workers-20261003.json` | This round's proposed task labels, fixed base, branch ownership and no invented approvals. Historical Macbeth registry is retained. |
 | `package.json`, `tools/management-dashboard/checks.mjs` | Register reviewed worker tests/scripts in both normal and evidence command sets. |
+| `tools/check-release-history.mjs`, existing `test/agent-integration-identity.test.mjs` | Read-only exact base/four-worker-head ancestry check with real Git merge/partial/unrelated/shallow regression fixtures. |
 | `.github/workflows/ci.yml`, `tools/ci/workflow-contract.mjs`, `tools/check-supply-chain.mjs`, `planning/development-environment.json` | Wire necessary reviewed Linux/container qualification while preserving all existing jobs, exact Actions and strict workflow admission. |
 | `planning/roadmap.json` and approved builder outputs | Register scoped release work without closing historical governance risk. |
 | `.checks/management/latest.json`, `docs/management/dashboard/data/*.json` | Generate only by existing C → R → S builders with isolated transition commits. |
@@ -82,6 +83,10 @@
 ### Task 4: Preserve history and wire root commands/CI
 
 **Interfaces:** Consume accepted exact commits and root requests; produce a clean named integration source C and complete test/CI registration.
+
+Independent root preparation adds `npm run release:history` = `node tools/check-release-history.mjs`. Its exported `verifyReleaseHistory({root, base, head, sources})` accepts exact 40-character commit IDs and ordered `{worker: W1..W4, head}` records, requires distinct non-baseline heads/full history and checks base → each worker → candidate ancestry. It returns `EXACT_SOURCE_HISTORY_VERIFIED` with `independentApproval: false`. The CLI consumes the existing exact base and four retained worker refs, makes no writes/network calls and blocks until all are integrated. Tests first failed on the absent verifier and duplicate-head acceptance, then passed after the minimal implementation.
+
+Run the scoped root cycle with `node --test --test-name-pattern='release history' test/agent-integration-identity.test.mjs`; then run the complete existing integration-identity file. The tests are already present in the normal root and management unit registries.
 
 - [ ] Merge exact accepted refs with `git merge --no-ff <reviewed-head>`; preserve every original worker commit/author and baseline ref.
 - [ ] Resolve only W5-owned metadata/root conflicts; report application conflicts to the manager for owner resolution.

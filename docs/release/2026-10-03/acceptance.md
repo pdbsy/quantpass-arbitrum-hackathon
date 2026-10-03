@@ -49,6 +49,8 @@ Linux Node/npm checks, Linux native contract qualification and Docker lifecycle 
 
 Independent review is named and commit-bound. Self-review and repository-local consistency checks do not close historical external governance risks. Original failures, timeouts, cancellations, skips and raw analyzer findings are retained with command/exit/time/hash. Focused retries are counted as retries of the same unique tests; browser observations and other-baseline results have separate inventories.
 
+`npm run release:history` is an additional read-only candidate check. It requires the exact retained base plus four distinct `refs/evidence/release-w1` through `release-w4` commits, full history and inclusion of every original head in the current integration candidate. Missing, unrelated, duplicated, baseline-only or unmerged source heads block. This proves Git history inclusion, not independent approval; specification/quality review and all runtime gates remain separate. The command never creates or rewrites refs.
+
 ## Protected operational inputs
 
 - Public/executor configuration; exact network/config identity; deployment manifests, inventories, bytecode/build digests and canonical creation/initialization receipts.

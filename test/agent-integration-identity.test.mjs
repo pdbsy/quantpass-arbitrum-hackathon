@@ -605,3 +605,79 @@ test('stacked closeout sources require a pinned manager checkpoint and every own
   s.git('update-ref', `refs/remotes/origin/${sources[0].branch}`, s.base);
   assert.throws(() => check(), /missing required ancestry/);
 });
+
+async function releaseHistoryTool() {
+  const module = await import('../tools/check-release-history.mjs').catch(() => ({}));
+  assert.equal(typeof module.verifyReleaseHistory, 'function', 'release history verifier must exist');
+  return module.verifyReleaseHistory;
+}
+
+function releaseHeads(f) {
+  return f.sources.map((source, index) => ({ worker: `W${index + 1}`, head: source.head }));
+}
+
+test('release history rejects a partial candidate instead of accepting worker branch existence', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  assert.throws(
+    () =>
+      verifyReleaseHistory({ root: f.root, base: f.base, head: f.sources[0].head, sources: releaseHeads(f) }),
+    /SOURCE_NOT_IN_CANDIDATE/,
+  );
+});
+
+test('release history retains all exact original commits in an actual merge candidate', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  const result = verifyReleaseHistory({
+    root: f.root,
+    base: f.base,
+    head: f.git('rev-parse', 'HEAD'),
+    sources: releaseHeads(f),
+  });
+  assert.equal(result.state, 'EXACT_SOURCE_HISTORY_VERIFIED');
+  assert.equal(result.sources, 4);
+  assert.equal(result.independentApproval, false);
+  for (const patch of [
+    { sources: releaseHeads(f).slice(1) },
+    { sources: releaseHeads(f).map((entry) => ({ ...entry, head: f.sources[0].head })) },
+    { sources: [...releaseHeads(f).slice(0, 3), { worker: 'W1', head: f.sources[3].head }] },
+    { sources: releaseHeads(f).map((entry, index) => (index === 0 ? { ...entry, head: f.base } : entry)) },
+    {
+      sources: releaseHeads(f).map((entry, index) =>
+        index === 0 ? { ...entry, head: 'f'.repeat(40) } : entry,
+      ),
+    },
+    { head: '--all' },
+  ])
+    assert.throws(() =>
+      verifyReleaseHistory({
+        root: f.root,
+        base: f.base,
+        head: f.git('rev-parse', 'HEAD'),
+        sources: releaseHeads(f),
+        ...patch,
+      }),
+    );
+});
+
+test('release history rejects an unrelated worker commit and shallow provenance', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  const candidate = f.git('rev-parse', 'HEAD');
+  f.git('switch', '--orphan', 'unrelated-release-source');
+  f.git('commit', '--allow-empty', '-qm', 'Unrelated history');
+  const unrelated = f.git('rev-parse', 'HEAD');
+  const sources = releaseHeads(f).map((entry, index) =>
+    index === 0 ? { ...entry, head: unrelated } : entry,
+  );
+  assert.throws(
+    () => verifyReleaseHistory({ root: f.root, base: f.base, head: candidate, sources }),
+    /SOURCE_BASE_MISMATCH/,
+  );
+  writeFileSync(join(f.root, '.git/shallow'), `${f.base}\n`);
+  assert.throws(
+    () => verifyReleaseHistory({ root: f.root, base: f.base, head: candidate, sources: releaseHeads(f) }),
+    /FULL_HISTORY_REQUIRED/,
+  );
+});
