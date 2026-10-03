@@ -1,0 +1,57 @@
+services:
+  application:
+    image: alphaforge-testnet:reviewed-local
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: 'no'
+    read_only: true
+    init: false
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, FSETID, SETUID, SETGID]
+    security_opt: ['no-new-privileges:true']
+    pids_limit: 128
+    stop_grace_period: 30s
+    environment:
+      AF_CONTAINER_MODE: watch
+      AF_PUBLIC_RPC_FILE: /run/secrets/public-rpc
+      AF_EXECUTOR_RPC_FILE: /run/secrets/executor-rpc
+      AF_RELEASE_IDENTITY_FILE: ${AF_RELEASE_IDENTITY_FILE:-}
+      AF_TEST_RESULTS_FILE: ${AF_TEST_RESULTS_FILE:-}
+    ports:
+      - '127.0.0.1:8443:8443'
+    volumes:
+      - business-data:/var/lib/alphaforge
+      - type: bind
+        source: ${AF_PUBLIC_CONFIG_DIR:?set immutable public config directory}
+        target: /etc/alphaforge/public
+        read_only: true
+      - type: bind
+        source: ${AF_EXECUTOR_CONFIG_DIR:?set immutable executor config directory}
+        target: /etc/alphaforge/executor
+        read_only: true
+      - type: bind
+        source: ${AF_TLS_DIR:?set TLS directory}
+        target: /etc/alphaforge/tls
+        read_only: true
+      - type: bind
+        source: ${AF_PUBLIC_RPC_FILE:?set protected public RPC file}
+        target: /run/secrets/public-rpc
+        read_only: true
+      - type: bind
+        source: ${AF_EXECUTOR_RPC_FILE:?set protected executor RPC file}
+        target: /run/secrets/executor-rpc
+        read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=67108864,mode=1777
+      - /run/alphaforge:rw,noexec,nosuid,size=1048576,mode=0755
+    healthcheck:
+      test: [CMD, node, deploy/container/healthcheck.mjs]
+      interval: 15s
+      timeout: 5s
+      retries: 2
+      start_period: 90s
+volumes:
+  business-data:
