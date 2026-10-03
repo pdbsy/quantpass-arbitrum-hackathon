@@ -1,4 +1,4 @@
-/* global window, location */
+/* global window, location, document, innerWidth */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, mkdir, readFile } from 'node:fs/promises';
@@ -8,6 +8,9 @@ import { build } from 'vite';
 import { importUserUI } from '../tools/import-user-ui.mjs';
 import { buildApp } from '../apps/server/src/app.ts';
 import { verifyInstallation } from '../tools/coverage/toolchain.mjs';
+import { StrategyClient } from '../tools/automata/strategy-client.mjs';
+import { provisionEma, advanceEma } from '../tools/automata/ema-demo-runtime.mjs';
+import { emaTargets } from '../packages/automata/src/ema-strategy.ts';
 
 const browserDirectory = process.env.AF_QUALIFIED_BROWSER_TOOLS;
 const chrome = process.env.CHROMIUM_PATH;
@@ -282,5 +285,298 @@ test(
     assert.equal(await page.locator('[data-candle-tooltip]').count(), 0);
     assert.deepEqual(errors, []);
     t.diagnostic(`Screenshots: ${output}`);
+  },
+);
+
+// Native compiled-product regression: catches route/Escape label drift and
+// verifies the actual exported file rather than a success toast.
+test(
+  'product account routes, mobile navigation and JSON export deliver usable local records',
+  {
+    skip: !browserDirectory || !chrome,
+    timeout: 60000,
+  },
+  async (t) => {
+    const root = resolve(import.meta.dirname, '..');
+    const lock = JSON.parse(await readFile(resolve(root, 'planning/coverage-toolchain.lock.json')));
+    verifyInstallation(resolve(browserDirectory), lock.browser.installedFiles);
+    await mkdir(resolve(root, '.checks/w1-product'), { recursive: true });
+    const output = await mkdtemp(resolve(root, '.checks/w1-product/run-'));
+    const site = resolve(output, 'site'),
+      assets = resolve(output, 'assets'),
+      dist = resolve(output, 'dist');
+    await mkdir(site);
+    await importUserUI(
+      await readFile(resolve(root, 'apps/web/prototype/AlphaForge_v3_EN.html'), 'utf8'),
+      site,
+      assets,
+    );
+    await build({
+      configFile: false,
+      root: site,
+      publicDir: assets,
+      logLevel: 'silent',
+      plugins: [
+        {
+          name: 'product-entry',
+          enforce: 'pre',
+          resolveId(id) {
+            if (id === '/src/product-ui.ts') return resolve(root, 'apps/web/src/product-ui.ts');
+          },
+        },
+      ],
+      build: { outDir: dist, emptyOutDir: true },
+    });
+    const origin = 'http://127.0.0.1:19642';
+    const { app } = await buildApp({
+      origin,
+      dbPath: resolve(output, 'ledger.sqlite'),
+      env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+      webRoot: dist,
+    });
+    t.after(() => app.close());
+    await app.listen({ host: '127.0.0.1', port: 19642 });
+    const { chromium } = await import(pathToFileURL(resolve(browserDirectory, 'index.mjs')).href);
+    const browser = await chromium.launch({ executablePath: chrome, headless: true });
+    t.after(() => browser.close());
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      acceptDownloads: true,
+    });
+    t.after(() => context.close());
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.goto(origin + '/#/home');
+    await page.locator('[data-product-login="bob"]').click();
+    await page.waitForFunction(() => document.querySelector('[data-product-state]')?.textContent === 'EMPTY');
+    const toggle = page.locator('.menu-toggle');
+    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    await page.locator('#nav-links [data-nav="market"]').click();
+    await page.waitForFunction(
+      () =>
+        location.hash === '#/market' &&
+        document.querySelector('.menu-toggle')?.getAttribute('aria-expanded') === 'false',
+    );
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(await toggle.getAttribute('aria-label'), 'Expand navigation');
+    await toggle.click();
+    await page.keyboard.press('Escape');
+    assert.equal(await toggle.getAttribute('aria-label'), 'Expand navigation');
+    assert.equal(await toggle.evaluate((el) => el === document.activeElement), true);
+    for (const tab of ['passes', 'saved', 'notes', 'trials', 'funds', 'settings']) {
+      await page.goto(origin + '/#/account/' + tab);
+      await page.waitForFunction(() => window.AF?.pages && !!document.querySelector('main h1'));
+      assert.equal(await page.locator('[aria-label="M3 account chain status"]').count(), 0);
+      assert.ok(await page.locator('main').textContent());
+      assert.ok(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+        tab + ' should fit mobile',
+      );
+    }
+    await page.reload();
+    await page.locator('main h1').waitFor();
+    assert.equal(await page.locator('[aria-label="M3 account chain status"]').count(), 0);
+    await page.goto(origin + '/#/account/trades');
+    await page.locator('[data-wallet-account]').waitFor();
+    assert.equal(await page.locator('[aria-label="Account sections"]').count(), 1);
+    assert.equal(await page.locator('[aria-label="Account sections"] a[href="#/account/saved"]').count(), 1);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    for (const strategy of ['trend', 'factor', 'mean', 'rotate', 'breakout', 'pairs']) {
+      await page.goto(origin + '/#/trade/' + strategy);
+      await page.locator('#pass-order-form').waitFor();
+      assert.match(await page.locator('main').textContent(), /MOCK \/ FIXTURE/);
+      for (const side of ['buy', 'sell']) {
+        await page.locator(`[data-pass-side="${side}"]`).click();
+        await page.locator('#pass-qty').fill('1');
+        await page.locator('#pass-order-form button[type="submit"]').click();
+        await page.locator('[data-v3-action="commit-order"]').click();
+        await page.waitForFunction(() =>
+          document.querySelector('#dialog-body h2')?.textContent?.includes('recorded'),
+        );
+        await page.locator('#app-dialog [data-close]').click();
+      }
+      assert.equal(await page.evaluate((id) => window.AF.exchange.read().positions[id].qty, strategy), 0);
+      await page.reload();
+      await page.locator('#pass-order-form').waitFor();
+      await page.locator('[data-trade-tab="fills"]').click();
+      assert.equal(await page.locator('.pass-fills tbody tr').count(), 2);
+    }
+    await page.goBack();
+    await page.locator('main h1').waitFor();
+    await page.goForward();
+    await page.locator('#pass-order-form').waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(origin + '/#/account/settings');
+    await page.evaluate(() => {
+      window.AF.store.dispatch({ type: 'favorite', strategy: 'trend' });
+      window.AF.store.dispatch({
+        type: 'post',
+        title: 'W1 export note',
+        body: 'An isolated release test note with enough content.',
+        category: 'Research Notes',
+      });
+      const post = window.AF.store.read().posts[0];
+      window.AF.store.dispatch({ type: 'comment', post: post.id, body: 'W1 export reply' });
+      window.AF.store.dispatch({ type: 'deposit', amount: 123 });
+    });
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('[data-action="export"]').click();
+    const download = await downloadPromise;
+    assert.equal(download.suggestedFilename(), 'AlphaForge_local_demo.json');
+    await download.saveAs(resolve(output, download.suggestedFilename()));
+    const exported = JSON.parse(await readFile(resolve(output, download.suggestedFilename()), 'utf8'));
+    assert.equal(exported.product, 'AlphaForge');
+    assert.equal(exported.scope, 'LOCAL_PROTOTYPE_ONLY');
+    assert.ok(Number.isFinite(Date.parse(exported.exportedAt)));
+    assert.ok(Array.isArray(exported.state.favorites));
+    assert.ok(exported.state.favorites.includes('trend'));
+    assert.equal(exported.state.posts[0].title, 'W1 export note');
+    assert.equal(exported.state.comments[0].body, 'W1 export reply');
+    assert.equal(exported.state.history[0].amount, 123);
+    assert.equal(exported.passMarket.orders.length, 12);
+    await page.route('**/api/v1/product-snapshot', (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: '{"error":"LOCAL_OPERATION_FAILED"}',
+      }),
+    );
+    await page.locator('[data-product-refresh]').click();
+    await page.waitForFunction(
+      () => document.querySelector('[data-product-state]')?.textContent === 'DISCONNECTED',
+    );
+    assert.match(await page.locator('[data-product-session-hint]').textContent(), /unavailable/);
+    assert.equal(await page.locator('[aria-label="API account unavailable"]').count(), 1);
+    assert.doesNotMatch(await page.locator('[aria-label="API account unavailable"]').textContent(), /EMPTY/);
+    await page.unroute('**/api/v1/product-snapshot');
+    await page.locator('[data-product-login="alice"]').click();
+    await page.waitForFunction(() =>
+      ['READY', 'EMPTY'].includes(document.querySelector('[data-product-state]')?.textContent),
+    );
+    assert.match(await page.locator('.local-backend-session').textContent(), /API alice/);
+    await page.locator('[data-product-login="bob"]').click();
+    await page.waitForFunction(() => document.querySelector('[data-product-state]')?.textContent === 'EMPTY');
+    assert.match(await page.locator('.local-backend-session').textContent(), /API bob/);
+
+    assert.deepEqual(errors, []);
+    t.diagnostic(`Native browser ${browser.version()}; raw export and isolated SQLite: ${output}`);
+  },
+);
+
+test(
+  'isolated external JSON UI submits a current-frame decision and completes stop and exit',
+  {
+    skip: !browserDirectory || !chrome,
+    timeout: 60000,
+  },
+  async (t) => {
+    const root = resolve(import.meta.dirname, '..');
+    const lock = JSON.parse(await readFile(resolve(root, 'planning/coverage-toolchain.lock.json')));
+    verifyInstallation(resolve(browserDirectory), lock.browser.installedFiles);
+    await mkdir(resolve(root, '.checks/w1-external'), { recursive: true });
+    const output = await mkdtemp(resolve(root, '.checks/w1-external/run-'));
+    await importUserUI(
+      await readFile(resolve(root, 'apps/web/prototype/AlphaForge_v3_EN.html'), 'utf8'),
+      resolve(root, 'apps/web'),
+      resolve(root, 'build/ui-import'),
+    );
+    const dist = resolve(output, 'dist');
+    await build({
+      configFile: resolve(root, 'apps/web/vite.config.ts'),
+      root: resolve(root, 'apps/web'),
+      logLevel: 'silent',
+      build: { outDir: dist, emptyOutDir: true },
+    });
+    const origin = 'http://127.0.0.1:19643';
+    const { app } = await buildApp({
+      origin,
+      dbPath: resolve(output, 'ledger.sqlite'),
+      env: { QP_MODE: 'local', QP_ADAPTER: 'mock' },
+      webRoot: dist,
+      automataReplay: false,
+    });
+    t.after(() => app.close());
+    await app.listen({ host: '127.0.0.1', port: 19643 });
+    const { chromium } = await import(pathToFileURL(resolve(browserDirectory, 'index.mjs')).href);
+    const browser = await chromium.launch({ executablePath: chrome, headless: true });
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    t.after(() => context.close());
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.goto(origin + '/testnet.html');
+    await page.getByRole('navigation', { name: 'Testnet owner steps' }).waitFor();
+    assert.equal(await page.locator('[data-product-login]').count(), 0);
+    assert.match(await page.locator('main').textContent(), /普通 EOA|普通钱包/);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.goto(origin + '/automata.html');
+    await page.getByLabel('测试账户').selectOption('bob');
+    await page.getByRole('button', { name: '建立测试 Vault' }).click();
+    await page.getByLabel('存入 / 取出金额（模拟 AF-USDC）').fill('1000');
+    await page.getByRole('button', { name: '存入并冻结 Pass' }).click();
+    await page.getByLabel('运行资金（模拟 AF-USDC）').fill('100');
+    await page.getByLabel('策略来源').selectOption('external');
+    await page.getByRole('button', { name: '启动模拟运行' }).click();
+    await page.getByRole('button', { name: '推进一帧' }).click();
+    await page.getByText('策略接入与信号状态', { exact: true }).click();
+    await page.getByLabel('外部策略目标 JSON').fill('{"rwa-a":3000}');
+    await page.getByRole('button', { name: '预览 JSON 信号' }).click();
+    await page.locator('[data-external-preview]').waitFor();
+    assert.match(await page.locator('[data-external-preview]').textContent(), /"frameSeq": 1/);
+    await page.getByRole('button', { name: '确认提交 JSON 信号' }).click();
+    await page.waitForFunction(() =>
+      document.querySelector('.af-run details')?.textContent?.includes('最近信号：'),
+    );
+    await page.reload();
+    await page.getByRole('button', { name: '停止并立即清仓' }).click();
+    await page.getByRole('button', { name: '将结算现金转为闲置' }).click();
+    await page.getByRole('button', { name: '完整退出并释放全部 Pass' }).click();
+    await page.getByText('Vault 已完整退出，Pass 已全部释放；此 Vault 保留历史，不再接收存入。').waitFor();
+    await page.getByLabel('测试账户').selectOption('alice');
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[aria-label="测试账户"]')?.value === 'alice' &&
+        !document.querySelector('.af-run'),
+    );
+    assert.equal(await page.locator('.af-run').count(), 0);
+    assert.equal(await page.locator('[data-external-preview]').count(), 0);
+    assert.deepEqual(errors, []);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    const ema = new StrategyClient({
+      baseUrl: origin,
+      owner: 'alice',
+      runId: 'qinfra-ema-demo',
+      targets: {},
+      selectTargets: emaTargets,
+    });
+    await ema.connect();
+    await provisionEma(ema);
+    for (let step = 0; step < 45; step++) await advanceEma(ema);
+    await page.reload();
+    await page.getByRole('heading', { name: '开源 EMA 测试策略' }).waitFor();
+    let result = await (await ema.request('/api/v1/automata/qinfra-ema-demo')).json();
+    assert.equal(result.state.trades.filter((trade) => trade.side === 'buy').length, 2);
+    let outcome = '';
+    for (let step = 0; step < 125 && outcome !== 'finished'; step++) outcome = await advanceEma(ema);
+    assert.equal(outcome, 'finished');
+    result = await (await ema.request('/api/v1/automata/qinfra-ema-demo')).json();
+    assert.equal(result.state.trades.length, 4);
+    assert.equal(result.state.positions['rwa-a'].quantity, '0');
+    assert.equal(result.state.positions['rwa-b'].quantity, '0');
+    await page.reload();
+    await page.getByRole('button', { name: '启用本金冻结规则' }).click();
+    await page.getByRole('button', { name: '将结算现金转为闲置' }).click();
+    await page.getByRole('button', { name: '完整退出并释放全部 Pass' }).click();
+    await page.getByText('Vault 已完整退出，Pass 已全部释放；此 Vault 保留历史，不再接收存入。').waitFor();
+    await page.screenshot({ path: resolve(output, 'external-ema-mobile.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    t.diagnostic(
+      `Current compiled Testnet no-wallet preview, external JSON and EMA UI closure, MOCK only: ${output}`,
+    );
   },
 );

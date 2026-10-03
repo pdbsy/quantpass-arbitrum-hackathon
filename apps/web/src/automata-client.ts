@@ -1,3 +1,4 @@
+import { STRATEGY_PROTOCOL, validateDecision } from '../../../packages/automata/src/strategy-protocol.ts';
 import { parseUnits } from '../../../packages/domain/src/money.ts';
 import { validateParameters, type Parameters } from '../../../packages/automata/src/model.ts';
 export interface ConfigForm {
@@ -109,4 +110,50 @@ export async function requestSimulation<T = unknown>(
       response.status < 500,
     );
   return result as T;
+}
+
+export interface ExternalStrategyContext {
+  protocol: string;
+  scope: string;
+  runId: string;
+  revision: number;
+  frameSeq: number;
+  mode: string;
+  status: string;
+  ready: boolean;
+  eligibleAssets: string[];
+  lastDecision: { frameSeq: number } | null;
+}
+/** Targets are user-authored basis points; identity and frame always come from a fresh server read. */
+export function externalDecisionFromJson(text: string, context: ExternalStrategyContext, id: string) {
+  if (
+    context.protocol !== 'alphaforge-targets-v1' ||
+    context.scope !== 'TEST_ONLY' ||
+    context.mode !== 'external' ||
+    context.status !== 'running' ||
+    !context.ready ||
+    context.lastDecision?.frameSeq === context.frameSeq
+  )
+    throw new Error('当前帧不可接收新信号，请刷新或推进一帧');
+  if (text.length > 16000) throw new Error('目标 JSON 过大');
+  let targets: unknown;
+  try {
+    targets = JSON.parse(text);
+  } catch {
+    throw new Error('请输入有效目标 JSON 对象');
+  }
+  const decision = {
+    protocol: STRATEGY_PROTOCOL,
+    runId: context.runId,
+    id,
+    expectedRevision: context.revision,
+    frameSeq: context.frameSeq,
+    targets: targets as Record<string, number>,
+  };
+  try {
+    validateDecision(decision, context.runId, context.eligibleAssets);
+  } catch {
+    throw new Error('目标必须为当前标的的整数基点，单项及合计为 0–10000');
+  }
+  return decision;
 }

@@ -108,3 +108,117 @@ test('a login prompt must bind the current HTTPS domain, chain, account, nonce a
   }
   assert.equal(signatures, 0);
 });
+
+test('Testnet reads distinguish failed initial read from verified empty and suppress late owner data', async () => {
+  const ui = await import('../apps/web/src/testnet-ui-state.ts').catch(() => null);
+  assert.ok(ui?.TestnetAccountReader, 'generation-bound Testnet account reader is required');
+  const queue: (() => Promise<unknown>)[] = [
+    async () => {
+      throw new Error('unavailable');
+    },
+    async () => ({ chainId: 46630, vaults: [] }),
+  ];
+  const reader = new ui.TestnetAccountReader(async () => queue.shift()!());
+  reader.connect(owner);
+  await reader.refresh();
+  assert.equal(reader.snapshot.phase, 'DISCONNECTED');
+  await reader.refresh();
+  assert.equal(reader.snapshot.phase, 'EMPTY');
+  let finish!: (value: unknown) => void;
+  queue.push(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const read = reader.refresh();
+  reader.connect(other);
+  finish({ chainId: 46630, vaults: [{ id: 'old-owner' }] });
+  await read;
+  assert.equal(reader.snapshot.owner, other);
+  assert.deepEqual(reader.snapshot.vaults, []);
+  assert.equal(reader.snapshot.phase, 'LOADING');
+});
+
+test('failed or superseded refresh cannot expose a healthy cached Vault or overwrite a newer result', async () => {
+  const ui = await import('../apps/web/src/testnet-ui-state.ts').catch(() => null);
+  assert.ok(ui?.TestnetAccountReader);
+  let result: () => Promise<unknown> = async () => ({ chainId: 46630, vaults: [{ id: 'vault' }] });
+  const reader = new ui.TestnetAccountReader(async () => result());
+  reader.connect(owner);
+  await reader.refresh();
+  assert.equal(reader.snapshot.phase, 'READY');
+  result = async () => {
+    throw new Error('unavailable');
+  };
+  await reader.refresh();
+  assert.equal(reader.snapshot.phase, 'STALE');
+  assert.equal(reader.snapshot.vaults.length, 1, 'cache may be displayed only with stale state');
+  let reject!: (error: Error) => void;
+  result = () =>
+    new Promise((_resolve, no) => {
+      reject = no;
+    });
+  const older = reader.refresh();
+  result = async () => ({ chainId: 46630, vaults: [] });
+  await reader.refresh();
+  reject(new Error('late failure'));
+  await older;
+  assert.equal(reader.snapshot.phase, 'EMPTY');
+  assert.equal(reader.snapshot.error, null);
+  reader.connect(null);
+  assert.deepEqual(reader.snapshot.vaults, []);
+  assert.equal(reader.snapshot.phase, 'DISCONNECTED');
+});
+
+test('corrupt or ambiguous retained intent never becomes permission to send again', async () => {
+  const ui = await import('../apps/web/src/testnet-ui-state.ts').catch(() => null);
+  assert.ok(ui?.parseTestnetIntent);
+  assert.deepEqual(ui.parseTestnetIntent('{"kind":"STOP","operationId":"operation-1","hash":null}'), {
+    kind: 'STOP',
+    operationId: 'operation-1',
+    hash: null,
+  });
+  for (const raw of [
+    '{',
+    'null',
+    '{}',
+    '{"kind":"UNKNOWN","operationId":null,"hash":null}',
+    '{"kind":"STOP","operationId":null,"hash":null}',
+    '{"kind":"STOP","operationId":"operation-1","hash":"bad"}',
+  ])
+    assert.throws(() => ui.parseTestnetIntent(raw), /INTENT_STORAGE_INVALID/);
+});
+
+test('slow account reads finish before periodic polling schedules another request', async (t) => {
+  const ui = await import('../apps/web/src/testnet-ui-state.ts');
+  assert.ok(ui.pollTestnetAccount, 'polling must wait for a bounded read to finish');
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let reads = 0;
+  let complete!: (value: unknown) => void;
+  const reader = new ui.TestnetAccountReader(() => {
+    reads++;
+    return new Promise((resolve) => {
+      complete = resolve;
+    });
+  });
+  reader.connect(owner);
+  const stop = ui.pollTestnetAccount(reader);
+  t.mock.timers.tick(5000);
+  t.mock.timers.tick(10000);
+  assert.equal(reads, 1, 'a slow request must not be perpetually superseded');
+  complete({ chainId: 46630, vaults: [] });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(reader.snapshot.phase, 'EMPTY');
+  t.mock.timers.tick(5000);
+  assert.equal(reads, 2);
+  stop();
+  reader.connect(null);
+  complete({ chainId: 46630, vaults: [{ id: 'late' }] });
+  await Promise.resolve();
+  await Promise.resolve();
+  t.mock.timers.tick(10000);
+  assert.equal(reads, 2);
+  assert.deepEqual(reader.snapshot.vaults, []);
+});

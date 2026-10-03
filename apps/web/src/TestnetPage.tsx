@@ -4,6 +4,12 @@ import type { TradingSnapshot } from '../../../packages/testnet/src/trading-read
 import type { tradingPerformance } from '../../../packages/testnet/src/trading-performance.ts';
 import { ownerAction } from '../../../packages/testnet/src/owner-actions.ts';
 import { TestnetWalletClient, testnetApi, type TestnetWalletProvider } from './testnet-wallet-client.ts';
+import {
+  TestnetAccountReader,
+  pollTestnetAccount,
+  parseTestnetIntent,
+  testnetOperationMessage,
+} from './testnet-ui-state.ts';
 import { formAction } from './testnet-action-form.ts';
 
 type Provider = TestnetWalletProvider & {
@@ -69,10 +75,12 @@ function VaultCard({
   view,
   client,
   onRefresh,
+  readReady,
 }: {
   view: VaultView;
   client: TestnetWalletClient;
   onRefresh: () => Promise<void>;
+  readReady: boolean;
 }) {
   const [fields, setFields] = useState<Record<string, string>>({ kind: 'DEPOSIT', boundMode: 'PERCENT' });
   const [prepared, setPrepared] = useState<{ value: Prepared; input: Record<string, unknown> } | null>(null);
@@ -85,6 +93,7 @@ function VaultCard({
   const [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(''),
     [recoveryHash, setRecoveryHash] = useState('');
+  const [intentBlocked, setIntentBlocked] = useState(false);
   const snapshot = view.snapshot,
     kind = fields.kind!,
     key = `alphaforge-testnet-intent:46630:${view.manifest.manifestDigest}:${client.owner}`;
@@ -93,17 +102,10 @@ function VaultCard({
     mounted.current = true;
     try {
       const value = localStorage.getItem(key);
-      if (value) {
-        const p = JSON.parse(value) as Pending;
-        if (
-          typeof p.kind === 'string' &&
-          (p.operationId === null || typeof p.operationId === 'string') &&
-          (p.hash === null || /^0x[0-9a-f]{64}$/.test(p.hash))
-        )
-          setPending(p);
-      }
+      if (value) setPending(parseTestnetIntent(value));
     } catch {
-      setNotice('无法读取本机待确认记录，请先核对钱包交易。');
+      setIntentBlocked(true);
+      setNotice('本机待确认记录不可读取或已损坏。已暂停新提交；保留原记录，联系部署者并核对钱包交易。');
     }
     return () => {
       mounted.current = false;
@@ -132,6 +134,7 @@ function VaultCard({
         if (!cancelled) {
           setOperation(value);
           if (value.productReady || value.state === 'REJECTED') {
+            setNotice(testnetOperationMessage(value.state, value.productReady));
             localStorage.removeItem(key);
             setPending(null);
             await onRefresh();
@@ -141,10 +144,12 @@ function VaultCard({
             }, 5000);
         }
       } catch {
-        if (!cancelled)
+        if (!cancelled) {
+          setNotice('交易核验服务暂不可用；原待确认记录保留，不会再次发送交易。');
           timer = setTimeout(() => {
             void poll();
           }, 10000);
+        }
       }
     };
     void poll();
@@ -153,6 +158,9 @@ function VaultCard({
       if (timer) clearTimeout(timer);
     };
   }, [pending, view.id, key, client, onRefresh, view.manifest]);
+  useEffect(() => {
+    if (!readReady) setPrepared(null);
+  }, [readReady]);
   const field = (name: string, label: string, placeholder?: string) => (
     <label key={name}>
       {label}
@@ -169,7 +177,7 @@ function VaultCard({
     </label>
   );
   const identity = () => {
-    if (!snapshot) throw new Error('STALE_PREVIEW');
+    if (!snapshot || !readReady || intentBlocked) throw new Error('STALE_PREVIEW');
     return {
       owner: snapshot.owner,
       vault: snapshot.vault,
@@ -277,6 +285,11 @@ function VaultCard({
                 : view.status}
         </span>
       </div>
+      {!readReady && (
+        <p className="notice" role="status">
+          账户读取尚未完成或已过期。以下为缓存状态，新交易预览与确认已暂停；刷新只读取状态。
+        </p>
+      )}
       <p className="address">Vault · {view.manifest.vault}</p>
       {!snapshot ? (
         <p>等待链上身份验证与历史同步，暂不可操作。</p>
@@ -304,6 +317,10 @@ function VaultCard({
               <dd>{money(snapshot.idleCash)}</dd>
             </div>
             <div>
+              <dt>单位净值 AF-USDC</dt>
+              <dd>{money(snapshot.unitNav)}</dd>
+            </div>
+            <div>
               <dt>策略现金</dt>
               <dd>{money(snapshot.runtimeCash)}</dd>
             </div>
@@ -314,6 +331,7 @@ function VaultCard({
                 <th>测试标的</th>
                 <th>持仓</th>
                 <th>参考中间价</th>
+                <th>已核验持仓成本 AF-USDC</th>
               </tr>
             </thead>
             <tbody>
@@ -322,13 +340,17 @@ function VaultCard({
                   <td>{s.symbol}</td>
                   <td>{money(s.position, 18)}</td>
                   <td>{s.priceValid ? money(s.priceUsdc) : '报价过期'}</td>
+                  <td>
+                    {money(view.performance?.positions.find((p) => p.stock === s.token)?.costBasisUsdc)}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
           <p className="muted">
             个人盈亏由已核验资金流、成交和持仓复算。DEX 费用与价格影响计入实际成交；执行者支付的 ETH gas
-            单独记录。参考价用于估值，V3 成交价用于记账。
+            单独记录。参考价用于估值，V3 成交价用于记账。当前 API 未提供已核验的平台 gas
+            金额，页面不推算该金额。
           </p>
           <details>
             <summary>执行权限与链上证据</summary>
@@ -347,11 +369,13 @@ function VaultCard({
             <p className="address">{snapshot.blockHash}</p>
             <p>仅 L2 软确认，未证明 L1 最终性。</p>
           </details>
-          {pending ? (
+          {intentBlocked ? (
+            <p role="alert">待确认记录需要人工核对。页面保留原记录并阻止新提交。</p>
+          ) : pending ? (
             <div className="review">
               <h3>待核验交易 · {labels[pending.kind]}</h3>
               <p>
-                {operation?.productReady ? '已核验' : (operation?.state ?? '提交结果待核对')}
+                {testnetOperationMessage(operation?.state, operation?.productReady)}
                 。这笔交易未完成核验前，页面不会重复发送。
               </p>
               {pending.hash ? (
@@ -545,7 +569,7 @@ function VaultCard({
                     </p>
                   </>
                 )}
-                <button disabled={busy || view.status !== 'HEALTHY'} type="submit">
+                <button disabled={busy || !readReady || view.status !== 'HEALTHY'} type="submit">
                   {busy ? '处理中…' : '预览待签交易'}
                 </button>
               </form>
@@ -562,7 +586,7 @@ function VaultCard({
                     <p className="address">{prepared.value.transaction.data}</p>
                   </details>
                   <button
-                    disabled={busy}
+                    disabled={busy || !readReady}
                     onClick={() => {
                       void confirm();
                     }}
@@ -587,17 +611,20 @@ function VaultCard({
   );
 }
 export function TestnetPage() {
-  const [client, setClient] = useState<TestnetWalletClient | null>(null),
-    [owner, setOwner] = useState<string | null>(null),
-    [vaults, setVaults] = useState<VaultView[]>([]),
-    [notice, setNotice] = useState(''),
+  const [client, setClient] = useState<TestnetWalletClient | null>(null);
+  const [reader] = useState(
+    () => new TestnetAccountReader<VaultView>(() => testnetApi('/api/testnet/vaults')),
+  );
+  const [account, setAccount] = useState(reader.snapshot);
+  const [notice, setNotice] = useState(''),
     [busy, setBusy] = useState(false);
+  const owner = account.owner,
+    vaults = account.vaults;
   const viewEpoch = useRef(0);
-  const refresh = useCallback(async (epoch = viewEpoch.current) => {
-    const result = (await testnetApi('/api/testnet/vaults')) as { chainId: number; vaults: VaultView[] };
-    if (result.chainId !== 46630) throw new Error();
-    if (epoch === viewEpoch.current) setVaults(result.vaults);
-  }, []);
+  useEffect(() => reader.subscribe(setAccount), [reader]);
+  const refresh = useCallback(async () => {
+    await reader.refresh();
+  }, [reader]);
   useEffect(() => {
     const provider = (window as unknown as { ethereum?: Provider }).ethereum;
     if (!provider) return;
@@ -605,8 +632,7 @@ export function TestnetPage() {
     setClient(wallet);
     const invalidate = () => {
       ++viewEpoch.current;
-      setOwner(null);
-      setVaults([]);
+      reader.connect(null);
       setNotice('钱包账户或网络已变化，请重新登录。');
       void wallet.logout().catch(() => {});
     };
@@ -616,14 +642,11 @@ export function TestnetPage() {
       provider.removeListener?.('accountsChanged', invalidate);
       provider.removeListener?.('chainChanged', invalidate);
     };
-  }, []);
+  }, [reader]);
   useEffect(() => {
     if (!owner) return;
-    const timer = setInterval(() => {
-      void refresh().catch((error) => setNotice(message(error)));
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [owner, refresh]);
+    return pollTestnetAccount(reader);
+  }, [owner, reader]);
   const login = async () => {
     if (!client) {
       setNotice('请使用支持 Ethereum 的浏览器钱包。');
@@ -631,22 +654,22 @@ export function TestnetPage() {
     }
     setBusy(true);
     setNotice('');
+    const epoch = ++viewEpoch.current;
+    reader.connect(null);
     try {
-      const epoch = ++viewEpoch.current;
       const identity = await client.login();
       if (epoch !== viewEpoch.current) return;
-      setOwner(identity);
-      await refresh(epoch);
+      reader.connect(identity);
+      await refresh();
     } catch (error) {
-      setNotice(message(error));
+      if (epoch === viewEpoch.current) setNotice(message(error));
     } finally {
       setBusy(false);
     }
   };
   const logout = async () => {
     ++viewEpoch.current;
-    setOwner(null);
-    setVaults([]);
+    reader.connect(null);
     try {
       await client?.logout();
     } catch (error) {
@@ -669,7 +692,10 @@ export function TestnetPage() {
     }
   };
   return (
-    <main className="testnet-shell">
+    <main className="testnet-shell" data-testnet-phase={account.phase}>
+      <a className="skip-link" href="#owner-steps">
+        跳到 owner 操作步骤
+      </a>
       <header>
         <a className="brand" href="/">
           AlphaForge<span>TESTNET</span>
@@ -718,6 +744,27 @@ export function TestnetPage() {
           {notice}
         </p>
       )}
+      <nav className="owner-journey" aria-label="Testnet owner steps" id="owner-steps" tabIndex={-1}>
+        <h2>Owner 操作路径</h2>
+        <ol>
+          <li>连接普通 EOA 钱包并登录；等待你的 Vault 部署证据与链上核验。</li>
+          <li>分别授权 AF-USDC 与 PASS，再存入并分配策略资金。</li>
+          <li>填写有限执行地址、到期、清仓窗口、买入预算与滑点；预览后在钱包确认。</li>
+          <li>查看已有交易核验、持仓、个人净值及平台 ETH gas 记录。哈希不等于成交。</li>
+          <li>停止进入清仓；撤销权限后由 owner 恢复卖出。持仓清空后关闭并取回剩余 PASS。</li>
+        </ol>
+      </nav>
+      {owner && (
+        <p role="status" data-testnet-read-state>
+          {account.phase === 'LOADING'
+            ? '正在读取 owner 账户，请等待。'
+            : account.phase === 'STALE' || account.phase === 'DISCONNECTED'
+              ? '账户服务暂不可用。缓存不代表当前链上状态；请刷新，页面不会重复发送交易。'
+              : account.phase === 'EMPTY'
+                ? '读取已完成：该 owner 尚无已配置 Vault。'
+                : '当前 owner 账户读取已完成。'}
+        </p>
+      )}
       {owner ? (
         <>
           <div className="section-title">
@@ -725,7 +772,7 @@ export function TestnetPage() {
             <div>
               <button
                 className="secondary"
-                disabled={busy || !vaults.length}
+                disabled={busy || account.phase !== 'READY' || !vaults.length}
                 onClick={() => {
                   void backup();
                 }}
@@ -749,8 +796,14 @@ export function TestnetPage() {
                 view={view}
                 client={client!}
                 onRefresh={refresh}
+                readReady={account.phase === 'READY'}
               />
             ))
+          ) : account.phase !== 'EMPTY' ? (
+            <section className="vault-card">
+              <h2>{account.phase === 'LOADING' ? '正在读取 Vault' : 'Vault 读取未完成'}</h2>
+              <p>尚未取得有效账户列表，不能据此判断账户为空。请刷新链上状态。</p>
+            </section>
           ) : (
             <section className="vault-card">
               <h2>尚无已配置的 Vault</h2>

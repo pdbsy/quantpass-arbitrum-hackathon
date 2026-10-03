@@ -38,6 +38,12 @@ test('My Account shows one wallet connection and unavailable holdings without ex
   assert.equal((html.match(/<button\b/g) ?? []).length, 1);
   assert.match(html, /ETH balance/);
   assert.match(html, /Pass holdings/);
+  for (const tab of ['passes', 'saved', 'notes', 'funds', 'settings'])
+    assert.match(
+      html,
+      new RegExp(`href="#/account/${tab}"`),
+      'wallet account keeps product sections discoverable',
+    );
   assert.doesNotMatch(html, /LOCAL BALANCE|alice|NOT DEPLOYED|API ACCOUNT|WALLET \/ TESTNET/);
 });
 
@@ -97,10 +103,30 @@ test('page extension preserves the trade page without a chain diagnostics panel'
   const local = pages.trade('core-flow-demo');
   assert.equal(local, '<div>original trade core-flow-demo</div>');
 
-  assert.match(pages.account('funds'), /AlphaForge account · alice/);
+  assert.equal(pages.account('funds'), '<div>original account funds</div>');
   accountId = 'bob';
-  assert.match(pages.account('activity'), /AlphaForge account · bob/);
-  assert.match(pages.account('activity'), /original account activity/);
+  assert.equal(pages.account('activity'), '<div>original account activity</div>');
+});
+
+test('every account subroute preserves its content without the retired diagnostic shell', () => {
+  let chainReads = 0;
+  const pages = extendM3ProductPages(
+    { account: (tab) => `<main>account ${tab}</main>`, trade: () => '' },
+    {
+      accountId: () => 'alice',
+      contentProvenance: () => 'FIXTURE',
+      chain: () => {
+        chainReads++;
+        return undefined;
+      },
+    },
+  );
+  for (const tab of ['saved', 'notes', 'trials', 'funds', 'settings', 'activity']) {
+    assert.equal(pages.account(tab), `<main>account ${tab}</main>`);
+  }
+  assert.equal(chainReads, 0, 'local account content must not acquire wallet authority');
+  assert.match(pages.account('trades'), /Connect Wallet/);
+  assert.equal(chainReads, 1);
 });
 
 test('strategy shell separates fixture content from unavailable Testnet capabilities', () => {
@@ -737,7 +763,7 @@ test('reorged projection permits only owner exit actions backed by live simulati
   assert.match(html, /data-chain-action="close"[^>]*>Close<\/button>/);
 });
 
-test('account diagnostics read fresh onchain state without adding diagnostics to trade', () => {
+test('wallet account reads the current address while local subroutes and trade stay free of diagnostics', () => {
   let health = 'LIVE' as 'LIVE' | 'DEGRADED';
   let walletAddress = '0x1111111111111111111111111111111111111111';
   const pages = extendM3ProductPages(
@@ -766,15 +792,14 @@ test('account diagnostics read fresh onchain state without adding diagnostics to
   );
 
   assert.equal(pages.trade('trend'), '<div>trade trend</div>');
-  assert.doesNotMatch(pages.account('funds'), /INDEXER DEGRADED/);
-  assert.match(pages.account('funds'), new RegExp(walletAddress));
-  assert.match(pages.account('funds'), /INDEXING/);
+  assert.equal(pages.account('funds'), '<div>account funds</div>');
+  assert.match(pages.account('trades'), new RegExp(walletAddress));
   health = 'DEGRADED';
   walletAddress = '0x2222222222222222222222222222222222222222';
   assert.equal(pages.trade('trend'), '<div>trade trend</div>');
-  assert.match(pages.account('funds'), /INDEXER DEGRADED/);
-  assert.match(pages.account('funds'), new RegExp(walletAddress));
-  assert.match(pages.account('funds'), /INJECTED MOCK/);
+  assert.equal(pages.account('funds'), '<div>account funds</div>');
+  assert.match(pages.account('trades'), new RegExp(walletAddress));
+  assert.doesNotMatch(pages.account('trades'), /INDEXER DEGRADED|INDEXING|INJECTED MOCK/);
 });
 
 test('pending transaction evidence never promotes signature or confirmation to product readiness', () => {
@@ -883,10 +908,11 @@ test('unreviewed or cross-chain Vault selector metadata never becomes an actiona
       }),
     },
   );
-  const account = pages.account('funds');
+  const account = renderM3AccountShell({ onchain, vaultSelection: { selected: valid, options } });
   assert.match(account, /data-chain-vault-select/);
   assert.match(account, new RegExp(`value="46630:${vaultA}" selected`));
   assert.doesNotMatch(pages.trade('trend'), /data-chain-vault-select/);
+  assert.equal(pages.account('funds'), '');
 });
 
 test('wallet account preserves zero and wei precision and rejects invalid wallet values', () => {
