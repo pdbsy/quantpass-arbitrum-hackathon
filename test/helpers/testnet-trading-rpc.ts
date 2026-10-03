@@ -40,6 +40,7 @@ export function tradingRpcFixture(
     | 'ALLOWANCE'
     | 'SMART_OWNER' = 'NONE',
   options: {
+    owner?: string;
     transaction?: Record<string, unknown> | null;
     head?: number;
     logs?: Record<string, unknown>[];
@@ -48,6 +49,7 @@ export function tradingRpcFixture(
     historical?: boolean;
   } = {},
 ) {
+  const owner = options.owner ?? address(1);
   const document = {
     schemaVersion: 1 as const,
     environment: 'robinhood-chain-testnet' as const,
@@ -74,7 +76,7 @@ export function tradingRpcFixture(
     chainId: 46630,
     kind: 'TEST_SUBSTITUTES',
     deploymentManifestDigest: manifestDigest,
-    owner: address(1),
+    owner,
     passLocker: address(2),
     usdc: address(3),
     router: address(4),
@@ -140,7 +142,7 @@ export function tradingRpcFixture(
           ),
         );
         result =
-          request.params[0] === address(1)
+          request.params[0] === owner
             ? change === 'SMART_OWNER'
               ? '0x6000'
               : '0x'
@@ -173,7 +175,7 @@ export function tradingRpcFixture(
         let values: unknown[];
         if (c.to === vault) {
           const state: Record<string, unknown> = {
-            owner: address(1),
+            owner,
             pass,
             afUsdc: address(3),
             router: address(4),
