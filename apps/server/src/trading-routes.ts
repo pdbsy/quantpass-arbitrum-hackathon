@@ -21,6 +21,7 @@ export function registerTradingRoutes(
     const owner = sessionOwner(request.cookies[cookieName]);
     if (!owner) return reply.code(401).send({ error: 'WALLET_LOGIN_REQUIRED' });
     return {
+      owner,
       chainId: 46630,
       vaults: runtimes
         .filter((entry) => entry.runtime.inventory.owner === owner)
