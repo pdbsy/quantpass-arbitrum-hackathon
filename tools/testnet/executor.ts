@@ -1,3 +1,6 @@
+import { claimNonceOwnership } from '../../packages/testnet/src/nonce-ownership.ts';
+import { executionStatusExport } from '../../packages/testnet/src/execution-status.ts';
+import { testnetNetworkIdentity } from '../../packages/testnet/src/network-identity.ts';
 import { randomUUID } from 'node:crypto';
 import { lstatSync, realpathSync, writeFileSync, renameSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -89,7 +92,8 @@ export async function executorCli(
     orders: OrderJournal | undefined,
     batches: BatchJournal | undefined,
     service: TestnetExecutorService | undefined,
-    timer: NodeJS.Timeout | undefined;
+    timer: NodeJS.Timeout | undefined,
+    nonceOwnership: ReturnType<typeof claimNonceOwnership> | undefined;
   let stopped = false,
     tail: Promise<void> = Promise.resolve();
   const close = async () => {
@@ -101,6 +105,7 @@ export async function executorCli(
     orders?.close();
     batches?.close();
     storage?.close();
+    nonceOwnership?.close();
   };
   try {
     const file = resolve(args.at(-1)!),
@@ -126,6 +131,12 @@ export async function executorCli(
       readJson(join(directory, name)),
     );
     qualifyExecutorDeployments({ config, terms: admission.terms, deployments });
+    const network = testnetNetworkIdentity({
+      chainId: config.chainId,
+      profile: config.profile,
+      configurationDigest: identity,
+      deployments,
+    });
     const endpoint = env.AF_TESTNET_RPC_URL;
     if (!endpoint) throw new Error('EXECUTOR_RPC_REQUIRED');
     const url = new URL(endpoint);
@@ -134,7 +145,6 @@ export async function executorCli(
     const rpc = new JsonRpcClient([endpoint]);
     // Full real-chain identity qualification precedes private storage and any key unlock.
     for (const d of deployments) await readTradingSnapshot(rpc, d.manifest, d.inventory);
-    let submission;
     if (enabled) {
       for (const d of deployments)
         if (d.inventory.owner === config.executor || d.inventory.owner === config.keeper)
@@ -146,19 +156,31 @@ export async function executorCli(
         !env.AF_KEEPER_PASSWORD_FILE
       )
         throw new Error('EXECUTOR_PRIVATE_FILES_REQUIRED');
-      const executor = await unlock(
-          config.executor,
-          env.AF_EXECUTOR_KEYSTORE_FILE,
-          env.AF_EXECUTOR_PASSWORD_FILE,
-        ),
-        keeper = await unlock(config.keeper, env.AF_KEEPER_KEYSTORE_FILE, env.AF_KEEPER_PASSWORD_FILE);
-      const transport = testnetSubmissionTransport(endpoint);
-      submission = { executor, keeper, transport };
     }
     storage = privateServerStorage(config.dataDirectory, config.maxStorageBytes);
+    storage.bindIdentity(config.profile, network.digest);
     orders = new OrderJournal(storage.databasePath('orders'), identity);
     batches = new BatchJournal(storage.databasePath('reference-batches', REFERENCE_BATCH_APPLICATION_ID));
     batches.database.exec('PRAGMA synchronous=FULL');
+    let submission;
+    if (enabled) {
+      if (orders.blocked(config.executor) || orders.blocked(config.keeper))
+        throw new Error('EXECUTOR_RECOVERY_REQUIRED');
+      if (!env.AF_EXECUTOR_NONCE_DIRECTORY) throw new Error('EXECUTOR_NONCE_OWNERSHIP_REQUIRED');
+      nonceOwnership = claimNonceOwnership(
+        env.AF_EXECUTOR_NONCE_DIRECTORY,
+        [config.executor, config.keeper],
+        network.digest,
+      );
+      const executor = await unlock(
+          config.executor,
+          env.AF_EXECUTOR_KEYSTORE_FILE!,
+          env.AF_EXECUTOR_PASSWORD_FILE!,
+        ),
+        keeper = await unlock(config.keeper, env.AF_KEEPER_KEYSTORE_FILE!, env.AF_KEEPER_PASSWORD_FILE!);
+      const transport = testnetSubmissionTransport(endpoint);
+      submission = { executor, keeper, transport };
+    }
     const ledger = orders,
       capture = batches,
       privateStorage = storage;
@@ -204,7 +226,7 @@ export async function executorCli(
           observedAt: Date.now(),
           state: current.status,
           signingEnabled: enabled,
-          referencePaused: current.engine.paused,
+          referencePaused: current.engine.paused !== null,
           lastMinute: current.engine.lastMinute,
           backups: backups.status(),
           vaults: deployments.map((d) => ({
@@ -219,19 +241,10 @@ export async function executorCli(
         renameSync(temporary, join(privateStorage.folder, 'status.json'));
         if (statusExport) {
           const output = join(dirname(statusExport), '.status-' + randomUUID() + '.json');
-          writeFileSync(
-            output,
-            JSON.stringify({
-              schemaVersion: report.schemaVersion,
-              chainId: 46630,
-              configurationDigest: identity,
-              observedAt: report.observedAt,
-              signingEnabled: enabled,
-              vaults: report.vaults,
-              scope: report.scope,
-            }) + '\n',
-            { flag: 'wx', mode: 0o640 },
-          );
+          writeFileSync(output, JSON.stringify(executionStatusExport(report)) + '\n', {
+            flag: 'wx',
+            mode: 0o640,
+          });
           renameSync(output, statusExport);
         }
       }

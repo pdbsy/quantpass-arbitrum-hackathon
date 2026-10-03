@@ -166,3 +166,97 @@ test('maintenance pauses owner writes and invalidates an observation that was aw
     rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test('stopped synchronization expires personal projections and unsigned actions, then a qualified retry restores them', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'alphaforge-runtime-freshness-'));
+  const f = tradingRpcFixture('NONE', rpcOptions());
+  let clock = 1000;
+  const runtime = new TradingChainRuntime({
+    dbPath: join(folder, 'chain.sqlite'),
+    evidencePath: join(folder, 'evidence.sqlite'),
+    manifest: f.manifest,
+    inventory: f.inventory,
+    rpc: f.client,
+    now: () => clock,
+  });
+  try {
+    await runtime.syncToHead();
+    assert.equal(runtime.ownedView(address(1)).status, 'HEALTHY');
+    clock += 90001;
+    assert.equal(runtime.status(), 'STALE');
+    assert.equal(runtime.ownedView(address(1)).snapshot, null);
+    assert.equal(runtime.ownedView(address(1)).performance, null);
+    assert.throws(() => runtime.prepareOwnerAction(address(1), { kind: 'STOP' }), /TRADING_NOT_READY/);
+    await runtime.syncToHead();
+    assert.equal(runtime.ownedView(address(1)).status, 'HEALTHY');
+    assert.equal(runtime.evidence.verify().records, 1);
+  } finally {
+    await runtime.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test('public synchronization continues a healthy Vault after another Vault fails', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'alphaforge-runtime-independent-'));
+  const failed = tradingRpcFixture('CHAIN', rpcOptions());
+  const healthy = tradingRpcFixture('NONE', rpcOptions());
+  const runtimes = [failed, healthy].map(
+    (f, i) =>
+      new TradingChainRuntime({
+        dbPath: join(folder, `chain-${i}.sqlite`),
+        evidencePath: join(folder, `evidence-${i}.sqlite`),
+        manifest: f.manifest,
+        inventory: f.inventory,
+        rpc: f.client,
+      }),
+  );
+  try {
+    const startup = await import('../apps/server/src/testnet-startup.ts');
+    assert.equal(typeof startup.syncPublicRuntimes, 'function');
+    await assert.rejects(
+      startup.syncPublicRuntimes(runtimes, () => true),
+      /PUBLIC_TESTNET_SYNC_INCOMPLETE/,
+    );
+    assert.equal(runtimes[0]!.status(), 'DEGRADED');
+    assert.equal(runtimes[1]!.status(), 'HEALTHY');
+  } finally {
+    await Promise.all(runtimes.map((r) => r.close()));
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test('a fresh process observation cannot turn an old chain reference into fresh market data', async () => {
+  const { liveRuntimeViews } = await import('../packages/testnet/src/runtime-status.ts');
+  const { WalletAuthStore } = await import('../packages/testnet/src/wallet-auth.ts');
+  const folder = mkdtempSync(join(tmpdir(), 'alphaforge-runtime-market-age-'));
+  const f = tradingRpcFixture('NONE', rpcOptions());
+  const clock = 1500000;
+  const runtime = new TradingChainRuntime({
+    dbPath: join(folder, 'chain.sqlite'),
+    evidencePath: join(folder, 'evidence.sqlite'),
+    manifest: f.manifest,
+    inventory: f.inventory,
+    rpc: f.client,
+    now: () => clock,
+  });
+  const auth = new WalletAuthStore(':memory:', 'https://test.example', {
+    challengeTtlMs: 60000,
+    sessionTtlMs: 60000,
+    maxRows: 10,
+  });
+  try {
+    await runtime.syncToHead();
+    assert.equal(runtime.status(), 'HEALTHY');
+    const views = liveRuntimeViews(
+      { origin: 'https://test.example', auth, runtimes: [{ id: 'one', runtime }] },
+      f.inventory.owner,
+      clock,
+    );
+    assert.equal(views.status.vaults[0]!.marketData.state, 'STALE_REFERENCE');
+    assert.equal(views.readiness.blockers.includes('MARKET_DATA_UNAVAILABLE_OR_STALE'), true);
+  } finally {
+    auth.close();
+    await runtime.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});

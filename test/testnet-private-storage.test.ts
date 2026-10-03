@@ -76,3 +76,68 @@ test(
     }
   },
 );
+
+test(
+  'persistent namespace refuses configuration changes and cross-profile reuse after restart',
+  { skip: process.platform === 'win32' },
+  () => {
+    const parent = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-namespace-'))),
+      folder = join(parent, 'data');
+    let storage = privateServerStorage(folder, 1048576);
+    const digest = '0x' + 'ab'.repeat(32);
+    try {
+      assert.equal(typeof storage.bindIdentity, 'function');
+      storage.bindIdentity('PUBLIC_TESTNET', digest);
+      storage.close();
+      storage = privateServerStorage(folder, 1048576);
+      storage.bindIdentity('PUBLIC_TESTNET', digest);
+      assert.throws(
+        () => storage.bindIdentity('RESTRICTED_TESTNET_EXECUTOR', digest),
+        /TESTNET_STORAGE_NAMESPACE/,
+      );
+      assert.throws(
+        () => storage.bindIdentity('PUBLIC_TESTNET', '0x' + 'cd'.repeat(32)),
+        /TESTNET_STORAGE_NAMESPACE/,
+      );
+      const identity = readFileSync(join(folder, 'network-identity.json'), 'utf8');
+      assert.equal(JSON.parse(identity).digest, digest);
+    } finally {
+      storage.close();
+      rmSync(parent, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  'one host nonce ownership directory rejects a second process/data-root claim and retains unknown locks',
+  { skip: process.platform === 'win32' },
+  async () => {
+    const { claimNonceOwnership } = await import('../packages/testnet/src/nonce-ownership.ts');
+    const folder = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-nonce-owner-')));
+    const address = '0x' + '1'.repeat(40);
+    let lease;
+    try {
+      lease = claimNonceOwnership(folder, [address, address], '0x' + 'ab'.repeat(32));
+      assert.throws(
+        () => claimNonceOwnership(folder, [address], '0x' + 'ab'.repeat(32)),
+        /EXECUTOR_NONCE_OWNERSHIP_LOCKED/,
+      );
+      lease.close();
+      lease = claimNonceOwnership(folder, [address], '0x' + 'ab'.repeat(32));
+      lease.close();
+      assert.throws(
+        () => claimNonceOwnership(folder, [address], '0x' + 'cd'.repeat(32)),
+        /EXECUTOR_NONCE_OWNERSHIP_IDENTITY/,
+      );
+      writeFileSync(join(folder, address.slice(2) + '.lock'), '{"pid":999999}', { mode: 0o600 });
+      assert.throws(
+        () => claimNonceOwnership(folder, [address], '0x' + 'ab'.repeat(32)),
+        /EXECUTOR_NONCE_OWNERSHIP_LOCKED/,
+      );
+      assert.equal(readFileSync(join(folder, address.slice(2) + '.lock'), 'utf8'), '{"pid":999999}');
+    } finally {
+      lease?.close();
+      rmSync(folder, { recursive: true, force: true });
+    }
+  },
+);

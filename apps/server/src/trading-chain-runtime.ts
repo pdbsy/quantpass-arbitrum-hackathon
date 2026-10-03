@@ -30,13 +30,17 @@ export class TradingChainRuntime {
   #operationCursor: string | null = null;
   #writesPaused = false;
   #writeEpoch = 0;
+  #lastSyncedAt: number | null = null;
+  readonly now: () => number;
   constructor(options: {
     dbPath: string;
     evidencePath: string;
     manifest: DeploymentManifest;
     inventory: TradingInventory;
     rpc: ReadonlyRpc;
+    now?: () => number;
   }) {
+    this.now = options.now ?? Date.now;
     this.manifest = options.manifest;
     this.inventory = options.inventory;
     this.rpc = options.rpc;
@@ -89,7 +93,19 @@ export class TradingChainRuntime {
     if (this.#writesPaused || this.#closed) throw new Error('TRADING_WRITES_PAUSED');
   }
   status() {
+    if (this.#closed) return 'CLOSED';
+    const timestamp = this.now();
+    if (
+      this.#state === 'HEALTHY' &&
+      (this.#lastSyncedAt === null ||
+        timestamp < this.#lastSyncedAt ||
+        timestamp - this.#lastSyncedAt > 90000)
+    )
+      return 'STALE';
     return this.#state;
+  }
+  observation() {
+    return Object.freeze({ state: this.status(), observedAt: this.#lastSyncedAt });
   }
   syncToHead(): Promise<void> {
     if (this.#closed) return Promise.reject(new Error('TRADING_RUNTIME_CLOSED'));
@@ -117,6 +133,7 @@ export class TradingChainRuntime {
           this.#operationCursor = id;
         }
         this.#state = 'HEALTHY';
+        this.#lastSyncedAt = this.now();
         const view = this.ownedView(this.inventory.owner);
         if (view.snapshot)
           this.evidence.append(
@@ -134,8 +151,7 @@ export class TradingChainRuntime {
   }
   ownedView(address: string) {
     if (walletAddress(address) !== this.inventory.owner) throw new Error('TRADING_OWNER_REQUIRED');
-    if (this.#closed || this.#state !== 'HEALTHY')
-      return { status: this.#state, snapshot: null, performance: null };
+    if (this.status() !== 'HEALTHY') return { status: this.status(), snapshot: null, performance: null };
     const projection = this.store.projection(
       46630,
       asAddress(this.inventory.owner),
@@ -242,12 +258,12 @@ export class TradingChainRuntime {
       blockNumber: op.blockNumber === null ? null : String(op.blockNumber),
       finality: 'L2_SOFT_CONFIRMATIONS_ONLY',
       l1Finality: 'UNKNOWN',
-      productReady: op.state === 'CONFIRMED' && op.canonical && op.reconciled && this.#state === 'HEALTHY',
+      productReady: op.state === 'CONFIRMED' && op.canonical && op.reconciled && this.status() === 'HEALTHY',
     });
   }
   async verifiedFailure(address: string, id: string) {
     this.operationView(address, id);
-    if (this.#state !== 'HEALTHY') return false;
+    if (this.status() !== 'HEALTHY') return false;
     return verifiedOwnerRevert(this.rpc, this.store.operation(id)!);
   }
   async close() {
