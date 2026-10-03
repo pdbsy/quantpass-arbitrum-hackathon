@@ -120,14 +120,32 @@ export async function createBrowserHarness({ demo = false, viewport = { width: 1
         return;
       }
       if (url.pathname.startsWith('/api/') && faults.api === 'DISCONNECTED') {
+        requests.push({
+          mode: 'MOCK',
+          method: request.method(),
+          path: url.pathname,
+          status: null,
+          transportError: 'connectionfailed',
+          injectedFault: faults.api,
+        });
         await route.abort('connectionfailed');
         return;
       }
       if (url.pathname.startsWith('/api/') && faults.api === 'UNAVAILABLE') {
+        const body = JSON.stringify({ error: 'MOCK_API_UNAVAILABLE' });
+        requests.push({
+          mode: 'MOCK',
+          method: request.method(),
+          path: url.pathname,
+          status: 503,
+          response: JSON.parse(body),
+          responseSha256: sha256(body),
+          injectedFault: faults.api,
+        });
         await route.fulfill({
           status: 503,
           contentType: 'application/json',
-          body: JSON.stringify({ error: 'MOCK_API_UNAVAILABLE' }),
+          body,
         });
         return;
       }

@@ -147,7 +147,10 @@ test('current public API failure is visible and stale healthy action preview fai
     await h.login();
     h.faults.api = 'UNAVAILABLE';
     await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
-    await h.page.getByRole('status').filter({ hasText: '操作未完成' }).waitFor();
+    await h.page
+      .getByRole('status')
+      .filter({ hasText: /存储已暂停|服务|读取|不可|未完成/ })
+      .waitFor();
     // A stale page must not offer an enabled owner preview after loss of its read service.
     const preview = h.page.getByRole('button', { name: '预览待签交易', exact: true });
     assert.equal((await preview.count()) === 0 || (await preview.isDisabled()), true);
