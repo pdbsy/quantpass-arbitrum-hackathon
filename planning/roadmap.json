@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-08",
+  "updatedAt": "2026-10-03",
   "project": {
     "name": "AlphaForge × Robinhood Chain Testnet",
-    "planVersion": "2.7",
+    "planVersion": "2.8",
     "network": "Robinhood Chain Testnet",
     "chainId": 46630,
     "scope": "仅限测试网、模拟资金和可审计工程验证；未通过全部门禁前禁止主网、真实资金以及无人值守或自主交易。",
@@ -1081,6 +1081,121 @@
       "evidence": [],
       "rollback": "任一 gate 重新打开即撤回候选版本，修复后从受影响门禁重新验证。",
       "updatedAt": "2026-09-06"
+    },
+    {
+      "id": "AFREL-001",
+      "phase": "P1",
+      "title": "Current product route and feedback closure",
+      "status": "backlog",
+      "priority": "P0",
+      "risk": "high",
+      "size": "L",
+      "dependsOn": [],
+      "summary": "W1 product paths and existing UI tests. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.",
+      "deliverables": [
+        "W1 product paths and existing UI tests",
+        "Immutable commit-bound report with original evidence and limitations"
+      ],
+      "acceptance": [
+        "Two-stage exact-head review and applicable actual checks",
+        "No real credentials, signing, broadcast, mainnet, publication or master merge",
+        "Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER"
+      ],
+      "evidence": [],
+      "rollback": "Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.",
+      "updatedAt": "2026-10-03"
+    },
+    {
+      "id": "AFREL-002",
+      "phase": "P1",
+      "title": "Owner API and execution safety runtime",
+      "status": "backlog",
+      "priority": "P0",
+      "risk": "high",
+      "size": "L",
+      "dependsOn": [],
+      "summary": "W2 server and Testnet API, CLI and runtime. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.",
+      "deliverables": [
+        "W2 server and Testnet API, CLI and runtime",
+        "Immutable commit-bound report with original evidence and limitations"
+      ],
+      "acceptance": [
+        "Two-stage exact-head review and applicable actual checks",
+        "No real credentials, signing, broadcast, mainnet, publication or master merge",
+        "Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER"
+      ],
+      "evidence": [],
+      "rollback": "Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.",
+      "updatedAt": "2026-10-03"
+    },
+    {
+      "id": "AFREL-003",
+      "phase": "P1",
+      "title": "Single-container Linux packaging qualification",
+      "status": "backlog",
+      "priority": "P0",
+      "risk": "high",
+      "size": "L",
+      "dependsOn": [],
+      "summary": "W3 container, Linux admission and native tools. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.",
+      "deliverables": [
+        "W3 container, Linux admission and native tools",
+        "Immutable commit-bound report with original evidence and limitations"
+      ],
+      "acceptance": [
+        "Two-stage exact-head review and applicable actual checks",
+        "No real credentials, signing, broadcast, mainnet, publication or master merge",
+        "Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER"
+      ],
+      "evidence": [],
+      "rollback": "Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.",
+      "updatedAt": "2026-10-03"
+    },
+    {
+      "id": "AFREL-004",
+      "phase": "P1",
+      "title": "Isolated current-release browser and API acceptance",
+      "status": "backlog",
+      "priority": "P0",
+      "risk": "high",
+      "size": "L",
+      "dependsOn": [],
+      "summary": "W4 test-only current-path mock harness. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.",
+      "deliverables": [
+        "W4 test-only current-path mock harness",
+        "Immutable commit-bound report with original evidence and limitations"
+      ],
+      "acceptance": [
+        "Two-stage exact-head review and applicable actual checks",
+        "No real credentials, signing, broadcast, mainnet, publication or master merge",
+        "Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER"
+      ],
+      "evidence": [],
+      "rollback": "Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.",
+      "updatedAt": "2026-10-03"
+    },
+    {
+      "id": "AFREL-005",
+      "phase": "P1",
+      "title": "Independent integration and operator handoff",
+      "status": "backlog",
+      "priority": "P0",
+      "risk": "high",
+      "size": "L",
+      "dependsOn": [],
+      "summary": "W5 roots, CI, shared evidence and integration. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.",
+      "deliverables": [
+        "W5 roots, CI, shared evidence and integration",
+        "Immutable commit-bound report with original evidence and limitations"
+      ],
+      "acceptance": [
+        "Two-stage exact-head review and applicable actual checks",
+        "No real credentials, signing, broadcast, mainnet, publication or master merge",
+        "Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER"
+      ],
+      "evidence": [],
+      "rollback": "Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.",
+      "updatedAt": "2026-10-03"
     }
   ]
 }

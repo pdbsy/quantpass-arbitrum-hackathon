@@ -7,11 +7,11 @@
 ## 当前状态
 
 - 唯一 WIP：**SUPPLY-001 · 强化仓库与供应链策略**
-- 总任务：41
+- 总任务：46
 - 已完成：6
 - 已就绪：6
-- 未关闭 Critical/High：33
-- 计划版本：2.7（2026-09-08）
+- 未关闭 Critical/High：38
+- 计划版本：2.8（2026-10-03）
 
 ## 强制安全边界
 
@@ -232,6 +232,61 @@
     - ABI 变更由版本和兼容测试管理
     - UI 不直接拼装任意 calldata
   - 停用/回退：ABI 冻结后破坏性变更使用新版本和新部署地址，不静默替换。
+  - 证据：待补
+
+- [ ] **AFREL-001 · Current product route and feedback closure** — 待排期 / P0 / High / L
+  - 目标：W1 product paths and existing UI tests. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.
+  - 依赖：无
+  - 交付：W1 product paths and existing UI tests；Immutable commit-bound report with original evidence and limitations
+  - 验收：
+    - Two-stage exact-head review and applicable actual checks
+    - No real credentials, signing, broadcast, mainnet, publication or master merge
+    - Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER
+  - 停用/回退：Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.
+  - 证据：待补
+
+- [ ] **AFREL-002 · Owner API and execution safety runtime** — 待排期 / P0 / High / L
+  - 目标：W2 server and Testnet API, CLI and runtime. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.
+  - 依赖：无
+  - 交付：W2 server and Testnet API, CLI and runtime；Immutable commit-bound report with original evidence and limitations
+  - 验收：
+    - Two-stage exact-head review and applicable actual checks
+    - No real credentials, signing, broadcast, mainnet, publication or master merge
+    - Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER
+  - 停用/回退：Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.
+  - 证据：待补
+
+- [ ] **AFREL-003 · Single-container Linux packaging qualification** — 待排期 / P0 / High / L
+  - 目标：W3 container, Linux admission and native tools. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.
+  - 依赖：无
+  - 交付：W3 container, Linux admission and native tools；Immutable commit-bound report with original evidence and limitations
+  - 验收：
+    - Two-stage exact-head review and applicable actual checks
+    - No real credentials, signing, broadcast, mainnet, publication or master merge
+    - Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER
+  - 停用/回退：Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.
+  - 证据：待补
+
+- [ ] **AFREL-004 · Isolated current-release browser and API acceptance** — 待排期 / P0 / High / L
+  - 目标：W4 test-only current-path mock harness. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.
+  - 依赖：无
+  - 交付：W4 test-only current-path mock harness；Immutable commit-bound report with original evidence and limitations
+  - 验收：
+    - Two-stage exact-head review and applicable actual checks
+    - No real credentials, signing, broadcast, mainnet, publication or master merge
+    - Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER
+  - 停用/回退：Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.
+  - 证据：待补
+
+- [ ] **AFREL-005 · Independent integration and operator handoff** — 待排期 / P0 / High / L
+  - 目标：W5 roots, CI, shared evidence and integration. Assigned by the current user for engineering Testnet release preparation; exact head acceptance is pending.
+  - 依赖：无
+  - 交付：W5 roots, CI, shared evidence and integration；Immutable commit-bound report with original evidence and limitations
+  - 验收：
+    - Two-stage exact-head review and applicable actual checks
+    - No real credentials, signing, broadcast, mainnet, publication or master merge
+    - Current release tests are distinct from archived snapshots; 24-hour gate WAIVED_BY_USER
+  - 停用/回退：Preserve worker commits, source refs, failed evidence and data. No live rollback, schema downgrade or nonce/order reset is authorized.
   - 证据：待补
 
 ## P2 · 合约实现与安全验证
