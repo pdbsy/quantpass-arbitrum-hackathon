@@ -195,17 +195,20 @@ test('owner and chain change invalidate mounted personal data; reconnect uses cu
   }));
 
 async function assertOwnerReauthentication(page) {
-  await page
-    .getByRole('status')
-    .filter({ hasText: /账户|身份|登录|不一致/ })
-    .waitFor();
-  assert.equal(await page.locator('.vault-card').count(), 0);
+  await page.locator('[data-testnet-identity-error][role="alert"]').waitFor();
+  assert.equal(await page.locator('main').getAttribute('data-testnet-phase'), 'DISCONNECTED');
+  assert.equal(await page.locator('.vault-card .metrics').count(), 0);
+  for (const name of ['我的 Vault', 'mock-owner-a', 'mock-owner-b'])
+    assert.equal(await page.getByRole('heading', { name, exact: true }).count(), 0);
+  assert.equal(await page.locator('.review').count(), 0);
   assert.equal(await page.getByRole('button', { name: '预览待签交易', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: '在 owner 钱包中确认', exact: true }).count(), 0);
   await page.getByRole('button', { name: /重新登录|连接钱包并登录/ }).waitFor();
 }
 async function manuallyRestoreOwnerA(h) {
   await h.page.getByRole('button', { name: /重新登录|连接钱包并登录/ }).click();
   await h.page.locator('.vault-card h2').filter({ hasText: 'mock-owner-a' }).waitFor();
+  assert.equal(await h.page.locator('main').getAttribute('data-testnet-phase'), 'READY');
 }
 
 test('another tab changes the shared authenticated cookie while the first wallet remains A', async () =>
@@ -262,11 +265,14 @@ for (const kind of ['MISSING', 'MALFORMED', 'MISMATCH'])
     browserCase('vault-envelope-' + kind, async (h) => {
       await h.goto();
       await h.login();
+      const logins = h.s.walletRequests.filter((r) => r.method === 'personal_sign').length;
       h.faults.vaultOwner = kind;
       await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
       await assertOwnerReauthentication(h.page);
+      assert.equal(h.s.walletRequests.filter((r) => r.method === 'personal_sign').length, logins);
       h.faults.vaultOwner = 'NONE';
       await manuallyRestoreOwnerA(h);
+      assert.equal(h.s.walletRequests.filter((r) => r.method === 'personal_sign').length, logins + 1);
       assert.equal(h.s.walletRequests.filter((r) => r.method === 'eth_sendTransaction').length, 0);
     }));
 
@@ -410,13 +416,15 @@ for (const tab of ['trades', 'passes', 'saved', 'notes', 'funds', 'settings'])
       { demo: true },
     ));
 
-test('documented account aliases and invalid account tab normalize to actual Pass content rather than home coverage', async () =>
+test('account no-tab and generic fallbacks preserve their hashes and render actual Pass content', async () =>
   browserCase(
     'account-fallbacks',
     async (h) => {
-      for (const tab of ['trials', 'activity', 'trial', 'release-invalid-tab']) {
-        await h.goto('/#/account/' + tab);
+      for (const tab of ['', 'trials', 'activity', 'trial', 'release-invalid-tab']) {
+        const hash = '#/account' + (tab ? '/' + tab : '');
+        await h.goto('/' + hash);
         await h.page.locator('.account-page').waitFor();
+        assert.equal(await h.page.evaluate(() => window.location.hash), hash);
         assert.equal(await h.page.evaluate(() => window.AF.view.accountTab), 'passes');
         assert.equal(
           await h.page

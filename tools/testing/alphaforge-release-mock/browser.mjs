@@ -305,6 +305,10 @@ export async function createBrowserHarness({ demo = false, viewport = { width: 1
             {
               mode: 'MOCK',
               demoResearchOnly: demo,
+              envelopeFixtureUsed: false,
+              negativeOwnerFaults: requests
+                .filter((request) => request.injectedFault?.startsWith('VAULT_OWNER_'))
+                .map((request) => request.injectedFault),
               browserVersion: browser.version(),
               toolVersion: descriptor.browser.package.version,
               toolQualification,
