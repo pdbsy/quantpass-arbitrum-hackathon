@@ -1,7 +1,7 @@
 /* global window, location, document, innerWidth */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, mkdir, readFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'vite';
@@ -11,6 +11,11 @@ import { verifyInstallation } from '../tools/coverage/toolchain.mjs';
 import { StrategyClient } from '../tools/automata/strategy-client.mjs';
 import { provisionEma, advanceEma } from '../tools/automata/ema-demo-runtime.mjs';
 import { emaTargets } from '../packages/automata/src/ema-strategy.ts';
+import { buildPublicTestnetApp } from '../apps/server/src/testnet-app.ts';
+import { TradingChainRuntime } from '../apps/server/src/trading-chain-runtime.ts';
+import { WalletAuthStore } from '../packages/testnet/src/wallet-auth.ts';
+import { tradingInterface } from '../packages/testnet/src/trading-abi.ts';
+import { tradingRpcFixture, tradingFixtureAddress } from './helpers/testnet-trading-rpc.ts';
 
 const browserDirectory = process.env.AF_QUALIFIED_BROWSER_TOOLS;
 const chrome = process.env.CHROMIUM_PATH;
@@ -288,6 +293,195 @@ test(
   },
 );
 
+test(
+  'two isolated Testnet tabs hide Alice data when the shared authenticated cookie becomes Bob',
+  { skip: !browserDirectory || !chrome, timeout: 60000 },
+  async (t) => {
+    const root = resolve(import.meta.dirname, '..');
+    const lock = JSON.parse(await readFile(resolve(root, 'planning/coverage-toolchain.lock.json')));
+    verifyInstallation(resolve(browserDirectory), lock.browser.installedFiles);
+    await mkdir(resolve(root, '.checks/w1-owner'), { recursive: true });
+    const output = await mkdtemp(resolve(root, '.checks/w1-owner/run-'));
+    const dist = resolve(output, 'dist');
+    await importUserUI(
+      await readFile(resolve(root, 'apps/web/prototype/AlphaForge_v3_EN.html'), 'utf8'),
+      resolve(root, 'apps/web'),
+      resolve(root, 'build/ui-import'),
+    );
+    await build({
+      configFile: resolve(root, 'apps/web/vite.config.ts'),
+      root: resolve(root, 'apps/web'),
+      logLevel: 'silent',
+      build: { outDir: dist, emptyOutDir: true },
+    });
+    const origin = 'https://w1-owner-fixture.example';
+    const hash = '0x' + 'ab'.repeat(32),
+      logs = [];
+    const addLog = (name, args, block = 16) => {
+      const encoded = tradingInterface.encodeEventLog(tradingInterface.getEvent(name), args),
+        index = logs.length;
+      logs.push({
+        address: tradingFixtureAddress(50),
+        blockNumber: '0x' + block.toString(16),
+        blockHash: block === 16 ? hash : '0x' + block.toString(16).padStart(64, '0'),
+        transactionHash: '0x' + String(index + 1).padStart(64, '0'),
+        transactionIndex: '0x' + index.toString(16),
+        logIndex: '0x' + index.toString(16),
+        data: encoded.data,
+        topics: encoded.topics,
+        removed: false,
+      });
+    };
+    addLog('Deposited', [1000000000n, 1000000000n, 1000n * 10n ** 18n], 1);
+    addLog('CapitalChanged', [true, 900000000n, 900n * 10n ** 18n, 1n], 2);
+    for (let index = 0; index < 3; index++)
+      addLog('SwapExecuted', [
+        BigInt(index + 2),
+        1n,
+        tradingFixtureAddress(10 + index),
+        true,
+        100000000n,
+        10n ** 18n,
+      ]);
+    const fixture = tradingRpcFixture('NONE', {
+      historical: true,
+      head: 16,
+      logs,
+      hashAt: (number) => (number === 16 ? hash : '0x' + number.toString(16).padStart(64, '0')),
+    });
+    const aliceOwner = fixture.inventory.owner,
+      bobOwner = tradingFixtureAddress(99);
+    const runtime = new TradingChainRuntime({
+      dbPath: resolve(output, 'chain.sqlite'),
+      evidencePath: resolve(output, 'evidence.sqlite'),
+      manifest: fixture.manifest,
+      inventory: fixture.inventory,
+      rpc: fixture.client,
+    });
+    t.after(() => runtime.close());
+    await runtime.syncToHead();
+    const auth = new WalletAuthStore(resolve(output, 'auth.sqlite'), origin, {
+      challengeTtlMs: 60000,
+      sessionTtlMs: 60000,
+      maxRows: 100,
+    });
+    const app = await buildPublicTestnetApp({
+      origin,
+      auth,
+      webRoot: dist,
+      runtimes: [{ id: 'alice-fixture-vault', runtime }],
+      verifyOwner: async (_message, signature) => signature === '0x01',
+    });
+    t.after(() => app.close());
+    const { chromium } = await import(pathToFileURL(resolve(browserDirectory, 'index.mjs')).href);
+    const browser = await chromium.launch({ executablePath: chrome, headless: true });
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    t.after(() => context.close());
+    let envelopeFixtureUsed = false;
+    // All HTTPS requests remain inside this test's app.inject composition.
+    // Until W2 integration, the fixture supplies the manager-approved additive
+    // owner envelope from the exact same authenticated request cookie.
+    await context.route(origin + '/**', async (route) => {
+      const request = route.request(),
+        url = new URL(request.url());
+      const headers = {
+        ...(await request.allHeaders()),
+        host: url.host,
+        origin,
+        'x-forwarded-proto': 'https',
+      };
+      const response = await app.inject({
+        method: request.method(),
+        url: url.pathname + url.search,
+        headers,
+        payload: request.postData() ?? undefined,
+      });
+      let body = response.rawPayload;
+      if (url.pathname === '/api/testnet/vaults' && response.statusCode === 200) {
+        const value = response.json();
+        if (!Object.hasOwn(value, 'owner')) {
+          envelopeFixtureUsed = true;
+          const token = /(?:^|;\s*)__Host-af_testnet=([^;]*)/.exec(headers.cookie ?? '')?.[1] ?? '';
+          body = Buffer.from(JSON.stringify({ ...value, owner: auth.owner(token, Date.now()) }));
+        }
+      }
+      const outgoing = Object.fromEntries(
+        Object.entries(response.headers)
+          .filter(([key]) => key !== 'content-length')
+          .map(([key, value]) => [key, Array.isArray(value) ? value.join('\n') : String(value)]),
+      );
+      await route.fulfill({ status: response.statusCode, headers: outgoing, body });
+    });
+    const alice = await context.newPage(),
+      bob = await context.newPage();
+    const errors = [];
+    for (const [page, owner] of [
+      [alice, aliceOwner],
+      [bob, bobOwner],
+    ]) {
+      page.on('pageerror', (error) => errors.push(error.message));
+      await page.addInitScript((identity) => {
+        window.fixtureWallet = { owner: identity, signPrompts: 0, transactions: 0 };
+        window.ethereum = {
+          on() {},
+          removeListener() {},
+          async request({ method }) {
+            if (['eth_accounts', 'eth_requestAccounts'].includes(method)) return [window.fixtureWallet.owner];
+            if (method === 'eth_chainId') return '0xb626';
+            if (method === 'personal_sign') {
+              window.fixtureWallet.signPrompts++;
+              return '0x01';
+            }
+            if (method === 'eth_sendTransaction') window.fixtureWallet.transactions++;
+            throw new Error('UNEXPECTED_FIXTURE_WALLET_REQUEST');
+          },
+        };
+      }, owner);
+      await page.goto(origin + '/');
+    }
+    await alice.getByRole('button', { name: '连接钱包并登录' }).click();
+    await alice.locator('main[data-testnet-phase="READY"]').waitFor();
+    assert.equal(await alice.locator('.vault-card').count(), 1);
+    await bob.getByRole('button', { name: '连接钱包并登录' }).click();
+    await bob.locator('main[data-testnet-phase="EMPTY"]').waitFor();
+    await alice.getByRole('button', { name: '刷新链上状态' }).click();
+    await alice.locator('[data-testnet-identity-error]').waitFor();
+    assert.equal(await alice.locator('main').getAttribute('data-testnet-phase'), 'DISCONNECTED');
+    assert.equal(await alice.locator('.vault-card .metrics').count(), 0);
+    assert.equal(await alice.getByRole('heading', { name: 'alice-fixture-vault', exact: true }).count(), 0);
+    assert.equal(await alice.getByRole('button', { name: '预览待签交易' }).count(), 0);
+    assert.match(
+      await alice.locator('[data-testnet-identity-error]').textContent(),
+      /重新连接钱包并登录.*不会自动请求签名/,
+    );
+    const wallet = await alice.evaluate(() => window.fixtureWallet);
+    assert.deepEqual(wallet, { owner: aliceOwner, signPrompts: 1, transactions: 0 });
+    assert.deepEqual(errors, []);
+    await alice.screenshot({ path: resolve(output, 'owner-mismatch-mobile.png'), fullPage: true });
+    await writeFile(
+      resolve(output, 'owner-read-result.json'),
+      JSON.stringify(
+        {
+          scope: 'ISOLATED_TEST_ONLY',
+          initialPhase: 'READY',
+          sharedSessionAfterBobLogin: bobOwner,
+          aliceWallet: wallet,
+          finalPhase: 'DISCONNECTED',
+          visibleVaults: 0,
+          automaticSignatures: 0,
+          envelopeFixtureUsed,
+        },
+        null,
+        2,
+      ),
+    );
+    t.diagnostic(
+      `Native two-tab private-cookie/compiled-owner regression: ${output}; additive envelope fixture used=${envelopeFixtureUsed}, no real wallet/signing/broadcast`,
+    );
+  },
+);
+
 // Native compiled-product regression: catches route/Escape label drift and
 // verifies the actual exported file rather than a success toast.
 test(
@@ -375,7 +569,17 @@ test(
         tab + ' should fit mobile',
       );
     }
+    for (const tab of ['', 'trials', 'trial', 'activity', 'invalid-tab']) {
+      await page.goto(origin + '/#/account' + (tab ? '/' + tab : ''));
+      await page.waitForFunction(() => window.AF?.view?.accountTab === 'passes');
+      assert.equal(await page.locator('[aria-label="M3 account chain status"]').count(), 0);
+      assert.equal(await page.locator('[aria-current="page"][href="#/account/passes"]').count(), 1);
+      assert.equal(await page.evaluate(() => location.hash), '#/account' + (tab ? '/' + tab : ''));
+    }
+    await page.goto(origin + '/#/not-a-route');
+    await page.getByText('This page is not in the workshop yet.', { exact: true }).waitFor();
     await page.reload();
+    await page.goto(origin + '/#/account/settings');
     await page.locator('main h1').waitFor();
     assert.equal(await page.locator('[aria-label="M3 account chain status"]').count(), 0);
     await page.goto(origin + '/#/account/trades');

@@ -1,4 +1,18 @@
+import { walletAddress } from '../../../packages/testnet/src/address.ts';
+
 export type TestnetReadPhase = 'DISCONNECTED' | 'LOADING' | 'READY' | 'EMPTY' | 'STALE';
+export const testnetIdentityReadError = (error: string | null) =>
+  error === 'TESTNET_ACCOUNT_IDENTITY_CHANGED' ||
+  error === 'TESTNET_ACCOUNT_IDENTITY_INVALID' ||
+  error === 'WALLET_LOGIN_REQUIRED';
+const readOwner = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  try {
+    return walletAddress(value);
+  } catch {
+    return null;
+  }
+};
 export interface TestnetAccountSnapshot<T> {
   owner: string | null;
   phase: TestnetReadPhase;
@@ -34,13 +48,28 @@ export class TestnetAccountReader<T = { id: string }> {
   }
   async refresh(): Promise<boolean> {
     if (!this.#state.owner) return false;
+    const connectedOwner = readOwner(this.#state.owner);
     const generation = ++this.#generation;
     this.#publish({ phase: this.#state.vaults.length ? this.#state.phase : 'LOADING', error: null });
     try {
-      const result = (await this.read()) as { chainId?: unknown; vaults?: unknown };
+      const result = (await this.read()) as { owner?: unknown; chainId?: unknown; vaults?: unknown };
       if (generation !== this.#generation) return false;
-      if (!result || result.chainId !== 46630 || !Array.isArray(result.vaults))
-        throw new Error('TESTNET_READ_INVALID');
+      const responseOwner = readOwner(result?.owner);
+      if (!connectedOwner || !responseOwner) throw new Error('TESTNET_ACCOUNT_IDENTITY_INVALID');
+      if (responseOwner !== connectedOwner) throw new Error('TESTNET_ACCOUNT_IDENTITY_CHANGED');
+      if (result.chainId !== 46630 || !Array.isArray(result.vaults)) throw new Error('TESTNET_READ_INVALID');
+      for (const value of result.vaults) {
+        if (!value || typeof value !== 'object' || Array.isArray(value))
+          throw new Error('TESTNET_ACCOUNT_IDENTITY_INVALID');
+        const snapshot = (value as { snapshot?: unknown }).snapshot;
+        // Unavailable projections are still bound by the same-request owner envelope.
+        if (snapshot === null) continue;
+        if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot))
+          throw new Error('TESTNET_ACCOUNT_IDENTITY_INVALID');
+        const snapshotOwner = readOwner((snapshot as { owner?: unknown }).owner);
+        if (!snapshotOwner) throw new Error('TESTNET_ACCOUNT_IDENTITY_INVALID');
+        if (snapshotOwner !== connectedOwner) throw new Error('TESTNET_ACCOUNT_IDENTITY_CHANGED');
+      }
       this.#publish({
         vaults: result.vaults as T[],
         phase: result.vaults.length ? 'READY' : 'EMPTY',
@@ -49,9 +78,15 @@ export class TestnetAccountReader<T = { id: string }> {
       return true;
     } catch (error) {
       if (generation !== this.#generation) return false;
+      const reason = error instanceof Error ? error.message : 'TESTNET_READ_UNAVAILABLE';
+      if (testnetIdentityReadError(reason)) {
+        ++this.#generation;
+        this.#publish({ owner: null, phase: 'DISCONNECTED', vaults: [], error: reason });
+        return false;
+      }
       this.#publish({
         phase: this.#state.vaults.length ? 'STALE' : 'DISCONNECTED',
-        error: error instanceof Error ? error.message : 'TESTNET_READ_UNAVAILABLE',
+        error: reason,
       });
       return false;
     }

@@ -9,6 +9,7 @@ import {
   pollTestnetAccount,
   parseTestnetIntent,
   testnetOperationMessage,
+  testnetIdentityReadError,
 } from './testnet-ui-state.ts';
 import { formAction } from './testnet-action-form.ts';
 
@@ -754,6 +755,11 @@ export function TestnetPage() {
           <li>停止进入清仓；撤销权限后由 owner 恢复卖出。持仓清空后关闭并取回剩余 PASS。</li>
         </ol>
       </nav>
+      {testnetIdentityReadError(account.error) && (
+        <p role="alert" className="notice" data-testnet-identity-error>
+          服务端会话身份已变化或无法核验。已隐藏个人账户并暂停操作，请重新连接钱包并登录。页面不会自动请求签名。
+        </p>
+      )}
       {owner && (
         <p role="status" data-testnet-read-state>
           {account.phase === 'LOADING'

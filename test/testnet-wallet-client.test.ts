@@ -8,6 +8,13 @@ const owner = '0x' + '11'.repeat(20),
   pass = '0x' + '44'.repeat(20),
   usdc = '0x' + '55'.repeat(20);
 const origin = 'https://test.alphaforge.example';
+const accountVault = (identity = owner) => ({
+  id: identity === owner ? 'alice-vault' : 'bob-vault',
+  status: 'HEALTHY',
+  manifest: { vault, pass, usdc, manifestDigest: '00'.repeat(32) },
+  snapshot: { owner: identity },
+  performance: null,
+});
 function challenge() {
   const store = new WalletAuthStore(':memory:', origin, {
     challengeTtlMs: 60000,
@@ -116,7 +123,7 @@ test('Testnet reads distinguish failed initial read from verified empty and supp
     async () => {
       throw new Error('unavailable');
     },
-    async () => ({ chainId: 46630, vaults: [] }),
+    async () => ({ owner, chainId: 46630, vaults: [] }),
   ];
   const reader = new ui.TestnetAccountReader(async () => queue.shift()!());
   reader.connect(owner);
@@ -143,7 +150,7 @@ test('Testnet reads distinguish failed initial read from verified empty and supp
 test('failed or superseded refresh cannot expose a healthy cached Vault or overwrite a newer result', async () => {
   const ui = await import('../apps/web/src/testnet-ui-state.ts').catch(() => null);
   assert.ok(ui?.TestnetAccountReader);
-  let result: () => Promise<unknown> = async () => ({ chainId: 46630, vaults: [{ id: 'vault' }] });
+  let result: () => Promise<unknown> = async () => ({ owner, chainId: 46630, vaults: [accountVault()] });
   const reader = new ui.TestnetAccountReader(async () => result());
   reader.connect(owner);
   await reader.refresh();
@@ -160,7 +167,7 @@ test('failed or superseded refresh cannot expose a healthy cached Vault or overw
       reject = no;
     });
   const older = reader.refresh();
-  result = async () => ({ chainId: 46630, vaults: [] });
+  result = async () => ({ owner, chainId: 46630, vaults: [] });
   await reader.refresh();
   reject(new Error('late failure'));
   await older;
@@ -207,7 +214,7 @@ test('slow account reads finish before periodic polling schedules another reques
   t.mock.timers.tick(5000);
   t.mock.timers.tick(10000);
   assert.equal(reads, 1, 'a slow request must not be perpetually superseded');
-  complete({ chainId: 46630, vaults: [] });
+  complete({ owner, chainId: 46630, vaults: [] });
   await Promise.resolve();
   await Promise.resolve();
   assert.equal(reader.snapshot.phase, 'EMPTY');
@@ -221,4 +228,84 @@ test('slow account reads finish before periodic polling schedules another reques
   t.mock.timers.tick(10000);
   assert.equal(reads, 2);
   assert.deepEqual(reader.snapshot.vaults, []);
+});
+
+test('shared-session changes cannot publish Bob data or empty results under Alice', async () => {
+  const { TestnetAccountReader } = await import('../apps/web/src/testnet-ui-state.ts');
+  for (const vaults of [[accountVault(other)], []]) {
+    let response = { owner, chainId: 46630, vaults: [accountVault()] };
+    const reader = new TestnetAccountReader<ReturnType<typeof accountVault>>(() => Promise.resolve(response));
+    const emitted: (typeof reader.snapshot)[] = [];
+    reader.subscribe((state) => emitted.push(state));
+    reader.connect(owner);
+    assert.equal(await reader.refresh(), true);
+    response = { owner: other, chainId: 46630, vaults };
+    const before = emitted.length;
+    assert.equal(await reader.refresh(), false);
+    assert.equal(reader.snapshot.owner, null);
+    assert.equal(reader.snapshot.phase, 'DISCONNECTED');
+    assert.equal(reader.snapshot.error, 'TESTNET_ACCOUNT_IDENTITY_CHANGED');
+    assert.deepEqual(reader.snapshot.vaults, []);
+    assert.ok(!emitted.slice(before).some((state) => state.vaults.some((v) => v.snapshot?.owner === other)));
+    assert.equal(await reader.refresh(), false, 'manual login is required; reads do not reconnect');
+  }
+});
+
+test('owner-bound responses reject missing or invalid identities and contradictory snapshots', async () => {
+  const { TestnetAccountReader } = await import('../apps/web/src/testnet-ui-state.ts');
+  const invalid: unknown[] = [
+    { chainId: 46630, vaults: [] },
+    { owner: null, chainId: 46630, vaults: [] },
+    { owner: 'malformed', chainId: 46630, vaults: [] },
+    { owner: '0x' + '00'.repeat(20), chainId: 46630, vaults: [] },
+    { owner, chainId: 46630, vaults: [{ ...accountVault(), snapshot: {} }] },
+    { owner, chainId: 46630, vaults: [{ ...accountVault(), snapshot: { owner: 'malformed' } }] },
+    { owner, chainId: 46630, vaults: [{ ...accountVault(), snapshot: { owner: other } }] },
+    { owner, chainId: 46630, vaults: [{ ...accountVault(), snapshot: undefined }] },
+  ];
+  for (const value of invalid) {
+    let response: unknown = { owner, chainId: 46630, vaults: [accountVault()] };
+    const reader = new TestnetAccountReader(() => Promise.resolve(response));
+    reader.connect(owner);
+    await reader.refresh();
+    response = value;
+    assert.equal(await reader.refresh(), false);
+    assert.equal(reader.snapshot.owner, null);
+    assert.equal(reader.snapshot.phase, 'DISCONNECTED');
+    assert.deepEqual(reader.snapshot.vaults, []);
+    assert.match(reader.snapshot.error!, /TESTNET_ACCOUNT_IDENTITY_(INVALID|CHANGED)/);
+  }
+});
+
+test('same-owner envelope binds both verified empty and unavailable snapshot views', async () => {
+  const { TestnetAccountReader } = await import('../apps/web/src/testnet-ui-state.ts');
+  for (const vaults of [[], [accountVault()], [{ ...accountVault(), status: 'SYNCING', snapshot: null }]]) {
+    const reader = new TestnetAccountReader(() => Promise.resolve({ owner, chainId: 46630, vaults }));
+    reader.connect(owner);
+    assert.equal(await reader.refresh(), true);
+    assert.equal(reader.snapshot.owner, owner);
+    assert.equal(reader.snapshot.phase, vaults.length ? 'READY' : 'EMPTY');
+    assert.deepEqual(reader.snapshot.vaults, vaults);
+  }
+});
+
+test('a superseded mismatched identity cannot log out a newer slow owner read', async () => {
+  const { TestnetAccountReader } = await import('../apps/web/src/testnet-ui-state.ts');
+  let finish!: (value: unknown) => void;
+  let response = () =>
+    new Promise<unknown>((resolve) => {
+      finish = resolve;
+    });
+  const reader = new TestnetAccountReader<ReturnType<typeof accountVault>>(() => response());
+  reader.connect(owner);
+  const older = reader.refresh();
+  reader.connect(other);
+  response = () => Promise.resolve({ owner: other, chainId: 46630, vaults: [accountVault(other)] });
+  await reader.refresh();
+  finish({ owner: 'malformed', chainId: 46630, vaults: [accountVault()] });
+  await older;
+  assert.equal(reader.snapshot.owner, other);
+  assert.equal(reader.snapshot.phase, 'READY');
+  assert.equal(reader.snapshot.vaults[0]!.snapshot.owner, other);
+  assert.equal(reader.snapshot.error, null);
 });
