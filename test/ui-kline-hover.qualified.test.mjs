@@ -422,7 +422,12 @@ test(
     ]) {
       page.on('pageerror', (error) => errors.push(error.message));
       await page.addInitScript((identity) => {
-        window.fixtureWallet = { owner: identity, signPrompts: 0, transactions: 0 };
+        const key = 'w1-fixture-sign-prompts:' + identity;
+        window.fixtureWallet = {
+          owner: identity,
+          signPrompts: Number(window.sessionStorage.getItem(key) ?? '0'),
+          transactions: 0,
+        };
         window.ethereum = {
           on() {},
           removeListener() {},
@@ -431,6 +436,7 @@ test(
             if (method === 'eth_chainId') return '0xb626';
             if (method === 'personal_sign') {
               window.fixtureWallet.signPrompts++;
+              window.sessionStorage.setItem(key, String(window.fixtureWallet.signPrompts));
               return '0x01';
             }
             if (method === 'eth_sendTransaction') window.fixtureWallet.transactions++;
@@ -443,6 +449,16 @@ test(
     await alice.getByRole('button', { name: '连接钱包并登录' }).click();
     await alice.locator('main[data-testnet-phase="READY"]').waitFor();
     assert.equal(await alice.locator('.vault-card').count(), 1);
+    const intentKey = `alphaforge-testnet-intent:46630:${runtime.manifest.manifestDigest}:${aliceOwner}`;
+    const intent = JSON.stringify({ kind: 'STOP', operationId: 'w1_unknown_intent', hash: null });
+    await alice.evaluate(({ key, raw }) => window.localStorage.setItem(key, raw), {
+      key: intentKey,
+      raw: intent,
+    });
+    await alice.reload();
+    await alice.getByRole('button', { name: '连接钱包并登录' }).click();
+    await alice.locator('main[data-testnet-phase="READY"]').waitFor();
+    await alice.getByLabel('恢复交易哈希').waitFor();
     await bob.getByRole('button', { name: '连接钱包并登录' }).click();
     await bob.locator('main[data-testnet-phase="EMPTY"]').waitFor();
     await alice.getByRole('button', { name: '刷新链上状态' }).click();
@@ -456,9 +472,17 @@ test(
       /重新连接钱包并登录.*不会自动请求签名/,
     );
     const wallet = await alice.evaluate(() => window.fixtureWallet);
-    assert.deepEqual(wallet, { owner: aliceOwner, signPrompts: 1, transactions: 0 });
+    assert.deepEqual(wallet, { owner: aliceOwner, signPrompts: 2, transactions: 0 });
+    assert.equal(await alice.evaluate((key) => window.localStorage.getItem(key), intentKey), intent);
     assert.deepEqual(errors, []);
     await alice.screenshot({ path: resolve(output, 'owner-mismatch-mobile.png'), fullPage: true });
+    await alice.getByRole('button', { name: '连接钱包并登录' }).click();
+    await alice.locator('main[data-testnet-phase="READY"]').waitFor();
+    await alice.getByLabel('恢复交易哈希').waitFor();
+    const recoveredWallet = await alice.evaluate(() => window.fixtureWallet);
+    assert.deepEqual(recoveredWallet, { owner: aliceOwner, signPrompts: 3, transactions: 0 });
+    assert.equal(await alice.evaluate((key) => window.localStorage.getItem(key), intentKey), intent);
+    assert.deepEqual(errors, []);
     await writeFile(
       resolve(output, 'owner-read-result.json'),
       JSON.stringify(
@@ -467,7 +491,10 @@ test(
           initialPhase: 'READY',
           sharedSessionAfterBobLogin: bobOwner,
           aliceWallet: wallet,
-          finalPhase: 'DISCONNECTED',
+          afterMismatchPhase: 'DISCONNECTED',
+          recoveredPhase: 'READY',
+          walletAfterExplicitReconnect: recoveredWallet,
+          unknownIntentRetained: true,
           visibleVaults: 0,
           automaticSignatures: 0,
           envelopeFixtureUsed,
