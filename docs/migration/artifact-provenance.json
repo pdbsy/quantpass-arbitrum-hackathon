@@ -2130,7 +2130,7 @@
       "target_path": "apps/web/src/product-ui.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; M3-04-PRODUCT-UI adds the manifest-bound Vault runtime, finite approval review and canonical evidence readback",
       "original_sha256": "c094739b2c8308526a0d1470f72c32ac74de6c2157a3dcc0b0972584da755d38",
-      "migrated_sha256": "2b6d08da9e5ea51b4c8e593fbf12f7a24e88dcae9a13d2192b7a42e073c187a6",
+      "migrated_sha256": "a8d7811dc842c7d1f70487b694b53709e649aed1335f85b6ca4574781442e57c",
       "subsequent_adaptations": [
         {
           "task": "M3-01-PHASE1-CLOSEOUT",
@@ -2167,6 +2167,15 @@
           "previous_sha256": "2779668a9c1c8bf17b38776711bc87b6efaadf498b35e3ba7ed58e8040aefa23",
           "current_sha256": "2b6d08da9e5ea51b4c8e593fbf12f7a24e88dcae9a13d2192b7a42e073c187a6",
           "reason": "User-authorized local RWA automata integration; historical source identity and original bytes remain unchanged."
+        },
+        {
+          "agent": "W1",
+          "task": "AFREL-W1-PRODUCT",
+          "worker_source_commit": "40d384846c4285f7c598f07ce2dd0e0c4f8f55ca",
+          "integration_commit": "f5f34f9927794e5bca93932161e5e96864052961",
+          "previous_sha256": "2b6d08da9e5ea51b4c8e593fbf12f7a24e88dcae9a13d2192b7a42e073c187a6",
+          "current_sha256": "a8d7811dc842c7d1f70487b694b53709e649aed1335f85b6ca4574781442e57c",
+          "reason": "User-authorized release product/session presentation and assertions. Preserve original migration source identities and every historical adaptation."
         }
       ],
       "subsequent_revisions": [
@@ -2361,7 +2370,7 @@
       "target_path": "test/ui-product-client.test.ts",
       "method": "selective source integration; shared-file resolution recorded in CONFLICTS.md; reviewed PR11 closeout adaptation (see PR11-CLOSEOUT.md)",
       "original_sha256": "b80e4a0f1f80068203b88ee285bae260b2c9e90b9d06e437107e3404f8c9a263",
-      "migrated_sha256": "104750f20ceb326f1043d855c6536fa46b46405d9f088b7a905dd5d6c5d5b827",
+      "migrated_sha256": "9a20d6e708e076cd9a5628114b23fc53df97b31d064b5cf24f97e2ec4dc8144e",
       "subsequent_revisions": [
         {
           "commit": "12455fd1be46d88082f2b047417261d59760f4cc",
@@ -2384,6 +2393,17 @@
           "previous_sha256": "65d93b7c1b4c0c9013ae69ef29c236c3490024d8e6a31a2fe969bc34d4098965",
           "sha256": "104750f20ceb326f1043d855c6536fa46b46405d9f088b7a905dd5d6c5d5b827",
           "reason": "Register reviewed assertion-bearing recovery or product boundary tests; preserve the original source and all previous revision hashes."
+        }
+      ],
+      "subsequent_adaptations": [
+        {
+          "agent": "W1",
+          "task": "AFREL-W1-PRODUCT",
+          "worker_source_commit": "40d384846c4285f7c598f07ce2dd0e0c4f8f55ca",
+          "integration_commit": "f5f34f9927794e5bca93932161e5e96864052961",
+          "previous_sha256": "104750f20ceb326f1043d855c6536fa46b46405d9f088b7a905dd5d6c5d5b827",
+          "current_sha256": "9a20d6e708e076cd9a5628114b23fc53df97b31d064b5cf24f97e2ec4dc8144e",
+          "reason": "User-authorized release product/session presentation and assertions. Preserve original migration source identities and every historical adaptation."
         }
       ]
     },

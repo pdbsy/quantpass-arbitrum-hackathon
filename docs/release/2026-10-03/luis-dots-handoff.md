@@ -58,7 +58,25 @@ The host HTTPS proxy serves the dedicated Testnet build. Its upstream binds only
 
 Owner login is an EOA domain/chain46630/nonce/expiry-bound login-only challenge using one-use challenges and secure opaque cookies. Login does not grant trading permission. Validate wrong Host/Origin/protocol, missing/expired session and owner A/B isolation. Do not capture cookie/token values in returned logs.
 
-Read-only health must distinguish process/heartbeat, configuration admission, deployment identity, current verified market data and execution readiness. A heartbeat alone cannot prove valid prices, an actual deployed Vault or successful fills. Missing/stale/wrong-config status stays unavailable. W2's actual authenticated MCP routes, discovery and session contract will be recorded after its exact delivery is reviewed; archived snapshots remain explicitly archived.
+Read-only health must distinguish process/heartbeat, configuration admission, deployment identity, current verified market data and execution readiness. A heartbeat alone cannot prove valid prices, an actual deployed Vault or successful fills. Missing/stale/wrong-config status stays unavailable. Archived snapshots remain explicitly archived.
+
+## Authenticated read-only MCP connection preparation
+
+The reviewed server exposes `POST /api/testnet/mcp`, with `initialize`, `notifications/initialized`, `ping`, `tools/list` and three tools: `alphaforge_status`, `alphaforge_test_results`, `alphaforge_readiness`. Every request validates a current owner session. It accepts a valid wallet-session bearer token for this exact MCP route, or the existing secure session cookie; arbitrary owner hints never select a different owner. The current implementation supports protocol versions 2024-11-05, 2025-03-26 and 2025-06-18. It is a stateless JSON response compatibility surface; deployed Codex transport/protocol negotiation and a published authenticated plugin remain NOT_RUN.
+
+Codex supports HTTP MCP URLs, bearer tokens sourced from an environment variable, extra HTTP headers and an enabled-tools allowlist. Desktop and CLI share MCP configuration. This preparation example follows the actual [official Codex MCP configuration documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), fetched during this review. Luis must replace the reserved example origin with the admitted deployment origin and provision a short-lived owner session only after an explicitly authorized wallet login. The example is a handoff artifact; W5 has not registered it or configured any token.
+
+```toml
+[mcp_servers.alphaforge_testnet]
+url = "https://test.alphaforge.example/api/testnet/mcp"
+bearer_token_env_var = "AF_TESTNET_OWNER_SESSION"
+http_headers = { "Origin" = "https://test.alphaforge.example", "X-AlphaForge-Client" = "1" }
+enabled_tools = ["alphaforge_status", "alphaforge_test_results", "alphaforge_readiness"]
+startup_timeout_sec = 10
+tool_timeout_sec = 60
+```
+
+Keep the session token in protected local operator memory/environment, never in source, TOML literal values, arguments, returned logs or this bundle. A login-only EOA challenge is signed in the owner's local wallet; owner private keys never enter the server. The current service has no OAuth discovery/login flow, so a Codex OAuth login command does not acquire this session. Logout, expiry or revocation requires explicit fresh owner authentication. Luis must verify actual client negotiation and all three owner-scoped tools over valid TLS, then verify missing/expired/wrong-owner sessions and rejected Origin/client headers. Return sanitized tool results and actual client/protocol versions, not tokens. The proxy supplies trusted protocol/Host values; no client-side forwarded-protocol bypass is part of the example.
 
 ## Watch-only and finite operational smoke
 

@@ -4,8 +4,8 @@ Reviews bind exact immutable commits. Waiting branches remain unaccepted; no aut
 
 | Worker | Assigned branch | Specification review | Quality review | Exact reviewed head | Decision |
 | --- | --- | --- | --- | --- | --- |
-| W1 product | codex/alphaforge-w1-product-20261003 | CHANGES_REQUIRED | CHANGES_REQUIRED | 9aa7cdc4dfa55bc9ed91964ea11068f5e7a25d08 | Owner fix requested through manager |
-| W2 runtime | codex/alphaforge-w2-runtime-20261003 | PASS_WITH_LIMITS | PASS_WITH_LIMITS | 14d3a613f2a47fde1a74391d80ab79c6b20155b6 | Integrated with original history |
+| W1 product | codex/alphaforge-w1-product-20261003 | PASS_WITH_LIMITS | PASS_WITH_LIMITS | 40d384846c4285f7c598f07ce2dd0e0c4f8f55ca | Fixed owner binding reviewed and integrated |
+| W2 runtime | codex/alphaforge-w2-runtime-20261003 | PASS_WITH_LIMITS | PASS_WITH_LIMITS | 7f90b8390a768ce4909d2e89e974b9cd898f7499 | Owner envelope increment reviewed and integrated |
 | W3 container | codex/alphaforge-w3-container-20261003 | NOT_RUN | NOT_RUN | Not delivered | WAITING |
 | W4 mock E2E | codex/alphaforge-w4-mock-e2e-20261003 | NOT_RUN | NOT_RUN | Not delivered | WAITING |
 | W5 integration | codex/alphaforge-release-integration-20261003 | Existing worker required | Existing worker required | Not fixed | WAITING |
@@ -26,11 +26,23 @@ Read all 15 changed files against the fixed baseline, including native browser t
 
 Manager confirmed the finding and assigned W1 the fix on the original branch. This head remains unmerged. Resolution must cover response identity, empty Vault responses, hidden personal data and unavailable actions on mismatch, plus a regression and exact fixed-head review. No W1 application code was edited by W5.
 
+## W1 review, fixed owner binding
+
+Read the complete original-to-fix delta `9aa7cdc4dfa55bc9ed91964ea11068f5e7a25d08..40d384846c4285f7c598f07ce2dd0e0c4f8f55ca`, including both original owner-fix `0e1f932aabda7f9f340ac35f2222fe5f84915419` and the explicit recovery regression. Fixed tree `6242ee21845fc33f8ae416e511125ced18b4b6e5`; direct ancestry and worker clean state verified. Specification and quality review found no remaining blocker. Every response requires a valid same-request owner envelope; every non-null snapshot must agree. Empty and unavailable projections remain identity-bound. Mismatch, malformed identity and expired login remove personal data, stop polling and disable new actions. Generation checks reject superseded responses before identity handling.
+
+The existing manual wallet-login button becomes available after the reader clears its owner; its handler performs the explicit login and fresh read. No automatic signature or storage reset was added. The native regression checks that a retained unknown intent survives the mismatch and explicit reconnection. It supplies an additive envelope only on the standalone W1 baseline; the integrated W2 response must make `envelopeFixtureUsed=false` in W5's new browser evidence. Native integrated browser acceptance remains pending. Formal account routes are trades/passes/saved/notes/funds/settings; trial/trials/activity retain the existing Pass fallback. They are not new route contracts.
+
+No-fast-forward merge `f5f34f9927794e5bca93932161e5e96864052961` preserves all W1 authors and commits. A clean fixed-source integrated owner/API/runtime run produced 27/27 pass, zero failures/skips with matching pre/post source, tree and lock and an uncapped raw log. This is focused local evidence, not final candidate acceptance or additional unique main-suite tests.
+
 ## W2 review, round 1
 
 Read all 22 changed files and corresponding existing tests against the baseline. Tree `c60d03475581067418b971f6f2a45fb3ddecaf2e` and base ancestry verified. Specification review checked per-request wallet scope for REST/MCP, bounded explicit projections, current-versus-archived descriptors, 90-second synchronization and 30-second market freshness, per-Vault recovery, unsigned preflight/network identities, durable row/outcome integrity and pre-unlock nonce ownership. Quality review checked ingress/storage-pause behavior, malformed/expired/wrong-owner inputs, file permissions/exclusive locks, crash admission, migration/rollback and CLI compatibility. No blocking defect found in this exact diff.
 
 Acceptance limits remain: MCP is a stateless local compatibility surface requiring specific ingress/authentication headers; actual Codex connection and publication are NOT_RUN. Namespace sidecar and host nonce identity records are outside the existing SQLite-only backup manifest and must be separately retained and verified in the container/operator procedure. Relocation or legacy adoption requires explicit identity comparison; no automatic adoption or stale-lock clearing is allowed. The host nonce guard is not cross-host coordination. Worker tests are source-bound local evidence; W5 must rerun the integrated candidate. Original W2 author/commit was preserved in a local no-fast-forward integration merge.
+
+## W2 review, atomic owner envelope increment
+
+Read all three changed files in exact delta `14d3a613f2a47fde1a74391d80ab79c6b20155b6..7f90b8390a768ce4909d2e89e974b9cd898f7499`, tree `4009271ce2a949dd6a08ae8695e7828ea93393cf`. The one production line exposes the owner already authenticated by the same request and already used to filter its Vaults. It applies to nonempty, empty and null-snapshot success responses. Query/header identity hints do not affect it. The fixture's optional owner preserves its old default; regressions cover alternating current cookies, initial/null and stale/empty results, wrong/expired ingress and no chain transaction. Specification and quality review passed with the original W2 limits. The worker's compiled-artifact skip stays explicit. Local no-fast-forward merge `5050aa1372f5e6f55ed086624ed65ae16353511d` preserves history. W5's related integrated route/runtime/public checks passed 16/16, zero failures/skips; the later combined 27-case run overlaps these cases.
 
 ## Existing-worker review of W5 preparation
 
