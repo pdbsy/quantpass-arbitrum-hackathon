@@ -165,3 +165,50 @@ test('manifest reader failures do not disclose operator file content or credenti
     (error: unknown) => error instanceof Error && error.message === 'TESTNET_MANIFEST_READ_FAILED',
   );
 });
+
+test('network identity binds Testnet deployment/ABI/units/RPC/policy and rejects a mainnet chain toggle', async () => {
+  const network = await import('../packages/testnet/src/network-identity.ts');
+  const { tradingRpcFixture } = await import('./helpers/testnet-trading-rpc.ts');
+  const f = tradingRpcFixture();
+  const binding = {
+    id: 'one',
+    manifestDigest: f.manifest.manifestDigest,
+    inventoryDigest: asBlockHash('0x' + 'ab'.repeat(32)),
+    vaultAddress: f.manifest.contractAddress,
+  };
+  const input = {
+    chainId: 46630,
+    profile: 'PUBLIC_TESTNET',
+    configurationDigest: '0x' + 'cd'.repeat(32),
+    deployments: [{ manifest: f.manifest, inventory: f.inventory, binding }],
+  };
+  const result = network.testnetNetworkIdentity(input);
+  assert.equal(result.descriptor.units.passRawPerUsdcRaw, '1000000000000');
+  assert.equal(result.descriptor.mainnet, 'DISABLED_UNCONFIGURED');
+  assert.deepEqual(result.descriptor.rpcRequirements, [
+    'CHAIN_ID_46630',
+    'EIP1898_REQUIRE_CANONICAL',
+    'HISTORICAL_STATE',
+    'CANONICAL_RECEIPTS_AND_LOGS',
+  ]);
+  assert.equal(result.descriptor.policy.softReadyDepth, 3);
+  assert.equal(result.descriptor.policy.reorgSearchLimit, 128);
+  assert.throws(() => network.testnetNetworkIdentity({ ...input, chainId: 1 }), /NETWORK_IDENTITY/);
+  assert.throws(
+    () =>
+      network.testnetNetworkIdentity({
+        ...input,
+        deployments: [
+          {
+            ...input.deployments[0]!,
+            manifest: { ...f.manifest, abiHash: asBlockHash('0x' + 'ef'.repeat(32)) },
+          },
+        ],
+      }),
+    /NETWORK_IDENTITY/,
+  );
+  assert.notEqual(
+    network.testnetNetworkIdentity({ ...input, configurationDigest: '0x' + 'ac'.repeat(32) }).digest,
+    result.digest,
+  );
+});

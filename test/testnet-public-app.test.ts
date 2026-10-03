@@ -169,3 +169,154 @@ test('storage pause rejects new persistent work but still permits owner logout',
     await app.close();
   }
 });
+
+test('live reads and MCP require a current owner session on every request and remain read-only during storage pause', async () => {
+  const auth = new WalletAuthStore(':memory:', origin, {
+    challengeTtlMs: 60000,
+    sessionTtlMs: 60000,
+    maxRows: 10,
+  });
+  let clock = now;
+  const session = auth.createSession(owner, clock);
+  const app = await buildPublicTestnetApp({ origin, auth, now: () => clock, canWrite: () => false });
+  try {
+    for (const url of ['/api/testnet/status', '/api/testnet/readiness', '/api/testnet/test-results']) {
+      assert.equal((await app.inject({ url, headers })).statusCode, 401);
+      const response = await app.inject({
+        url,
+        headers: { ...headers, cookie: '__Host-af_testnet=' + session.token },
+      });
+      assert.equal(response.statusCode, 200);
+      assert.equal(
+        response.json().provenance.kind,
+        url.endsWith('test-results') ? 'NOT_CONFIGURED' : 'CURRENT_PROCESS_OBSERVATION',
+      );
+    }
+    const payload = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
+    assert.equal(
+      (await app.inject({ method: 'POST', url: '/api/testnet/mcp', headers, payload })).statusCode,
+      401,
+    );
+    const authorized = { ...headers, authorization: 'Bearer ' + session.token };
+    const list = await app.inject({ method: 'POST', url: '/api/testnet/mcp', headers: authorized, payload });
+    assert.equal(list.statusCode, 200);
+    assert.deepEqual(
+      list.json().result.tools.map((t: { name: string }) => t.name),
+      ['alphaforge_status', 'alphaforge_test_results', 'alphaforge_readiness'],
+    );
+    const call = await app.inject({
+      method: 'POST',
+      url: '/api/testnet/mcp',
+      headers: authorized,
+      payload: { ...payload, method: 'tools/call', params: { name: 'alphaforge_readiness', arguments: {} } },
+    });
+    assert.equal(call.json().result.structuredContent.state, 'BLOCKED_FOR_PERSISTENT_TESTNET');
+    assert.equal(call.json().result.structuredContent.signingEnabled, false);
+    const impersonation = await app.inject({
+      method: 'POST',
+      url: '/api/testnet/mcp',
+      headers: authorized,
+      payload: {
+        ...payload,
+        method: 'tools/call',
+        params: { name: 'alphaforge_status', arguments: { owner: 'bob' } },
+      },
+    });
+    assert.equal(impersonation.json().error.code, -32602);
+    const wrongOrigin = await app.inject({
+      method: 'POST',
+      url: '/api/testnet/mcp',
+      headers: { ...authorized, origin: 'https://attacker.example' },
+      payload,
+    });
+    assert.equal(wrongOrigin.statusCode, 403);
+    clock += 60001;
+    assert.equal(
+      (await app.inject({ method: 'POST', url: '/api/testnet/mcp', headers: authorized, payload }))
+        .statusCode,
+      401,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test('status excludes other owners and secret-shaped provider fields; archived tests retain distinct source provenance', async () => {
+  const { tradingRpcFixture, tradingFixtureAddress } = await import('./helpers/testnet-trading-rpc.ts');
+  const { TradingChainRuntime } = await import('../apps/server/src/trading-chain-runtime.ts');
+  const folder = mkdtempSync(join(tmpdir(), 'alphaforge-live-owner-'));
+  const f = tradingRpcFixture();
+  const runtime = new TradingChainRuntime({
+    dbPath: join(folder, 'chain.sqlite'),
+    evidencePath: join(folder, 'evidence.sqlite'),
+    rpc: f.client,
+    inventory: f.inventory,
+    manifest: f.manifest,
+  });
+  const auth = new WalletAuthStore(':memory:', origin, {
+    challengeTtlMs: 60000,
+    sessionTtlMs: 60000,
+    maxRows: 10,
+  });
+  const ownSession = auth.createSession(f.inventory.owner, now),
+    otherSession = auth.createSession(owner, now);
+  const app = await buildPublicTestnetApp({
+    origin,
+    auth,
+    now: () => now,
+    runtimes: [{ id: 'one', runtime }],
+    runtimeStatus: {
+      configurationDigest: '0x' + 'ac'.repeat(32),
+      releaseIdentity: {
+        schemaVersion: 1,
+        sourceCommit: 'a'.repeat(40),
+        sourceTree: 'b'.repeat(40),
+        lockSha256: 'c'.repeat(64),
+        releaseDigest: '0x' + 'd'.repeat(64),
+      },
+      archivedTestResults: {
+        schemaVersion: 1,
+        sourceCommit: 'e'.repeat(40),
+        observedAt: now - 1000,
+        tests: 12,
+        pass: 10,
+        fail: 1,
+        skipped: 1,
+        rawLogSha256: 'f'.repeat(64),
+      },
+    },
+    executionStatus: () => ({
+      state: 'WARMUP',
+      signingEnabled: true,
+      observedAt: now,
+      rpcUrl: 'https://secret.invalid',
+      rawTransaction: 'secret-envelope',
+    }),
+    backupStatus: () => ({ state: 'VERIFIED', lastVerifiedAt: now, lastBackupId: 'secret-backup-path' }),
+  });
+  try {
+    const ownHeaders = { ...headers, cookie: '__Host-af_testnet=' + ownSession.token };
+    const own = await app.inject({ url: '/api/testnet/status', headers: ownHeaders });
+    assert.equal(own.json().vaults.length, 1);
+    assert.equal(own.json().vaults[0].vault, tradingFixtureAddress(50));
+    assert.equal(own.json().signingEnabled, true);
+    assert.equal(own.body.includes('secret'), false);
+    const other = await app.inject({
+      url: '/api/testnet/status',
+      headers: { ...headers, cookie: '__Host-af_testnet=' + otherSession.token },
+    });
+    assert.deepEqual(other.json().vaults, []);
+    assert.equal(other.json().signingEnabled, false);
+    assert.equal(other.body.includes(f.inventory.owner), false);
+    const tests = await app.inject({ url: '/api/testnet/test-results', headers: ownHeaders });
+    assert.equal(tests.json().provenance.kind, 'RECORDED_TEST_SNAPSHOT');
+    assert.equal(tests.json().provenance.sourceCommit, 'e'.repeat(40));
+    assert.equal(tests.json().currentSource.sourceCommit, 'a'.repeat(40));
+    assert.equal(tests.json().results.fail, 1);
+    assert.equal(tests.json().liveTestExecution, false);
+  } finally {
+    await app.close();
+    await runtime.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});

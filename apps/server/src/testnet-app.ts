@@ -1,3 +1,5 @@
+import { registerTestnetStatusRoutes } from './testnet-status-routes.ts';
+import type { RuntimeStatusOptions } from '../../../packages/testnet/src/runtime-status.ts';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import staticFiles from '@fastify/static';
@@ -20,6 +22,7 @@ const body = (properties: Record<string, unknown>) => ({
   properties,
 });
 export interface PublicTestnetAppOptions {
+  readonly runtimeStatus?: RuntimeStatusOptions;
   readonly executionStatus?: (owner: string, vault: string) => unknown;
   readonly origin: string;
   readonly auth: WalletAuthStore;
@@ -80,6 +83,7 @@ export async function buildPublicTestnetApp(options: PublicTestnetAppOptions) {
     if (
       !['GET', 'HEAD'].includes(request.method) &&
       request.url !== '/api/testnet/auth/logout' &&
+      request.url !== '/api/testnet/mcp' &&
       options.canWrite &&
       !options.canWrite()
     )
@@ -192,6 +196,7 @@ export async function buildPublicTestnetApp(options: PublicTestnetAppOptions) {
       return reply.sendFile(request.params.file, join(options.webRoot!, 'assets'));
     });
   }
+  registerTestnetStatusRoutes(app, options, now);
   registerTradingRoutes(
     app,
     options.runtimes ?? [],

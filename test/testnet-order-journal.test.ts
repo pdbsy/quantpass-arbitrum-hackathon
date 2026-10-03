@@ -102,3 +102,30 @@ test('corrupted persisted signed bytes cannot be released to a broadcast transpo
     rmSync(f.folder, { recursive: true, force: true });
   }
 });
+
+test('restart refuses corrupted executor/nonce/envelope rows instead of reopening an unsafe journal', () => {
+  for (const mutation of [
+    { sql: 'UPDATE orders SET executor=? WHERE id=?', values: [owner, order.id] },
+    { sql: 'UPDATE orders SET nonce=? WHERE id=?', values: ['-1', order.id] },
+    {
+      sql: "UPDATE orders SET state='SIGNED',raw_transaction=?,transaction_hash=? WHERE id=?",
+      values: ['0x1234', hash, order.id],
+    },
+    { sql: "UPDATE orders SET state='PREPARED' WHERE id=?", values: [order.id] },
+  ]) {
+    const f = fixture();
+    let db = new OrderJournal(f.path, hash);
+    try {
+      db.prepare(order);
+      db.reserve(order.id, '7');
+      db.db.prepare(mutation.sql).run(...mutation.values);
+      db.close();
+      assert.throws(() => {
+        db = new OrderJournal(f.path, hash);
+      }, /ORDER_ROW_INTEGRITY/);
+    } finally {
+      db.close();
+      rmSync(f.folder, { recursive: true, force: true });
+    }
+  }
+});

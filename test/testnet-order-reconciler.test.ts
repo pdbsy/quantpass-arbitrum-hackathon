@@ -91,6 +91,8 @@ test('unknown and reorged restricted submissions remain blocked; canonical rever
     assert.equal(orders.blocked(address(40)), true);
     assert.equal(orders.db.prepare('SELECT count(*) AS n FROM order_outcomes').get()!.n, 2);
     orders.verifyOutcomes();
+    orders.db.prepare("UPDATE orders SET state='RECONCILED' WHERE id=?").run(intent.id);
+    assert.throws(() => orders.verifyOutcomes(), /ORDER_OUTCOME_INTEGRITY/);
   } finally {
     orders.close();
     batches.close();

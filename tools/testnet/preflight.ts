@@ -1,3 +1,6 @@
+import { testnetNetworkIdentity } from '../../packages/testnet/src/network-identity.ts';
+import { evidenceHash } from '../../packages/testnet/src/executor-plan.ts';
+import { qualifyExecutorDeployments } from '../../apps/server/src/testnet-executor-service.ts';
 import { realpathSync } from 'node:fs';
 import { readRegularBytes } from '../../packages/testnet/src/bounded-file.ts';
 export { readRegularBytes } from '../../packages/testnet/src/bounded-file.ts';
@@ -43,11 +46,48 @@ export async function testnetPreflight(
     const deployments = await loadTradingDeployments(config.vaults, async (name) =>
       readJson(join(directory, name)),
     );
-    if (config.profile === 'RESTRICTED_TESTNET_EXECUTOR')
-      loadReferenceAdmission(join(directory, config.referenceFile), config.referenceDigest);
+    if (config.profile === 'RESTRICTED_TESTNET_EXECUTOR') {
+      const admission = loadReferenceAdmission(join(directory, config.referenceFile), config.referenceDigest);
+      qualifyExecutorDeployments({ config, deployments, terms: admission.terms });
+    }
+    const configurationDigest = evidenceHash(config);
+    const network = testnetNetworkIdentity({
+      chainId: config.chainId,
+      profile: config.profile,
+      configurationDigest,
+      deployments,
+    });
     return Object.freeze({
       schemaVersion: 1,
       configuration: 'VALID',
+      configurationDigest,
+      networkDigest: network.digest,
+      networkIdentity: network.descriptor,
+      readiness: deployments.length ? 'BLOCKED_PENDING_CANONICAL_CHAIN_INPUTS' : 'NOT_CONFIGURED',
+      mainnet: 'DISABLED_UNCONFIGURED',
+      deploymentReceipts: 'NOT_RUN',
+      rpcCapabilities: { required: network.descriptor.rpcRequirements, qualification: 'NOT_RUN' },
+      referenceAdmission:
+        config.profile === 'RESTRICTED_TESTNET_EXECUTOR'
+          ? 'ARCHIVES_ADMITTED_OFFLINE_ONLY'
+          : 'EXECUTOR_INPUT_REQUIRED',
+      requiredOperationalInputs: [
+        'PROTECTED_HISTORICAL_CANONICAL_RPC',
+        'DEPLOYMENT_RECEIPTS_AND_INVENTORY',
+        'REVIEWED_THREE_SOURCE_REFERENCES',
+        'OWNER_GRANTS_AND_FINITE_BUDGETS',
+        'EXTERNAL_ACCEPTANCE',
+      ],
+      ...(config.profile === 'RESTRICTED_TESTNET_EXECUTOR'
+        ? {
+            unsignedExecutorPolicy: {
+              minOrderUsdc: config.minOrderUsdc,
+              deadlineSeconds: config.deadlineSeconds,
+              gas: config.gas,
+              maxTotalGasCostWei: config.maxTotalGasCostWei,
+            },
+          }
+        : {}),
       profile: config.profile,
       chainId: 46630,
       deploymentEvidence: deployments.length ? 'MANIFEST_VALID_OFFLINE_ONLY' : 'NOT_DEPLOYED',

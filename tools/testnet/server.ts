@@ -1,3 +1,4 @@
+import { parseReleaseIdentity, parseArchivedTestResults } from '../../packages/testnet/src/runtime-status.ts';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readJson } from './preflight.ts';
@@ -32,6 +33,12 @@ export async function serverCli(
       manifestReader: async (name) => readJson(join(dirname(file), name)),
       port,
       periodicSync: true,
+      ...(env.AF_RELEASE_IDENTITY_FILE
+        ? { releaseIdentity: parseReleaseIdentity(readJson(env.AF_RELEASE_IDENTITY_FILE)) }
+        : {}),
+      ...(env.AF_TEST_RESULTS_FILE
+        ? { archivedTestResults: parseArchivedTestResults(readJson(env.AF_TEST_RESULTS_FILE)) }
+        : {}),
       webRoot: resolve(fileURLToPath(new URL('../../apps/web/dist', import.meta.url))),
       ...(env.AF_TESTNET_RPC_URL ? { rpcEndpoint: env.AF_TESTNET_RPC_URL } : {}),
     });
