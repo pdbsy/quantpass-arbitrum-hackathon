@@ -76,6 +76,7 @@ for (const outcome of ['CANCEL', 'UNKNOWN', 'TIMEOUT', 'HASH'])
       if (outcome === 'HASH')
         await h.page.getByRole('button', { name: '在 owner 钱包中确认', exact: true }).dblclick();
       else await h.page.getByRole('button', { name: '在 owner 钱包中确认', exact: true }).click();
+      await h.page.waitForFunction(() => window.__releaseMockWallet.state.sends === 1);
       assert.equal(h.s.walletRequests.filter((r) => r.method === 'eth_sendTransaction').length, 1);
       if (outcome === 'CANCEL') {
         await h.page.getByRole('status').filter({ hasText: '你已取消钱包确认' }).waitFor();
@@ -87,6 +88,18 @@ for (const outcome of ['CANCEL', 'UNKNOWN', 'TIMEOUT', 'HASH'])
         );
       } else {
         await h.page.locator('.review h3').filter({ hasText: '待核验交易' }).waitFor();
+        if (outcome === 'HASH')
+          await h.page.waitForFunction(() => {
+            const entry = Object.entries(localStorage).find(([key]) =>
+              key.startsWith('alphaforge-testnet-intent:'),
+            );
+            return entry && JSON.parse(entry[1]).hash !== null;
+          });
+        else
+          await h.page
+            .getByRole('status')
+            .filter({ hasText: outcome === 'UNKNOWN' ? '提交结果未知' : '操作未完成' })
+            .waitFor();
         const before = h.s.walletRequests.filter((r) => r.method === 'eth_sendTransaction').length;
         await h.page.reload();
         await h.login();
@@ -134,9 +147,10 @@ test('current public API failure is visible and stale healthy action preview fai
     await h.login();
     h.faults.api = 'UNAVAILABLE';
     await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
-    await h.page.getByRole('status').waitFor();
+    await h.page.getByRole('status').filter({ hasText: '操作未完成' }).waitFor();
     // A stale page must not offer an enabled owner preview after loss of its read service.
-    assert.equal(await h.page.getByRole('button', { name: '预览待签交易', exact: true }).isDisabled(), true);
+    const preview = h.page.getByRole('button', { name: '预览待签交易', exact: true });
+    assert.equal((await preview.count()) === 0 || (await preview.isDisabled()), true);
     h.faults.api = 'NONE';
     await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
     assert.deepEqual(h.errors, []);
