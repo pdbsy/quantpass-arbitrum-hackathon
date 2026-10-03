@@ -316,9 +316,11 @@ test('current public API failure is visible and stale healthy action preview fai
     await h.login();
     h.faults.api = 'UNAVAILABLE';
     await h.page.getByRole('button', { name: '刷新链上状态', exact: true }).click();
+    // Wait for this failed refresh to settle; the prior READY status also says "读取".
+    await h.page.locator('main[data-testnet-phase="STALE"]').waitFor();
     await h.page
-      .getByRole('status')
-      .filter({ hasText: /存储已暂停|服务|读取|不可|未完成/ })
+      .locator('[data-testnet-read-state]')
+      .filter({ hasText: /服务暂不可用/ })
       .waitFor();
     // A stale page must not offer an enabled owner preview after loss of its read service.
     const preview = h.page.getByRole('button', { name: '预览待签交易', exact: true });
@@ -641,18 +643,27 @@ test('native external JSON refuses malformed targets, changed frame/revision and
       await page.waitForFunction(() =>
         document.querySelector('.af-run small')?.textContent?.includes('第 2/120 帧'),
       );
+      const frameCheck = page.waitForResponse((response) => response.url().endsWith('/strategy-context'));
       await page.getByRole('button', { name: '确认提交 JSON 信号', exact: true }).click();
+      await frameCheck;
       await page.getByRole('status').filter({ hasText: '行情帧或账户状态已变化' }).waitFor();
       assert.equal(await page.locator('[data-external-preview]').count(), 0);
       assert.equal(decisionPosts(h).length, 0);
       const frameTwo = await preview();
       assert.notEqual(frameTwo.frameSeq, frameOne.frameSeq);
       await page.getByRole('button', { name: '暂停策略', exact: true }).click();
-      await page.locator('.af-state').filter({ hasText: '已暂停' }).waitFor();
+      await page.locator('.af-state').filter({ hasText: '策略暂停 · 风控仍监控' }).waitFor();
+      const paused = await readDemoRun(page);
+      assert.equal(paused.state.status, 'paused');
+      assert.notEqual(paused.revision, frameTwo.expectedRevision);
+      const revisionCheck = page.waitForResponse((response) => response.url().endsWith('/strategy-context'));
       await page.getByRole('button', { name: '确认提交 JSON 信号', exact: true }).click();
+      await revisionCheck;
       await page.getByRole('status').filter({ hasText: '行情帧或账户状态已变化' }).waitFor();
+      assert.equal(await page.locator('[data-external-preview]').count(), 0);
       assert.equal(decisionPosts(h).length, 0);
       await page.getByRole('button', { name: '继续策略', exact: true }).click();
+      await page.locator('.af-state').filter({ hasText: '运行中' }).waitFor();
       await preview();
       await page.getByLabel('测试账户').selectOption('bob');
       await page.waitForFunction(() => !document.querySelector('.af-run'));
