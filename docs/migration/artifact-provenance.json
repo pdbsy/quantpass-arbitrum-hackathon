@@ -1080,7 +1080,18 @@
       "target_path": "contracts/TOOLCHAIN.md",
       "method": "selective import; authority and historical document links adapted; PR11 pragma-only dependency derivation / current verification documentation",
       "original_sha256": "7535a638de64cc65af503864862a8d50f47c2fc23ce8f4fe895a1cde93fc8e3b",
-      "migrated_sha256": "3c595055f65b714010eabc65ce7e0f54b08a459913b3f9d5cb11b77ef953d7ae"
+      "migrated_sha256": "6dadd64911fd0d50cced175212af8f3b68be5fb4e95e1c4cdda18b14f0666aed",
+      "subsequent_adaptations": [
+        {
+          "agent": "W3",
+          "task": "AFREL-W3-CONTAINER",
+          "worker_source_commit": "2371864413a553f73d5c9eb96fd8c9cfe7ab545a",
+          "integration_commit": "9f019a6ca2c88a7d964f48cd53638ff133bc2503",
+          "previous_sha256": "3c595055f65b714010eabc65ce7e0f54b08a459913b3f9d5cb11b77ef953d7ae",
+          "current_sha256": "6dadd64911fd0d50cced175212af8f3b68be5fb4e95e1c4cdda18b14f0666aed",
+          "reason": "User-authorized native Linux x64 toolchain extension with existing Darwin pins and original migration identities preserved."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1120,7 +1131,18 @@
       "target_path": "contracts/script/bootstrap.py",
       "method": "unchanged local-only contract source/toolchain lock",
       "original_sha256": "938cea8dcf922a779a5b23c1632133b082ab49816d527c22ed7727bc07c65b8f",
-      "migrated_sha256": "938cea8dcf922a779a5b23c1632133b082ab49816d527c22ed7727bc07c65b8f"
+      "migrated_sha256": "c1e0d457f923f1b1dc77491a70dde54d288ba79e50d15af009cb34b680a8af5d",
+      "subsequent_adaptations": [
+        {
+          "agent": "W3",
+          "task": "AFREL-W3-CONTAINER",
+          "worker_source_commit": "2371864413a553f73d5c9eb96fd8c9cfe7ab545a",
+          "integration_commit": "9f019a6ca2c88a7d964f48cd53638ff133bc2503",
+          "previous_sha256": "938cea8dcf922a779a5b23c1632133b082ab49816d527c22ed7727bc07c65b8f",
+          "current_sha256": "c1e0d457f923f1b1dc77491a70dde54d288ba79e50d15af009cb34b680a8af5d",
+          "reason": "User-authorized native Linux x64 toolchain extension with existing Darwin pins and original migration identities preserved."
+        }
+      ]
     },
     {
       "source_repository": "pdbsy/quantpass",
@@ -1130,7 +1152,7 @@
       "target_path": "contracts/script/check-local.sh",
       "method": "unchanged local-only contract source/toolchain lock; PR11 pragma-only dependency derivation / current verification documentation",
       "original_sha256": "360464a57d2dfd3cd2126647efd0c72bade819dcf43f1ae3e0fa2be3a5105b91",
-      "migrated_sha256": "a266fd90bdf0ade485a2737bb963a4a8fdb686dbc35cbf29e98f720f82c8378c",
+      "migrated_sha256": "4cf6cb33248ad72dcf27df326d5bda093e31533dfb934ce53bec64c15daa44c6",
       "subsequent_revisions": [
         {
           "commit": "bc0dac7bf04b26ab4e08fb68d2d2a009a7524367",
@@ -1139,6 +1161,17 @@
           "previous_sha256": "93918fc4859204150c0a3da5ea19f51012937496c35d6b9d8df96a167d61c531",
           "sha256": "a266fd90bdf0ade485a2737bb963a4a8fdb686dbc35cbf29e98f720f82c8378c",
           "reason": "Apply the user-approved exact nine source-bound Testnet Slither findings while retaining the complete raw reports and strict rejection of new, changed, expired or unreviewed findings. Preserve original migration metadata and prior digests."
+        }
+      ],
+      "subsequent_adaptations": [
+        {
+          "agent": "W3",
+          "task": "AFREL-W3-CONTAINER",
+          "worker_source_commit": "2371864413a553f73d5c9eb96fd8c9cfe7ab545a",
+          "integration_commit": "9f019a6ca2c88a7d964f48cd53638ff133bc2503",
+          "previous_sha256": "a266fd90bdf0ade485a2737bb963a4a8fdb686dbc35cbf29e98f720f82c8378c",
+          "current_sha256": "4cf6cb33248ad72dcf27df326d5bda093e31533dfb934ce53bec64c15daa44c6",
+          "reason": "User-authorized native Linux x64 toolchain extension with existing Darwin pins and original migration identities preserved."
         }
       ]
     },
@@ -1180,7 +1213,7 @@
       "target_path": "contracts/toolchain.lock.json",
       "method": "unchanged local-only contract source/toolchain lock",
       "original_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338",
-      "migrated_sha256": "437e0cc6b6f938838f289b676fd61ba5f3c7292555be1ae70ac2339d8c359907",
+      "migrated_sha256": "0f63fc5c427af08fa839122ea928cdd529e4ac76edb3b99d55241f12b0d8f863",
       "subsequent_adaptations": [
         {
           "commit": "43239fe1ed8ee8ff4030901fdbfc873a76176156",
@@ -1189,6 +1222,15 @@
           "previous_sha256": "8d197848d3e0330f8911543564b038273b833e83c683708eaaab68803432d338",
           "current_sha256": "437e0cc6b6f938838f289b676fd61ba5f3c7292555be1ae70ac2339d8c359907",
           "reason": "User-approved pre-merge urllib3 2.7.0 to 2.8.0 security update and matching Slither requirements digest. Preserve original Macbeth04 source identity, original bytes and earlier hashes."
+        },
+        {
+          "agent": "W3",
+          "task": "AFREL-W3-CONTAINER",
+          "worker_source_commit": "2371864413a553f73d5c9eb96fd8c9cfe7ab545a",
+          "integration_commit": "9f019a6ca2c88a7d964f48cd53638ff133bc2503",
+          "previous_sha256": "437e0cc6b6f938838f289b676fd61ba5f3c7292555be1ae70ac2339d8c359907",
+          "current_sha256": "0f63fc5c427af08fa839122ea928cdd529e4ac76edb3b99d55241f12b0d8f863",
+          "reason": "User-authorized native Linux x64 toolchain extension with existing Darwin pins and original migration identities preserved."
         }
       ]
     },

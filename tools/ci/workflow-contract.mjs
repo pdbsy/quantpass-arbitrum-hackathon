@@ -9,6 +9,7 @@ export function validateCIGateWorkflows(text) {
   for (const [jobId, runner, command] of [
     ['contracts-m3-macos', 'macos-15', 'node tools/ci/verify-contracts.mjs'],
     ['contracts-m3-linux', 'ubuntu-24.04', 'node tools/ci/verify-contracts.mjs'],
+    ['container-testnet', 'ubuntu-24.04', 'node tools/ci/verify-container.mjs'],
     ['source-policy-js', 'ubuntu-24.04', 'node tools/ci/check-source-policy.mjs'],
     ['dependency-delta-audit', 'ubuntu-24.04', 'node tools/ci/check-dependency-delta.mjs'],
     ['semgrep-ce', 'ubuntu-24.04', 'node tools/ci/check-semgrep.mjs'],

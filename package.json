@@ -62,7 +62,8 @@
     "testnet:restore": "node tools/testnet/restore.ts",
     "testnet:deployment-evidence": "node tools/testnet/deployment-evidence.ts",
     "testnet:pools": "node tools/testnet/pools.ts",
-    "release:history": "node tools/check-release-history.mjs"
+    "release:history": "node tools/check-release-history.mjs",
+    "container:test": "node --test --test-reporter=tap test/container-*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

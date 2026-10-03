@@ -60,6 +60,11 @@
       "platform": "linux",
       "arch": "x64",
       "label": "ubuntu-24.04"
+    },
+    "container-testnet": {
+      "platform": "linux",
+      "arch": "x64",
+      "label": "ubuntu-24.04"
     }
   },
   "macDeveloperManager": "fnm",
