@@ -21,6 +21,7 @@ interface Vault {
   activeCash: string;
   status: string;
   strategyId: string;
+  passes: string;
 }
 interface Pending {
   owner: string;
@@ -243,6 +244,9 @@ export function Automata() {
               <option value="bob" disabled={!!pending && pending.owner !== 'bob'}>
                 Bob
               </option>
+              <option value="derick" disabled={!!pending && pending.owner !== 'derick'}>
+                Derick
+              </option>
             </select>
           </label>
         </section>
@@ -278,7 +282,7 @@ export function Automata() {
           <div>
             <span>闲置余额</span>
             <strong>
-              {money(vault?.idle ?? '0')} <small>模拟 AF-USDC</small>
+              {money(vault?.idle ?? '0')} <small>模拟 USDT</small>
             </strong>
           </div>
           <div>
@@ -292,6 +296,16 @@ export function Automata() {
         </section>
         <section className="af-panel af-vault" aria-label="Vault 与 Pass">
           <h2>Vault 与 Pass</h2>
+          <div className="af-vault-balances">
+            <div>
+              <span>当前账户</span>
+              <strong>{owner || '未选择'}</strong>
+            </div>
+            <div>
+              <span>持有 PASS</span>
+              <strong>{vault?.passes ?? '0'} PASS</strong>
+            </div>
+          </div>
           {!vault ? (
             <button
               disabled={disabled}
@@ -346,7 +360,7 @@ export function Automata() {
               ) : (
                 <>
                   <label>
-                    存入 / 取出金额（模拟 AF-USDC）
+                    存入 / 取出金额（模拟 USDT）
                     <input
                       inputMode="decimal"
                       disabled={disabled}
@@ -460,7 +474,7 @@ export function Automata() {
               }}
             >
               <label>
-                运行资金（模拟 AF-USDC）
+                运行资金（模拟 USDT）
                 <input
                   value={capital}
                   onChange={(e) => setCapital(e.target.value)}
@@ -537,11 +551,8 @@ export function Automata() {
                 )}
                 {form.mode !== 'off' && (
                   <div className="af-fields">
-                    {field('upper', form.mode === 'price' ? '价格上限（模拟 AF-USDC）' : '收益上限 %')}
-                    {field(
-                      'lower',
-                      form.mode === 'price' ? '价格下限（模拟 AF-USDC）' : '收益下限 %（负数）',
-                    )}
+                    {field('upper', form.mode === 'price' ? '价格上限（模拟 USDT）' : '收益上限 %')}
+                    {field('lower', form.mode === 'price' ? '价格下限（模拟 USDT）' : '收益下限 %（负数）')}
                   </div>
                 )}
                 <small>上下限可留空一个；触碰即清仓整个组合。停止后不会自动重启。</small>
@@ -617,7 +628,7 @@ export function Automata() {
                   </p>
                 )}
                 {run.settlementReleased !== '0' && (
-                  <p>结算时超出额度、已归还闲置：{money(run.settlementReleased)} 模拟 AF-USDC</p>
+                  <p>结算时超出额度、已归还闲置：{money(run.settlementReleased)} 模拟 USDT</p>
                 )}
                 {(run.state.reason || run.runtimeError) && (
                   <p className="af-warning">{run.runtimeError ?? run.state.reason}</p>
@@ -777,7 +788,7 @@ export function Automata() {
                     >
                       撤回到闲置
                     </button>
-                    <small>最多撤回 {money(run.state.cash)} 模拟 AF-USDC；不自动卖出持仓。</small>
+                    <small>最多撤回 {money(run.state.cash)} 模拟 USDT；不自动卖出持仓。</small>
                   </div>
                 )}
                 <div className="af-table">
