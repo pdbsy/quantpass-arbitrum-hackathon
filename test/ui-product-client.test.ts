@@ -810,7 +810,7 @@ test('session presentation reserves EMPTY for a verified identity and labels una
   assert.ok(ui?.productSessionPresentation, 'phase-aware product session presentation is required');
   assert.match(
     ui.productSessionPresentation({ phase: 'DISCONNECTED', user: null }, null).hint,
-    /Choose Alice or Bob/,
+    /Choose Alice, Bob or Derick/,
   );
   assert.doesNotMatch(
     ui.productSessionPresentation({ phase: 'DISCONNECTED', user: null }, null).mode,

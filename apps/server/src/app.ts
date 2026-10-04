@@ -126,7 +126,7 @@ export async function buildApp(options: {
   });
   app.setNotFoundHandler((request, reply) => reply.code(404).send(errorBody(request, 'INVALID_REQUEST')));
   app.get('/api/health', async () => ({ scope: 'TEST_ONLY', ready: true, realFundsEnabled: false }));
-  app.post<{ Body: { user: 'alice' | 'bob' } }>(
+  app.post<{ Body: { user: 'alice' | 'bob' | 'derick' } }>(
     '/api/demo/session',
     {
       schema: {
@@ -134,7 +134,7 @@ export async function buildApp(options: {
           type: 'object',
           additionalProperties: false,
           required: ['user'],
-          properties: { user: { enum: ['alice', 'bob'] } },
+          properties: { user: { enum: ['alice', 'bob', 'derick'] } },
         },
       },
     },

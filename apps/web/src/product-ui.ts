@@ -227,19 +227,21 @@ function balances(v: ProductVault): string {
     ['feesAccrued', 'Fees accrued'],
     ['feesPaid', 'Fees paid'],
   ];
-  return `<div class="receipt"><div class="receipt-lines">${labels.map(([key, label]) => `<div><span>${label}</span><span>${esc(units(v.balances[key!]))}</span></div>`).join('')}<div><span>Test Pass access</span><span>${esc(v.passBalance.total)} Pass</span></div><div><span>Access allowance (not cash)</span><span>${esc(units(v.passBalance.allowance))}</span></div></div></div>`;
+  return `<div class="receipt"><div class="receipt-lines">${labels.map(([key, label]) => `<div><span>${label}</span><span>${esc(units(v.balances[key!]))} USDT</span></div>`).join('')}<div><span>Simulated strategy access</span><span>${esc(v.passBalance.total)} PASS</span></div><div><span>Access allowance (not cash)</span><span>${esc(units(v.passBalance.allowance))} USDT capacity</span></div></div></div>`;
 }
 function account(): string {
   const s = adapter.snapshot;
   const session = productSessionPresentation(s, adapter.mode);
   if (!session.usable)
     return `<section class="wrap section" aria-label="API account unavailable"><h2>Backend account unavailable</h2><p>${esc(session.hint)}</p><p>Browser workshop records below are separate local mock data.</p></section>`;
-  return `<section class="wrap section"><span class="section-label">API ACCOUNT / ${esc(s.user ?? 'NO SESSION')}</span><h2>Backend vaults & test access.</h2><p>${adapter.mode === 'legacy' ? 'Legacy API capability: unavailable financial fields are shown explicitly.' : 'Canonical account and strategy relationships from the local backend.'}</p>${
+  const totalPass = s.vaults.reduce((sum, v) => sum + BigInt(v.passBalance.total), 0n).toString();
+  const availableUsdt = s.vaults.reduce((sum, v) => sum + BigInt(String(v.balances.idle)), 0n).toString();
+  return `<section class="wrap section"><span class="section-label">API ACCOUNT / ${esc(s.user ?? 'NO SESSION')}</span><h2>Backend vaults & test access.</h2><div class="receipt"><div class="receipt-lines"><div><span>Simulated PASS</span><strong>${esc(totalPass)} PASS</strong></div><div><span>Available simulated USDT</span><strong>${esc(units(availableUsdt))} USDT</strong></div></div></div><p>${adapter.mode === 'legacy' ? 'Legacy API capability: unavailable financial fields are shown explicitly.' : 'Canonical account and strategy relationships from the local backend.'}</p>${
     s.account
       ? `<p>Account owner: ${esc(s.account.ownerId)} · ${s.account.strategies.length} registered strategy relationships.</p><div class="receipt-lines">${s.account.strategies
           .map((a) => {
             const pass = s.account!.passBalances.find((p) => p.strategyId === a.strategyId);
-            return `<div><span>${esc(a.strategyId)} · ${esc(a.status)}</span><span>${esc(pass?.total ?? 'Unavailable')} Pass</span></div>`;
+            return `<div><span>${esc(a.strategyId)} · ${esc(a.status)}</span><span>${esc(pass?.total ?? 'Unavailable')} PASS</span></div>`;
           })
           .join('')}</div>`
       : ''
@@ -281,7 +283,7 @@ AF.pages.trade = productPages.trade;
 function render(): void {
   const s = adapter.snapshot;
   const session = productSessionPresentation(s, adapter.mode);
-  status.innerHTML = `<div class="dialog-notice"><div class="inline-actions"><strong data-product-state role="status">${localError ? 'ERROR' : s.phase}</strong><span>API ${esc(s.user ?? 'no session')} · ${esc(session.mode)}</span><button class="text-link" data-product-login="alice" ${s.phase === 'LOADING' ? 'disabled' : ''}>Alice</button><button class="text-link" data-product-login="bob" ${s.phase === 'LOADING' ? 'disabled' : ''}>Bob</button><button class="text-link" data-product-refresh ${s.phase === 'LOADING' ? 'disabled' : ''}>Refresh API</button>${s.pending && !s.pending.rejection ? `<button class="outline-btn" data-product-retry ${adapter.retryAfterSeconds ? 'disabled' : ''}>Retry original request${adapter.retryAfterSeconds ? ` after ${adapter.retryAfterSeconds}s` : ''}</button>` : ''}${s.pending?.rejection ? '<button class="text-link" data-product-dismiss>Dismiss reviewed rejection</button>' : ''}</div><p data-product-session-hint>${esc(session.hint)}</p>${localError || s.error ? `<p role="alert">${esc(localError ?? s.error)}</p>` : ''}${s.notice ? `<p>${esc(s.notice)}</p>` : ''}${s.pending ? `<p>Unresolved ${esc(s.pending.command.type)} · ${esc(s.pending.command.id)} · reviewed revision ${s.pending.command.expectedRevision}. No new command may be submitted.</p>` : ''}</div>`;
+  status.innerHTML = `<div class="dialog-notice"><div class="inline-actions"><strong data-product-state role="status">${localError ? 'ERROR' : s.phase}</strong><span>API ${esc(s.user ?? 'no session')} · ${esc(session.mode)}</span><button class="text-link" data-product-login="alice" ${s.phase === 'LOADING' ? 'disabled' : ''}>Alice</button><button class="text-link" data-product-login="bob" ${s.phase === 'LOADING' ? 'disabled' : ''}>Bob</button><button class="text-link" data-product-login="derick" ${s.phase === 'LOADING' ? 'disabled' : ''}>Derick</button><button class="text-link" data-product-refresh ${s.phase === 'LOADING' ? 'disabled' : ''}>Refresh API</button>${s.pending && !s.pending.rejection ? `<button class="outline-btn" data-product-retry ${adapter.retryAfterSeconds ? 'disabled' : ''}>Retry original request${adapter.retryAfterSeconds ? ` after ${adapter.retryAfterSeconds}s` : ''}</button>` : ''}${s.pending?.rejection ? '<button class="text-link" data-product-dismiss>Dismiss reviewed rejection</button>' : ''}</div><p data-product-session-hint>${esc(session.hint)}</p>${localError || s.error ? `<p role="alert">${esc(localError ?? s.error)}</p>` : ''}${s.notice ? `<p>${esc(s.notice)}</p>` : ''}${s.pending ? `<p>Unresolved ${esc(s.pending.command.type)} · ${esc(s.pending.command.id)} · reviewed revision ${s.pending.command.expectedRevision}. No new command may be submitted.</p>` : ''}</div>`;
   AF.app.render({ preserve: true });
 }
 async function run(action: () => Promise<void>): Promise<void> {
@@ -530,7 +532,7 @@ document.addEventListener('click', (event) => {
       claimId = null;
       AF.app.closeDialog();
       void run(async () => {
-        await client.selectIdentity(target.dataset.productLogin as 'alice' | 'bob');
+        await client.selectIdentity(target.dataset.productLogin as 'alice' | 'bob' | 'derick');
         await alignVault();
       });
     } else if (target.hasAttribute('data-product-refresh'))

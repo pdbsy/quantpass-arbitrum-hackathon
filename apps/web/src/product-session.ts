@@ -8,7 +8,7 @@ export function productSessionPresentation(
   const hint = !snapshot.user
     ? snapshot.phase === 'LOADING'
       ? 'Reading the local session…'
-      : 'Choose Alice or Bob to connect a local simulation account. This does not connect a wallet.'
+      : 'Choose Alice, Bob or Derick to connect a local simulation account. This does not connect a wallet.'
     : snapshot.phase === 'EMPTY'
       ? 'This identity has no backend Vaults. Claim test access from the API catalogue; the service is connected.'
       : snapshot.phase === 'LOADING'

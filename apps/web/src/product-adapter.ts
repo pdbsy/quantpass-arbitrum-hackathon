@@ -555,7 +555,8 @@ export class ProductAdapter {
       if (body !== undefined) invalid('READ_TRANSACTION_WRITE');
       if (path === '/session') {
         const value = await this.send<{ user: Identity }>(path, undefined, current);
-        if (value.user !== 'alice' && value.user !== 'bob') invalid('RESPONSE_CONTEXT_MISMATCH');
+        if (value.user !== 'alice' && value.user !== 'bob' && value.user !== 'derick')
+          invalid('RESPONSE_CONTEXT_MISMATCH');
         owner = value.user;
         return value as T;
       }
