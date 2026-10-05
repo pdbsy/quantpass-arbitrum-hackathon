@@ -204,10 +204,10 @@ export function Automata() {
     <div className="af-shell">
       <div className="af-banner">LOCAL / MOCK · 合成 RWA 行情 · 不连接钱包、不签名、不使用真实资金</div>
       <header className="af-header">
-        <a href="/" className="af-brand">
+        <a href="./" className="af-brand">
           AlphaForge <small>HACKATHON</small>
         </a>
-        <a href="/">返回策略工作台 ↗</a>
+        <a href="./">返回策略工作台 ↗</a>
       </header>
       <main>
         <section className="af-heading">
