@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { test } from 'node:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { verifiedPrototypeArtifacts } from './helpers/prototype-artifact.mjs';
@@ -161,16 +161,14 @@ test('retained UI history validates a tree-identical master integration without 
   const sourceRef = 'refs/remotes/origin/macbeth01/m3-phase1-closeout';
   const masterRef = 'refs/remotes/origin/master';
   const admitted = await verifiedPrototypeArtifacts(root);
-  let directSource = true;
-  try {
-    execute(root, ['merge-base', '--is-ancestor', admitted.repairCommit, 'HEAD']);
-  } catch (error) {
-    if (error.status !== 1 || error.signal) throw error;
-    directSource = false;
-  }
-  // A real post-integration checkout already has rewritten ancestry. Preserve
-  // its admitted source reference instead of mislabelling that master as source.
-  const source = execute(root, ['rev-parse', '--verify', directSource ? 'HEAD' : sourceRef]);
+  // This fixture exercises the retained repair, independently of later wallet
+  // or maintenance bytes at the current repository HEAD.
+  const source = execute(root, ['rev-parse', '--verify', sourceRef]);
+  const sourceArtifact = execFileSync(
+    'git',
+    ['--no-replace-objects', 'show', `${source}:apps/web/prototype/AlphaForge_v3_EN.html`],
+    { cwd: root, env, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 },
+  );
   execute(cwd, ['fetch', '--no-tags', root, source]);
   const tree = git('rev-parse', `${source}^{tree}`);
   const master = execute(cwd, ['commit-tree', tree, '-p', base], 'Local squash-shaped fixture only\n');
@@ -181,7 +179,8 @@ test('retained UI history validates a tree-identical master integration without 
   await t.test('exact retained source and master tree qualify after squash', async () => {
     const artifacts = await verifiedPrototypeArtifacts(cwd);
     assert.equal(Buffer.byteLength(artifacts.original), 285969);
-    assert.equal(Buffer.byteLength(artifacts.current), 286508);
+    assert.equal(artifacts.current, sourceArtifact);
+    assert.equal(artifacts.currentSha256, admitted.repairedSha256);
     assert.notEqual(artifacts.current, artifacts.original);
   });
   await t.test(
@@ -202,7 +201,8 @@ test('retained UI history validates a tree-identical master integration without 
       try {
         assert.equal(git('status', '--porcelain'), '');
         const artifacts = await verifiedPrototypeArtifacts(cwd);
-        assert.equal(Buffer.byteLength(artifacts.current), 286508);
+        assert.equal(artifacts.current, sourceArtifact);
+        assert.equal(artifacts.currentSha256, admitted.repairedSha256);
       } finally {
         git('checkout', '--force', '--detach', master);
         git('update-ref', masterRef, master);
@@ -302,7 +302,8 @@ test('retained UI history validates a tree-identical master integration without 
     git('update-ref', '-d', sourceRef);
     git('update-ref', '-d', masterRef);
     const artifacts = await verifiedPrototypeArtifacts(cwd);
-    assert.equal(Buffer.byteLength(artifacts.current), 286508);
+    assert.equal(artifacts.current, sourceArtifact);
+    assert.equal(artifacts.currentSha256, admitted.repairedSha256);
   });
   assert.equal(git('status', '--porcelain'), '');
 });
@@ -333,13 +334,12 @@ test('wallet UI revisions retain an exact source bridge after protected squash m
   const oldSourceRef = 'refs/remotes/origin/macbeth01/m3-phase1-closeout';
   const masterRef = 'refs/remotes/origin/master';
   const admitted = await verifiedPrototypeArtifacts(root);
-  let source = execute(root, ['rev-parse', 'HEAD']);
-  try {
-    execute(root, ['merge-base', '--is-ancestor', admitted.usdcCommit, source]);
-  } catch (error) {
-    if (error.status !== 1 || error.signal) throw error;
-    source = execute(root, ['rev-parse', '--verify', sourceRef]);
-  }
+  const source = execute(root, ['rev-parse', '--verify', sourceRef]);
+  const sourceArtifact = execFileSync(
+    'git',
+    ['--no-replace-objects', 'show', `${source}:apps/web/prototype/AlphaForge_v3_EN.html`],
+    { cwd: root, env, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 },
+  );
   const oldSource = execute(root, ['rev-parse', '--verify', oldSourceRef]);
   execute(directory, ['clone', '--no-hardlinks', '--no-checkout', '--single-branch', root, cwd]);
   git('fetch', '--no-tags', root, source, oldSource);
@@ -351,6 +351,7 @@ test('wallet UI revisions retain an exact source bridge after protected squash m
   git('update-ref', masterRef, master);
   await t.test('exact source bytes and complete tree qualify after squash', async () => {
     const result = await verifiedPrototypeArtifacts(cwd);
+    assert.equal(result.current, sourceArtifact);
     assert.equal(result.currentSha256, admitted.usdcSha256);
   });
   await t.test('missing retained wallet source fails closed', async () => {
@@ -389,6 +390,100 @@ test('wallet UI revisions retain an exact source bridge after protected squash m
       await assert.rejects(verifiedPrototypeArtifacts(cwd));
     } finally {
       git('checkout', '--force', '--detach', master);
+    }
+  });
+  assert.equal(git('status', '--porcelain'), '');
+});
+
+test('Mock Pass maintenance preserves its real source and the prior wallet integration', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'af-mock-pass-history-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const root = resolve(import.meta.dirname, '..');
+  const cwd = join(directory, 'repo');
+  const env = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    GIT_AUTHOR_NAME: 'UI fixture',
+    GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
+    GIT_COMMITTER_NAME: 'UI fixture',
+    GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
+  };
+  const execute = (at, args, input) =>
+    execFileSync(
+      'git',
+      ['--no-replace-objects', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args],
+      { cwd: at, env, input, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 },
+    ).trim();
+  const git = (...args) => execute(cwd, args);
+  const admitted = await verifiedPrototypeArtifacts(root);
+  const sourceRef = 'refs/remotes/origin/macbeth01/account-wallet-eth';
+  const oldSourceRef = 'refs/remotes/origin/macbeth01/m3-phase1-closeout';
+  const masterRef = 'refs/remotes/origin/master';
+  const refs = [sourceRef, oldSourceRef, masterRef].map((ref) => [
+    ref,
+    execute(root, ['rev-parse', '--verify', ref]),
+  ]);
+  execute(directory, ['clone', '--no-hardlinks', '--no-checkout', '--single-branch', root, cwd]);
+  git('fetch', '--no-tags', root, admitted.mockHoldingsCommit, ...refs.map(([, sha]) => sha));
+  for (const [ref, sha] of refs) git('update-ref', ref, sha);
+  git('checkout', '--force', '--detach', admitted.mockHoldingsCommit);
+  const prototypePath = join(cwd, 'apps/web/prototype/AlphaForge_v3_EN.html');
+  const sourceArtifact = await readFile(prototypePath, 'utf8');
+  await t.test('committed maintenance bytes qualify with their retained history', async () => {
+    const result = await verifiedPrototypeArtifacts(cwd);
+    assert.equal(result.current, sourceArtifact);
+    assert.equal(result.currentSha256, admitted.mockHoldingsSha256);
+    assert.notEqual(result.currentSha256, admitted.usdcSha256);
+  });
+  await t.test('direct maintenance ancestry still requires the old wallet source bridge', async () => {
+    const [, source] = refs.find(([ref]) => ref === sourceRef);
+    git('update-ref', '-d', sourceRef);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd));
+    } finally {
+      git('update-ref', sourceRef, source);
+    }
+  });
+  await t.test('same maintenance bytes on an unrelated tree do not qualify', async () => {
+    const orphan = execute(
+      cwd,
+      ['commit-tree', `${admitted.mockHoldingsCommit}^{tree}`],
+      'Unrelated Mock Pass fixture\n',
+    );
+    git('checkout', '--force', '--detach', orphan);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /actual maintenance source ancestry/);
+    } finally {
+      git('checkout', '--force', '--detach', admitted.mockHoldingsCommit);
+    }
+  });
+  await t.test('an unrecorded prototype edit is rejected', async () => {
+    await writeFile(
+      prototypePath,
+      sourceArtifact.replace('<script>', '<script>\n// Unrecorded fixture edit\n'),
+    );
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /only exact recorded artifact revisions/);
+    } finally {
+      await writeFile(prototypePath, sourceArtifact);
+    }
+  });
+  await t.test('a maintenance descendant cannot roll back to the prior wallet bytes', async () => {
+    const previous = execFileSync(
+      'git',
+      [
+        '--no-replace-objects',
+        'show',
+        `${admitted.maintenanceBaseCommit}:apps/web/prototype/AlphaForge_v3_EN.html`,
+      ],
+      { cwd, env, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 },
+    );
+    await writeFile(prototypePath, previous);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /must not roll back/);
+    } finally {
+      await writeFile(prototypePath, sourceArtifact);
     }
   });
   assert.equal(git('status', '--porcelain'), '');
