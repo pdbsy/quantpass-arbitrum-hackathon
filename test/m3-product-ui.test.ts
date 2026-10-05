@@ -989,11 +989,117 @@ test('account connects a visibly mock wallet backed by the demo trading ledger',
   assert.match(html, /Use Pass/);
   assert.match(html, /Frozen \(in use\) 2\.5 · Available 7\.5/);
   assert.match(html, /Allocated 2\.5 USDC/);
-  assert.doesNotMatch(html, /USDC balance|wallet-usdc|9997\.5/);
+  assert.match(html, /Mock USDC · Available funds/);
+  assert.match(html, /9997\.5/);
+  assert.match(html, /href="#\/trade\/trend"/);
+  assert.match(html, /1 mock strategy/);
   assert.match(html, /1 ETH = 2688 USDC/);
   assert.doesNotMatch(html, /Buy or sell Pass/);
   assert.equal((html.match(/<button\b/g) ?? []).length, 1);
   assert.doesNotMatch(pages.trade('trend'), /9965\.68|Mock wallet/);
+});
+
+test('Account invites an explicit Mock Wallet connection without showing local vault funds', () => {
+  const pages = extendM3ProductPages(
+    { account: () => 'DERICK VAULT 5000000 USDT', trade: () => '' },
+    {
+      accountId: () => 'derick',
+      contentProvenance: () => 'FIXTURE',
+      mockWallet: () => undefined,
+    },
+  );
+  const html = pages.account('trades');
+  assert.match(html, /data-wallet-choice="mock"[^>]*>[^]*Connect Mock Wallet/);
+  assert.match(html, /Pass holdings/);
+  assert.match(html, /Ridgeline · Prism · Echo/);
+  assert.match(html, /Choose Browser Wallet/);
+  assert.doesNotMatch(html, /DERICK VAULT|5000000|>2250<|API ACCOUNT/);
+  assert.equal(pages.account('funds'), 'DERICK VAULT 5000000 USDT');
+});
+
+test('Pass Holdings shows a collection of independently allocated mock strategy Passes', () => {
+  const pages = extendM3ProductPages(
+    { account: () => 'API FUNDS', trade: () => '' },
+    {
+      accountId: () => 'alice',
+      contentProvenance: () => 'FIXTURE',
+      mockWallet: () => ({
+        address: '0x000000000000000000000000000000000000de00',
+        ethBalance: '10000',
+        ethValueUsdc: '26880000',
+        usdcBalance: '9900',
+        holdings: [
+          {
+            id: 'trend',
+            name: 'Ridgeline',
+            quantity: 1000,
+            frozenPass: '100',
+            availablePass: '900',
+            allocatedUsdc: '100',
+          },
+          {
+            id: 'factor',
+            name: 'Prism',
+            quantity: 750,
+            frozenPass: '0',
+            availablePass: '750',
+            allocatedUsdc: '0',
+          },
+          {
+            id: 'mean',
+            name: 'Echo',
+            quantity: 500,
+            frozenPass: '0',
+            availablePass: '500',
+            allocatedUsdc: '0',
+          },
+        ],
+      }),
+    },
+  );
+  const html = pages.account('trades');
+  assert.match(html, /2,250 <span>PASS/);
+  assert.match(html, /3 mock strategies/);
+  for (const id of ['trend', 'factor', 'mean']) {
+    assert.match(html, new RegExp(`data-wallet-position="${id}"`));
+    assert.match(html, new RegExp(`href="#/trade/${id}"`));
+  }
+  assert.match(html, /Frozen \(in use\) 100 · Available 900/);
+  assert.match(html, /Allocated 100 USDC/);
+  assert.doesNotMatch(html, /API FUNDS|RWA|USDT/);
+});
+
+test('Mock Wallet invitation preserves the connected browser wallet presentation', () => {
+  const pages = extendM3ProductPages(
+    { account: () => '', trade: () => '' },
+    {
+      accountId: () => 'alice',
+      contentProvenance: () => 'FIXTURE',
+      mockWallet: () => undefined,
+      chain: () => ({
+        wallet: {
+          status: 'CONNECTED',
+          address: '0x1111111111111111111111111111111111111111',
+          ethBalanceWei: '1000000000000000000',
+        },
+        network: { status: 'CORRECT', chainId: 46630 },
+        transaction: { status: 'IDLE' },
+        onchain: {
+          deployment: 'UNAVAILABLE',
+          health: 'UNAVAILABLE',
+          readiness: 'UNKNOWN',
+          owner: 'UNKNOWN',
+          writeMode: 'DISABLED',
+          exitPath: 'UNAVAILABLE',
+          supportedActions: [],
+        },
+      }),
+    },
+  );
+  const html = pages.account('trades');
+  assert.match(html, /0x1111…1111/);
+  assert.match(html, /<strong>1<\/strong>/);
+  assert.doesNotMatch(html, /Connect Mock Wallet|Your first strategies/);
 });
 
 test('mock session persists only its connection and always reads fresh simulated balances', async () => {

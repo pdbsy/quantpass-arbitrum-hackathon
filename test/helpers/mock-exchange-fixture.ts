@@ -3,11 +3,27 @@ import { runInNewContext } from 'node:vm';
 import { randomUUID } from 'node:crypto';
 
 interface MockExchangeState {
+  version: 1;
+  revision: number;
   cash: number;
+  initialCapital: number;
+  realized: number;
+  fees: number;
+  orders: unknown[];
+  executed: string[];
   positions: Record<string, { qty: number; cost: number }>;
   allocations?: Record<string, number>;
   funding: { asset: 'USDC'; cash: number; initialCapital: number; allocations: Record<string, number> };
   legacyEthFunding?: { refunded: number; allocations: Record<string, number> };
+  mockPassGrants?: {
+    id: string;
+    strategy: string;
+    requestedQuantity: number;
+    quantity: number;
+    status: 'granted' | 'existing';
+    scope: 'LOCAL_SIMULATION';
+    at: string;
+  }[];
 }
 interface MockExchange {
   read(): MockExchangeState;
@@ -16,6 +32,9 @@ interface MockExchange {
   totals(): { equity: number };
   reviewFunding(input: { strategy: string; kind: string; amount: number }, now?: number): unknown;
   executeFunding(review: unknown, now?: number): unknown;
+  ensureMockHoldings(
+    grants: readonly { readonly strategy: string; readonly quantity: number }[],
+  ): MockExchangeState;
   fundingSnapshot(strategy: string): {
     cash: number;
     allocated: number;
@@ -27,7 +46,13 @@ interface MockExchange {
 }
 
 /** Execute the actual exchange IIFE with isolated storage and fixed market inputs. */
-export function mockExchangeFixture(saved?: string) {
+export function mockExchangeFixture(
+  saved?: string,
+  strategies = [
+    { id: 'trend', name: 'Trend' },
+    { id: 'factor', name: 'Factor' },
+  ],
+) {
   const source = readFileSync(
     new URL('../../apps/web/prototype/AlphaForge_v3_EN.html', import.meta.url),
     'utf8',
@@ -37,10 +62,6 @@ export function mockExchangeFixture(saved?: string) {
   const end = source.indexOf('\n})();', start) + '\n})();'.length;
   if (marker < 0 || start < 0 || end <= start) throw Error('Exchange fixture source unavailable');
   const storage = new Map<string, string>(saved ? [['alphaforge.passmarket.v3', saved]] : []);
-  const strategies = [
-    { id: 'trend', name: 'Trend' },
-    { id: 'factor', name: 'Factor' },
-  ];
   const AF = {
     strategies,
     strategy: (id: string) => strategies.find((s) => s.id === id),

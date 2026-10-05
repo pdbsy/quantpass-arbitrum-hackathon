@@ -204,10 +204,10 @@ export function Automata() {
     <div className="af-shell">
       <div className="af-banner">LOCAL / MOCK · 合成 RWA 行情 · 不连接钱包、不签名、不使用真实资金</div>
       <header className="af-header">
-        <a href="./" className="af-brand">
-          AlphaForge <small>HACKATHON</small>
+        <a href="/#directory" className="af-brand">
+          RWA <small>模拟运行</small>
         </a>
-        <a href="./">返回策略工作台 ↗</a>
+        <a href="/#directory">返回目录 ↗</a>
       </header>
       <main>
         <section className="af-heading">
@@ -858,9 +858,7 @@ export function Automata() {
           </section>
         </div>
       </main>
-      <footer className="af-footer">
-        AlphaForge · 本地交易自动机底座 · 参考股票价格与代币成交报价独立建模
-      </footer>
+      <footer className="af-footer">RWA 模拟运行 · 参考股票价格与代币成交报价独立建模</footer>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { installProductNavigation } from './product-navigation.ts';
 import { installCandleInspection, type CandleChartHost } from './kline-hover.ts';
 import './kline-hover.css';
 import './wallet-account.css';
-import { createMockWalletSession, formatMockUsdc } from './mock-wallet.ts';
+import { createMockWalletSession, formatMockUsdc, type MockPassGrant } from './mock-wallet.ts';
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
 import { createM3BrowserRuntime, type M3BrowserDeploymentConfig } from './m3-browser-runtime.ts';
@@ -36,6 +36,7 @@ interface Prototype extends CandleChartHost {
   strategies: { id: string; name: string }[];
   exchange: {
     read: () => unknown;
+    ensureMockHoldings: (grants: readonly MockPassGrant[]) => unknown;
     fundingSnapshot: (id: string) => {
       cash: number;
       allocated: number;
@@ -68,11 +69,6 @@ declare global {
   }
 }
 const AF = window.AF;
-const automataLink = document.createElement('a');
-automataLink.href = '/automata.html';
-automataLink.className = 'outline-btn';
-automataLink.textContent = 'RWA 模拟运行';
-document.querySelector('.nav-right')?.prepend(automataLink);
 const testnetLink = document.createElement('a');
 testnetLink.href = '/testnet.html';
 testnetLink.className = 'text-link';
@@ -86,7 +82,12 @@ try {
 } catch {
   /* Session-only demo connection. */
 }
-const mockWallet = createMockWalletSession(() => AF.exchange.read(), AF.strategies, mockWalletStorage);
+const mockWallet = createMockWalletSession(
+  () => AF.exchange.read(),
+  AF.strategies,
+  mockWalletStorage,
+  (grants) => AF.exchange.ensureMockHoldings(grants),
+);
 installCandleInspection(AF);
 installProductNavigation();
 let onchainRuntime = AF.m3OnchainRuntime;
@@ -553,7 +554,7 @@ document.addEventListener('click', (event) => {
     } else if (target.hasAttribute('data-chain-connect')) {
       if (target.closest('[data-wallet-account]')) {
         AF.app.openDialog(
-          `<span class="section-label">CHOOSE YOUR WALLET</span><h2>Connect Wallet</h2><div class="wallet-options"><button class="primary-btn" data-wallet-choice="mock">Mock Wallet <span>Demo ETH &amp; Pass · No extension needed</span></button><button class="outline-btn" data-wallet-choice="browser">Browser Wallet <span>Robinhood Chain Testnet</span></button></div>${mockWallet.snapshot() ? '<button class="text-link" data-wallet-choice="disconnect">Disconnect Mock Wallet</button>' : ''}`,
+          `<span class="section-label">CHOOSE YOUR WALLET</span><h2>Connect Wallet</h2><div class="wallet-options"><button class="primary-btn" data-wallet-choice="mock">Mock Wallet <span>Demo balances &amp; strategy Passes · No extension needed</span></button><button class="outline-btn" data-wallet-choice="browser">Browser Wallet <span>Robinhood Chain Testnet</span></button></div>${mockWallet.snapshot() ? '<button class="text-link" data-wallet-choice="disconnect">Disconnect Mock Wallet</button>' : ''}`,
         );
       } else {
         if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');

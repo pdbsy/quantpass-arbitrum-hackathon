@@ -719,6 +719,7 @@ AF.strategy=id=>AF.strategies.find(s=>s.id===id);
   if(s.funding!==undefined){const f=s.funding;if(!f||f.asset!=='USDC'||!safe(f.cash)||!safe(f.initialCapital)||!f.allocations||Array.isArray(f.allocations)||Object.keys(f.allocations).some(id=>!known(id))||!Array.isArray(f.history)||f.history.length>300)throw Error('Invalid USDC funding record.');let total=0;for(const x of AF.strategies){const n=f.allocations[x.id];if(!safe(n)||n>s.positions[x.id].qty*USDC_SCALE)throw Error('USDC funding exceeds owned Pass capacity.');total+=n;}if(f.cash+total!==f.initialCapital)throw Error('The USDC ledger does not balance.');for(const h of f.history)if(!h||!known(h.strategy)||!['deposit','withdraw'].includes(h.kind)||!safe(h.amount)||h.amount===0||typeof h.id!=='string'||!s.executed.includes(h.id)||typeof h.at!=='string'||!Number.isFinite(Date.parse(h.at)))throw Error('Invalid USDC funding history.');}
   if(Object.keys(s.positions).some(id=>!known(id))||new Set(s.executed).size!==s.executed.length)throw Error('Trading records do not match.');
   for(const id of s.executed)if(typeof id!=='string'||id.length>150)throw Error('Invalid trade ID.');
+  if(s.mockPassGrants!==undefined){if(!Array.isArray(s.mockPassGrants)||s.mockPassGrants.length>AF.strategies.length||new Set(s.mockPassGrants.map(g=>g?.strategy)).size!==s.mockPassGrants.length)throw Error('Invalid Mock Pass grant record.');for(const g of s.mockPassGrants)if(!g||!known(g.strategy)||g.id!=='mock-wallet-starter-v1:'+g.strategy||g.scope!=='LOCAL_SIMULATION'||!['granted','existing'].includes(g.status)||!safe(g.requestedQuantity)||g.requestedQuantity<1||g.requestedQuantity>MAX_QTY||g.quantity!==(g.status==='granted'?g.requestedQuantity:0)||typeof g.at!=='string'||!Number.isFinite(Date.parse(g.at)))throw Error('Invalid Mock Pass grant record.');}
   for(const o of s.orders){if(!o||!known(o.strategy)||!['buy','sell'].includes(o.side)||typeof o.id!=='string'||!s.executed.includes(o.id)||typeof o.at!=='string'||!Number.isFinite(Date.parse(o.at))||!safe(o.qty)||o.qty<1||o.qty>MAX_QTY||!Number.isSafeInteger(o.pnl)||o.scope!=='LOCAL_SIMULATION'||o.status!=='recorded')throw Error('Invalid fill record.');for(const k of ['price','gross','impact','impactBps','fee','total','bound'])if(!safe(o[k]))throw Error('Invalid fill amount.');}
   return s;
  }
@@ -776,9 +777,27 @@ AF.strategy=id=>AF.strategies.find(s=>s.id===id);
   const s=copy(state),delta=q.kind==='deposit'?q.amount:-q.amount;s.funding.cash-=delta;s.funding.allocations[q.strategy]+=delta;s.executed.push(q.id);s.funding.history.unshift({id:q.id,strategy:q.strategy,kind:q.kind,amount:q.amount,at:new Date(now).toISOString()});s.revision++;validate(s);
   try{localStorage.setItem(KEY,JSON.stringify(s));}catch{throw Error('USDC allocation could not be saved. No funds or Pass were changed.');}state=s;return fundingSnapshot(q.strategy);
  }
+ // Explicit, free Mock Wallet starter Pass. Zero acquisition cost preserves the
+ // existing ETH ledger; capacity is usable by the same one-to-one USDC funding flow.
+ // Per-strategy records survive sales and reconnects, so sold Pass are not reissued.
+ function ensureMockHoldings(grants){
+  if(!Array.isArray(grants)||grants.length>AF.strategies.length||new Set(grants.map(g=>g?.strategy)).size!==grants.length)throw Error('Invalid Mock starter Pass request.');
+  for(const g of grants)if(!g||!known(g.strategy)||!safe(g.quantity)||g.quantity<1||g.quantity>MAX_QTY)throw Error('Invalid Mock starter Pass request.');
+  syncFunding();const s=copy(state);s.mockPassGrants=s.mockPassGrants||[];let changed=false;
+  for(const g of grants){
+   const previous=s.mockPassGrants.find(item=>item.strategy===g.strategy);
+   if(previous){if(previous.requestedQuantity!==g.quantity)throw Error('Mock starter Pass was already configured with a different quantity.');continue;}
+   const existing=s.positions[g.strategy].qty>0||s.orders.some(o=>o.strategy===g.strategy)||(s.fundingHistory||[]).some(h=>h.strategy===g.strategy)||s.funding.history.some(h=>h.strategy===g.strategy);
+   if(!existing)s.positions[g.strategy].qty=g.quantity;
+   s.mockPassGrants.push({id:'mock-wallet-starter-v1:'+g.strategy,strategy:g.strategy,requestedQuantity:g.quantity,quantity:existing?0:g.quantity,status:existing?'existing':'granted',scope:'LOCAL_SIMULATION',at:new Date().toISOString()});changed=true;
+  }
+  if(!changed)return copy(state);
+  s.revision++;validate(s);
+  try{localStorage.setItem(KEY,JSON.stringify(s));}catch{throw Error('Mock starter Pass could not be saved. Existing funds and holdings were preserved.');}state=s;return copy(state);
+ }
  function maxBuy(id,slippage=50){let lo=0,hi=Math.min(MAX_QTY,Math.floor(state.cash/AF.marketData.metrics(id).price));while(lo<hi){const m=Math.ceil((lo+hi)/2);try{const q=quote({strategy:id,side:'buy',qty:m,slippage});check(q);lo=m;}catch{hi=m-1;}}return lo;}
  function totals(){const value=AF.strategies.reduce((n,s)=>n+state.positions[s.id].qty*AF.marketData.metrics(s.id).price,0);const allocated=Object.values(state.allocations||{}).reduce((sum,n)=>sum+n,0);return {value,allocated,equity:state.cash+value+allocated,pnl:state.cash+value+allocated-state.initialCapital};}
- AF.exchange={read:()=>copy(state),fundingSnapshot,reviewFunding,executeFunding,validate,quote,review,execute,parseQty,maxBuy,totals,available:()=>available,recovery,money,reset:()=>{state={...fresh(),revision:state.revision+1};persist();}};
+ AF.exchange={read:()=>copy(state),fundingSnapshot,reviewFunding,executeFunding,ensureMockHoldings,validate,quote,review,execute,parseQty,maxBuy,totals,available:()=>available,recovery,money,reset:()=>{state={...fresh(),revision:state.revision+1};persist();}};
 })();
 
 (() => {
