@@ -12,6 +12,7 @@ import { MarketEventIndexer } from '../../apps/server/src/launch-market/indexer.
 import { buildLaunchMarketServer } from '../../apps/server/src/launch-market/server.ts';
 import { LaunchMarketStore } from '../../packages/launch-market/src/store.ts';
 import { LaunchMarketService } from '../../packages/launch-market/src/service.ts';
+import { MarketEventBroker } from '../../packages/launch-market/src/projection.ts';
 import type {
   MarketQuote,
   MarketTrackedOperation,
@@ -27,7 +28,8 @@ interface Timing {
   count: number;
   failures: number;
   totalMs: number;
-  samples: number[];
+  maxMs: number;
+  buckets: Map<number, number>;
 }
 interface Stream {
   controller: AbortController;
@@ -72,11 +74,16 @@ function failureCode(error: unknown): string {
   return 'LOCAL_LOAD_OPERATION_FAILED';
 }
 function percentiles(timing: Timing) {
-  const sorted = [...timing.samples].sort((a, b) => a - b);
-  const at = (p: number) =>
-    sorted.length
-      ? Math.round(sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1)]! * 100) / 100
-      : null;
+  const sorted = [...timing.buckets].sort((a, b) => a[0] - b[0]);
+  const at = (p: number) => {
+    const target = Math.ceil(timing.count * p);
+    let count = 0;
+    for (const [millis, frequency] of sorted) {
+      count += frequency;
+      if (count >= target) return millis;
+    }
+    return null;
+  };
   return {
     count: timing.count,
     failures: timing.failures,
@@ -84,8 +91,9 @@ function percentiles(timing: Timing) {
     p50Ms: at(0.5),
     p95Ms: at(0.95),
     p99Ms: at(0.99),
-    maxMs: sorted.length ? Math.round(sorted.at(-1)! * 100) / 100 : null,
-    sampled: sorted.length,
+    maxMs: timing.count ? Math.round(timing.maxMs * 100) / 100 : null,
+    sampled: timing.count,
+    percentileResolutionMs: 1,
   };
 }
 
@@ -99,11 +107,13 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
     root = resolve(new URL('../..', import.meta.url).pathname);
   const dir = await mkdtemp(join(tmpdir(), 'af-market-load-'));
   const output = env.AF_LOAD_REPORT ? resolve(env.AF_LOAD_REPORT) : join(dir, 'report.json');
+  await mkdir(dirname(output), { recursive: true });
   const stop = new AbortController(),
     timings = new Map<string, Timing>(),
     failures: Failure[] = [],
     streams: Stream[] = [],
-    requests = new Set<Promise<unknown>>();
+    requests = new Set<Promise<unknown>>(),
+    publishedAt = new Map<string, number>();
   const reportFailures: Record<string, number> = {};
   let started = 0,
     trades = 0,
@@ -114,7 +124,10 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
     maxActiveActors = 0,
     minStreams = sseTarget,
     setupComplete = false,
-    reconnectVerified = false;
+    reconnectVerified = false,
+    reconnectLatencyMs: number | null = null;
+  let timedWindowCompleted = false,
+    measuredElapsedSeconds = 0;
   let clock = 0,
     peakRss = 0,
     peakHeap = 0,
@@ -130,16 +143,33 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
     reportFailures[phase + ':' + code] = (reportFailures[phase + ':' + code] ?? 0) + 1;
     if (failures.length < 1000)
       failures.push({ phase, code, elapsedMs: Math.round(performance.now() - (started || begin)) });
+    if (failures.length <= 20)
+      console.log(
+        JSON.stringify({
+          type: 'LOAD_FAILURE',
+          phase,
+          code,
+          elapsedMs: Math.round(performance.now() - (started || begin)),
+        }),
+      );
   };
   const abort = () => stop.abort();
   process.once('SIGINT', abort);
   process.once('SIGTERM', abort);
   const timing = (name: string, elapsed: number, failed: boolean) => {
-    const data = timings.get(name) ?? { count: 0, failures: 0, totalMs: 0, samples: [] };
+    const data = timings.get(name) ?? {
+      count: 0,
+      failures: 0,
+      totalMs: 0,
+      maxMs: 0,
+      buckets: new Map<number, number>(),
+    };
     data.count++;
     data.totalMs += elapsed;
+    data.maxMs = Math.max(data.maxMs, elapsed);
     if (failed) data.failures++;
-    if (data.samples.length < 100_000) data.samples.push(elapsed);
+    const millis = Math.ceil(elapsed);
+    data.buckets.set(millis, (data.buckets.get(millis) ?? 0) + 1);
     timings.set(name, data);
   };
   let origin = '';
@@ -224,6 +254,11 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
               throw new Error('INVALID_SSE_CHAIN_LOCATION');
             if (event.type === 'SNAPSHOT' || event.type === 'REORG') {
               if (!event.snapshot) throw new Error('MISSING_SSE_SNAPSHOT');
+              const observed = publishedAt.get(
+                event.type + ':' + event.location.version + ':' + event.location.blockHash,
+              );
+              if (observed !== undefined)
+                timing('sse_publish_to_delivery', performance.now() - observed, false);
               const version = BigInt(event.location.version),
                 block = BigInt(event.location.blockNumber);
               if (event.type !== 'REORG' && (version < stream.version || block < stream.block)) {
@@ -320,6 +355,19 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
     await chain.initialize();
     clock = Number((await f.provider.getBlock('latest'))!.timestamp);
     store = new LaunchMarketStore(join(dir, 'accounts.sqlite'), origin);
+    // Local timing observer preserves the production 100-listener budget and the exact SSE messages.
+    const broker = new (class extends MarketEventBroker {
+      override publish(event: MarketStreamUpdate): void {
+        if (started && (event.type === 'SNAPSHOT' || event.type === 'REORG')) {
+          publishedAt.set(
+            event.type + ':' + event.location.version + ':' + event.location.blockHash,
+            performance.now(),
+          );
+          if (publishedAt.size > 4096) publishedAt.delete(publishedAt.keys().next().value!);
+        }
+        super.publish(event);
+      }
+    })();
     const service = new LaunchMarketService({
       manifest: f.manifest,
       store,
@@ -327,6 +375,7 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
       quoteSigner: f.operator,
       claimSigner: f.operator,
       now: () => clock,
+      broker,
       ethReference: { read: async () => ({ ethUsdPriceRaw: '2000000000', observedAt: clock }) },
     });
     indexer = new MarketEventIndexer({
@@ -518,16 +567,39 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
             trades,
             readRequests,
             failures: Object.values(reportFailures).reduce((sum, n) => sum + n, 0),
+            failureCounts: reportFailures,
             rssMiB: Math.round(memory.rss / 1024 / 1024),
           }),
         );
+        await writeFile(
+          output + '.partial.tmp',
+          JSON.stringify(
+            {
+              type: 'LOAD_PARTIAL',
+              elapsedSeconds: elapsed,
+              sseConnections: active,
+              trades,
+              readRequests,
+              failureCounts: reportFailures,
+              failures,
+              latency: Object.fromEntries([...timings].map(([name, value]) => [name, percentiles(value)])),
+            },
+            null,
+            2,
+          ) + '\n',
+          { mode: 0o600 },
+        );
+        await rename(output + '.partial.tmp', output + '.partial.json');
       }
     }
+    measuredElapsedSeconds = (performance.now() - started) / 1000;
+    timedWindowCompleted = !stop.signal.aborted && measuredElapsedSeconds >= durationSeconds;
     await reading;
     await Promise.all(trading);
     await Promise.all(requests);
     // Reconnect after the uninterrupted measurement, keeping its brief gap out of the 30-minute connection count.
     if (!stop.signal.aborted) {
+      const reconnectStarted = performance.now();
       const old = streams[0]!;
       old.controller.abort();
       await old.finished;
@@ -542,6 +614,7 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
         replacement.snapshots > 0 &&
         replacement.version >= old.version &&
         replacement.version <= BigInt(authoritative.location.version);
+      reconnectLatencyMs = Math.round((performance.now() - reconnectStarted) * 100) / 100;
       if (!reconnectVerified) record('reconnect', new Error('SSE_RECONNECT_NOT_AUTHORITATIVE'));
     }
   } catch (error) {
@@ -568,10 +641,19 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
     process.removeListener('SIGINT', abort);
     process.removeListener('SIGTERM', abort);
   }
-  const elapsedSeconds = started ? (performance.now() - started) / 1000 : 0;
-  const fullRequirement = durationSeconds >= 1800 && activeSeconds >= 300;
+  const elapsedSeconds = measuredElapsedSeconds || (started ? (performance.now() - started) / 1000 : 0);
+  const fullRequirementRequested = durationSeconds >= 1800 && activeSeconds >= 300;
+  const fullDurationCompleted = timedWindowCompleted;
+  const apiNames = ['/api/launch-market/snapshot', '/api/launch-market/wallet', '/api/launch-market/quote'];
+  const apiLatencyPassed = apiNames.every((name) => {
+    const value = timings.get(name);
+    return value !== undefined && (percentiles(value).p95Ms ?? Infinity) <= 1000;
+  });
+  const delivery = timings.get('sse_publish_to_delivery');
+  const deliveryLatencyPassed = delivery !== undefined && (percentiles(delivery).p95Ms ?? Infinity) <= 5000;
   const passed =
     setupComplete &&
+    fullDurationCompleted &&
     !stop.signal.aborted &&
     failures.length === 0 &&
     minStreams === sseTarget &&
@@ -579,12 +661,17 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
     maxActiveActors === users &&
     trades >= Math.floor(activeSeconds / 5) * users &&
     readRequests >= durationSeconds * readRps - 1 &&
-    reconnectVerified;
+    reconnectVerified &&
+    reconnectLatencyMs !== null &&
+    reconnectLatencyMs <= 10_000 &&
+    apiLatencyPassed &&
+    deliveryLatencyPassed;
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     mode: 'LOCAL_EVM_ONLY',
     network: 'isolated pinned Anvil 1.5.1 / chain 46630',
-    fullRequirement,
+    fullRequirementRequested,
+    fullDurationCompleted,
     passed,
     interrupted: stop.signal.aborted,
     durationSeconds,
@@ -604,6 +691,8 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
       oldUpdates: streams.reduce((sum, stream) => sum + stream.oldUpdates, 0),
       distinctObservedAmznReserves: streams[0]?.reserves.size ?? 0,
       reconnectVerified,
+      reconnectLatencyMs,
+      publishToDelivery: delivery ? percentiles(delivery) : null,
     },
     reads: {
       targetRps: readRps,
@@ -611,6 +700,13 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
       achievedRps: Math.round((readRequests / durationSeconds) * 100) / 100,
     },
     latency: Object.fromEntries([...timings].map(([name, value]) => [name, percentiles(value)])),
+    thresholds: {
+      apiP95LimitMs: 1000,
+      apiLatencyPassed,
+      sseDeliveryP95LimitMs: 5000,
+      deliveryLatencyPassed,
+      reconnectLimitMs: 10_000,
+    },
     memory: {
       peakRssMiB: Math.round(peakRss / 1024 / 1024),
       peakHeapMiB: Math.round(peakHeap / 1024 / 1024),
@@ -626,7 +722,8 @@ export async function runLocalMarketLoad(env: Readonly<Record<string, string | u
     JSON.stringify({
       type: 'LOAD_RESULT',
       passed,
-      fullRequirement,
+      fullRequirementRequested,
+      fullDurationCompleted,
       report: output,
       trades,
       reads: readRequests,
