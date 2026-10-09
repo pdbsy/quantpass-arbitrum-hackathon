@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-10-09T07:54:24.978Z",
+  "chainId": 46630,
+  "blockNumber": "131534360",
+  "blockHash": "0x5b658fbe5020a1a145b8fc297b7923313c9afb026ee8385ef3cf8fcef63f07e5",
+  "headerGasLimit": "1125899906842624",
+  "precompile": "0x000000000000000000000000000000000000006c",
+  "writesPerformed": false,
+  "getGasAccountingParams": [
+    "7000000",
+    "32000000",
+    "32000000"
+  ],
+  "getMaxTxGasLimit": [
+    "32000000"
+  ],
+  "getMaxBlockGasLimit": [
+    "32000000"
+  ]
+}

@@ -166,6 +166,7 @@ test(
         BigInt(nativeMint.q.transaction.value),
       );
       await act('bob', 'MINT', 'AF_USDC', (200n * 10n ** 18n).toString());
+      await act('alice', 'MINT', 'AF_USDC', (1n * 10n ** 18n).toString());
       const amznBefore = (await service.snapshot()).markets.AMZN.reserveUsdcRaw;
       await act('alice', 'BUY', 'ETH', parseEther('0.05').toString(), 'AMZN');
       assert.ok(BigInt((await service.snapshot()).markets.AMZN.reserveUsdcRaw) > BigInt(amznBefore));
@@ -174,6 +175,7 @@ test(
         bobObserved.markets.AMZN.reserveUsdcRaw,
         (await service.snapshot()).markets.AMZN.reserveUsdcRaw,
       );
+      await act('bob', 'BUY', 'ETH', parseEther('0.01').toString(), 'AMZN');
       await act('bob', 'BUY', 'AF_USDC', '10000000', 'AMZN');
       await act('bob', 'SELL', 'AF_USDC', (5n * 10n ** 18n).toString(), 'AMZN');
       await act('alice', 'CREATE_VAULT', 'AF_USDC', '0');
@@ -184,7 +186,7 @@ test(
         '/api/launch-market/wallet?owner=' + f.alice.address,
       );
       assert.equal(wallet.passes.TSLA.lockedRaw, (50n * 10n ** 18n).toString());
-      assert.equal(wallet.passes.TSLA.balanceRaw, (100n * 10n ** 18n).toString());
+      assert.equal(wallet.passes.TSLA.balanceRaw, (101n * 10n ** 18n).toString());
       const vault = new Contract(
         wallet.vaults[0]!.address,
         (await artifact('AlphaForgeStrategyVault', 'AlphaForgeStrategyVault')).abi,

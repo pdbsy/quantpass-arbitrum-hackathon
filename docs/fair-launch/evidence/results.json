@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "mode": "LOCAL_EVM_TESTED_NOT_DEPLOYED",
+  "reviewedProductCommit": "1f482a4f3083b8f4a9be0468d56d94267ba272b1",
+  "integratedBrowserTestCommit": "9184824ffe82e63d34941add0ea25fcb6b67f681",
+  "finalMintGas": "3178873",
+  "localFinalMintGasBudget": "6000000",
+  "checks": {
+    "marketFoundryTests": {
+      "status": "PASS",
+      "tests": 30,
+      "evidence": "Executed earlier in this task; commands and scope in TESTING.md; raw stdout not exported."
+    },
+    "strategyVaultFoundryTests": {
+      "status": "PASS",
+      "tests": 7,
+      "evidence": "Executed earlier in this task; commands and scope in TESTING.md; raw stdout not exported."
+    },
+    "compiledAbiAndSizeIdentity": {
+      "status": "PASS",
+      "contracts": 11,
+      "evidence": "contracts/deployment/market/artifact-sizes.json"
+    },
+    "unsignedPreparation": { "status": "PASS", "tests": 2 },
+    "finalTargetedNode": { "status": "PASS", "tests": 73, "failed": 0, "log": "unit-final.log" },
+    "actualLocalAliceBob": { "status": "PASS", "tests": 1, "failed": 0, "log": "local-evm-final.log" },
+    "actualBrowserHttpWalletEvm": {
+      "status": "PASS",
+      "tests": 1,
+      "failed": 0,
+      "log": "browser-evm-final.log"
+    },
+    "serverAndWebTypecheck": { "status": "PASS", "exitCode": 0, "log": "typecheck-final.log" },
+    "scopedLint": { "status": "PASS", "exitCode": 0, "log": "lint-final.log" },
+    "scopedFormat": { "status": "PASS", "exitCode": 0 },
+    "secretChecker": { "status": "PASS", "exitCode": 0, "checkedFiles": 1183, "log": "secrets-final.log" },
+    "webBuild": { "status": "PASS", "exitCode": 0, "log": "build-final.log" },
+    "sustainedLoad": {
+      "status": "PASS",
+      "report": "load-final-1800s.json",
+      "durationSeconds": 1800.42,
+      "activeSeconds": 300,
+      "users": 20,
+      "trades": 1220,
+      "reads": 18001,
+      "minimumSseConnections": 100,
+      "failures": 0
+    },
+    "independentSourceReview": {
+      "status": "SECURITY_REVIEWED",
+      "scope": "Immutable product delta; Macbeth05 plain engineering/security source review with focused reproductions; not a formal scanner or GitHub approval."
+    }
+  },
+  "notRun": [
+    "formalCodexSecurityScanner",
+    "Slither",
+    "liveGoogleIngress",
+    "liveAlpacaCredentials",
+    "externalEthFeedSla",
+    "targetTestnetDeploymentFundingAndTransactions",
+    "targetFinalMintGasExecution",
+    "targetContractExplorerVerification",
+    "liveServiceMigrationAndSwitch",
+    "continuousKeeperOrExecutorSigning",
+    "hostedGithubChecks"
+  ],
+  "publication": {
+    "status": "BLOCKED_CREDENTIALS",
+    "reason": "Git HTTPS authentication unavailable and forwarded SSH agent absent; preserve original commit history in a local bundle."
+  },
+  "testIdentityAndReference": "Explicit offline fixtures only; random test wallet keys remain in memory; actual EVM assets, receipts and logs."
+}

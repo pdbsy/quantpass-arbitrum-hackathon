@@ -69,14 +69,16 @@
     "container:lifecycle:mock": "node deploy/container/lifecycle.mjs",
     "test:release-mock:api": "node --test --test-reporter=tap test/release-mock-api.test.mjs test/release-mock-recovery.test.mjs test/release-mock-evidence.test.mjs test/release-mock-process.test.mjs test/release-mock-runtime.test.mjs",
     "test:release-mock": "node tools/testing/alphaforge-release-mock/run.mjs",
-    "test:fair-launch": "node --test --test-isolation=none test/launch-adapters.test.ts test/launch-market-state.test.ts test/launch-market-service.test.ts test/launch-market-ui-client.test.ts test/launch-market-ui-shell.test.ts test/launch-market-indexer.test.ts test/launch-stock-reference.test.ts test/launch-market-ui-executor.test.ts test/launch-market-ui-activity.test.ts",
+    "test:fair-launch": "node --test --test-isolation=none test/launch-adapters.test.ts test/launch-market-state.test.ts test/launch-market-service.test.ts test/launch-market-ui-client.test.ts test/launch-market-ui-shell.test.ts test/launch-market-indexer.test.ts test/launch-stock-reference.test.ts test/launch-market-ui-executor.test.ts test/launch-market-ui-activity.test.ts test/launch-market-storage-snapshot.test.ts",
     "test:fair-launch:evm": "node tools/launch-market/local-check.mjs",
     "fair-launch:prepare": "node tools/launch-market/prepare.ts",
     "fair-launch:server": "node tools/launch-market/server.ts",
     "fair-launch:artifacts": "node tools/launch-market/artifacts.mjs",
     "test:fair-launch:artifacts": "node --test --test-isolation=none test/launch-market-prepare.test.ts",
     "fair-launch:stock-reference": "node tools/launch-market/stock-reference.ts",
-    "test:fair-launch:load": "node tools/launch-market/local-load.ts"
+    "test:fair-launch:load": "node tools/launch-market/local-load.ts",
+    "test:fair-launch:browser-evm": "node --test --test-isolation=none test/launch-market-ui-evm.test.ts",
+    "fair-launch:storage-snapshot": "node tools/launch-market/storage-snapshot.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

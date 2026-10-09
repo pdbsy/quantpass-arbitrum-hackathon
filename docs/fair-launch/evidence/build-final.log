@@ -1,0 +1,36 @@
+
+> alphaforge-robinhood-chain-hackathon@0.1.0 build:web
+> npm run import:ui && vite build apps/web --config apps/web/vite.config.ts
+
+
+> alphaforge-robinhood-chain-hackathon@0.1.0 import:ui
+> node tools/import-user-ui.mjs
+
+vite v8.2.2 building client environment for production...
+transforming...
+<script src="/user-ui.js"> in "/index.html" can't be bundled without type="module" attribute
+
+/user-ui.css doesn't exist at build time, it will remain unchanged to be resolved at runtime
+✓ 226 modules transformed.
+rendering chunks...
+computing gzip size...
+apps/web/dist/testnet.html                                 0.63 kB │ gzip:  0.34 kB
+apps/web/dist/automata.html                                0.71 kB │ gzip:  0.38 kB
+apps/web/dist/reference-paper.html                         0.74 kB │ gzip:  0.40 kB
+apps/web/dist/index.html                                   6.52 kB │ gzip:  2.76 kB
+apps/web/dist/user-ui.js                                 165.17 kB
+apps/web/dist/assets/referencePaper-BwW8d340.css           1.83 kB │ gzip:  0.70 kB
+apps/web/dist/assets/testnet-D0oW-Qrc.css                  3.56 kB │ gzip:  1.40 kB
+apps/web/dist/assets/automata-Bw8YsG3X.css                 5.31 kB │ gzip:  1.75 kB
+apps/web/dist/assets/product-B_7w-dzc.css                 10.58 kB │ gzip:  2.75 kB
+apps/web/dist/user-ui.css                                123.34 kB │ gzip: 25.06 kB
+apps/web/dist/assets/modulepreload-polyfill-CKPc6amV.js    0.89 kB │ gzip:  0.52 kB
+apps/web/dist/assets/money-CbLYEVG9.js                     1.00 kB │ gzip:  0.49 kB
+apps/web/dist/assets/referencePaper-DcEKgD5M.js           17.61 kB │ gzip:  7.01 kB
+apps/web/dist/assets/automata-CoOi7aJo.js                 27.02 kB │ gzip:  9.57 kB
+apps/web/dist/assets/testnet-bXQ00YIk.js                  38.71 kB │ gzip: 13.72 kB
+apps/web/dist/assets/network-BYV8hnp0.js                  60.75 kB │ gzip: 19.14 kB
+apps/web/dist/assets/jsx-runtime-RcvZ-fRs.js             189.60 kB │ gzip: 59.61 kB
+apps/web/dist/assets/product-B_zMPmjk.js                 223.85 kB │ gzip: 67.57 kB
+
+✓ built in 5.87s

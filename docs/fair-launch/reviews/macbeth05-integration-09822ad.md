@@ -1,0 +1,55 @@
+# Macbeth05 independent integration review
+
+Reviewed immutable integration commit `09822adf4a8c13b56cb783287b2981ae18fcdc91` against `5c61e91b9c2ee249592eb8923fee3bee072ce673` in `/root/alphaforge/worktrees/macbeth01-fair-launch`. This is a bounded independent engineering/security review, not a formal Codex Security scan, third-party audit, GitHub approval, or deployment authorization. Formal scan/artifact tooling was unavailable. The source was not edited. Parent implementation and targeted gate results are distinguished from this review's own evidence.
+
+The original contracts review and CI/ancestry evidence are retained in `macbeth05-engineering-review.md` beside this file. Those contract checks were reused instead of rerunning a historical matrix. The new scope here was concrete RPC reads, canonical indexing and projections, verified-session access, quote/submission binding, unsigned deployment preparation, server request/lifecycle boundaries, and the additive workflow. Pending executor grant UI and stock-session policy changes are outside this immutable checkpoint.
+
+## Findings at the reviewed checkpoint
+
+### P2: Open SSE connections prevent graceful shutdown
+
+Location: `apps/server/src/launch-market/routes.ts:188–190`, and `tools/launch-market/server.ts:122–125`.
+
+The SSE route retains HTTP responses until client disconnect. Cleanup calls `client.end()` from an application `onClose` hook. Fastify 5.12.5 runs its HTTP server close before those application hooks and waits for active requests, so an ordinary live-update connection prevents the shutdown promise and resource disposal from finishing. Expected persistent clients, or a single remote client retaining an SSE connection, can hold graceful SIGTERM/restart indefinitely. The configured request timeout does not bound a completed long-lived SSE response.
+
+Evidence: reviewed installed Fastify `fastify.js:385–429`, then executed a bounded actual ephemeral loopback server with exactly one SSE response using the reviewed route. Output was:
+
+```json
+{"status":200,"sseConnections":1,"closeSettledAfter350ms":false}
+{"closedAfterClientAbort":true,"sseConnections":1}
+```
+
+The application closed as soon as the client was explicitly aborted. The first attempt to bind localhost was denied by the filesystem/network sandbox; the approved retry exercised only its own loopback listener, with no source edits or external calls. This finding was promptly sent to the parent. Move SSE response cleanup into `preClose` and verify that shutdown completes while a stream remains connected. The broker count in the immediate final output precedes asynchronous socket `close` processing and is not separately claimed as a leak.
+
+### P2: Browser loses specific production API failure reasons
+
+Location: `apps/web/src/launch-market/client.ts:84–90`, `apps/server/src/launch-market/server.ts:73–79`.
+
+The concrete server returns errors as `{ "error": { "code": "..." } }`. The browser parser accepts a top-level string `code` or string `error` and otherwise emits `MARKET_API_UNAVAILABLE`. Consequently production responses such as `ETH_PATH_UNAVAILABLE`, `CLAIM_RECOVERY_REQUIRED`, `LINKED_WALLET_REQUIRED`, and `NOT_DEPLOYED` lose their actual reason. HTTP status still applies, and 401/403 still clear cached CSRF, so this is a user-visible recovery/error-reporting issue rather than an authentication bypass. Parse the server's nested code shape and add one targeted error-response check. The source-to-source mismatch was reported to the parent; no additional full test run was necessary to establish it.
+
+### Targeted CI coverage gap already corrected in the pending tree
+
+Frozen `09822ad` adds `test/launch-market-indexer.test.ts` but neither `test:fair-launch` nor the default `test` script runs it. The additive workflow invokes the former. The current uncommitted parent tree already includes this file in both scripts; include that pending edit in the next immutable checkpoint. The tests cover raw log discovery, durable restart, three-block claim reconciliation and reorg retention, foreign emitter/wrong-chain rejection, and concrete server host/origin/schema/auth guards. This is evidence about the frozen checkpoint, not a request to repeat all historical tests.
+
+## Security properties checked
+
+- RPC configuration accepts HTTPS or explicit local HTTP, verifies chain 46630 and manifest runtime code hashes, checks PASS/USD precision and fixed PASS supply, and never constructs a provider-connected signer. Snapshot and wallet reads pin a block and reject canonical hash changes. Strategy pools are checked against factory registration and pool identity; launch state is derived from actual contract state, not sales count alone. Vault membership comes from the owner-indexed factory with owner/PASS/USD identity checks.
+- Wallet balances are read onchain. Locked PASS has moved into its Locker; displayed total adds wallet balance and tracked lock while available PASS remains actual wallet balance. Quote operations cannot use another account's wallet. Vault deposits require exact 1:1 PASS/USD precision, owner-only vault association, and explicit PASS/USD approvals. Withdraw/close amounts use tracked onchain capacity and positions, not donated dust.
+- Verified identity is obtained from the existing session token hash joined to current whitelist and verified subject/email identity, expiration and revocation. No browser email or identity header grants access. Mutation access also checks the session CSRF with equal-length timing-safe comparison; concrete server additionally checks exact Host and Origin, strict schemas, and body bounds.
+- Durable accounts uniquely bind stable Google subject and email; opaque random account keys persist independently of wallet binding. Challenges include domain, origin, chain, account, exact wallet, expiry and random single-use nonce. Rebinding retains account key, voucher history, and conversion account limits. A previously issued voucher remains bound to its original wallet rather than silently minting another entitlement.
+- Claims are globally capped by both the reserve contract and durable service reservation policy. Canonical raw Claim logs reconcile vouchers even when no browser submission was registered. Three inclusive canonical blocks produce completion. Reorg rollback preserves nonce/eligibility state and requires recovery rather than issuing a second voucher. Duplicate canonical account claims and transaction identifiers have database uniqueness constraints.
+- ETH signatures bind chain, reserve contract, epoch, account key, payer, router, operation, PASS, precise amounts, nonce and short deadline. The server compares offline signer address to current onchain policy, checks two timestamped ETH reference sources with bounded age and exact deviation comparison, and simulates the exact transaction. Signed quotes are not substitutes for sufficient conversion liquidity. Public/USD pool paths remain separate from ETH availability.
+- Submission tracking observes the actual transaction and compares chain, sender, target, calldata, value and hash to the account-owned stored quote. It does not broadcast or retry transactions. Canonical receipts and chain snapshots determine inclusion/completion; removed receipts become reorged. Approvals grant only the concrete action target and required token amount.
+- The event indexer validates chain, linked canonical block headers, raw log block/hash identities and watched emitters, discovers pools/vaults only from known factories, and commits ranges/cursors atomically. Fork rollback removes affected event and dynamic-watch canonicality; reorg depth exceeding its bounded search degrades instead of trusting an unverified fork. Public history, holders and candles require healthy indexed data; holder arithmetic rejects incomplete negative balances.
+- The unsigned deployment planner creates no RPC, signing or broadcasting capability. Predicted CREATE addresses explicitly depend on reviewed deployment order; all deployments precede funding/configuration calls. Admin, offline signer identities, LP recipients and initial funds are explicit inputs. LP funds, AMZN initial pool, claim reserve and conversion stock reserves are separately counted. Unresolved fresh test-reference setup is clearly marked, not represented as a ready signed transaction.
+- The new workflow uses immutable action pins, read-only permissions, disabled checkout credential persistence, existing exact toolchains and targeted new contract tests. It changes no existing required-check or security scanner waiver. Existing root CI/ruleset evidence, including the distinction between configured checks and independent approval, is retained in the first report.
+
+No confirmed new exploit for fund theft, quote receiver substitution, duplicate successful launch, duplicate stable-account claim, or owner isolation was identified in this bounded scope. This does not assert the absence of vulnerabilities or substitute for external audit.
+
+## Evidence and remaining limits
+
+Parent-reported integration evidence, inspected in source rather than rerun: actual local EVM Alice/Bob HTTP quote/submission flow, atomic final Mint gas `3,178,873`, canonical operation depth, native/USD trading, owner Vault capacity/PnL boundaries, durable restart and conservation over holders obtained from real Transfer logs; two unsigned-plan checks; root format/lint gates. The local EVM test injects HTTP requests and a test-only identity callback. It does not prove a real browser wallet plus external Google access service end-to-end deployment.
+
+The dedicated runtime intentionally registers no login or `/auth/session` endpoint. Browser mutations first request `/auth/session`, and `__Host-ikol_session` requires the existing HTTPS verified-access ingress. Actual runtime delivery therefore needs a concrete ingress routing/configuration handoff for existing auth routes and the new `/api/launch-market/*` plus static assets, with the verified-access database mounted read-only. The repository checkpoint includes the bridge but no new deployed ingress evidence. This is an operational dependency, not an auth-bypass finding; the parent was asked to include a reviewable handoff.
+
+Slither was not available as an admitted ready executable in the inspected toolchain paths; this report does not claim a Slither run or formal scanner PASS. No GitHub comments/reviews, pushes, merges, external signing, live deployments or funds actions were performed by this reviewer. Draft PR base preservation must retain the 48 existing UI/release ancestors between live master `3cb9caa810e34d8ff9f9a6c68b5ef674f489689e` and baseline `5c61e91`; inherited changes need explicit PR disclosure. A new stock feed/session policy and 30-minute/100-SSE/20-active-user/5-second update evidence were still being implemented separately when this checkpoint was reviewed. Executor recovery fixes reviewed in the sibling tree need their own immutable parent checkpoint before final closeout.

@@ -1,0 +1,23 @@
+[Unit]
+Description=AlphaForge Fair Launch chain reader and bounded voucher service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=REPLACE_WITH_APPROVED_SERVICE_USER
+WorkingDirectory=/absolute/approved/fair-launch-release
+EnvironmentFile=/etc/alphaforge-fair-launch.env
+ExecStart=/opt/alphaforge/toolchains/node-v24.21.0-linux-x64/bin/node tools/launch-market/server.ts
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/absolute/private/new-fair-launch-storage
+ReadOnlyPaths=/absolute/private/access.sqlite
+
+[Install]
+WantedBy=multi-user.target
