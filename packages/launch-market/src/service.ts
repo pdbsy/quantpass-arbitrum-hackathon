@@ -77,6 +77,11 @@ export class LaunchMarketService {
   private async refresh(): Promise<MarketSnapshot> {
     const { chain } = this.deployed();
     const snapshot = await chain.snapshot();
+    if (
+      (await chain.canonicalBlockHash(snapshot.location.blockNumber))?.toLowerCase() !==
+      snapshot.location.blockHash.toLowerCase()
+    )
+      throw new LaunchMarketError('NON_CANONICAL_MARKET_HEAD', 503);
     const previous = this.projector.latest();
     let previousHash: string | null = null;
     if (previous) {

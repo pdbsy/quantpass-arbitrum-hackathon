@@ -43,7 +43,7 @@ export function validateManifest(manifest: LaunchMarketManifest): void {
   if (manifest.schemaVersion !== 1 || manifest.chainId !== LAUNCH_CHAIN_ID)
     throw new LaunchMarketError('WRONG_CHAIN', 400);
   uint(manifest.deploymentBlock);
-  const addresses = [
+  const contracts = [
     manifest.usdc,
     manifest.claim,
     manifest.conversionReserve,
@@ -51,13 +51,12 @@ export function validateManifest(manifest: LaunchMarketManifest): void {
     manifest.poolFactory,
     ...Object.values(manifest.strategies).flatMap((s) => [
       s.pass,
-      s.lpRecipient,
       ...(s.pool ? [s.pool] : []),
       ...(s.launch ? [s.launch] : []),
     ]),
     ...(manifest.vaultFactory ? [manifest.vaultFactory] : []),
   ];
-  addresses.forEach(address);
+  [...contracts, ...Object.values(manifest.strategies).map((s) => s.lpRecipient)].forEach(address);
   if (
     !manifest.strategies.TSLA.launch ||
     manifest.strategies.AMZN.launch !== null ||
@@ -66,9 +65,7 @@ export function validateManifest(manifest: LaunchMarketManifest): void {
     throw new LaunchMarketError('INVALID_STRATEGY_MANIFEST', 400);
   if (address(manifest.strategies.TSLA.pass) === address(manifest.strategies.AMZN.pass))
     throw new LaunchMarketError('DUPLICATE_PASS', 400);
-  for (const item of addresses) {
-    if (item === manifest.strategies.TSLA.lpRecipient || item === manifest.strategies.AMZN.lpRecipient)
-      continue;
+  for (const item of contracts) {
     const runtimeHash = manifest.runtimeCodeHashes[address(item)];
     if (!runtimeHash) throw new LaunchMarketError('MISSING_RUNTIME_HASH', 400);
     hash(runtimeHash);

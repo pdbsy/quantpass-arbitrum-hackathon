@@ -300,6 +300,16 @@ test('native quote binds account, chain, canonical quote, expiry and exact walle
     f.close();
   }
 });
+test('a reorg after the last RPC read never publishes a non-canonical market head', async () => {
+  const f = await fixture();
+  try {
+    f.chain.current = { ...f.chain.current, location: { ...f.chain.current.location, blockHash: h(999) } };
+    await assert.rejects(f.service.snapshot(), /NON_CANONICAL_MARKET_HEAD/);
+    assert.equal(f.service.projector.latest(), null);
+  } finally {
+    f.close();
+  }
+});
 test('new native quotes reject stale/future references and unavailable ETH sales leave AF-USDC path open', async () => {
   const f = await fixture();
   try {
