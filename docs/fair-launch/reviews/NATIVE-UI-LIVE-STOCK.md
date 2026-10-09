@@ -13,11 +13,23 @@ Quotes use the provider's actual timestamp, converted from America/New_York with
 
 This feed is only a private, noncommercial whitelist test display reference. It has no signer, credentials, order execution, keeper or Vault valuation dependency. Trusted execution still requires the separately configured stock execution adapter. The public website keeps its existing Google access gate on both API prefixes. No login or database migration is introduced.
 
+## Stock detail inspection
+
+The original crosshair and readout are preserved. Hovering the lower stock line now opens an English detail panel with the selected real price, change from the first visible point and source time. Historical daily points show matching open, high, low, close and actual share volume, labelled by session date. Quotes show only recorded quote data, time precision and applicable source/market/feed state; they never acquire invented daily OHLCV. Cached quotes and historical quote points remain explicitly identified.
+
+The floating panel does not resize the chart. SVG screen transforms select the correct point, including scaled mobile charts. Touch input passes through the display panel for subsequent selection. Stock updates and unrelated product renders rebind an active selection to the new SVG in the next frame; touch focus loss during replacement does not erase it. Leaving the chart, changing range, Escape, outside touches and page exit clean up the panel. Indexed PASS candle inspection uses AF-USDC price/turnover units while historical mock fixtures retain their original defaults.
+
+Exact prototype provenance admits only the immutable native source at `6aab8af781100c5156ee5126c36cad486fd35704` with its real parent, byte count and hash. Historical source records and generic unknown-edit/orphan/rollback denials remain intact. Historical mock wallet tests now use an explicitly pinned, hash-verified historical fixture instead of the current on-chain UI. Coverage mapping follows the actual sixteen style insertions without weakening byte/offset assertions.
+
 ## Focused validation
 
 - 25 related checks passed: native strategy views and refusal of old local financial operations; provider parsing/cache/timeout/DST/invalid inputs; API Host/Origin/schema boundaries; fifteen-second browser polling, same-minute updates and failure recovery.
-- Both TypeScript projects, scoped lint and production web build passed.
+- Nine chart detail checks passed: four stock selection/source/render-observer cases and five PASS inspection cases. The new stock checks are included in the default test list.
+- Exact source provenance/import checks: 48 passed. Historical mock wallet/fund checks: 12 passed. Source/coverage mapping checks: 14 passed. These retain historical expectations and negative admission cases; they are not current Testnet acceptance.
+- Both TypeScript projects, scoped lint, formatting and production web build passed. Supply-chain inventory remains unchanged.
 - Actual local desktop/mobile browser verification passed for TSLA and AMZN: original terminal containers, flat PASS reference, real Nasdaq stock data, automatic quote refetch, no wallet calls, no HTTP writes and no horizontal page overflow.
+- Actual hover browser verification passed for four desktop/mobile TSLA/AMZN views: daily OHLC values and session dates match the live provider response; quote points omit OHLCV; ordinary product rerenders rebind the detail panel; mouse leave and outside touch remove it. Mobile touch can select the next point through the panel. Fifteen-second quote polling, zero HTTP writes and zero wallet calls were confirmed. Initial touch overlay/focus failures were fixed and the affected paths retested; screenshots and separate desktop/mobile reports are stored on the server.
+- The historical qualified mock browser matrix was **NOT_RUN** for this update; its pinned historical semantics are not current native market browser coverage.
 - Actual provider reads returned 251 daily records for each stock and changing TSLA/AMZN pre-market quote values. Source times and fetch times remain distinct.
 - An authenticated production Google browser journey is **NOT_RUN**. Local browser evidence is not target-chain acceptance.
 

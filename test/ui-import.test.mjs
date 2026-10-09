@@ -488,3 +488,86 @@ test('Mock Pass maintenance preserves its real source and the prior wallet integ
   });
   assert.equal(git('status', '--porcelain'), '');
 });
+
+test('native market admission binds reviewed bytes to their real source history', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'af-native-market-history-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const root = resolve(import.meta.dirname, '..');
+  const cwd = join(directory, 'repo');
+  const admitted = await verifiedPrototypeArtifacts(root);
+  const env = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    GIT_AUTHOR_NAME: 'UI fixture',
+    GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
+    GIT_COMMITTER_NAME: 'UI fixture',
+    GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
+  };
+  const execute = (at, args, input) =>
+    execFileSync(
+      'git',
+      ['--no-replace-objects', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args],
+      { cwd: at, env, input, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 },
+    ).trim();
+  const git = (...args) => execute(cwd, args);
+  execute(directory, ['clone', '--no-hardlinks', '--no-checkout', '--single-branch', root, cwd]);
+  for (const ref of [
+    'refs/remotes/origin/macbeth01/account-wallet-eth',
+    'refs/remotes/origin/macbeth01/m3-phase1-closeout',
+    'refs/remotes/origin/master',
+  ]) {
+    const source = execute(root, ['rev-parse', '--verify', ref]);
+    git('fetch', '--no-tags', root, source);
+    git('update-ref', ref, source);
+  }
+  git('checkout', '--force', '--detach', admitted.nativeMarketCommit);
+  const prototypePath = join(cwd, 'apps/web/prototype/AlphaForge_v3_EN.html');
+  const sourceArtifact = await readFile(prototypePath, 'utf8');
+  await t.test('exact reviewed native source qualifies without changing historical identities', async () => {
+    const result = await verifiedPrototypeArtifacts(cwd);
+    assert.equal(result.current, sourceArtifact);
+    assert.equal(result.currentSha256, admitted.nativeMarketSha256);
+    assert.notEqual(result.currentSha256, admitted.mockHoldingsSha256);
+    assert.equal(git('rev-parse', `${result.nativeMarketCommit}^`), result.nativeMarketParentCommit);
+  });
+  await t.test('an unrecorded HTML change cannot borrow the native boundary admission', async () => {
+    await writeFile(prototypePath, sourceArtifact.replace('<title>', '<!-- Unreviewed edit --><title>'));
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /only exact recorded artifact revisions/);
+    } finally {
+      await writeFile(prototypePath, sourceArtifact);
+    }
+  });
+  await t.test('same native bytes on an unrelated tree cannot borrow source ancestry', async () => {
+    const orphan = execute(
+      cwd,
+      ['commit-tree', `${admitted.nativeMarketCommit}^{tree}`],
+      'Unrelated native market fixture\n',
+    );
+    git('checkout', '--force', '--detach', orphan);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /actual reviewed source ancestry/);
+    } finally {
+      git('checkout', '--force', '--detach', admitted.nativeMarketCommit);
+    }
+  });
+  await t.test('a native descendant cannot roll back to historical mock market bytes', async () => {
+    const previous = execFileSync(
+      'git',
+      [
+        '--no-replace-objects',
+        'show',
+        `${admitted.mockHoldingsCommit}:apps/web/prototype/AlphaForge_v3_EN.html`,
+      ],
+      { cwd, env, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 },
+    );
+    await writeFile(prototypePath, previous);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /must not roll back/);
+    } finally {
+      await writeFile(prototypePath, sourceArtifact);
+    }
+  });
+  assert.equal(git('status', '--porcelain'), '');
+});

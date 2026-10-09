@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { randomUUID } from 'node:crypto';
+import { readHistoricalPrototype } from './historical-prototype.ts';
 
 interface MockExchangeState {
   version: 1;
@@ -45,7 +45,7 @@ interface MockExchange {
   };
 }
 
-/** Execute the actual exchange IIFE with isolated storage and fixed market inputs. */
+/** Execute the immutable historical exchange, never the current native market. */
 export function mockExchangeFixture(
   saved?: string,
   strategies = [
@@ -53,10 +53,7 @@ export function mockExchangeFixture(
     { id: 'factor', name: 'Factor' },
   ],
 ) {
-  const source = readFileSync(
-    new URL('../../apps/web/prototype/AlphaForge_v3_EN.html', import.meta.url),
-    'utf8',
-  );
+  const source = readHistoricalPrototype('mockHoldings');
   const marker = source.indexOf('/* Isolated, fictional Pass exchange');
   const start = source.indexOf('(() => {', marker);
   const end = source.indexOf('\n})();', start) + '\n})();'.length;

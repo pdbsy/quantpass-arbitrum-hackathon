@@ -92,7 +92,11 @@ test('migration inventory accounts for source versions and validates imported ar
   assert.equal(usdc.commit, prototype.usdcCommit);
   assert.equal(usdc.previous_sha256, prototype.fundingSha256);
   assert.equal(usdc.sha256, prototype.usdcSha256);
-  assert.equal(prototype.currentSha256, prototype.mockHoldingsSha256);
+  // This inventory remains evidence of the immutable migration snapshot. The
+  // current native source has its own reviewed admission, not a rewritten record.
+  if (prototype.currentSha256 === prototype.nativeMarketSha256)
+    assert.equal(prototype.nativeMarketCommit, '6aab8af781100c5156ee5126c36cad486fd35704');
+  else assert.equal(prototype.currentSha256, prototype.mockHoldingsSha256);
 });
 
 test('migration provenance rejects altered historical hashes and candidates outside its retained ancestry', async (t) => {

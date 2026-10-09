@@ -1,4 +1,4 @@
-/** Prices and quoteVolume are hundredths of simulated ETH; volume is whole/fractional Pass units. */
+/** Display coordinates: prices and quoteVolume use hundredths of the selected quote asset. */
 export interface Candle {
   time: number;
   open: number;
@@ -19,10 +19,19 @@ const number = (value: number, digits: number) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(
     value,
   );
-const money = (value: number | undefined) => (finite(value) ? `${number(value / 100, 2)} ETH` : '—');
+const money = (value: number | undefined, unit = 'ETH') =>
+  finite(value) ? `${number(value / 100, 2)} ${unit}` : '—';
 const sign = (value: number) => (value > 0 ? '+' : value < 0 ? '−' : '');
 
-export function candleDetails(row: Candle) {
+export interface CandleInspectionOptions {
+  readonly quoteUnit?: 'ETH' | 'AF-USDC';
+  readonly volumeUnit?: 'Pass' | 'AF-USDC';
+  readonly english?: boolean;
+  readonly sourceLabel?: string;
+}
+
+export function candleDetails(row: Candle, options: CandleInspectionOptions = {}) {
+  const unit = options.quoteUnit ?? 'ETH';
   const change = finite(row.open) && finite(row.close) ? row.close - row.open : NaN;
   const rate = row.open > 0 ? (change / row.open) * 100 : NaN;
   const amplitude =
@@ -34,18 +43,20 @@ export function candleDetails(row: Candle) {
       finite(row.time) && Math.abs(row.time) <= 8.64e15
         ? new Date(row.time).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
         : '—',
-    open: money(row.open),
-    high: money(row.high),
-    low: money(row.low),
-    close: money(row.close),
-    change: finite(change) ? sign(change) + money(Math.abs(change)) : '—',
+    open: money(row.open, unit),
+    high: money(row.high, unit),
+    low: money(row.low, unit),
+    close: money(row.close, unit),
+    change: finite(change) ? sign(change) + money(Math.abs(change), unit) : '—',
     changePercent: finite(rate) ? sign(rate) + number(Math.abs(rate), 2) + '%' : '—',
     amplitude: finite(amplitude) ? number(amplitude, 2) + '%' : '—',
     volume:
       finite(row.volume) && row.volume >= 0
-        ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 8 }).format(row.volume) + ' Pass'
+        ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 8 }).format(row.volume) +
+          ' ' +
+          (options.volumeUnit ?? 'Pass')
         : '—',
-    turnover: finite(row.quoteVolume) && row.quoteVolume >= 0 ? money(row.quoteVolume) : '—',
+    turnover: finite(row.quoteVolume) && row.quoteVolume >= 0 ? money(row.quoteVolume, unit) : '—',
   };
 }
 
@@ -63,22 +74,39 @@ export function candleIndex(x: number, count: number, left: number, right: numbe
   return Math.min(count - 1, Math.floor(((x - left) / (right - left)) * count));
 }
 
-export function installCandleInspection(host: CandleChartHost, doc: Document = document): void {
+export function installCandleInspection(
+  host: CandleChartHost,
+  doc: Document = document,
+  options: CandleInspectionOptions = {},
+): void {
   let panel: HTMLElement | undefined;
   let selected: SVGSVGElement | undefined;
   const originalHover = host.charts.hover;
-  const labels = {
-    time: '时间',
-    open: '开盘',
-    close: '收盘',
-    high: '最高',
-    low: '最低',
-    changePercent: '涨跌幅',
-    change: '涨跌额',
-    amplitude: '振幅',
-    volume: '成交量',
-    turnover: '成交额',
-  };
+  const labels = options.english
+    ? {
+        time: 'Time',
+        open: 'Open',
+        close: 'Close',
+        high: 'High',
+        low: 'Low',
+        changePercent: 'Candle change',
+        change: 'Price change',
+        amplitude: 'Range',
+        volume: 'Volume',
+        turnover: 'Turnover',
+      }
+    : {
+        time: '时间',
+        open: '开盘',
+        close: '收盘',
+        high: '最高',
+        low: '最低',
+        changePercent: '涨跌幅',
+        change: '涨跌额',
+        amplitude: '振幅',
+        volume: '成交量',
+        turnover: '成交额',
+      };
   function clear() {
     panel?.remove();
     panel = undefined;
@@ -106,11 +134,11 @@ export function installCandleInspection(host: CandleChartHost, doc: Document = d
       panel.className = 'candle-detail-tooltip';
       panel.setAttribute('role', 'tooltip');
       const heading = doc.createElement('strong');
-      heading.textContent = 'K 线详情';
+      heading.textContent = options.english ? 'PASS candle details' : 'K 线详情';
       panel.append(heading);
       const tag = doc.createElement('span');
       tag.className = 'candle-detail-fixture';
-      tag.textContent = 'MOCK · 合成行情';
+      tag.textContent = options.sourceLabel ?? 'MOCK · 合成行情';
       panel.append(tag);
       const list = doc.createElement('dl');
       for (const [key, label] of Object.entries(labels)) {
@@ -122,12 +150,14 @@ export function installCandleInspection(host: CandleChartHost, doc: Document = d
       }
       panel.append(list);
       const note = doc.createElement('p');
-      note.textContent = '涨跌 = 收盘 − 开盘；涨跌幅、振幅均以本根开盘价为基准。价格单位：ETH / Pass。';
+      note.textContent = options.english
+        ? `Change = close − open. Candle change and range use the opening price. Prices: ${options.quoteUnit ?? 'ETH'} / PASS.`
+        : '涨跌 = 收盘 − 开盘；涨跌幅、振幅均以本根开盘价为基准。价格单位：ETH / Pass。';
       panel.append(note);
       svg.after(panel);
     }
     svg.setAttribute('aria-describedby', panel.id);
-    const details = candleDetails(row);
+    const details = candleDetails(row, options);
     for (const [key, value] of Object.entries(details)) {
       const element = panel.querySelector<HTMLElement>(`[data-candle-field="${key}"]`)!;
       element.textContent = value;

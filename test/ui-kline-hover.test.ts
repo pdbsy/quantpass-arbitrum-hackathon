@@ -2,6 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { candleDetails, candleIndex } from '../apps/web/src/kline-hover.ts';
 
+test('indexed PASS details use AF-USDC for actual quote prices and recorded turnover volume', () => {
+  const details = candleDetails(
+    { time: 1791548940000, open: 50, high: 55, low: 49, close: 52, volume: 10, quoteVolume: 1000 },
+    { quoteUnit: 'AF-USDC', volumeUnit: 'AF-USDC' },
+  );
+  assert.equal(details.open, '0.50 AF-USDC');
+  assert.equal(details.close, '0.52 AF-USDC');
+  assert.equal(details.change, '+0.02 AF-USDC');
+  assert.equal(details.volume, '10 AF-USDC');
+  assert.equal(details.turnover, '10.00 AF-USDC');
+});
+
 const candle = {
   time: Date.UTC(2026, 8, 12, 0),
   open: 10000,

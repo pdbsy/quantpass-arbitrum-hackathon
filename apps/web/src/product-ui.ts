@@ -6,6 +6,8 @@ import './wallet-account.css';
 import './launch-market/styles.css';
 import { installLaunchMarket } from './launch-market/install.ts';
 import { installStockHistory, type StockHistoryHost } from './stock-history.ts';
+import { installStockInspection } from './stock-inspection.ts';
+import './stock-inspection.css';
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
 import { createM3BrowserRuntime, type M3BrowserDeploymentConfig } from './m3-browser-runtime.ts';
@@ -50,7 +52,18 @@ declare global {
 }
 const AF = window.AF;
 // Server configuration selects the canonical chain market. The imported workshop keeps its layout and router.
-installCandleInspection(AF);
+installCandleInspection(
+  AF,
+  document,
+  AF.originalMarketLayout
+    ? {
+        quoteUnit: 'AF-USDC',
+        volumeUnit: 'AF-USDC',
+        english: true,
+        sourceLabel: 'Indexed chain swaps',
+      }
+    : {},
+);
 installProductNavigation();
 let onchainRuntime = AF.m3OnchainRuntime;
 if (!onchainRuntime && import.meta.env.DEV && new URLSearchParams(location.search).get('m3Fixture') === '1') {
@@ -240,7 +253,10 @@ const productPages = AF.originalMarketLayout
     );
 AF.pages.account = productPages.account;
 AF.pages.trade = productPages.trade;
-if (AF.originalMarketLayout) installStockHistory(AF);
+if (AF.originalMarketLayout) {
+  installStockHistory(AF);
+  installStockInspection(AF);
+}
 function render(): void {
   AF.app.render({ preserve: true });
 }
