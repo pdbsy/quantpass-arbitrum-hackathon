@@ -33,6 +33,10 @@ test('unsigned deployment preparation preserves CREATE order, explicit LP owners
     operation: string;
     contractAddress: string;
     caller: string;
+    inputAssets: string[];
+    inputAmounts: string[];
+    recipient: string;
+    expectedOutput: Record<string, unknown>;
     unsigned: { to: string | null; data: string; value: string } | null;
   }[];
   const deployments = actions.filter((action) => action.operation.startsWith('DEPLOY_'));
@@ -49,6 +53,21 @@ test('unsigned deployment preparation preserves CREATE order, explicit LP owners
     actions
       .filter((action) => action.operation.endsWith(':fundUsdc'))
       .every((action) => action.caller === config.administrator),
+  );
+  const tslaFunding = actions.find((action) => action.operation === 'usdc:transfer')!;
+  assert.equal(tslaFunding.recipient, first.addresses.tslaLaunch);
+  assert.deepEqual(tslaFunding.inputAssets, [first.addresses.usdc]);
+  assert.deepEqual(tslaFunding.inputAmounts, ['250000000000']);
+  const amznPool = actions.find((action) => action.operation === 'poolFactory:createPool')!;
+  assert.deepEqual(amznPool.inputAmounts, ['500000000000000000000000', '250000000000']);
+  assert.equal(amznPool.expectedOutput.lpRecipient, config.amznLpRecipient);
+  const amznDistribution = actions.find((action) => action.operation === 'amznPass:transfer')!;
+  assert.equal(amznDistribution.recipient.toLowerCase(), first.proceedsRecipient);
+  assert.equal(actions.at(-1)!.expectedOutput.lpRecipient, config.tslaLpRecipient);
+  assert.ok(
+    actions
+      .filter((action) => action.operation.endsWith(':approve'))
+      .every((action) => action.inputAssets.length === 0),
   );
 });
 test('preparation rejects insufficient separate LP/claim/reserve funds and unsafe ETH limits', async () => {

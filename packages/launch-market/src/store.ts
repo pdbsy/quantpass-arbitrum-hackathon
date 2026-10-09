@@ -231,6 +231,28 @@ export class LaunchMarketStore {
       throw new LaunchMarketError('INVALID_CLAIM_POLICY');
     const account = this.requireWallet(accountId, owner);
     return this.atomic(() => {
+      // A public opaque claim key cannot reconstruct its private email/subject registry.
+      // Refuse new vouchers after registry loss or while canonical events lag the RPC head.
+      const observedClaims = Number(
+        this.db
+          .prepare('SELECT count(*) n FROM market_claim_events WHERE chain_id=? AND canonical=1')
+          .get(this.chainId)!.n,
+      );
+      if (observedClaims !== chainSuccessfulClaims)
+        throw new LaunchMarketError('CLAIM_RECONCILIATION_REQUIRED', 503);
+      const missingRegistry = this.db
+        .prepare(
+          `
+        SELECT 1 FROM market_claim_events e
+        WHERE e.chain_id=? AND e.canonical=1 AND NOT EXISTS (
+          SELECT 1 FROM market_accounts a JOIN market_claim_vouchers v ON v.account_id=a.id
+          WHERE a.account_key=e.account_key AND v.account_key=e.account_key
+            AND v.wallet=e.wallet AND v.transaction_hash=e.transaction_hash
+            AND v.status IN('INCLUDED','COMPLETED')
+        ) LIMIT 1`,
+        )
+        .get(this.chainId);
+      if (missingRegistry) throw new LaunchMarketError('CLAIM_IDENTITY_RECOVERY_REQUIRED', 503);
       const existing = this.voucher(accountId);
       const unresolved = Number(
         this.db

@@ -61,6 +61,14 @@ export async function stockReferenceCli(args: readonly string[]): Promise<number
       Number(config.maxPriceAge) > 60
     )
       throw new Error('STRATEGY_REFERENCE_IDENTITY_MISMATCH');
+    const feed = new Interface([
+        'function keeper() view returns(address)',
+        'function referenceIdentity() view returns(bytes32)',
+      ]),
+      keeper = (await chain.read(String(config.referenceFeed), feed, 'keeper', [], head))[0],
+      referenceIdentity = (
+        await chain.read(String(config.referenceFeed), feed, 'referenceIdentity', [], head)
+      )[0];
     const reference = await new VerifiedStockReference(credentials).read(strategy),
       now = Math.floor(Date.now() / 1000);
     await chain.assertCanonical(head);
@@ -71,7 +79,8 @@ export async function stockReferenceCli(args: readonly string[]): Promise<number
         {
           ...unsigned,
           reference,
-          caller: String(config.creator),
+          caller: String(keeper),
+          referenceIdentity: String(referenceIdentity),
           verification:
             'Check actual feed keeper and state before signing; never sign expired references or fabricate a regular session.',
         },

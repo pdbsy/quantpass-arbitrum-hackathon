@@ -129,7 +129,8 @@ export class LaunchMarketService {
       result = await chain.wallet(owner);
     if (address(result.owner) !== owner || result.location.chainId !== this.options.manifest!.chainId)
       throw new LaunchMarketError('WALLET_PROJECTION_MISMATCH', 503);
-    return { ...result, accountId };
+    const linked = accountId !== null && this.options.store.account(accountId).wallet === owner;
+    return { ...result, accountId: linked ? accountId : null };
   }
   async quote(request: QuoteRequest, accountId: string): Promise<MarketQuote> {
     const { manifest, chain } = this.deployed(),

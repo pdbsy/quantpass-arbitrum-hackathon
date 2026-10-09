@@ -243,11 +243,65 @@ test('claim reservation enforces 100 slots, expiration and canonical success cou
     assert.equal(renewed.status, 'ISSUED');
     assert.throws(
       () => f.store.reserveClaim(extra.account.id, extra.wallet.address, 1122, 1182, 100),
-      /CLAIM_LIMIT_REACHED/,
+      /CLAIM_RECONCILIATION_REQUIRED/,
     );
     assert.equal(f.store.db.prepare('SELECT count(*) n FROM market_claim_vouchers').get()!.n, 101);
   } finally {
     f.close();
+  }
+});
+test('canonical claims require the preserved identity and original voucher before issuing another account voucher', async () => {
+  const original = fixture(),
+    restored = fixture();
+  try {
+    const { account, wallet } = await linked(original.store, 1),
+      event = {
+        accountKey: account.accountKey,
+        wallet: wallet.address,
+        location: { ...snapshot().location, transactionHash: h(40), logIndex: 2, confirmations: 3 },
+      };
+    original.store.reserveClaim(account.id, wallet.address, 1000, 1060, 0);
+    original.store.observeClaim(event);
+    const next = await linked(original.store, 2);
+    assert.throws(
+      () => original.store.reserveClaim(next.account.id, next.wallet.address, 1001, 1061, 2),
+      /CLAIM_RECONCILIATION_REQUIRED/,
+    );
+    // Rebinding the original account does not invalidate the preserved historical claim wallet.
+    const rebound = Wallet.createRandom(),
+      challenge = original.store.bindingChallenge(account.id, rebound.address, 1001);
+    original.store.bindWallet(
+      account.id,
+      challenge.nonce,
+      await rebound.signMessage(challenge.message),
+      1001,
+    );
+    assert.equal(
+      original.store.reserveClaim(next.account.id, next.wallet.address, 1001, 1061, 1).status,
+      'ISSUED',
+    );
+    const sameIdentity = await linked(restored.store, 1);
+    assert.notEqual(sameIdentity.account.accountKey, account.accountKey);
+    assert.throws(
+      () => restored.store.reserveClaim(sameIdentity.account.id, wallet.address, 1001, 1061, 1),
+      /CLAIM_RECONCILIATION_REQUIRED/,
+    );
+    restored.store.observeClaim(event);
+    assert.throws(
+      () => restored.store.reserveClaim(sameIdentity.account.id, wallet.address, 1001, 1061, 1),
+      /CLAIM_IDENTITY_RECOVERY_REQUIRED/,
+    );
+    // Matching counts and account keys alone do not establish a preserved original voucher.
+    original.store.db
+      .prepare('UPDATE market_claim_vouchers SET wallet=? WHERE account_id=?')
+      .run(rebound.address.toLowerCase(), account.id);
+    assert.throws(
+      () => original.store.reserveClaim(next.account.id, next.wallet.address, 1001, 1061, 1),
+      /CLAIM_IDENTITY_RECOVERY_REQUIRED/,
+    );
+  } finally {
+    original.close();
+    restored.close();
   }
 });
 test('projector rejects old updates, rewinds canonical claims and keeps durable monotonic versions', async () => {

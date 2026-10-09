@@ -68,7 +68,8 @@ export async function prepareDeployment(input: DeploymentInputs) {
     deployer = getAddress(input.deployer);
   async function deploy(label: string, file: string, name: string, args: unknown[]) {
     const compiled = await artifact(file, name),
-      address = getCreateAddress({ from: deployer, nonce: nonce++ });
+      deploymentNonce = nonce++,
+      address = getCreateAddress({ from: deployer, nonce: deploymentNonce });
     const unsigned = await new ContractFactory(compiled.abi, compiled.bytecode.object).getDeployTransaction(
       ...args,
     );
@@ -79,10 +80,23 @@ export async function prepareDeployment(input: DeploymentInputs) {
       contractAddress: address,
       function: 'constructor',
       caller: deployer,
+      nonce: deploymentNonce,
       constructorArguments: args,
       inputAssets: [],
       inputAmounts: [],
       recipient: address,
+      expectedOutput: {
+        deployedContract: address,
+        initialSupplyRecipient: ['usdc', 'tslaPass', 'amznPass', 'TSLAStock', 'AMZNStock'].includes(label)
+          ? admin
+          : null,
+        initialSupplyRaw:
+          label === 'usdc'
+            ? input.usdcSupplyRaw
+            : label.endsWith('Pass') || label.endsWith('Stock')
+              ? '1000000000000000000000000'
+              : null,
+      },
       unsigned: { to: null, data: unsigned.data, value: '0' },
       permissionsRequired: 'EXPLICIT_TESTNET_DEPLOYMENT_APPROVAL',
       estimatedGas: null,
@@ -101,17 +115,63 @@ export async function prepareDeployment(input: DeploymentInputs) {
     args: unknown[],
     caller = admin,
     value = '0',
-    assets: object[] = [],
   ) {
+    const movements: { asset: string; amountRaw: string; from: string; to: string }[] = [];
+    let recipient = addresses[label]!,
+      expectedOutput: object = { method, arguments: args };
+    if (method === 'transfer') {
+      recipient = getAddress(String(args[0]));
+      movements.push({ asset: addresses[label]!, amountRaw: String(args[1]), from: caller, to: recipient });
+      expectedOutput = { recipientBalanceIncreaseRaw: String(args[1]) };
+    } else if (method === 'fundNative') {
+      movements.push({ asset: 'native ETH', amountRaw: value, from: caller, to: recipient });
+      expectedOutput = { nativeReserveIncreaseRaw: value };
+    } else if (method === 'fundUsdc' || method === 'fund') {
+      const token = args.length === 2 ? getAddress(String(args[0])) : addresses.usdc!,
+        amount = String(args.at(-1));
+      movements.push({ asset: token, amountRaw: amount, from: caller, to: recipient });
+      expectedOutput = { tokenReserveIncreaseRaw: amount, token };
+    } else if (method === 'approve') {
+      expectedOutput = {
+        token: addresses[label],
+        allowanceOwner: caller,
+        spender: args[0],
+        allowanceRaw: args[1],
+      };
+    } else if (method === 'createPool') {
+      const pool = 'ACTUAL_POOL_FROM_CANONICAL_RECEIPT';
+      movements.push(
+        { asset: String(args[0]), amountRaw: '500000000000000000000000', from: caller, to: pool },
+        { asset: addresses.usdc!, amountRaw: '250000000000', from: caller, to: pool },
+      );
+      expectedOutput = {
+        pool,
+        lpRecipient: getAddress(String(args[1])),
+        lpShares: 'ACTUAL_SHARES_FROM_POOL_CREATED_EVENT',
+        passReserveRaw: '500000000000000000000000',
+        usdcReserveRaw: '250000000000',
+      };
+    } else if (method === 'openMint') {
+      expectedOutput = {
+        state: 'MINTING',
+        lockedLpPassRaw: '500000000000000000000000',
+        publicMintPassRaw: '500000000000000000000000',
+        lockedLpUsdcRaw: '250000000000',
+        lpRecipient: getAddress(input.tslaLpRecipient),
+      };
+    }
     configurationActions.push({
       operation: label + ':' + method,
       chainId: 46630,
       contractAddress: addresses[label],
       function: method,
+      arguments: args,
       caller,
-      inputAssets: assets,
-      inputAmounts: assets,
-      recipient: addresses[label],
+      inputAssets: movements.map((movement) => movement.asset),
+      inputAmounts: movements.map((movement) => movement.amountRaw),
+      assetMovements: movements,
+      recipient,
+      expectedOutput,
       unsigned: { to: addresses[label], data: iface.encodeFunctionData(method, args), value },
       permissionsRequired: 'EXPLICIT_TESTNET_FUNDING_OR_CONFIGURATION_APPROVAL',
       estimatedGas: null,
@@ -214,6 +274,10 @@ export async function prepareDeployment(input: DeploymentInputs) {
       chainId: 46630,
       function: 'update + updateSession',
       caller: admin,
+      inputAssets: [],
+      inputAmounts: [],
+      recipient: addresses[strategy + 'Feed'],
+      expectedOutput: 'Source-confirmed price and regular session, each <=60 seconds old.',
       unsigned: null,
       status: 'REQUIRES_FRESH_TEST_REFERENCE',
       permissionsRequired: 'EXPLICIT_ORACLE_CONFIGURATION_APPROVAL',
@@ -241,9 +305,7 @@ export async function prepareDeployment(input: DeploymentInputs) {
   call('conversionReserve', reserve, 'authorizeRouter', [addresses.tslaLaunch]);
   call('conversionReserve', reserve, 'authorizeRouter', [addresses.router]);
   call('conversionReserve', reserve, 'configureTradingRouter', [addresses.router]);
-  call('conversionReserve', reserve, 'fundNative', [], admin, input.conversionEthRaw, [
-    { asset: 'native ETH', amountRaw: input.conversionEthRaw },
-  ]);
+  call('conversionReserve', reserve, 'fundNative', [], admin, input.conversionEthRaw);
   call('usdc', usdc, 'approve', [addresses.conversionReserve, input.conversionUsdcRaw]);
   call('conversionReserve', reserve, 'fundUsdc', [input.conversionUsdcRaw]);
   call('usdc', usdc, 'approve', [addresses.claim, '100000000000']);
@@ -259,7 +321,7 @@ export async function prepareDeployment(input: DeploymentInputs) {
   // CREATE address predictions assume exactly this reviewed deployment order. Funding calls have no predicted nonce.
   return {
     status: 'UNSIGNED_REQUIRES_USER_APPROVAL',
-    schemaVersion: 1,
+    schemaVersion: 2,
     chainId: 46630,
     deploymentOrderMustBePreserved: true,
     inputs: input,

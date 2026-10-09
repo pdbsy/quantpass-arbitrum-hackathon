@@ -232,6 +232,17 @@ async function fixture() {
     },
   };
 }
+test('wallet projection exposes account linkage only for the genuinely bound wallet', async () => {
+  const f = await fixture();
+  try {
+    assert.equal((await f.service.wallet(f.owner.address, f.account.id)).accountId, f.account.id);
+    assert.equal((await f.service.wallet(Wallet.createRandom().address, f.account.id)).accountId, null);
+    f.store.db.prepare('UPDATE market_accounts SET wallet=NULL WHERE id=?').run(f.account.id);
+    assert.equal((await f.service.wallet(f.owner.address, f.account.id)).accountId, null);
+  } finally {
+    f.close();
+  }
+});
 test('missing deployment never serves a sample market or prepares transactions', async () => {
   const f = await fixture();
   try {
