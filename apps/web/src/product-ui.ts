@@ -11,6 +11,8 @@ import type { LaunchClientState } from './launch-market/model.ts';
 import { installStockHistory, type StockHistoryHost } from './stock-history.ts';
 import { installStockInspection } from './stock-inspection.ts';
 import './stock-inspection.css';
+import { installReferenceInspection } from './reference-inspection.ts';
+import './reference-inspection.css';
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
 import { createM3BrowserRuntime, type M3BrowserDeploymentConfig } from './m3-browser-runtime.ts';
@@ -263,6 +265,9 @@ if (AF.originalMarketLayout) {
   installNativeMint(AF, document);
   installStockHistory(AF);
   installStockInspection(AF);
+  installReferenceInspection(AF);
+  // Display the correct Mint/market view immediately, without waiting for any API response.
+  AF.app.render({ preserve: true });
 }
 function render(): void {
   AF.app.render({ preserve: true });

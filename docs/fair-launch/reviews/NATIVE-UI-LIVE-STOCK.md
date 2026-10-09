@@ -2,7 +2,7 @@
 
 The original home and Trade layout is retained. The catalogue now contains only All in TSLA and All in AMZN. The original 123,345-byte product stylesheet is unchanged (SHA-256 `8b0996e01403be0d0fbf555e03151973cdfe1118ad20f4423324538a32e4aff6`).
 
-TSLA before a verified launch displays Public Mint progress in the main panel, market facts, catalogue card and mobile dock. Subscribed and remaining PASS come from the actual chain snapshot; missing data stays unknown, while the 500,000 public / 1,000,000 total plan is explicitly labelled Planned. The progress bar uses integer inventory arithmetic, and the source identifies its observed L2 block. Only a LAUNCHED snapshot restores the TSLA price view. AMZN keeps its secondary market view.
+TSLA before a verified launch displays Public Mint progress in the main panel, market facts, catalogue card and mobile dock. Subscribed and remaining PASS come from the actual chain snapshot; missing data stays unknown, while the 500,000 public / 1,000,000 total plan is explicitly labelled Planned. The progress bar uses integer inventory arithmetic, and the source identifies its observed L2 block. Only a LAUNCHED snapshot restores the TSLA price view. AMZN keeps its secondary market view. The native view renders immediately after installation, without waiting for API responses, so the initial TSLA view also shows Mint while requests are pending.
 
 For AMZN and launched TSLA, without actual indexed PASS swaps, the upper chart shows a flat 0.5 AF-USDC/PASS initial reference. It does not create candles, volume or historical trades. Once configured, indexed swaps and current pool reserves supply the PASS view. Missing balances and incomplete aggregate windows remain unknown; local financial methods refuse mutation and browser research records are retained.
 
@@ -15,6 +15,12 @@ Quotes use the provider's actual timestamp, converted from America/New_York with
 
 This feed is only a private, noncommercial whitelist test display reference. It has no signer, credentials, order execution, keeper or Vault valuation dependency. Trusted execution still requires the separately configured stock execution adapter. The public website keeps its existing Google access gate on both API prefixes. No login or database migration is introduced.
 
+## PASS reference inspection
+
+The upper flat reference chart now accepts mouse, touch and keyboard inspection even when there are no indexed swaps. Its crosshair follows the pointer within the plot and stays on the actual flat line. The detail panel identifies the strategy, 0.50 AF-USDC/PASS reference and absence of indexed trades. Executed price, trade time and volume remain unavailable; the reference does not acquire invented OHLCV or dates.
+
+The panel preserves an active selection across product renders, remains inside the viewport and leaves chart controls reachable. Range/style replacements make the new SVG keyboard accessible. Leaving the plot, Escape, outside touches, scrolling and navigation remove it. It attaches only to the flat reference chart; TSLA Mint and actual indexed candle inspection keep their separate behavior.
+
 ## Stock detail inspection
 
 The original crosshair and readout are preserved. Hovering the lower stock line now opens an English detail panel with the selected real price, change from the first visible point and source time. Historical daily points show matching open, high, low, close and actual share volume, labelled by session date. Quotes show only recorded quote data, time precision and applicable source/market/feed state; they never acquire invented daily OHLCV. Cached quotes and historical quote points remain explicitly identified.
@@ -25,6 +31,7 @@ Exact prototype provenance admits only the immutable native source at `6aab8af78
 
 ## Focused validation
 
+- This reference inspection follow-up passed 16 scoped checks: two reference detail/geometry checks, five Mint display checks, four stock inspection checks and five indexed PASS inspection checks. Both TypeScript projects, scoped lint/format, supply inventory and the `/alphaforge/` production build passed. Four actual desktop/mobile TSLA/AMZN browser views passed with live provider data. Upper AMZN inspection worked with mouse/touch, keyboard, rerender rebinding, range/style replacement and axis rejection; the cursor moved while unavailable trade fields stayed unavailable. A separate initial TSLA browser check held all API responses pending and still displayed Mint. There were zero wallet calls or HTTP writes. A malformed selector in the first browser probe was corrected before the complete probe passed; it was a probe error, not a product failure. Screenshots and the final report are stored on the server.
 - 25 related checks passed: native strategy views and refusal of old local financial operations; provider parsing/cache/timeout/DST/invalid inputs; API Host/Origin/schema boundaries; fifteen-second browser polling, same-minute updates and failure recovery.
 - Five TSLA Mint checks passed: unknown deployment/synchronization, real subscription percentage and inventory conservation, preparing/sold-out/launch transitions, AMZN and stock-view preservation, catalogue display and cleanup. Final desktop/mobile TSLA/AMZN browser checks passed with actual stock data: TSLA main view, card/filter and mobile dock display Mint; AMZN retains its flat initial reference; detailed stock hover and render recovery remain functional. No wallet calls or HTTP writes occurred.
 - Nine chart detail checks passed: four stock selection/source/render-observer cases and five PASS inspection cases. The new stock checks are included in the default test list.
