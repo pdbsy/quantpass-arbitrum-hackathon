@@ -438,6 +438,13 @@ test('submission validates actual from/to/data/value and inclusion stays pending
     };
     const operation = await f.service.submit(f.account.id, quote.id, txHash, f.owner.address);
     assert.equal(operation.state, 'SUBMITTED');
+    assert.equal(f.store.operations(f.account.id, f.owner.address)[0]!.id, operation.id);
+    assert.equal(f.store.operations(f.account.id, new Wallet(h(22)).address).length, 0);
+    const bob = f.store.trustedAccount(
+      { email: 'bob@example.test', subject: 'google:bob', emailVerified: true },
+      1000,
+    );
+    assert.equal(f.store.operations(bob.id, f.owner.address).length, 0);
     assert.equal((await f.service.submit(f.account.id, quote.id, txHash, f.owner.address)).id, operation.id);
     f.chain.observedTransaction = { ...f.chain.observedTransaction, value: '1' };
     await assert.rejects(

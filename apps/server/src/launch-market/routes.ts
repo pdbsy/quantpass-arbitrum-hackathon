@@ -144,6 +144,14 @@ export function registerLaunchMarketRoutes(app: FastifyInstance, options: Launch
     { schema: { params: body({ id: idSchema }) } },
     async (request) => execute(async () => service.operation((await account(request)).id, request.params.id)),
   );
+  app.get<{ Querystring: { owner: string } }>(
+    '/api/launch-market/operations',
+    { schema: { querystring: body({ owner: ownerSchema }) } },
+    async (request) =>
+      execute(async () => ({
+        operations: service.options.store.operations((await account(request)).id, request.query.owner),
+      })),
+  );
   app.get('/api/launch-market/events', async (request, reply) => {
     const snapshot = await execute(() => service.snapshot());
     const response = reply.raw;

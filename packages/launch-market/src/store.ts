@@ -330,6 +330,15 @@ export class LaunchMarketStore {
     if (!row) throw new LaunchMarketError('OPERATION_NOT_FOUND', 404);
     return JSON.parse(String(row.payload)) as MarketTrackedOperation;
   }
+  operations(accountId: string, owner: string): readonly MarketTrackedOperation[] {
+    this.account(accountId);
+    return this.db
+      .prepare(
+        'SELECT o.payload FROM market_operations o JOIN market_quotes q ON q.id=o.quote_id WHERE q.account_id=? AND o.owner=? ORDER BY o.rowid DESC LIMIT 50',
+      )
+      .all(accountId, address(owner))
+      .map((row) => JSON.parse(String(row.payload)) as MarketTrackedOperation);
+  }
   updateOperation(operation: MarketTrackedOperation): void {
     this.atomic(() => {
       this.db
