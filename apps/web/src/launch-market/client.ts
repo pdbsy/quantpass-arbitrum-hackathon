@@ -283,6 +283,10 @@ export class LaunchMarketClient {
       LINKED_WALLET_REQUIRED: 'Link the connected wallet to your verified account before continuing.',
       ALREADY_CLAIMED: 'This verified account has already claimed its AF-USDC.',
       CLAIM_LIMIT_REACHED: 'All 100 claims have been allocated.',
+      CLAIM_RECONCILIATION_REQUIRED:
+        'Claim records are synchronizing with the chain. Refresh after synchronization completes.',
+      CLAIM_IDENTITY_RECOVERY_REQUIRED:
+        'Claim account records need recovery. New claims are paused; contact the operator.',
       INSUFFICIENT_CONVERSION_RESERVE: 'This ETH conversion path has insufficient liquidity. Choose AF-USDC.',
       ETH_PATH_UNAVAILABLE: 'This ETH conversion path is currently unavailable. Choose AF-USDC.',
       CLAIM_RECOVERY_REQUIRED:

@@ -411,7 +411,7 @@ export class LaunchMarketService {
     try {
       const gas = await chain.simulate(transaction, owner);
       if (uint(gas) === 0n) throw new LaunchMarketError('INVALID_GAS_ESTIMATE', 503);
-      quote = { ...base, gasEstimateRaw: gas };
+      quote = { ...base, allowance: null, gasEstimateRaw: gas };
     } catch (error) {
       if (error instanceof LaunchMarketError && error.code === 'ALLOWANCE_REQUIRED' && allowance)
         quote = { ...base, simulation: 'APPROVAL_REQUIRED' };

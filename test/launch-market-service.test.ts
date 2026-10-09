@@ -376,6 +376,13 @@ test('approval deficit is explicit and other simulation failures never create ex
       /QUOTE_TRANSACTION_MISMATCH/,
     );
     f.chain.allowanceRequired = false;
+    const approved = await f.service.quote(
+      { ...f.request, asset: 'AF_USDC', amountRaw: '1000000' },
+      f.account.id,
+    );
+    assert.equal(approved.simulation, 'READY');
+    assert.equal(approved.allowance, null);
+    assert.ok(approved.gasEstimateRaw);
     f.chain.simulationFailure = true;
     await assert.rejects(
       f.service.quote({ ...f.request, asset: 'AF_USDC', amountRaw: '1000000' }, f.account.id),
