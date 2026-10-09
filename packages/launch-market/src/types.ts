@@ -89,6 +89,7 @@ export interface MarketSnapshot {
     readonly usdcReserveRaw: string;
     readonly ethBuyAvailable: boolean;
     readonly ethSellAvailable: boolean;
+    readonly ethMintAvailable?: boolean;
     readonly feeBps: number;
     readonly epoch: string;
   };
@@ -97,11 +98,12 @@ export interface VaultSnapshot {
   readonly strategyId: StrategyId;
   readonly address: string;
   readonly principalBasisRaw: string;
-  readonly equityRaw: string;
+  readonly equityRaw: string | null;
   readonly cashRaw: string;
   readonly lockedPassRaw: string;
   readonly realizedPnlRaw: string;
-  readonly unrealizedPnlRaw: string;
+  readonly unrealizedPnlRaw: string | null;
+  readonly valuationState: 'FRESH' | 'UNAVAILABLE';
   readonly withdrawableProfitRaw: string;
   readonly withdrawablePrincipalRaw: string;
   readonly status: 'OPEN' | 'CLOSED';
@@ -189,10 +191,12 @@ export interface MarketAccount {
 export class LaunchMarketError extends Error {
   readonly code: string;
   readonly status: number;
+  readonly statusCode: number;
   constructor(code: string, status = 409) {
     super(code);
     this.name = 'LaunchMarketError';
     this.code = code;
     this.status = status;
+    this.statusCode = status;
   }
 }
