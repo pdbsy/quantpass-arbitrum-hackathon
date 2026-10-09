@@ -1,16 +1,46 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile, lstat } from 'node:fs/promises';
-import { resolve, relative, sep } from 'node:path';
+import { readFile, lstat, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve, relative, sep, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { verifiedPrototypeArtifacts } from './helpers/prototype-artifact.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const readJson = async (path) => JSON.parse(await readFile(resolve(root, path), 'utf8'));
+const migrationSnapshot = '802205c02dc27ff0170bede1c8f593348e0147d2';
+function verifiedMigrationSnapshot(directory) {
+  const git = (...args) =>
+    execFileSync('git', ['--no-replace-objects', ...args], {
+      cwd: directory,
+      timeout: 15000,
+      maxBuffer: 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  assert.equal(
+    git('rev-parse', '--verify', `${migrationSnapshot}^{commit}`).toString().trim(),
+    migrationSnapshot,
+  );
+  git('merge-base', '--is-ancestor', migrationSnapshot, 'HEAD');
+  return (path, hash) => {
+    const rel = relative(directory, resolve(directory, path));
+    assert.ok(rel !== '..' && !rel.startsWith(`..${sep}`) && rel.split(sep).join('/') === path, path);
+    assert.equal(
+      createHash('sha256')
+        .update(git('show', `${migrationSnapshot}:${path}`))
+        .digest('hex'),
+      hash,
+      path,
+    );
+  };
+}
 
 test('migration inventory accounts for source versions and validates imported artifact hashes', async () => {
   const inventory = await readJson('docs/migration/inventory.json');
   const manifest = await readJson('docs/migration/artifact-provenance.json');
+  assert.equal(manifest.historical_evidence_only, true);
+  const verifyHistoricalArtifact = verifiedMigrationSnapshot(root);
   assert.equal(inventory.canonical_repository, 'pdbsy/quantpass-arbitrum-hackathon');
   assert.ok(inventory.records.length >= 369);
   const states = new Set(['ALREADY_PRESENT', 'MIGRATED', 'SUPERSEDED', 'USER_ACTION_REQUIRED']);
@@ -29,13 +59,7 @@ test('migration inventory accounts for source versions and validates imported ar
     assert.ok((await lstat(file)).isFile(), artifact.target_path);
     assert.match(artifact.source_commit, /^[a-f0-9]{40}$/);
     assert.match(artifact.original_sha256, /^[a-f0-9]{64}$/);
-    assert.equal(
-      createHash('sha256')
-        .update(await readFile(file))
-        .digest('hex'),
-      artifact.migrated_sha256,
-      artifact.target_path,
-    );
+    verifyHistoricalArtifact(artifact.target_path, artifact.migrated_sha256);
   }
   const prototype = await verifiedPrototypeArtifacts(root);
   const record = manifest.artifacts.find(
@@ -68,7 +92,28 @@ test('migration inventory accounts for source versions and validates imported ar
   assert.equal(usdc.commit, prototype.usdcCommit);
   assert.equal(usdc.previous_sha256, prototype.fundingSha256);
   assert.equal(usdc.sha256, prototype.usdcSha256);
-  assert.equal(prototype.currentSha256, prototype.usdcSha256);
+  assert.equal(prototype.currentSha256, prototype.mockHoldingsSha256);
+});
+
+test('migration provenance rejects altered historical hashes and candidates outside its retained ancestry', async (t) => {
+  const manifest = await readJson('docs/migration/artifact-provenance.json');
+  const artifact = manifest.artifacts[0];
+  const verify = verifiedMigrationSnapshot(root);
+  assert.throws(() => verify(artifact.target_path, '0'.repeat(64)), /AssertionError/);
+  assert.throws(() => verify('../outside-history', artifact.migrated_sha256), /AssertionError/);
+  const directory = await mkdtemp(join(tmpdir(), 'af-migration-history-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const repository = join(directory, 'repo');
+  const git = (...args) =>
+    execFileSync('git', ['--no-replace-objects', ...args], {
+      cwd: directory,
+      timeout: 30000,
+      maxBuffer: 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  git('clone', '--no-hardlinks', '--no-checkout', '--single-branch', root, repository);
+  git('-C', repository, 'checkout', '--detach', '3cb9caa810e34d8ff9f9a6c68b5ef674f489689e');
+  assert.throws(() => verifiedMigrationSnapshot(repository), /Command failed/);
 });
 
 test('generated Forum uses external assets under the existing dashboard CSP', async () => {

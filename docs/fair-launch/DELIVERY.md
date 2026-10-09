@@ -6,18 +6,18 @@
 
 2026-10-09 只读检查实际服务、源码、数据库及 Git 远端，没有切换线上 release、改数据库、部署或注资。
 
-| 检查对象 | 观察 | 状态 |
-| --- | --- | --- |
-| 实际入口 | `apps/web/index.html → apps/web/src/product-ui.ts`，workshop 前端最新 commit `5c61e91b9c2ee249592eb8923fee3bee072ce673` | IMPLEMENTED |
-| 运行后端 | workshop release `20261005-024948-287230`，后端 commit 前缀 `7fdbe37`，运行 QP_MODE local / mock adapter | MOCK |
-| 保留主源码 | `runtime/source`，分支 `codex/alphaforge-w5-linux-git-release-20261004`，commit 前缀 `c0bba0`，工作区干净 | IMPLEMENTED |
-| 最新 UI 源码 | `runtime/workshop-source`，分支 `codex/browser-wallet-account-20261009`，commit `5c61e91…`，工作区干净 | IMPLEMENTED |
-| 线上数据库 | demo schema1，3 Vault / 90 audit / 1 automata / 1 simulation fund；access schema0，2 identity / 2 whitelist / 2 session；wallet-auth schema1；quick_check 均 ok | IMPLEMENTED / 模拟资金 |
-| 已部署新市场 | 现有 operator config 的 vaults 为空，旧 Testnet 配置 NOT_CONFIGURED、execution DISABLED；未发现本轮 Fair Launch 地址 / receipt | NOT_DEPLOYED |
-| 身份 | Google 验证、whitelist、真实 session / CSRF 可复用；Native Website 登录不证明邮箱已验证 | IMPLEMENTED / PARTIAL |
-| 原资金前端 | 模拟认购、独立用户市场投影及旧 Testnet 入口，不能当本轮共享链资金证据 | MOCK |
-| 原可复用合约 | 固定发行 StrategyPass / TestUSDC；AlphaForgeVault / PassLocker 的本金、利润、关闭与锁仓账本 | IMPLEMENTED |
-| 原缺口 | 原生 ETH 双向兑换、原子 Fair Launch、真实 AMM / LP、邮件领取、链事件 indexer、两策略受限 TEST 股票 Vault | 本轮新增 |
+| 检查对象     | 观察                                                                                                                                                            | 状态                   |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| 实际入口     | `apps/web/index.html → apps/web/src/product-ui.ts`，workshop 前端最新 commit `5c61e91b9c2ee249592eb8923fee3bee072ce673`                                         | IMPLEMENTED            |
+| 运行后端     | workshop release `20261005-024948-287230`，后端 commit 前缀 `7fdbe37`，运行 QP_MODE local / mock adapter                                                        | MOCK                   |
+| 保留主源码   | `runtime/source`，分支 `codex/alphaforge-w5-linux-git-release-20261004`，commit 前缀 `c0bba0`，工作区干净                                                       | IMPLEMENTED            |
+| 最新 UI 源码 | `runtime/workshop-source`，分支 `codex/browser-wallet-account-20261009`，commit `5c61e91…`，工作区干净                                                          | IMPLEMENTED            |
+| 线上数据库   | demo schema1，3 Vault / 90 audit / 1 automata / 1 simulation fund；access schema0，2 identity / 2 whitelist / 2 session；wallet-auth schema1；quick_check 均 ok | IMPLEMENTED / 模拟资金 |
+| 已部署新市场 | 现有 operator config 的 vaults 为空，旧 Testnet 配置 NOT_CONFIGURED、execution DISABLED；未发现本轮 Fair Launch 地址 / receipt                                  | NOT_DEPLOYED           |
+| 身份         | Google 验证、whitelist、真实 session / CSRF 可复用；Native Website 登录不证明邮箱已验证                                                                         | IMPLEMENTED / PARTIAL  |
+| 原资金前端   | 模拟认购、独立用户市场投影及旧 Testnet 入口，不能当本轮共享链资金证据                                                                                           | MOCK                   |
+| 原可复用合约 | 固定发行 StrategyPass / TestUSDC；AlphaForgeVault / PassLocker 的本金、利润、关闭与锁仓账本                                                                     | IMPLEMENTED            |
+| 原缺口       | 原生 ETH 双向兑换、原子 Fair Launch、真实 AMM / LP、邮件领取、链事件 indexer、两策略受限 TEST 股票 Vault                                                        | 本轮新增               |
 
 本轮独立 clone `worktrees/macbeth01-fair-launch` 基于最新 UI `5c61e91…`，分支 `macbeth01/AF-FAIR-LAUNCH-V3`，没有覆盖上述源码或线上服务。远端 master 基线 `3cb9caa810e34d8ff9f9a6c68b5ef674f489689e` 与最新 UI 相差 48 个既有 commit / 139 个既有变更文件；这些历史保留原作者，draft PR 必须说明继承范围。本轮审查从 `5c61e91…` 开始，不把继承的 UI / release 历史说成新增独立审查已通过。
 
@@ -27,18 +27,18 @@
 
 完整文件清单见 `CHANGED-FILES.txt`。主要新增：
 
-| 路径 | 作用 |
-| --- | --- |
-| `contracts/src/market/` | FairLaunch、真实恒积 AMM / Factory / LP、NativeReserve / Router、ClaimReserve |
-| `contracts/src/launch-vault/AlphaForgeStrategyVault.sol` | 仅 TSLA / AMZN TEST 股票的受限 Vault、独立测试 venue、keeper 价格 / 日历、Factory |
-| `contracts/deployment/market/` | 11 个编译生成 ABI、源码 / 编译参数 / runtime 与 creation 大小记录 |
-| `packages/launch-market/src/` | 整数计价、真实 RPC 接口、链位置、耐久身份 / voucher / operation、canonical projection / SSE |
-| `apps/server/src/launch-market/` | 严格 HTTP API、真实日志 indexer / 重组 / 持有人 / AMM OHLCV、loopback 服务 |
-| `apps/server/src/launch-market-adapters/` | 只读链、verified Google bridge、Coinbase / Kraken 原生报价、Alpaca TEST 股票参考、真实 Vault quote |
-| `apps/web/src/launch-market/` | ETH 默认交易、确切 approval / wallet quote、gas / 滑点审核、真实确认 / 恢复、Vault owner / executor 授权、实际链活动 |
-| `tools/launch-market/` | 纯离线 unsigned 部署准备、只读 unsigned keeper 准备、隔离链 fixture / E2E / 持续负载、ABI 和 pinned Anvil 检查 |
-| `deploy/launch-market/` | 无凭证 env、显式部署参数、待审核 service / ingress 示例 |
-| `.github/workflows/fair-launch.yml` | 新增范围检查；现有工作流、工具锁和分支保护不削弱 |
+| 路径                                                     | 作用                                                                                                                 |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `contracts/src/market/`                                  | FairLaunch、真实恒积 AMM / Factory / LP、NativeReserve / Router、ClaimReserve                                        |
+| `contracts/src/launch-vault/AlphaForgeStrategyVault.sol` | 仅 TSLA / AMZN TEST 股票的受限 Vault、独立测试 venue、keeper 价格 / 日历、Factory                                    |
+| `contracts/deployment/market/`                           | 11 个编译生成 ABI、源码 / 编译参数 / runtime 与 creation 大小记录                                                    |
+| `packages/launch-market/src/`                            | 整数计价、真实 RPC 接口、链位置、耐久身份 / voucher / operation、canonical projection / SSE                          |
+| `apps/server/src/launch-market/`                         | 严格 HTTP API、真实日志 indexer / 重组 / 持有人 / AMM OHLCV、loopback 服务                                           |
+| `apps/server/src/launch-market-adapters/`                | 只读链、verified Google bridge、Coinbase / Kraken 原生报价、Alpaca TEST 股票参考、真实 Vault quote                   |
+| `apps/web/src/launch-market/`                            | ETH 默认交易、确切 approval / wallet quote、gas / 滑点审核、真实确认 / 恢复、Vault owner / executor 授权、实际链活动 |
+| `tools/launch-market/`                                   | 纯离线 unsigned 部署准备、只读 unsigned keeper 准备、隔离链 fixture / E2E / 持续负载、ABI 和 pinned Anvil 检查       |
+| `deploy/launch-market/`                                  | 无凭证 env、显式部署参数、待审核 service / ingress 示例                                                              |
+| `.github/workflows/fair-launch.yml`                      | 新增范围检查；现有工作流、工具锁和分支保护不削弱                                                                     |
 
 市场价格只来自各策略唯一 PASS / AF-USDC 池；ETH 是支付 / 收款的独立兑换路径。AMM 30 bps 手续费保留在池中，原生兑换费默认 0，并有链上签名 nonce / epoch / expiry 及单笔、账户每日、全局每日限额。固定认购款独立进入用户指定 EOA。
 
@@ -70,7 +70,7 @@
 
 已发现并修复：SSE 长连接阻止服务退出、嵌套 API error 导致前端失去恢复原因、授权检查和 gas 模拟跨区块并发竞态、未绑定 wallet 错误暴露 accountId 隐藏绑定按钮、丢失私有领取 registry 后新 accountKey 的重复领取风险、ETH卖出最小到账舍入校验、token授权完成后多余allowance误阻止确认、备份工具漏检完整DDL和CHECK约束。保留初始失败负载记录和复测证据，不删除尾部请求或失败样本。
 
-独立 Macbeth05 审查是有固定 commit 范围的人工工程 / 安全源码复查，包含实际缺陷复现和针对性检查；正式 Codex Security scanner、Slither、目标 Testnet、真实 Google ingress 和部署验证未执行，不能标成 PASS。原 GitHub required checks 尚需实际 hosted run，不能用本地检查覆盖。
+独立源码审查包含实际缺陷复现和针对性检查。后续已实际执行锁定 Semgrep（300源文件、22规则、44 canaries，0发现）和 Slither（53报告，9既有批准、44新增未批准）；Slither原审批门禁为BLOCKED，没有擅自追加批准或过滤报告。详见 `reviews/STATIC-SCANNERS.md`。正式 Codex Security managed scanner 的必需MCP不可用，目标Testnet、真实Google ingress和部署验证仍为NOT_RUN。原GitHub required checks必须实际hosted运行，不能用本地检查覆盖。
 
 ## F. 待授权清单
 
@@ -90,15 +90,15 @@
 
 完整负载通过，最终73项范围检查、双账户EVM及独立审查完成，浏览器实链结果见 `TESTING.md`。状态分别为：
 
-| 状态 | 含义 |
-| --- | --- |
-| CODE_COMPLETE | 已完成：代码、ABI、持久存储、UI、工具和交接准备 |
-| LOCAL_EVM_TESTED | 已完成：真实隔离 EVM 合约 / 双账户 / 发射 / 资产守恒验证 |
-| SECURITY_REVIEWED | 已完成：Macbeth05限定范围独立源码审查；正式scanner / Slither为NOT_RUN |
-| READY_FOR_DEPLOYMENT_REVIEW | 已达到：unsigned工具、资金流向、权限及待授权参数可审核 |
-| DEPLOYED_TO_TESTNET | 尚未达到；NOT_DEPLOYED |
-| TESTNET_VERIFIED | 尚未达到；NOT_RUN |
+| 状态                        | 含义                                                                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| CODE_COMPLETE               | 已完成：代码、ABI、持久存储、UI、工具和交接准备                                                                  |
+| LOCAL_EVM_TESTED            | 已完成：真实隔离 EVM 合约 / 双账户 / 发射 / 资产守恒验证                                                         |
+| SECURITY_REVIEWED           | 已完成限定范围独立源码复查及真实静态扫描；Semgrep PASS，Slither 44新增报告待批准，managed Codex Security NOT_RUN |
+| READY_FOR_DEPLOYMENT_REVIEW | 已达到：unsigned工具、资金流向、权限及待授权参数可审核                                                           |
+| DEPLOYED_TO_TESTNET         | 尚未达到；NOT_DEPLOYED                                                                                           |
+| TESTNET_VERIFIED            | 尚未达到；NOT_RUN                                                                                                |
 
-PR publication 为 `BLOCKED_CREDENTIALS`：Git HTTPS未配置认证，SSH agent不可用；没有生成虚构PR链接，也没有用API重建提交来丢失48个继承提交和worker作者。完整分支Git bundle和待发布PR描述作为本地交付。配置批准的仓库Git写入身份后即可推送并创建draft PR；实际hosted checks仍须另行观察，禁止自动合并。
+PR publication 已准备保留原始历史的传输方案：临时GitHub Actions校验完整bundle后仅发布新的source tag，GitHub连接再原子创建 `codex/alphaforge-fair-launch-v3-20261009` 分支及draft PR。不会用API重建48个继承提交，不改变原作者、时间、SHA或父提交，也不写保护主分支。用户已取消本任务worker角色要求；精确source profile仅适用于该新分支，保留71个原提交并拒绝遗漏/改写历史及新增worker身份声明。已有其他分支身份规则及required checks不变；实际hosted checks和44新增Slither报告仍是合并门禁，禁止自动合并。
 
 Macbeth01 统筹并负责合约适配、真实 RPC、数据源、fixture、集成和部署准备；Macbeth02 完成市场合约，Macbeth03 完成持久后端 / indexer / 持续负载，Macbeth04 完成前端和浏览器，Macbeth05 完成独立源码审查。额外 Macbeth06 worker 创建因线程额度失败，其工程 / CI 检查由 Macbeth01 实施并由 Macbeth05 复查；没有虚构第六个独立审查者。各 worker 保留自己的分支、作者和提交，不改保护规则，不合并 PR。

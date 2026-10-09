@@ -64,6 +64,7 @@ function fixture(t, profile = { branch, task: 'AF-M3-CLOSEOUT', title }) {
     'agent-identity.mjs',
     'agent-identity-set.mjs',
     'check-agent-identity.mjs',
+    'preserved-source-identity.mjs',
     'agent-integration-identity.mjs',
   ]) {
     const path = new URL(`../tools/${name}`, import.meta.url);

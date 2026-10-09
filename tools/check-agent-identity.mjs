@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { agentForBranch, MANAGER_INTEGRATIONS } from './agent-identity.mjs';
 import { validateCommitSetIdentity } from './agent-identity-set.mjs';
+import { FAIR_LAUNCH_IMPORT, verifyPreservedSourceImport } from './preserved-source-identity.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 function argument(name) {
@@ -20,7 +21,7 @@ function git(...args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 }
 export function commitsInRange(base, head) {
-  const output = git('log', '--format=%H%x00%s%x00%b%x1e', `${base}..${head}`);
+  const output = git('--no-replace-objects', 'log', '--format=%H%x00%s%x00%b%x1e', `${base}..${head}`);
   if (!output) return [];
   return output
     .split('\x1e')
@@ -55,6 +56,21 @@ export function check() {
     base = agentForBranch(branch) ? git('merge-base', 'origin/master', head) : git('rev-parse', `${head}^`);
   }
   const prTitle = argument('pr-title') || pull?.title || null;
+  if (!group && branch === FAIR_LAUNCH_IMPORT.branch) {
+    const exactHead = git('--no-replace-objects', 'rev-parse', '--verify', `${head}^{commit}`);
+    const result = verifyPreservedSourceImport(FAIR_LAUNCH_IMPORT, {
+      branch,
+      head: exactHead,
+      prTitle,
+      pull,
+      commits: commitsInRange(FAIR_LAUNCH_IMPORT.base, exactHead),
+      git,
+    });
+    console.log(
+      `Preserved source identity: ${result.preserved} original commits; ${result.added} ordinary task commits`,
+    );
+    return;
+  }
   if (group) {
     // The approved integration mode has no authenticated queue PR/source binding.
     // Reject introducing its history, including a subsequently deleted manifest.
@@ -69,6 +85,7 @@ export function check() {
     );
     if (
       manifestHistory ||
+      range.some((commit) => commit.sha === FAIR_LAUNCH_IMPORT.source) ||
       range.some((commit) =>
         MANAGER_INTEGRATIONS.some(
           ({ task }) =>

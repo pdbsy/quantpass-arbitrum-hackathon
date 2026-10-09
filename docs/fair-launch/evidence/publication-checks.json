@@ -1,0 +1,26 @@
+{
+  "scope": "CI publication and history preservation only; product contracts unchanged since 223d0d1",
+  "supplyChainTests": {
+    "passed": 51,
+    "failed": 0
+  },
+  "migrationAndUiHistoryTests": {
+    "passed": 41,
+    "failed": 0
+  },
+  "legacyIdentityIntegrationTests": {
+    "passed": 32,
+    "failed": 0
+  },
+  "newSourceImportBoundaries": {
+    "passed": 5,
+    "failed": 0
+  },
+  "identityLifecycleTests": {
+    "passed": 23,
+    "failed": 0
+  },
+  "supplyChainCli": "PASS",
+  "scopedLint": "PASS",
+  "warning": "These checks are actual local outcomes, not hosted GitHub approvals; initial fixture-only failure was corrected before final verification."
+}

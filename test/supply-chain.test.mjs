@@ -18,11 +18,34 @@ const lockfile = JSON.parse(await readFile(new URL('../package-lock.json', impor
 
 const engineeringWorkflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
 const codeqlWorkflow = await readFile(new URL('../.github/workflows/codeql.yml', import.meta.url), 'utf8');
+const fairLaunchPath = '.github/workflows/fair-launch.yml';
+const fairLaunchWorkflow = await readFile(new URL(`../${fairLaunchPath}`, import.meta.url), 'utf8');
 
 test('real supply-chain entrypoint validates the repository without mutating the checkout', async () => {
   const result = await checkSupplyChain();
   assert.ok(result.packages > 0);
   assert.ok(result.workflows >= 3);
+});
+
+test('Fair Launch CI is confined to its reviewed event, job and read-only permission boundaries', () => {
+  assert.doesNotThrow(() => validateWorkflowText(fairLaunchPath, fairLaunchWorkflow, policy));
+  for (const candidate of [
+    fairLaunchWorkflow.replace('contents: read', 'contents: write'),
+    fairLaunchWorkflow.replace('    steps:', '    permissions: {contents: write}\n    steps:'),
+    fairLaunchWorkflow.replace('  pull_request:', '  pull_request_target:'),
+    fairLaunchWorkflow.replace('  workflow_dispatch:', '  merge_group:'),
+    fairLaunchWorkflow.replace('  fair-launch-local-evm:', '  unreviewed-job:'),
+    fairLaunchWorkflow.replace(
+      'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+      'actions/checkout@v7',
+    ),
+  ]) {
+    assert.notEqual(candidate, fairLaunchWorkflow);
+    assert.throws(
+      () => validateWorkflowText(fairLaunchPath, candidate, policy),
+      /Invalid supply-chain state/,
+    );
+  }
 });
 
 test('workflow parser admits bounded null nodes and read access under a write ceiling', () => {

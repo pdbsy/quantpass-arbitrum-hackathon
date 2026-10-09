@@ -1,111 +1,122 @@
-A	.github/workflows/fair-launch.yml
-A	apps/server/src/launch-market-adapters/access-identity.ts
-A	apps/server/src/launch-market-adapters/eth-reference.ts
-A	apps/server/src/launch-market-adapters/rpc-chain.ts
-A	apps/server/src/launch-market-adapters/stock-reference.ts
-A	apps/server/src/launch-market-adapters/vault-quotes.ts
-A	apps/server/src/launch-market/indexer.ts
-A	apps/server/src/launch-market/routes.ts
-A	apps/server/src/launch-market/server.ts
-A	apps/web/src/launch-market/activity.ts
-A	apps/web/src/launch-market/client.ts
-A	apps/web/src/launch-market/executor.ts
-A	apps/web/src/launch-market/install.ts
-A	apps/web/src/launch-market/model.ts
-A	apps/web/src/launch-market/presentation.ts
-A	apps/web/src/launch-market/shell.ts
-A	apps/web/src/launch-market/styles.css
-M	apps/web/src/product-ui.ts
-A	contracts/deployment/market/abi/AlphaForgeClaimReserve.abi.json
-A	contracts/deployment/market/abi/AlphaForgeFairLaunch.abi.json
-A	contracts/deployment/market/abi/AlphaForgeMarketRouter.abi.json
-A	contracts/deployment/market/abi/AlphaForgeNativeReserve.abi.json
-A	contracts/deployment/market/abi/AlphaForgePassFactory.abi.json
-A	contracts/deployment/market/abi/AlphaForgePassPool.abi.json
-A	contracts/deployment/market/abi/AlphaForgeStockReserve.abi.json
-A	contracts/deployment/market/abi/AlphaForgeStrategyReferenceFeed.abi.json
-A	contracts/deployment/market/abi/AlphaForgeStrategyTestStock.abi.json
-A	contracts/deployment/market/abi/AlphaForgeStrategyVault.abi.json
-A	contracts/deployment/market/abi/AlphaForgeStrategyVaultFactory.abi.json
-A	contracts/deployment/market/artifact-sizes.json
-A	contracts/src/launch-vault/AlphaForgeStrategyVault.sol
-A	contracts/src/market/AlphaForgeClaimReserve.sol
-A	contracts/src/market/AlphaForgeFairLaunch.sol
-A	contracts/src/market/AlphaForgeMarketRouter.sol
-A	contracts/src/market/AlphaForgeNativeReserve.sol
-A	contracts/src/market/AlphaForgePassFactory.sol
-A	contracts/src/market/AlphaForgePassPool.sol
-A	contracts/src/market/MarketTypes.sol
-A	contracts/test/launch-vault/StrategyVault.t.sol
-A	contracts/test/market/ClaimReserve.t.sol
-A	contracts/test/market/FairLaunch.t.sol
-A	contracts/test/market/NativeMarket.t.sol
-A	deploy/launch-market/.env.example
-A	deploy/launch-market/alphaforge-fair-launch.service.example
-A	deploy/launch-market/deployment-inputs.example.json
-A	deploy/launch-market/nginx.locations.example
-A	docs/fair-launch/CHANGED-FILES.txt
-A	docs/fair-launch/DELIVERY.md
-A	docs/fair-launch/DEPLOYMENT.md
-A	docs/fair-launch/PR-DRAFT.md
-A	docs/fair-launch/SHA256SUMS
-A	docs/fair-launch/STORAGE.md
-A	docs/fair-launch/TESTING.md
-A	docs/fair-launch/evidence/browser-evm-final.log
-A	docs/fair-launch/evidence/build-final.log
-A	docs/fair-launch/evidence/lint-final.log
-A	docs/fair-launch/evidence/load-before-pinned-simulation-failed.json
-A	docs/fair-launch/evidence/load-delivery-smoke-60s.json
-A	docs/fair-launch/evidence/load-final-1800s.json
-A	docs/fair-launch/evidence/load-interrupted-smoke-not-pass.json
-A	docs/fair-launch/evidence/local-evm-final.log
-A	docs/fair-launch/evidence/results.json
-A	docs/fair-launch/evidence/secrets-final.log
-A	docs/fair-launch/evidence/target-gas-readonly.json
-A	docs/fair-launch/evidence/typecheck-final.log
-A	docs/fair-launch/evidence/unit-final.log
-A	docs/fair-launch/reviews/macbeth05-claim-registry-restore-candidate.md
-A	docs/fair-launch/reviews/macbeth05-engineering-review.md
-A	docs/fair-launch/reviews/macbeth05-final-1b8edba-addendum.md
-A	docs/fair-launch/reviews/macbeth05-final-1f482a4-addendum.md
-A	docs/fair-launch/reviews/macbeth05-final-aca74a1.md
-A	docs/fair-launch/reviews/macbeth05-integration-09822ad.md
-A	docs/fair-launch/reviews/macbeth05-storage-282a8cb-findings.md
-M	package.json
-A	packages/launch-market/src/abi.ts
-A	packages/launch-market/src/chain.ts
-A	packages/launch-market/src/config.ts
-A	packages/launch-market/src/index.ts
-A	packages/launch-market/src/math.ts
-A	packages/launch-market/src/projection.ts
-A	packages/launch-market/src/service.ts
-A	packages/launch-market/src/store.ts
-A	packages/launch-market/src/types.ts
-A	test/helpers/launch-market-executor-fixture.ts
-A	test/helpers/launch-market-ui-evm.ts
-A	test/helpers/launch-market-ui-fixture.ts
-A	test/launch-adapters.test.ts
-A	test/launch-market-indexer.test.ts
-A	test/launch-market-local-evm.test.ts
-A	test/launch-market-prepare.test.ts
-A	test/launch-market-service.test.ts
-A	test/launch-market-state.test.ts
-A	test/launch-market-storage-snapshot.test.ts
-A	test/launch-market-ui-activity.test.ts
-A	test/launch-market-ui-browser.test.ts
-A	test/launch-market-ui-client.test.ts
-A	test/launch-market-ui-evm.test.ts
-A	test/launch-market-ui-executor-browser.test.ts
-A	test/launch-market-ui-executor.test.ts
-A	test/launch-market-ui-shell.test.ts
-A	test/launch-stock-reference.test.ts
-A	tools/launch-market/anvil-lock.json
-A	tools/launch-market/artifacts.mjs
-A	tools/launch-market/bootstrap-anvil.mjs
-A	tools/launch-market/local-check.mjs
-A	tools/launch-market/local-fixture.ts
-A	tools/launch-market/local-load.ts
-A	tools/launch-market/prepare.ts
-A	tools/launch-market/server.ts
-A	tools/launch-market/stock-reference.ts
-A	tools/launch-market/storage-snapshot.ts
+.github/workflows/fair-launch.yml
+apps/server/src/launch-market-adapters/access-identity.ts
+apps/server/src/launch-market-adapters/eth-reference.ts
+apps/server/src/launch-market-adapters/rpc-chain.ts
+apps/server/src/launch-market-adapters/stock-reference.ts
+apps/server/src/launch-market-adapters/vault-quotes.ts
+apps/server/src/launch-market/indexer.ts
+apps/server/src/launch-market/routes.ts
+apps/server/src/launch-market/server.ts
+apps/web/src/launch-market/activity.ts
+apps/web/src/launch-market/client.ts
+apps/web/src/launch-market/executor.ts
+apps/web/src/launch-market/install.ts
+apps/web/src/launch-market/model.ts
+apps/web/src/launch-market/presentation.ts
+apps/web/src/launch-market/shell.ts
+apps/web/src/launch-market/styles.css
+apps/web/src/product-ui.ts
+contracts/deployment/market/abi/AlphaForgeClaimReserve.abi.json
+contracts/deployment/market/abi/AlphaForgeFairLaunch.abi.json
+contracts/deployment/market/abi/AlphaForgeMarketRouter.abi.json
+contracts/deployment/market/abi/AlphaForgeNativeReserve.abi.json
+contracts/deployment/market/abi/AlphaForgePassFactory.abi.json
+contracts/deployment/market/abi/AlphaForgePassPool.abi.json
+contracts/deployment/market/abi/AlphaForgeStockReserve.abi.json
+contracts/deployment/market/abi/AlphaForgeStrategyReferenceFeed.abi.json
+contracts/deployment/market/abi/AlphaForgeStrategyTestStock.abi.json
+contracts/deployment/market/abi/AlphaForgeStrategyVault.abi.json
+contracts/deployment/market/abi/AlphaForgeStrategyVaultFactory.abi.json
+contracts/deployment/market/artifact-sizes.json
+contracts/src/launch-vault/AlphaForgeStrategyVault.sol
+contracts/src/market/AlphaForgeClaimReserve.sol
+contracts/src/market/AlphaForgeFairLaunch.sol
+contracts/src/market/AlphaForgeMarketRouter.sol
+contracts/src/market/AlphaForgeNativeReserve.sol
+contracts/src/market/AlphaForgePassFactory.sol
+contracts/src/market/AlphaForgePassPool.sol
+contracts/src/market/MarketTypes.sol
+contracts/test/launch-vault/StrategyVault.t.sol
+contracts/test/market/ClaimReserve.t.sol
+contracts/test/market/FairLaunch.t.sol
+contracts/test/market/NativeMarket.t.sol
+deploy/launch-market/.env.example
+deploy/launch-market/alphaforge-fair-launch.service.example
+deploy/launch-market/deployment-inputs.example.json
+deploy/launch-market/nginx.locations.example
+docs/fair-launch/CHANGED-FILES.txt
+docs/fair-launch/DELIVERY.md
+docs/fair-launch/DEPLOYMENT.md
+docs/fair-launch/PR-DRAFT.md
+docs/fair-launch/SHA256SUMS
+docs/fair-launch/STORAGE.md
+docs/fair-launch/TESTING.md
+docs/fair-launch/evidence/browser-evm-final.log
+docs/fair-launch/evidence/build-final.log
+docs/fair-launch/evidence/lint-final.log
+docs/fair-launch/evidence/load-before-pinned-simulation-failed.json
+docs/fair-launch/evidence/load-delivery-smoke-60s.json
+docs/fair-launch/evidence/load-final-1800s.json
+docs/fair-launch/evidence/load-interrupted-smoke-not-pass.json
+docs/fair-launch/evidence/local-evm-final.log
+docs/fair-launch/evidence/publication-checks.json
+docs/fair-launch/evidence/results.json
+docs/fair-launch/evidence/secrets-final.log
+docs/fair-launch/evidence/semgrep-static.json
+docs/fair-launch/evidence/slither-review.json
+docs/fair-launch/evidence/target-gas-readonly.json
+docs/fair-launch/evidence/typecheck-final.log
+docs/fair-launch/evidence/unit-final.log
+docs/fair-launch/reviews/STATIC-SCANNERS.md
+docs/fair-launch/reviews/macbeth05-claim-registry-restore-candidate.md
+docs/fair-launch/reviews/macbeth05-engineering-review.md
+docs/fair-launch/reviews/macbeth05-final-1b8edba-addendum.md
+docs/fair-launch/reviews/macbeth05-final-1f482a4-addendum.md
+docs/fair-launch/reviews/macbeth05-final-aca74a1.md
+docs/fair-launch/reviews/macbeth05-integration-09822ad.md
+docs/fair-launch/reviews/macbeth05-storage-282a8cb-findings.md
+package.json
+packages/launch-market/src/abi.ts
+packages/launch-market/src/chain.ts
+packages/launch-market/src/config.ts
+packages/launch-market/src/index.ts
+packages/launch-market/src/math.ts
+packages/launch-market/src/projection.ts
+packages/launch-market/src/service.ts
+packages/launch-market/src/store.ts
+packages/launch-market/src/types.ts
+test/agent-identity-bypass.test.mjs
+test/agent-integration-identity.test.mjs
+test/helpers/launch-market-executor-fixture.ts
+test/helpers/launch-market-ui-evm.ts
+test/helpers/launch-market-ui-fixture.ts
+test/launch-adapters.test.ts
+test/launch-market-indexer.test.ts
+test/launch-market-local-evm.test.ts
+test/launch-market-prepare.test.ts
+test/launch-market-service.test.ts
+test/launch-market-state.test.ts
+test/launch-market-storage-snapshot.test.ts
+test/launch-market-ui-activity.test.ts
+test/launch-market-ui-browser.test.ts
+test/launch-market-ui-client.test.ts
+test/launch-market-ui-evm.test.ts
+test/launch-market-ui-executor-browser.test.ts
+test/launch-market-ui-executor.test.ts
+test/launch-market-ui-shell.test.ts
+test/launch-stock-reference.test.ts
+test/migration-provenance.test.mjs
+test/supply-chain.test.mjs
+tools/check-agent-identity.mjs
+tools/check-supply-chain.mjs
+tools/launch-market/anvil-lock.json
+tools/launch-market/artifacts.mjs
+tools/launch-market/bootstrap-anvil.mjs
+tools/launch-market/local-check.mjs
+tools/launch-market/local-fixture.ts
+tools/launch-market/local-load.ts
+tools/launch-market/prepare.ts
+tools/launch-market/server.ts
+tools/launch-market/stock-reference.ts
+tools/launch-market/storage-snapshot.ts
+tools/preserved-source-identity.mjs
