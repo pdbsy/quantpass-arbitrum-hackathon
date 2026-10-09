@@ -44,3 +44,19 @@ Retained private log SHA-256 values:
 | TypeScript checks | `2a6a2c0222a96232b5dd3dea2c3e4411abfc22401c3a741d0a8e3f88ad508016` |
 
 Hosted checks must run on the updated PR head; their actual results supersede these local diagnostics. Slither's 44 additional reports are still unapproved and its admission remains BLOCKED. The managed Codex Security scan is NOT_RUN because the required MCP tools are unavailable. No Testnet deployment, signing, broadcasting, funding or production-service change has occurred.
+
+## Hosted validation at `74fc18b`
+
+The updated [Fair Launch PR run](https://github.com/pdbsy/quantpass-arbitrum-hackathon/actions/runs/37916907510) completed successfully. It actually ran 37 Solidity tests, 2 preparation checks, 73 TypeScript checks, ABI/artifact validation, typecheck, web build, Anvil bootstrap and Alice/Bob local-EVM E2E. Final-Mint gas was 3,178,873; supply conservation, canonical event rebuilding, claim reorg recovery and restart recovery succeeded.
+
+The [Engineering PR run](https://github.com/pdbsy/quantpass-arbitrum-hackathon/actions/runs/37916907494) passed dependency audit, OSV, Semgrep, Gitleaks, source-policy and container jobs. Linux and Darwin contract jobs each passed 217 tests and installed the patched exact multidict wheel, then failed at `SLITHER_ADMISSION_BLOCKED`. Their wrapper reports Slither as `UNCONFIRMED`; the detailed 53 reports/44 unapproved IDs come from the separately retained local raw scan and match the current source hashes.
+
+Linux full Node tests reported 1,905 passed, 8 skipped and zero failed; Darwin reported 1,906 passed, 7 skipped and zero failed. Both subsequently failed management-dashboard checking because its historical source branch differs from the new task branch. Windows reported 1,840 passed, 69 skipped and four failed release-history root-binding checks (`RELEASE_ROOT_REQUIRED`). Those failures remain visible.
+
+## Focused historical-context correction
+
+The six-file implementation patch against `74fc18b` has SHA-256 `ecc0933fead1d91f5a268d93d4eabd54151558e1867a2565b1da706c8bc94bc5`. Release-history checking now compares native canonical filesystem roots on both sides, retaining nested/external-root and environment-substitution denials. Its six applicable local history tests passed; the new native Windows drive-spelling regression was skipped on Linux and still requires actual Windows CI.
+
+Management checking accepts historical records on this task branch only after verifying the canonical event/repository, current clean checkout/index/HEAD, base and source refs, exact PR merge parents/tree and all 71 immutable source commits through the existing helper. It then binds all three historical records to their original `c0bba0a` Git blobs/modes and actual bounded regular-file bytes. The former source commit, tree, branch and test provenance remain unchanged. Generic recorded-branch and restricted-descendant validation are not relaxed, and old results do not become tests of the new head.
+
+The focused management/source boundary suite passed 74/74. After adding portable named-file identity checks, only the seven affected fixtures were rerun: 7/7 PASS, zero local skips, including the actual event-symlink denial and actual push/PR `management:check` paths. Scoped lint/format and supply-chain CLI passed. The seven regression tests are registered in the existing `npm test` list. No generated historical record, Solidity source, Slither approval, workflow or required-check rule is changed. The next append-only commit requires hosted CI on its actual head.

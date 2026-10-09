@@ -49,7 +49,7 @@ export function verifyReleaseHistory({ root: directory, base: baseline, head, so
     'UNMODIFIED_GIT_CONTEXT_REQUIRED',
   );
   requireCondition(
-    realpathSync(git(directory, 'rev-parse', '--show-toplevel')) === realpathSync(directory),
+    realpathSync.native(git(directory, 'rev-parse', '--show-toplevel')) === realpathSync.native(directory),
     'RELEASE_ROOT_REQUIRED',
   );
   const graftPath = git(directory, 'rev-parse', '--path-format=absolute', '--git-path', 'info/grafts');

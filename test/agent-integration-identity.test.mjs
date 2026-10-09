@@ -727,6 +727,26 @@ test('release history binds the supplied root to the effective Git repository', 
   );
 });
 
+test(
+  'release history binds Windows drive spelling to its native canonical root',
+  { skip: process.platform !== 'win32' },
+  async (t) => {
+    const verifyReleaseHistory = await releaseHistoryTool();
+    const f = fixture(t);
+    const root = f.root.replace(/^[a-z]:/i, (drive) =>
+      drive[0] === drive[0].toUpperCase() ? drive.toLowerCase() : drive.toUpperCase(),
+    );
+    const result = verifyReleaseHistory({
+      root,
+      base: f.base,
+      head: f.git('rev-parse', 'HEAD'),
+      sources: releaseHeads(f),
+    });
+    assert.equal(result.state, 'EXACT_SOURCE_HISTORY_VERIFIED');
+    assert.equal(result.independentApproval, false);
+  },
+);
+
 test('release history rejects environment substitution of an identical external Git context', (t) => {
   const f = fixture(t);
   const foreign = join(f.root, 'foreign-copy');

@@ -99,6 +99,6 @@
 | DEPLOYED_TO_TESTNET         | 尚未达到；NOT_DEPLOYED                                                                                           |
 | TESTNET_VERIFIED            | 尚未达到；NOT_RUN                                                                                                |
 
-PR publication 已准备保留原始历史的传输方案：临时GitHub Actions校验完整bundle后仅发布新的source tag，GitHub连接再原子创建 `codex/alphaforge-fair-launch-v3-20261009` 分支及draft PR。不会用API重建48个继承提交，不改变原作者、时间、SHA或父提交，也不写保护主分支。用户已取消本任务worker角色要求；精确source profile仅适用于该新分支，保留71个原提交并拒绝遗漏/改写历史及新增worker身份声明。已有其他分支身份规则及required checks不变；实际hosted checks和44新增Slither报告仍是合并门禁，禁止自动合并。
+Draft PR [#47](https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/47) 已实际发布，保留完整原始历史。临时 GitHub Actions 校验并上传完整 bundle，但因临时 token 缺少 workflow-write 权限，source tag 更新失败；授权的 GitHub 连接随后原子创建 `codex/alphaforge-fair-launch-v3-20261009` 分支。没有重建继承提交，没有改变原作者、时间、SHA或父提交，也没有写保护主分支。用户已取消本任务worker角色要求；精确source profile仅适用于该新分支，保留71个原提交并拒绝遗漏/改写历史及新增worker身份声明。已有其他分支身份规则及required checks不变。实际 CI 已执行，失败与后续必要修复记录见 `reviews/CI-FOLLOWUP.md`；44新增Slither报告仍是合并门禁，禁止自动合并。
 
 Macbeth01 统筹并负责合约适配、真实 RPC、数据源、fixture、集成和部署准备；Macbeth02 完成市场合约，Macbeth03 完成持久后端 / indexer / 持续负载，Macbeth04 完成前端和浏览器，Macbeth05 完成独立源码审查。额外 Macbeth06 worker 创建因线程额度失败，其工程 / CI 检查由 Macbeth01 实施并由 Macbeth05 复查；没有虚构第六个独立审查者。各 worker 保留自己的分支、作者和提交，不改保护规则，不合并 PR。

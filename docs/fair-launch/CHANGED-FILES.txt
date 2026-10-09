@@ -117,9 +117,11 @@ test/launch-market-ui-executor-browser.test.ts
 test/launch-market-ui-executor.test.ts
 test/launch-market-ui-shell.test.ts
 test/launch-stock-reference.test.ts
+test/management-dashboard-preserved-context.test.mjs
 test/migration-provenance.test.mjs
 test/supply-chain.test.mjs
 tools/check-agent-identity.mjs
+tools/check-release-history.mjs
 tools/check-supply-chain.mjs
 tools/environment/policy.mjs
 tools/launch-market/anvil-lock.json
@@ -132,4 +134,6 @@ tools/launch-market/prepare.ts
 tools/launch-market/server.ts
 tools/launch-market/stock-reference.ts
 tools/launch-market/storage-snapshot.ts
+tools/management-dashboard/preserved-context.mjs
+tools/management-dashboard/sources.mjs
 tools/preserved-source-identity.mjs
