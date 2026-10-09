@@ -13,11 +13,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { Wallet } from 'ethers';
+import { createHash } from 'node:crypto';
 import { privateServerStorage } from '../packages/testnet/src/private-storage.ts';
 import { LaunchMarketStore } from '../packages/launch-market/src/store.ts';
 import { LaunchMarketService } from '../packages/launch-market/src/service.ts';
 import { MarketEventIndexer } from '../apps/server/src/launch-market/indexer.ts';
-import { snapshotLaunchStorage } from '../tools/launch-market/storage-snapshot.ts';
+import { snapshotLaunchStorage, expectedSchemaSha256 } from '../tools/launch-market/storage-snapshot.ts';
 import type { LaunchMarketManifest } from '../packages/launch-market/src/types.ts';
 
 const h = (n: number) => '0x' + n.toString(16).padStart(64, '0'),
@@ -293,6 +294,94 @@ test('restore rejects altered eligibility data and source links or unrecognized 
       }),
       /SNAPSHOT_UNKNOWN_FILE/,
     );
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('canonical schema pins reject a changed CHECK or unique predicate with unchanged table columns and index names', async () => {
+  for (const altered of ['CHECK', 'UNIQUE_PREDICATE'] as const) {
+    const f = fixture();
+    try {
+      const canonical = (db: DatabaseSync) =>
+        createHash('sha256')
+          .update(
+            JSON.stringify(
+              db
+                .prepare(
+                  'SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type COLLATE BINARY,name COLLATE BINARY',
+                )
+                .all(),
+            ),
+          )
+          .digest('hex');
+      assert.equal(canonical(f.store.db), expectedSchemaSha256['market.sqlite']);
+      assert.equal(canonical(f.indexer.db), expectedSchemaSha256['market-events.sqlite']);
+      if (altered === 'CHECK') {
+        const original = String(
+          f.store.db.prepare("SELECT sql FROM sqlite_schema WHERE name='market_projection_version'").get()
+            ?.sql,
+        );
+        f.store.db.exec('ALTER TABLE market_projection_version RENAME TO replaced_projection_version;');
+        f.store.db.exec(original.replace('CHECK(id=1)', 'CHECK(id>=1)'));
+        f.store.db.exec(
+          'INSERT INTO market_projection_version SELECT * FROM replaced_projection_version; DROP TABLE replaced_projection_version;',
+        );
+      } else {
+        f.store.db.exec(
+          'DROP INDEX one_canonical_account_claim; CREATE UNIQUE INDEX one_canonical_account_claim ON market_claim_events(chain_id,account_key) WHERE canonical=0;',
+        );
+      }
+      f.lease.close();
+      await assert.rejects(
+        snapshotLaunchStorage({
+          action: 'backup',
+          source: f.source,
+          destination: join(f.parent, 'foreign-ddl'),
+          expectedDigest: digest,
+        }),
+        /SNAPSHOT_UNKNOWN_SCHEMA/,
+      );
+    } finally {
+      await f.cleanup();
+    }
+  }
+});
+
+test('target integrity rejects violated CHECK data under the unchanged canonical schema while retaining source bytes', async () => {
+  const f = fixture();
+  try {
+    f.store.db.exec('PRAGMA ignore_check_constraints=ON;');
+    f.store.db
+      .prepare('INSERT INTO market_claim_events VALUES(?,?,?,?,?,?,?,?)')
+      .run(46630, h(90), 0, 2, h(2), h(88), a(30), 2);
+    f.store.db.exec('PRAGMA ignore_check_constraints=OFF;');
+    f.lease.close();
+    const main = readFileSync(join(f.source, 'market.sqlite')),
+      wal = readFileSync(join(f.source, 'market.sqlite-wal'));
+    await assert.rejects(
+      snapshotLaunchStorage({
+        action: 'backup',
+        source: f.source,
+        destination: join(f.parent, 'invalid-check'),
+        expectedDigest: digest,
+      }),
+      /SNAPSHOT_DATABASE_INTEGRITY/,
+    );
+    assert.deepEqual(readFileSync(join(f.source, 'market.sqlite')), main);
+    assert.deepEqual(readFileSync(join(f.source, 'market.sqlite-wal')), wal);
+    const target = new DatabaseSync(join(f.parent, 'invalid-check', 'market.sqlite'));
+    try {
+      target.exec('PRAGMA query_only=ON;');
+      assert.ok(
+        target
+          .prepare('PRAGMA integrity_check')
+          .all()
+          .some((row) => String(row.integrity_check).includes('CHECK constraint failed')),
+      );
+    } finally {
+      target.close();
+    }
   } finally {
     await f.cleanup();
   }

@@ -18,6 +18,16 @@ import { privateServerStorage } from '../../packages/testnet/src/private-storage
 import { readRegularBytes } from '../../packages/testnet/src/bounded-file.ts';
 
 const capacity = 512 * 1024 * 1024;
+/**
+ * Schema-1 pins from LaunchMarketStore and MarketEventIndexer constructors, including SQLite's
+ * constraint autoindexes. Canonical UTF-8 bytes are JSON.stringify() of rows selected in column
+ * order type,name,tbl_name,sql, sorted by type COLLATE BINARY,name COLLATE BINARY, with no newline.
+ * Any DDL change requires an explicit schema qualification and a new reviewed pin.
+ */
+export const expectedSchemaSha256 = {
+  'market.sqlite': 'ebcd5b0c6de108735f97ebbac53d7e7545cfa9c35d0d2a5dc38d7c7d953b64a6',
+  'market-events.sqlite': 'd62a1400b85053ca785dc7a3e6b134b660cf47f92cb603865d03886a51f162e0',
+} as const;
 const specifications = [
   {
     file: 'market.sqlite',
@@ -186,11 +196,14 @@ function inspect(db: DatabaseSync, spec: Specification): StorageDatabaseEvidence
     db.prepare('PRAGMA foreign_key_check').get()
   )
     reject('SNAPSHOT_DATABASE_INTEGRITY');
-  const schema = db
+  const completeSchema = db
     .prepare(
-      "SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name",
+      'SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type COLLATE BINARY,name COLLATE BINARY',
     )
     .all();
+  if (sha(JSON.stringify(completeSchema)) !== expectedSchemaSha256[spec.file])
+    reject('SNAPSHOT_UNKNOWN_SCHEMA');
+  const schema = completeSchema.filter((row) => !String(row.name).startsWith('sqlite_'));
   const expectedTables = Object.keys(spec.tables).sort(),
     tables = schema
       .filter((row) => row.type === 'table')
@@ -397,8 +410,11 @@ export async function snapshotLaunchStorage(options: StorageSnapshotOptions): Pr
       const targetAfter = regular(target);
       if (targetBefore.dev !== targetAfter.dev || targetBefore.ino !== targetAfter.ino)
         reject('SNAPSHOT_TARGET_REPLACED');
-      const restored = new DatabaseSync(target, { readOnly: true });
+      // Node 24's read-only SQLite connection omits CHECK verification in integrity_check.
+      // A write-capable handle with query_only enabled validates CHECKs without issuing writes.
+      const restored = new DatabaseSync(target);
       try {
+        restored.exec('PRAGMA query_only=ON;');
         if (JSON.stringify(inspect(restored, item.spec)) !== JSON.stringify(item.evidence))
           reject('SNAPSHOT_CONTENT_CHANGED');
       } finally {
