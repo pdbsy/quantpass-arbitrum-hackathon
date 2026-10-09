@@ -93,6 +93,73 @@ test('ETH is native transaction value, with no token approval or AF-ETH substitu
   assert.equal(client.state.transaction.hash, HASH);
 });
 
+test('ETH SELL validates the 1% USDC minimum before conversion rounding and rejects a lower signed minimum', async () => {
+  const { client, state, provider } = await connected();
+  const request: Omit<QuoteRequest, 'owner'> = {
+    strategyId: 'AMZN',
+    operation: 'SELL',
+    asset: 'ETH',
+    amountRaw: '1000000000000000000',
+    slippageBps: 100,
+  };
+  const manifest = state.config.manifest!;
+  const grossUsdc = 498579n,
+    price = 2000000000n;
+  const conversionFee = (grossUsdc * 30n + 9999n) / 10000n;
+  const output = ((grossUsdc - conversionFee) * 10n ** 18n) / price;
+  const signedMinimum = (grossUsdc * 9900n) / 10000n;
+  const convertMinimum = (usdc: bigint) => ((usdc - (usdc * 30n + 9999n) / 10000n) * 10n ** 18n) / price;
+  const minimumOutput = convertMinimum(signedMinimum);
+  assert.ok(minimumOutput < (output * 9900n) / 10000n, 'This valid quote exposes conversion rounding');
+  const native = {
+    router: manifest.router,
+    payer: OWNER,
+    accountId: HASH,
+    operation: 2,
+    pass: manifest.strategies.AMZN.pass,
+    amountIn: request.amountRaw,
+    usdcAmount: signedMinimum,
+    minOut: minimumOutput,
+    ethAmount: output,
+    ethUsdPrice: price,
+    nonce: 1,
+    issuedAt: NOW,
+    deadline: NOW + 60,
+    epoch: 1,
+  };
+  const base = {
+    ...quote({ ...request, owner: OWNER }),
+    estimatedOutRaw: String(output),
+    minOutRaw: String(minimumOutput),
+    conversionFeeUsdcRaw: String(conversionFee),
+    transaction: {
+      to: manifest.router,
+      value: '0',
+      data: marketInterfaces.router.encodeFunctionData('sellNative', [native, '0x']),
+    },
+  };
+  state.quote = base;
+  await client.review(request);
+  assert.equal(client.state.quote!.minOutRaw, String(minimumOutput));
+  const lowered = signedMinimum - 1n;
+  state.quote = {
+    ...base,
+    minOutRaw: String(convertMinimum(lowered)),
+    transaction: {
+      ...base.transaction,
+      data: marketInterfaces.router.encodeFunctionData('sellNative', [
+        { ...native, usdcAmount: lowered, minOut: convertMinimum(lowered) },
+        '0x',
+      ]),
+    },
+  };
+  await assert.rejects(client.review(request), /QUOTE_SLIPPAGE_MISMATCH/);
+  assert.equal(
+    provider.calls.some((call) => call.method === 'eth_sendTransaction'),
+    false,
+  );
+});
+
 test('a wallet network change invalidates the quote and prevents a new send', async () => {
   const { client, provider } = await connected();
   await client.review(buy);

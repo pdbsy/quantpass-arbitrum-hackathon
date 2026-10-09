@@ -1,7 +1,8 @@
 import { Interface, hexlify, toUtf8Bytes, verifyMessage } from 'ethers';
 import { asAddress, asHexData } from '../../../../packages/chain-adapter/src/types.ts';
 import { validateManifest, uint } from '../../../../packages/launch-market/src/config.ts';
-import { validateQuoteTransaction } from '../../../../packages/launch-market/src/abi.ts';
+import { marketInterfaces, validateQuoteTransaction } from '../../../../packages/launch-market/src/abi.ts';
+import { ceilDiv, ethSaleOutput, minOutput } from '../../../../packages/launch-market/src/math.ts';
 import type {
   MarketTrackedOperation,
   MarketStreamUpdate,
@@ -564,7 +565,26 @@ export class LaunchMarketClient {
     } else if (quote.simulation !== 'APPROVAL_REQUIRED' || !quote.allowance || quote.gasEstimateRaw !== null)
       throw new Error('INVALID_SIMULATION_EVIDENCE');
     if (uint(quote.minOutRaw) > uint(quote.estimatedOutRaw)) throw new Error('INVALID_MINIMUM_OUTPUT');
-    if (quote.operation === 'BUY' || quote.operation === 'SELL') {
+    if (quote.operation === 'SELL' && quote.asset === 'ETH') {
+      // AMM slippage is enforced in six-decimal AF-USDC before native conversion.
+      // Recover its gross output and bind both displayed and signed minima at that precision.
+      const price = uint(quote.reference?.ethUsdPriceRaw ?? '0');
+      const feeBps = this.#state.snapshot?.conversion.feeBps;
+      const output = uint(quote.estimatedOutRaw);
+      const conversionFee = uint(quote.conversionFeeUsdcRaw);
+      const parsed = marketInterfaces.router.parseTransaction({ data: quote.transaction.data });
+      if (price === 0n || feeBps === undefined || !parsed || parsed.name !== 'sellNative')
+        throw new Error('QUOTE_SLIPPAGE_MISMATCH');
+      const grossUsdc = ceilDiv(output * price, 10n ** 18n) + conversionFee;
+      const signedMinimumUsdc = BigInt(parsed.args[0].usdcAmount);
+      if (
+        conversionFee !== ceilDiv(grossUsdc * BigInt(feeBps), 10000n) ||
+        ethSaleOutput(grossUsdc, price, feeBps) !== output ||
+        signedMinimumUsdc < minOutput(grossUsdc, request.slippageBps) ||
+        uint(quote.minOutRaw) !== ethSaleOutput(signedMinimumUsdc, price, feeBps)
+      )
+        throw new Error('QUOTE_SLIPPAGE_MISMATCH');
+    } else if (quote.operation === 'BUY' || quote.operation === 'SELL') {
       const bound = (uint(quote.estimatedOutRaw) * BigInt(10000 - request.slippageBps)) / 10000n;
       if (uint(quote.minOutRaw) < bound) throw new Error('QUOTE_SLIPPAGE_MISMATCH');
     }
