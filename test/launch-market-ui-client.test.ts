@@ -293,18 +293,85 @@ test('same-origin mutations acquire session CSRF without asserting a browser sup
   const fetcher: typeof fetch = async (input, options) => {
     calls.push({ path: String(input), ...(options ? { options } : {}) });
     return Response.json(
-      String(input) === '/auth/session' ? { csrfToken: 'trusted-session-csrf-token' } : { ok: true },
+      String(input) === '/auth/me'
+        ? {
+            authKind: 'google',
+            user: { email: 'verified@example.test', isAdmin: false },
+            csrfToken: 'trusted-session-csrf-token',
+          }
+        : { ok: true },
     );
   };
   const api = createLaunchApi(fetcher);
   await api('/api/launch-market/wallet/challenge', { owner: OWNER });
-  assert.equal(calls[0]!.path, '/auth/session');
+  assert.equal(calls[0]!.path, '/auth/me');
+  assert.equal(calls[0]!.options!.credentials, 'same-origin');
+  assert.equal(calls[0]!.options!.cache, 'no-store');
   assert.equal(
     (calls[1]!.options!.headers as Record<string, string>)['x-csrf-token'],
     'trusted-session-csrf-token',
   );
   assert.equal(calls[1]!.options!.body, JSON.stringify({ owner: OWNER }));
   assert.equal(calls[1]!.options!.credentials, 'same-origin');
+  await api('/api/launch-market/wallet/challenge', { owner: OWNER });
+  assert.deepEqual(
+    calls.map((call) => call.path),
+    ['/auth/me', '/api/launch-market/wallet/challenge', '/api/launch-market/wallet/challenge'],
+  );
+});
+
+test('fund mutations require a Google session and bounded server CSRF before any API write', async () => {
+  for (const session of [
+    null,
+    { authKind: 'website', csrfToken: 'trusted-session-csrf-token' },
+    { csrfToken: 'trusted-session-csrf-token' },
+    { authKind: 'google', csrfToken: 'short' },
+    { authKind: 'google', csrfToken: 'x'.repeat(257) },
+    { authKind: 'google', csrfToken: 123 },
+  ]) {
+    const calls: string[] = [];
+    const api = createLaunchApi(async (input) => {
+      calls.push(String(input));
+      return Response.json(session);
+    });
+    await assert.rejects(
+      api('/api/launch-market/wallet/challenge', { owner: OWNER }),
+      /VERIFIED_ACCOUNT_REQUIRED|ACCOUNT_SESSION_INVALID/,
+    );
+    assert.deepEqual(calls, ['/auth/me']);
+  }
+});
+
+test('fund mutations stop on unauthenticated sessions and renew CSRF after a server denial', async () => {
+  for (const status of [401, 403]) {
+    const calls: string[] = [];
+    const api = createLaunchApi(async (input) => {
+      calls.push(String(input));
+      return Response.json({ code: 'login_required' }, { status });
+    });
+    await assert.rejects(api('/api/launch-market/quote', {}), /VERIFIED_ACCOUNT_REQUIRED/);
+    assert.deepEqual(calls, ['/auth/me']);
+  }
+  const calls: string[] = [];
+  let sessions = 0;
+  const api = createLaunchApi(async (input, options) => {
+    const path = String(input);
+    calls.push(path);
+    if (path === '/auth/me') {
+      sessions++;
+      return Response.json({ authKind: 'google', csrfToken: `trusted-session-csrf-${sessions}` });
+    }
+    assert.equal(
+      (options!.headers as Record<string, string>)['x-csrf-token'],
+      `trusted-session-csrf-${sessions}`,
+    );
+    return sessions === 1
+      ? Response.json({ error: { code: 'VERIFIED_EMAIL_REQUIRED' } }, { status: 403 })
+      : Response.json({ ok: true });
+  });
+  await assert.rejects(api('/api/launch-market/quote', {}), /VERIFIED_EMAIL_REQUIRED/);
+  await api('/api/launch-market/quote', {});
+  assert.deepEqual(calls, ['/auth/me', '/api/launch-market/quote', '/auth/me', '/api/launch-market/quote']);
 });
 
 test('bounded nested production API error codes remain available for claim and ETH recovery messages', async () => {

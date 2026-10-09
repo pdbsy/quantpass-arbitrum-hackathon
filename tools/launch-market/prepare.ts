@@ -48,6 +48,7 @@ export async function prepareDeployment(input: DeploymentInputs) {
     per === 0n ||
     per > daily ||
     daily > global ||
+    BigInt(input.ethMinimumReserveRaw) === 0n ||
     BigInt(input.conversionEthRaw) < BigInt(input.ethMinimumReserveRaw) + per ||
     BigInt(input.conversionUsdcRaw) === 0n
   )

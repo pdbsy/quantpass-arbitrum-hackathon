@@ -128,10 +128,14 @@ export function registerOfflineWallet(
   contracts: readonly string[],
   origin: string,
 ): void {
-  app.get('/auth/session', async (request, reply) => {
+  app.get('/auth/me', async (request, reply) => {
     const current = offlineSession(request, actors, false);
     if (!current) return reply.code(401).send({ error: { code: 'OFFLINE_VERIFIED_FIXTURE_REQUIRED' } });
-    return { csrfToken: current.csrf, authentication: 'OFFLINE_VERIFIED_GOOGLE_FIXTURE_ONLY' };
+    return {
+      authKind: 'google',
+      csrfToken: current.csrf,
+      authentication: 'OFFLINE_VERIFIED_GOOGLE_FIXTURE_ONLY',
+    };
   });
   app.get('/api/session', async () => ({ scope: 'TEST_ONLY', user: null }));
   app.post<{ Body: { method: string; params?: unknown[] } }>(
@@ -200,7 +204,7 @@ export async function installEvmBrowserWallet(page: {
     const provider = {
       request: async (request: { method: string; params?: unknown[] }) => {
         if (!csrf) {
-          const response = await fetch('/auth/session', { credentials: 'same-origin' });
+          const response = await fetch('/auth/me', { credentials: 'same-origin' });
           if (!response.ok) throw new Error('OFFLINE_VERIFIED_FIXTURE_REQUIRED');
           csrf = ((await response.json()) as { csrfToken: string }).csrfToken;
         }

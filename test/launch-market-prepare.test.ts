@@ -81,6 +81,10 @@ test('preparation rejects insufficient separate LP/claim/reserve funds and unsaf
     /CONVERSION_READINESS_REQUIRED/,
   );
   await assert.rejects(
+    prepareDeployment({ ...config, ethMinimumReserveRaw: '0' }),
+    /CONVERSION_READINESS_REQUIRED/,
+  );
+  await assert.rejects(
     prepareDeployment({ ...config, tslaLpRecipient: '0x0000000000000000000000000000000000000000' }),
     /EXPLICIT_IDENTITY_REQUIRED/,
   );

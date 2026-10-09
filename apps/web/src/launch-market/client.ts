@@ -68,13 +68,16 @@ export function createLaunchApi(fetcher: typeof fetch = fetch): LaunchApi {
   let csrf: string | null = null;
   return async <T>(path: string, body?: unknown): Promise<T> => {
     if (body !== undefined && !csrf) {
-      const auth = await fetcher('/auth/session', {
+      const auth = await fetcher('/auth/me', {
         credentials: 'same-origin',
         cache: 'no-store',
         signal: AbortSignal.timeout(10000),
       });
       if (!auth.ok) throw new MarketApiError('VERIFIED_ACCOUNT_REQUIRED', auth.status);
-      const session = (await auth.json()) as { csrfToken?: unknown };
+      const session = (await auth.json()) as { authKind?: unknown; csrfToken?: unknown } | null;
+      // Website/password sessions also receive CSRF but do not prove a verified email.
+      // The server bridge independently validates the Google identity for every mutation.
+      if (session?.authKind !== 'google') throw new MarketApiError('VERIFIED_ACCOUNT_REQUIRED', 401);
       if (
         typeof session.csrfToken !== 'string' ||
         session.csrfToken.length < 16 ||

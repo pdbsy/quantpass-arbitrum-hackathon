@@ -31,9 +31,9 @@ test(
     const server = createServer(async (request, response) => {
       const url = new URL(request.url!, 'http://localhost');
       try {
-        if (url.pathname === '/auth/session') {
+        if (url.pathname === '/auth/me') {
           response.setHeader('content-type', 'application/json');
-          response.end(JSON.stringify({ csrfToken: 'trusted-session-csrf-token' }));
+          response.end(JSON.stringify({ authKind: 'google', csrfToken: 'trusted-session-csrf-token' }));
           return;
         }
         if (url.pathname === '/api/session') {

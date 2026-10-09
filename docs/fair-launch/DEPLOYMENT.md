@@ -1,6 +1,6 @@
 # Fair Launch V3 部署交接
 
-本交付提供代码、隔离测试及无签名准备工具。真实 Robinhood Testnet 部署、签名、注资、keeper 更新和服务器入口切换尚未授权，当前为 `NOT_DEPLOYED`。所有金额使用整数最小单位：AF-USDC 6 位，PASS / 测试股票 / 原生 ETH 18 位。链固定为 46630。
+本交付提供代码、隔离测试及无签名准备工具。用户已授权创建真实钱包并进行 Robinhood Testnet 领水、部署和交易测试；当前仍为 `NOT_DEPLOYED`，实际交易尚未执行。新钱包仍待领水，实例范围和具体资金参数待确认，既有合约安全准入未通过；这些前提不能用本地测试或只读预检替代。[真实测试进展与边界](reviews/REAL-TESTNET.md)。所有金额使用整数最小单位：AF-USDC 6 位，PASS / 测试股票 / 原生 ETH 18 位。链固定为 46630。
 
 ## 构建与必要检查
 
@@ -33,6 +33,8 @@ npm run fair-launch:prepare -- /absolute/private/approved-inputs.json /absolute/
 ```
 
 重复生成使用新的输出文件；已有输出拒绝覆盖。同样的输入产生同样的计划，运行准备脚本不铸币、不建池、不更改链上状态。计划中部署者 nonce 必须为实际已审核的待用 nonce。先连续完成所有部署，再执行配置 / 注资；中间插入其他部署者交易会使后续 CREATE 地址预测失效，应重新审核，不能沿用旧计划。
+
+真实公网只读检查可使用 `npm run fair-launch:target-preflight -- --wallet PUBLIC_ADDRESS`；它不需要或生成批准的部署计划。已有无签名计划可通过 `npm run fair-launch:target-preflight -- UNSIGNED_PLAN.json BUDGET.json` 核验源与编译产物、链、区块、nonce、预测地址及有限资金预算。预算中的 gas 上界是策略限制，不是全部实际部署的目标网络估算；依赖合约未部署时，完整估算保持 NOT_RUN。只读结果不能替代签名授权、合约安全准入或真实交易确认。准备工具会在生成任何部署前拒绝零 ETH 保留储备，避免与构造器约束不符的计划消耗部署 nonce。
 
 最低分离资金需求为：
 
