@@ -19,6 +19,7 @@ import type {
   QuoteRequest,
   OperationState,
 } from '../../../../packages/launch-market/src/types.ts';
+import type { ExecutorReview, ExecutorSnapshot } from './executor.ts';
 
 export type TransactionState = OperationState | 'IDLE';
 export interface LaunchTransaction {
@@ -28,6 +29,7 @@ export interface LaunchTransaction {
   readonly confirmations: number;
   readonly approval: boolean;
   readonly owner: string | null;
+  readonly executor?: boolean;
 }
 export interface LaunchClientState {
   readonly enabled: boolean;
@@ -39,6 +41,8 @@ export interface LaunchClientState {
   readonly busy: boolean;
   readonly quote: MarketQuote | null;
   readonly quoteRequest: QuoteRequest | null;
+  readonly executorReview?: ExecutorReview | null;
+  readonly executorSnapshots?: Partial<Record<'TSLA' | 'AMZN', ExecutorSnapshot>>;
   readonly transaction: LaunchTransaction;
   readonly error: string | null;
   readonly notice: string | null;

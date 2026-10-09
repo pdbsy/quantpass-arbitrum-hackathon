@@ -90,7 +90,7 @@ export async function installLaunchMarket(
 
   document.addEventListener('click', (event) => {
     const target = (event.target as Element | null)?.closest<HTMLElement>(
-      '[data-launch-connect],[data-launch-wallet-browser],[data-launch-refresh],[data-launch-bind],[data-launch-bind-confirm],[data-launch-side],[data-launch-clear],[data-launch-confirm],[data-launch-claim],[data-launch-create-vault],[data-launch-vault-close]',
+      '[data-launch-connect],[data-launch-wallet-browser],[data-launch-refresh],[data-launch-bind],[data-launch-bind-confirm],[data-launch-side],[data-launch-clear],[data-launch-confirm],[data-launch-claim],[data-launch-create-vault],[data-launch-vault-close],[data-launch-executor-refresh],[data-launch-executor-revoke],[data-launch-executor-confirm]',
     );
     if (!target || target.hasAttribute('disabled')) return;
     if (target.hasAttribute('data-launch-connect')) {
@@ -110,7 +110,20 @@ export async function installLaunchMarket(
     } else if (target.hasAttribute('data-launch-refresh')) void run(() => client.refresh());
     else if (target.hasAttribute('data-launch-clear')) client.clearQuote();
     else if (target.hasAttribute('data-launch-confirm')) void run(() => client.confirm());
-    else if (target.hasAttribute('data-launch-claim'))
+    else if (target.hasAttribute('data-launch-executor-confirm'))
+      void run(() => client.confirmExecutorPermission());
+    else if (
+      target.hasAttribute('data-launch-executor-refresh') ||
+      target.hasAttribute('data-launch-executor-revoke')
+    ) {
+      const strategy = target.dataset.launchExecutorRefresh ?? target.dataset.launchExecutorRevoke;
+      if (strategy !== 'TSLA' && strategy !== 'AMZN') return;
+      void run(() =>
+        target.hasAttribute('data-launch-executor-revoke')
+          ? client.reviewExecutorPermission(strategy, null)
+          : client.refreshExecutor(strategy),
+      );
+    } else if (target.hasAttribute('data-launch-claim'))
       void run(() =>
         client.review({
           strategyId: 'TSLA',
@@ -177,6 +190,30 @@ export async function installLaunchMarket(
   });
   document.addEventListener('submit', (event) => {
     const form = event.target as HTMLFormElement;
+    if (form.hasAttribute('data-launch-executor-recover')) {
+      event.preventDefault();
+      const hash = String(new FormData(form).get('hash'));
+      void run(() => client.recoverExecutorTransaction(hash));
+      return;
+    }
+    if (form.hasAttribute('data-launch-executor-order')) {
+      event.preventDefault();
+      const strategy = form.dataset.strategy;
+      if (strategy !== 'TSLA' && strategy !== 'AMZN') return;
+      const fields = new FormData(form);
+      void run(async () => {
+        const expiresAt = Math.floor(Date.parse(String(fields.get('expiresAt'))) / 1000);
+        if (!Number.isSafeInteger(expiresAt)) throw new Error('INVALID_EXECUTOR_PERMISSION');
+        await client.reviewExecutorPermission(strategy, {
+          executor: String(fields.get('executor')),
+          expiresAt: String(expiresAt),
+          maxOrderUsdc: inputRaw('DEPOSIT', 'AF_USDC', String(fields.get('maxOrderUsdc'))),
+          maxTotalBuyUsdc: inputRaw('DEPOSIT', 'AF_USDC', String(fields.get('maxTotalBuyUsdc'))),
+          maxSlippageBps: Number(fields.get('maxSlippageBps')),
+        });
+      });
+      return;
+    }
     if (form.hasAttribute('data-launch-vault-order')) {
       event.preventDefault();
       const strategyId = form.dataset.strategy;

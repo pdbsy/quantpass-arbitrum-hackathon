@@ -95,7 +95,9 @@ export function actionable(
   if (asset === 'ETH')
     return operation === 'SELL'
       ? state.snapshot.conversion.ethSellAvailable
-      : state.snapshot.conversion.ethBuyAvailable;
+      : operation === 'MINT'
+        ? (state.snapshot.conversion.ethMintAvailable ?? state.snapshot.conversion.ethBuyAvailable)
+        : state.snapshot.conversion.ethBuyAvailable;
   return true;
 }
 

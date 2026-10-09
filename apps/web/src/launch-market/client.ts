@@ -23,6 +23,17 @@ import {
   type QuoteRequest,
 } from './model.ts';
 import { actionable } from './presentation.ts';
+import {
+  executorJournalKey,
+  executorReceipt,
+  readExecutorJournal,
+  readExecutorSnapshot,
+  reviewExecutor,
+  validateExecutorHash,
+  type ExecutorPending,
+  type ExecutorPermission,
+} from './executor.ts';
+import type { StrategyId } from './model.ts';
 
 const prefix = '/api/launch-market';
 const tokenInterface = new Interface(['function approve(address spender,uint256 amount) returns (bool)']);
@@ -194,6 +205,9 @@ export class LaunchMarketClient {
   #generation = 0;
   #pendingRegistration: { quote: LaunchQuote; hash: string } | null = null;
   #refreshing = false;
+  readonly #journal: Storage | undefined;
+  #pendingExecutor: ExecutorPending | null = null;
+  #confirmedExecutor: ExecutorPending | null = null;
   #state: LaunchClientState = {
     enabled: false,
     config: null,
@@ -204,13 +218,21 @@ export class LaunchMarketClient {
     busy: false,
     quote: null,
     quoteRequest: null,
+    executorReview: null,
+    executorSnapshots: {},
     transaction: idleTransaction(),
     error: null,
     notice: null,
   };
 
   constructor(
-    options: { api?: LaunchApi; provider?: Eip1193Provider; now?: () => number; origin?: string } = {},
+    options: {
+      api?: LaunchApi;
+      provider?: Eip1193Provider;
+      now?: () => number;
+      origin?: string;
+      journal?: Storage;
+    } = {},
   ) {
     this.#api = options.api ?? createLaunchApi();
     this.#provider = options.provider;
@@ -219,6 +241,12 @@ export class LaunchMarketClient {
       : undefined;
     this.#now = options.now ?? (() => Math.floor(Date.now() / 1000));
     this.#origin = options.origin ?? globalThis.location?.origin ?? 'http://127.0.0.1:4180';
+    try {
+      this.#journal = options.journal ?? globalThis.localStorage;
+    } catch {
+      this.#journal = undefined;
+    }
+    this.#pendingExecutor = readExecutorJournal(this.#journal);
     if (options.provider)
       for (const event of ['accountsChanged', 'chainChanged', 'disconnect'] as const)
         options.provider.on(event, () => this.invalidateWallet());
@@ -253,6 +281,12 @@ export class LaunchMarketClient {
       QUOTE_TRANSACTION_MISMATCH: 'The contract transaction does not match the quote. Request a new quote.',
       MARKET_ACTION_UNAVAILABLE:
         'This action is currently unavailable. Check the wallet, reserves and market state.',
+      INVALID_EXECUTOR_PERMISSION:
+        'Review the executor address, future expiry, AF-USDC limits and maximum slippage (0–500 bps).',
+      EXECUTOR_REVIEW_EXPIRED:
+        'The Vault permission changed or this review expired. Review the permission again.',
+      EXECUTOR_RECOVERY_STORAGE_REQUIRED:
+        'Allow this site to store transaction recovery information before confirming a Vault permission.',
     };
     // Read failures cannot release the lock held by an outstanding wallet confirmation.
     this.#update({ error: messages[code] ?? code });
@@ -265,6 +299,8 @@ export class LaunchMarketClient {
       wallet: null,
       quote: null,
       quoteRequest: null,
+      executorReview: null,
+      executorSnapshots: {},
       connecting: false,
       transaction: tx.hash && !terminalStates.has(tx.state) ? { ...tx, state: 'RECOVERY_REQUIRED' } : tx,
       notice:
@@ -272,7 +308,7 @@ export class LaunchMarketClient {
     });
   }
   clearQuote(): void {
-    this.#update({ quote: null, quoteRequest: null });
+    this.#update({ quote: null, quoteRequest: null, executorReview: null });
   }
 
   async initialize(): Promise<boolean> {
@@ -357,7 +393,8 @@ export class LaunchMarketClient {
           params: [hexlify(toUtf8Bytes(challenge.message)), owner],
         });
       } catch (error) {
-        if ((error as { code?: unknown })?.code === 4001) throw new Error('WALLET_REJECTED', { cause: error });
+        if ((error as { code?: unknown })?.code === 4001)
+          throw new Error('WALLET_REJECTED', { cause: error });
         throw error;
       }
       await this.#assertOwner(owner, generation);
@@ -430,6 +467,26 @@ export class LaunchMarketClient {
         }
       }
       await this.refreshTransaction();
+      const pending = this.#pendingExecutor;
+      if (
+        pending &&
+        this.#state.owner?.toLowerCase() === pending.owner.toLowerCase() &&
+        (this.#state.transaction.state === 'IDLE' || terminalStates.has(this.#state.transaction.state))
+      ) {
+        this.#update({
+          transaction: {
+            id: null,
+            hash: pending.hash,
+            state: pending.hash ? 'SUBMITTED' : 'RECOVERY_REQUIRED',
+            confirmations: 0,
+            approval: false,
+            owner: pending.owner,
+            executor: true,
+          },
+          notice: 'Recovering an existing executor permission transaction. No new transaction was sent.',
+        });
+        await this.refreshTransaction();
+      }
     } finally {
       this.#refreshing = false;
     }
@@ -443,7 +500,7 @@ export class LaunchMarketClient {
     const full: QuoteRequest = { ...request, owner };
     uint(request.amountRaw);
     if (![50, 100, 300].includes(request.slippageBps)) throw new Error('INVALID_SLIPPAGE');
-    this.#update({ busy: true, error: null, quote: null, quoteRequest: null });
+    this.#update({ busy: true, error: null, quote: null, quoteRequest: null, executorReview: null });
     try {
       await this.#assertOwner(owner, generation);
       const quote = await this.#api<LaunchQuote>(`${prefix}/quote`, full);
@@ -503,6 +560,174 @@ export class LaunchMarketClient {
       this.#state.snapshot ?? undefined,
       this.#state.wallet ?? undefined,
     );
+  }
+
+  async refreshExecutor(strategyId: StrategyId): Promise<void> {
+    const owner = this.#state.owner;
+    const manifest = this.#state.config?.manifest;
+    const vault = this.#state.wallet?.vaults.find((item) => item.strategyId === strategyId);
+    if (!owner || !manifest || !vault || !this.#provider) throw new Error('WALLET_CONNECTION_REQUIRED');
+    const generation = this.#generation;
+    await this.#assertOwner(owner, generation);
+    const snapshot = await readExecutorSnapshot(this.#provider, manifest, owner, vault.address, strategyId);
+    await this.#assertOwner(owner, generation);
+    this.#update({ executorSnapshots: { ...this.#state.executorSnapshots, [strategyId]: snapshot } });
+  }
+
+  async reviewExecutorPermission(
+    strategyId: StrategyId,
+    permission: ExecutorPermission | null,
+  ): Promise<void> {
+    if (!actionable(this.#state, strategyId, 'DEPOSIT', 'AF_USDC') || this.#pendingExecutor)
+      throw new Error('MARKET_ACTION_UNAVAILABLE');
+    const owner = this.#state.owner!;
+    const generation = this.#generation;
+    this.#update({ busy: true, error: null, quote: null, quoteRequest: null, executorReview: null });
+    try {
+      await this.refreshExecutor(strategyId);
+      const snapshot = this.#state.executorSnapshots![strategyId]!;
+      const review = await reviewExecutor(this.#provider!, snapshot, permission, this.#now());
+      await this.#assertOwner(owner, generation);
+      this.#update({ executorReview: review, busy: false });
+    } catch (error) {
+      this.#update({ busy: false });
+      throw error;
+    }
+  }
+
+  async confirmExecutorPermission(): Promise<void> {
+    const review = this.#state.executorReview;
+    if (!review || !this.#provider || this.#state.busy || this.#pendingExecutor)
+      throw new Error('EXECUTOR_REVIEW_REQUIRED');
+    const owner = review.snapshot.owner;
+    const generation = this.#generation;
+    this.#update({ busy: true, error: null });
+    try {
+      await this.#assertOwner(owner, generation);
+      await this.refreshExecutor(review.snapshot.strategyId);
+      const fresh = this.#state.executorSnapshots![review.snapshot.strategyId]!;
+      if (
+        fresh.version !== review.snapshot.version ||
+        fresh.vault !== review.snapshot.vault ||
+        review.reviewExpiresAt <= this.#now() ||
+        (review.permission && BigInt(review.permission.expiresAt) <= BigInt(fresh.blockTimestamp))
+      )
+        throw new Error('EXECUTOR_REVIEW_EXPIRED');
+      const factory = new PreparedActionFactory<typeof review>({
+        chainId: LAUNCH_CHAIN_ID,
+        target: asAddress(fresh.vault),
+        operationId: () => `executor-${review.kind.toLowerCase()}-${fresh.version}`,
+        encode: () => ({ data: asHexData(review.data), value: 0n }),
+      });
+      const wallet = new Eip1193Wallet(this.#provider, {
+        chainId: LAUNCH_CHAIN_ID,
+        target: asAddress(fresh.vault),
+        actionAuthority: factory.authority,
+      });
+      this.#update({
+        transaction: {
+          id: null,
+          hash: null,
+          state: 'AWAITING_WALLET',
+          confirmations: 0,
+          approval: false,
+          owner,
+          executor: true,
+        },
+      });
+      this.#pendingExecutor = {
+        owner,
+        vault: fresh.vault,
+        strategyId: fresh.strategyId,
+        kind: review.kind,
+        data: review.data,
+        hash: null,
+      };
+      try {
+        if (!this.#journal) throw new Error('EXECUTOR_RECOVERY_STORAGE_REQUIRED');
+        this.#journal.setItem(executorJournalKey, JSON.stringify(this.#pendingExecutor));
+      } catch (error) {
+        this.#pendingExecutor = null;
+        throw new Error('EXECUTOR_RECOVERY_STORAGE_REQUIRED', { cause: error });
+      }
+      let submission;
+      try {
+        submission = await wallet.submit(factory.prepare(review, asAddress(owner)), () => {
+          if (generation !== this.#generation || this.#state.owner?.toLowerCase() !== owner.toLowerCase())
+            throw new Error('WALLET_IDENTITY_CHANGED');
+          if (review.reviewExpiresAt <= this.#now()) throw new Error('EXECUTOR_REVIEW_EXPIRED');
+        });
+      } catch (error) {
+        // submit throws only before broadcast or on explicit rejection; unknown broadcasts return ambiguity.
+        this.#pendingExecutor = null;
+        this.#journal.removeItem(executorJournalKey);
+        throw error;
+      }
+      if (submission.txHash) {
+        this.#pendingExecutor = {
+          owner,
+          vault: fresh.vault,
+          strategyId: fresh.strategyId,
+          kind: review.kind,
+          data: review.data,
+          hash: submission.txHash,
+        };
+        try {
+          this.#journal?.setItem(executorJournalKey, JSON.stringify(this.#pendingExecutor));
+        } catch {
+          this.#update({
+            notice:
+              'Save this transaction hash for recovery; browser transaction recovery storage is unavailable.',
+          });
+        }
+      }
+      this.#update({
+        busy: false,
+        executorReview: null,
+        transaction: {
+          id: null,
+          hash: submission.txHash,
+          state: submission.state === 'SUBMISSION_AMBIGUOUS' ? 'RECOVERY_REQUIRED' : 'SUBMITTED',
+          confirmations: 0,
+          approval: false,
+          owner,
+          executor: true,
+        },
+      });
+      await this.refreshTransaction();
+    } catch (error) {
+      this.#update({
+        busy: false,
+        transaction:
+          this.#state.transaction.state === 'AWAITING_WALLET'
+            ? { ...this.#state.transaction, state: 'REJECTED' }
+            : this.#state.transaction,
+      });
+      throw error;
+    }
+  }
+
+  async recoverExecutorTransaction(hash: string): Promise<void> {
+    const pending = this.#pendingExecutor;
+    if (!pending || pending.hash || !this.#provider) throw new Error('EXECUTOR_RECOVERY_NOT_REQUIRED');
+    const generation = this.#generation;
+    await this.#assertOwner(pending.owner, generation);
+    await validateExecutorHash(this.#provider, pending, hash);
+    await this.#assertOwner(pending.owner, generation);
+    this.#pendingExecutor = { ...pending, hash };
+    this.#journal?.setItem(executorJournalKey, JSON.stringify(this.#pendingExecutor));
+    this.#update({
+      transaction: {
+        id: null,
+        hash,
+        state: 'SUBMITTED',
+        confirmations: 0,
+        approval: false,
+        owner: pending.owner,
+        executor: true,
+      },
+    });
+    await this.refreshTransaction();
   }
 
   async confirm(): Promise<void> {
@@ -603,6 +828,34 @@ export class LaunchMarketClient {
     if (this.#pendingRegistration) await this.#register();
     const tx = this.#state.transaction;
     if (!tx.hash || terminalStates.has(tx.state)) return;
+    if (tx.executor && this.#pendingExecutor && this.#provider) {
+      const result = await executorReceipt(this.#provider, this.#pendingExecutor);
+      this.#update({
+        transaction: {
+          ...tx,
+          ...result,
+          ...(result.state === 'SUBMITTED' && (tx.confirmations > 0 || tx.state === 'REORGED')
+            ? { state: 'REORGED' as const }
+            : {}),
+        },
+      });
+      if (result.state === 'COMPLETED' || result.state === 'REVERTED') {
+        const pending = this.#pendingExecutor;
+        this.#confirmedExecutor = pending;
+        this.#pendingExecutor = null;
+        try {
+          this.#journal?.removeItem(executorJournalKey);
+        } catch {
+          /* Receipt remains available from the wallet. */
+        }
+        if (result.state === 'COMPLETED') {
+          this.#update({ notice: 'Executor permission transaction confirmed. No strategy trade was sent.' });
+          if (this.#state.owner?.toLowerCase() === pending.owner.toLowerCase())
+            await this.refreshExecutor(pending.strategyId);
+        }
+      }
+      return;
+    }
     if (tx.approval) {
       if (
         !this.#provider ||
@@ -686,11 +939,25 @@ export class LaunchMarketClient {
   async stream(update: MarketStreamUpdate): Promise<void> {
     validLocation(update.location);
     if (update.type === 'REORG') {
+      if (
+        this.#state.transaction.executor &&
+        !this.#pendingExecutor &&
+        this.#confirmedExecutor?.hash === this.#state.transaction.hash
+      ) {
+        this.#pendingExecutor = this.#confirmedExecutor;
+        try {
+          this.#journal?.setItem(executorJournalKey, JSON.stringify(this.#pendingExecutor));
+        } catch {
+          /* The current page still retains the exact transaction. */
+        }
+      }
       this.#update({
         snapshot: null,
         wallet: null,
         quote: null,
         quoteRequest: null,
+        executorReview: null,
+        executorSnapshots: {},
         transaction: this.#state.transaction.hash
           ? { ...this.#state.transaction, state: 'REORGED', confirmations: 0 }
           : this.#state.transaction,

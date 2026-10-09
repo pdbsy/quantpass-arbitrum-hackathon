@@ -99,6 +99,26 @@
   margin: 24px 0;
   padding: 24px;
 }
+.launch-market .launch-executor {
+  margin: 24px 0;
+  padding: 20px 0;
+  border-top: 1px solid var(--line, #c7c0b3);
+}
+.launch-market .launch-executor label,
+.launch-market .launch-executor input {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  box-sizing: border-box;
+}
+.launch-market .launch-executor input {
+  min-height: 44px;
+  margin: 8px 0 16px;
+}
+.launch-market .launch-executor summary,
+.launch-market .launch-executor p {
+  margin: 16px 0;
+}
 @media (max-width: 720px) {
   .launch-market .launch-terminal,
   .launch-market .launch-market-grid {
