@@ -1,0 +1,128 @@
+.launch-market .launch-network {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0;
+}
+.launch-market .launch-market-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.launch-market .launch-terminal {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
+  gap: 32px;
+  margin-top: 30px;
+}
+.launch-market .launch-terminal > section {
+  min-width: 0;
+}
+.launch-market .launch-stats {
+  margin: 20px 0;
+}
+.launch-market .order-quote > div {
+  align-items: baseline;
+  gap: 16px;
+}
+.launch-market .order-quote dd {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.launch-market .launch-stats dd {
+  max-width: 60%;
+}
+.launch-market .launch-fair-note {
+  margin: 30px 0;
+}
+.launch-market .launch-fair-note h2 {
+  font-size: 28px;
+  margin: 16px 0;
+}
+.launch-market .launch-fair-note p {
+  line-height: 1.7;
+  margin: 12px 0;
+}
+.launch-market .order-card select {
+  width: 100%;
+  min-height: 44px;
+  margin: 8px 0 20px;
+  background: var(--paper, #f5f0e5);
+}
+.launch-market .order-card .pass-amount-wrap {
+  margin: 8px 0 18px;
+}
+.launch-market .launch-reviewed {
+  margin-top: 24px;
+  padding: 24px;
+}
+.launch-market .launch-reviewed h2 {
+  font-size: 26px;
+  overflow-wrap: anywhere;
+}
+.launch-market .launch-reviewed p {
+  margin: 16px 0;
+  line-height: 1.6;
+}
+.launch-market .launch-transaction {
+  margin: 24px 0;
+  padding: 24px;
+}
+.launch-market .launch-transaction p {
+  font-size: 13px;
+  margin: 12px 0;
+}
+.launch-market .launch-hash {
+  display: block;
+  overflow-wrap: anywhere;
+  margin: 12px 0;
+}
+.launch-market .launch-wallet-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.launch-market .launch-feedback {
+  margin: 20px 0;
+  overflow-wrap: anywhere;
+}
+.launch-market .launch-claim {
+  max-width: 680px;
+  margin-top: 30px;
+}
+.launch-market .launch-claim p {
+  margin: 20px 0;
+  line-height: 1.7;
+}
+.launch-market .launch-vault {
+  margin: 24px 0;
+  padding: 24px;
+}
+@media (max-width: 720px) {
+  .launch-market .launch-terminal,
+  .launch-market .launch-market-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .launch-market .launch-network {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .launch-market .terminal-heading {
+    display: block;
+  }
+  .launch-market .launch-wallet-actions {
+    align-items: flex-start;
+    margin-top: 20px;
+  }
+  .launch-market .launch-stats dd {
+    max-width: 55%;
+  }
+  .launch-market .wallet-pass-row {
+    align-items: flex-start;
+  }
+  .launch-market .wallet-pass-quantity {
+    font-size: 14px;
+  }
+}

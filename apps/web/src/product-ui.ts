@@ -3,6 +3,8 @@ import { installProductNavigation } from './product-navigation.ts';
 import { installCandleInspection, type CandleChartHost } from './kline-hover.ts';
 import './kline-hover.css';
 import './wallet-account.css';
+import './launch-market/styles.css';
+import { installLaunchMarket } from './launch-market/install.ts';
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
 import { createM3BrowserRuntime, type M3BrowserDeploymentConfig } from './m3-browser-runtime.ts';
@@ -45,6 +47,7 @@ declare global {
   }
 }
 const AF = window.AF;
+// Server configuration selects the canonical chain market. The imported workshop keeps its layout and router.
 installCandleInspection(AF);
 installProductNavigation();
 let onchainRuntime = AF.m3OnchainRuntime;
@@ -219,10 +222,7 @@ AF.pages.market = () => catalogue() + original.market();
 const productPages = extendM3ProductPages(
   {
     account: (tab) => account() + original.account(tab),
-    trade: (id) =>
-      AF.strategies.some((s) => s.id === id)
-        ? original.trade(id)
-        : workspace(id),
+    trade: (id) => (AF.strategies.some((s) => s.id === id) ? original.trade(id) : workspace(id)),
   },
   {
     accountId: () => adapter.snapshot.user,
@@ -673,3 +673,7 @@ setInterval(() => {
     render();
   }
 }, 1000);
+void installLaunchMarket(AF, window.ethereum, undefined, original.account).catch((error) => {
+  localError = error instanceof Error ? error.message : 'MARKET_INITIALIZATION_FAILED';
+  render();
+});
