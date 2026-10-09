@@ -28,6 +28,10 @@ contracts/deployment/market/abi/AlphaForgeStrategyTestStock.abi.json
 contracts/deployment/market/abi/AlphaForgeStrategyVault.abi.json
 contracts/deployment/market/abi/AlphaForgeStrategyVaultFactory.abi.json
 contracts/deployment/market/artifact-sizes.json
+contracts/requirements-slither-linux-x64.lock
+contracts/requirements-slither.lock
+contracts/slither-darwin-arm64-wheels.json
+contracts/slither-linux-x64-wheels.json
 contracts/src/launch-vault/AlphaForgeStrategyVault.sol
 contracts/src/market/AlphaForgeClaimReserve.sol
 contracts/src/market/AlphaForgeFairLaunch.sol
@@ -40,6 +44,7 @@ contracts/test/launch-vault/StrategyVault.t.sol
 contracts/test/market/ClaimReserve.t.sol
 contracts/test/market/FairLaunch.t.sol
 contracts/test/market/NativeMarket.t.sol
+contracts/toolchain.lock.json
 deploy/launch-market/.env.example
 deploy/launch-market/alphaforge-fair-launch.service.example
 deploy/launch-market/deployment-inputs.example.json
@@ -53,12 +58,14 @@ docs/fair-launch/STORAGE.md
 docs/fair-launch/TESTING.md
 docs/fair-launch/evidence/browser-evm-final.log
 docs/fair-launch/evidence/build-final.log
+docs/fair-launch/evidence/ci-dependency-toolchain.json
 docs/fair-launch/evidence/lint-final.log
 docs/fair-launch/evidence/load-before-pinned-simulation-failed.json
 docs/fair-launch/evidence/load-delivery-smoke-60s.json
 docs/fair-launch/evidence/load-final-1800s.json
 docs/fair-launch/evidence/load-interrupted-smoke-not-pass.json
 docs/fair-launch/evidence/local-evm-final.log
+docs/fair-launch/evidence/npm-audit-patched.json
 docs/fair-launch/evidence/publication-checks.json
 docs/fair-launch/evidence/results.json
 docs/fair-launch/evidence/secrets-final.log
@@ -67,6 +74,7 @@ docs/fair-launch/evidence/slither-review.json
 docs/fair-launch/evidence/target-gas-readonly.json
 docs/fair-launch/evidence/typecheck-final.log
 docs/fair-launch/evidence/unit-final.log
+docs/fair-launch/reviews/CI-FOLLOWUP.md
 docs/fair-launch/reviews/STATIC-SCANNERS.md
 docs/fair-launch/reviews/macbeth05-claim-registry-restore-candidate.md
 docs/fair-launch/reviews/macbeth05-engineering-review.md
@@ -75,6 +83,8 @@ docs/fair-launch/reviews/macbeth05-final-1f482a4-addendum.md
 docs/fair-launch/reviews/macbeth05-final-aca74a1.md
 docs/fair-launch/reviews/macbeth05-integration-09822ad.md
 docs/fair-launch/reviews/macbeth05-storage-282a8cb-findings.md
+docs/security/npm-sbom.spdx.json
+package-lock.json
 package.json
 packages/launch-market/src/abi.ts
 packages/launch-market/src/chain.ts
@@ -85,8 +95,10 @@ packages/launch-market/src/projection.ts
 packages/launch-market/src/service.ts
 packages/launch-market/src/store.ts
 packages/launch-market/src/types.ts
+planning/development-environment.json
 test/agent-identity-bypass.test.mjs
 test/agent-integration-identity.test.mjs
+test/environment.test.mjs
 test/helpers/launch-market-executor-fixture.ts
 test/helpers/launch-market-ui-evm.ts
 test/helpers/launch-market-ui-fixture.ts
@@ -109,6 +121,7 @@ test/migration-provenance.test.mjs
 test/supply-chain.test.mjs
 tools/check-agent-identity.mjs
 tools/check-supply-chain.mjs
+tools/environment/policy.mjs
 tools/launch-market/anvil-lock.json
 tools/launch-market/artifacts.mjs
 tools/launch-market/bootstrap-anvil.mjs

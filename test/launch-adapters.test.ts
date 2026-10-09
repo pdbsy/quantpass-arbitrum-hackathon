@@ -41,12 +41,18 @@ test('native reference checks both exchange timestamps and disagreement without 
 });
 
 test('reference outage and oversized payload never produce a new native quotation', async () => {
-  await assert.rejects(new VerifiedEthReference({
-    fetcher: (async () => new Response('', { status: 503 })) as typeof fetch,
-  }).read(), /REFERENCE_UNAVAILABLE/);
-  await assert.rejects(new VerifiedEthReference({
-    fetcher: (async () => new Response(' '.repeat(262145))) as typeof fetch,
-  }).read(), /REFERENCE_RESPONSE_TOO_LARGE/);
+  await assert.rejects(
+    new VerifiedEthReference({
+      fetcher: (async () => new Response('', { status: 503 })) as typeof fetch,
+    }).read(),
+    /REFERENCE_UNAVAILABLE/,
+  );
+  await assert.rejects(
+    new VerifiedEthReference({
+      fetcher: (async () => new Response(' '.repeat(262145))) as typeof fetch,
+    }).read(),
+    /REFERENCE_RESPONSE_TOO_LARGE/,
+  );
 });
 
 test('existing verified session bridge rejects native/demo users, revoked identity and CSRF forgery', () => {
@@ -61,18 +67,36 @@ test('existing verified session bridge rejects native/demo users, revoked identi
   const hash = createHash('sha256').update(token).digest('hex');
   db.prepare('INSERT INTO whitelist VALUES (?)').run('alice@example.test');
   db.prepare('INSERT INTO identities VALUES (?,?)').run('alice@example.test', 'verified-google-subject');
-  db.prepare('INSERT INTO sessions VALUES (?,?,?,?,?)').run(hash, 'alice@example.test', 'verified-google-subject', 'server-csrf', 1100);
+  db.prepare('INSERT INTO sessions VALUES (?,?,?,?,?)').run(
+    hash,
+    'alice@example.test',
+    'verified-google-subject',
+    'server-csrf',
+    1100,
+  );
   const bridge = new AccessIdentityBridge(file, () => 1000);
-  const request = (method: string, cookies: Record<string,string>, headers = {}) => ({ method, cookies, headers }) as FastifyRequest;
+  const request = (method: string, cookies: Record<string, string>, headers = {}) =>
+    ({ method, cookies, headers }) as FastifyRequest;
   try {
     assert.equal(bridge.identity(request('GET', { qp_demo: 'alice' })), null);
     assert.equal(bridge.identity(request('GET', { '__Host-ikol_session': token }))?.verified, true);
-    assert.equal(bridge.identity(request('POST', { '__Host-ikol_session': token }, { 'x-csrf-token': 'wrong' })), null);
-    assert.equal(bridge.identity(request('POST', { '__Host-ikol_session': token }, { 'x-csrf-token': 'server-csrf' }))?.subject, 'verified-google-subject');
+    assert.equal(
+      bridge.identity(request('POST', { '__Host-ikol_session': token }, { 'x-csrf-token': 'wrong' })),
+      null,
+    );
+    assert.equal(
+      bridge.identity(request('POST', { '__Host-ikol_session': token }, { 'x-csrf-token': 'server-csrf' }))
+        ?.subject,
+      'verified-google-subject',
+    );
     db.prepare('INSERT INTO revoked_sessions VALUES (?,?)').run(hash, 1100);
     assert.equal(bridge.identity(request('GET', { '__Host-ikol_session': token })), null);
     db.prepare('DELETE FROM revoked_sessions').run();
     db.prepare('UPDATE identities SET subject=?').run('changed-subject');
     assert.equal(bridge.identity(request('GET', { '__Host-ikol_session': token })), null);
-  } finally { bridge.close(); db.close(); rmSync(dir, { recursive: true }); }
+  } finally {
+    bridge.close();
+    db.close();
+    rmSync(dir, { recursive: true });
+  }
 });

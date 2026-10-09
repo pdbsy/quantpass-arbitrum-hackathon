@@ -23,12 +23,16 @@ export class AccessIdentityBridge {
     if (!token || !/^[A-Za-z0-9_-]{32,128}$/.test(token)) return null;
     const hash = createHash('sha256').update(token).digest('hex');
     const now = this.#now();
-    const row = this.#db.prepare(`SELECT s.email,s.subject,s.csrf_token
+    const row = this.#db
+      .prepare(
+        `SELECT s.email,s.subject,s.csrf_token
       FROM sessions s JOIN whitelist w ON w.email=s.email
       JOIN identities i ON i.email=s.email AND i.subject=s.subject
       WHERE s.token_hash=? AND s.expires_at>?
       AND NOT EXISTS (SELECT 1 FROM revoked_sessions r
-        WHERE r.token_hash=s.token_hash AND r.expires_at>?)`).get(hash, now, now);
+        WHERE r.token_hash=s.token_hash AND r.expires_at>?)`,
+      )
+      .get(hash, now, now);
     if (!row || typeof row.email !== 'string' || typeof row.subject !== 'string') return null;
     if (!['GET', 'HEAD'].includes(request.method)) {
       const supplied = request.headers['x-csrf-token'];
@@ -40,5 +44,7 @@ export class AccessIdentityBridge {
     return { email: row.email, subject: row.subject, verified: true };
   }
 
-  close(): void { this.#db.close(); }
+  close(): void {
+    this.#db.close();
+  }
 }

@@ -85,6 +85,7 @@ export function validateInputs(i) {
       'verify-macos': { platform: 'darwin', arch: 'arm64', label: 'macos-15' },
       'contracts-m3-macos': { platform: 'darwin', arch: 'arm64', label: 'macos-15' },
       'contracts-m3-linux': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
+      'fair-launch-local-evm': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
       'container-testnet': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
       'source-policy-js': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
       'dependency-delta-audit': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },

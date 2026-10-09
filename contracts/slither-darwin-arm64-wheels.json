@@ -138,10 +138,10 @@
     "sha256": "815e7be7a7806d54abb586dc943addc79e8b2ee16915059658cbeff4b1b43bf4"
   },
   {
-    "pin": "multidict==6.8.0",
-    "filename": "multidict-6.8.0-cp312-cp312-macosx_11_0_arm64.whl",
-    "url": "https://files.pythonhosted.org/packages/91/9d/954b139bfa969855f2d4cb5ae7b7d44dd7106f754305b6e21a9068213aa7/multidict-6.8.0-cp312-cp312-macosx_11_0_arm64.whl",
-    "sha256": "10456943903744ae1249728161c96bd9d2f7eb5ee17fcc2ffda2dc32e1bb36c7"
+    "pin": "multidict==6.9.1",
+    "filename": "multidict-6.9.1-cp312-cp312-macosx_11_0_arm64.whl",
+    "url": "https://files.pythonhosted.org/packages/36/eb/6ae44062466c26c8469ef43f2481a6a48d8cea0587b2d54514ec92e2adfd/multidict-6.9.1-cp312-cp312-macosx_11_0_arm64.whl",
+    "sha256": "6ed30be8918e18c8bed0a2e8b70639ecf02feb61ed00ca2e41cfcb2a50fa3f42"
   },
   {
     "pin": "packaging==26.3",

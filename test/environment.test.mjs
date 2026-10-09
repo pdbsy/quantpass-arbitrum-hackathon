@@ -141,6 +141,7 @@ test('new CI gates are admitted only on their assigned native platform', () => {
   for (const [job, platform, arch] of [
     ['contracts-m3-macos', 'darwin', 'arm64'],
     ['contracts-m3-linux', 'linux', 'x64'],
+    ['fair-launch-local-evm', 'linux', 'x64'],
     ['container-testnet', 'linux', 'x64'],
     ['source-policy-js', 'linux', 'x64'],
     ['dependency-delta-audit', 'linux', 'x64'],
@@ -151,6 +152,25 @@ test('new CI gates are admitted only on their assigned native platform', () => {
     const candidate = { ...observation(), job, platform, arch, nativeArch: arch };
     assert.equal(evaluate(inputs(), candidate, 'ci').exitCode, 0);
     assert.equal(evaluate(inputs(), { ...candidate, platform: 'win32' }, 'ci').exitCode, 1);
+  }
+});
+
+test('Fair Launch admission rejects runner profile drift and unassigned job or architecture', () => {
+  const job = 'fair-launch-local-evm';
+  const candidate = { ...observation(), job };
+  for (const change of [
+    { job: `${job}-unapproved` },
+    { arch: 'arm64', nativeArch: 'arm64' },
+    { platform: 'darwin', arch: 'arm64', nativeArch: 'arm64' },
+  ]) {
+    const report = evaluate(inputs(), { ...candidate, ...change }, 'ci');
+    assert.equal(report.checks.find((item) => item.id === 'platform').status, 'FAIL');
+    assert.equal(report.eligibleForEvidence, false);
+  }
+  for (const change of [{ label: 'ubuntu-latest' }, { arch: 'arm64' }, { platform: 'darwin' }]) {
+    const altered = inputs();
+    Object.assign(altered.policy.runnerJobs[job], change);
+    assert.throws(() => validateInputs(altered), /Invalid environment inputs/);
   }
 });
 

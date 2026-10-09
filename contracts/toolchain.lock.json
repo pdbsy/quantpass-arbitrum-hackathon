@@ -39,11 +39,11 @@
     "officialSource": "https://github.com/crytic/slither/releases/tag/0.11.3",
     "index": "https://pypi.org/project/slither-analyzer/0.11.3/",
     "requirements": "requirements-slither.lock",
-    "requirementsSha256": "d5c5c390cfbbd5d255d450c4dfadb01cc3eff70f040ec71b504ca9278503d751",
+    "requirementsSha256": "43d50e9ec44aca1ad86cd5d69583cab85cbcdcc2b8724c3f6bbd0fefdfb6b369",
     "platform": "CPython 3.12 / macOS arm64; 47 exact binary wheels",
     "cryticCompile": "0.3.11",
     "wheelManifest": "slither-darwin-arm64-wheels.json",
-    "wheelManifestSha256": "f304ac60a5d3cd9936a407a298ba65c66797e444543097638bfd0bb445f9cae9"
+    "wheelManifestSha256": "cf92d219190f80d6a879eeb422eae3b0c8ee71d2bc7d48bbc00e51d96597aa5f"
   },
   "compilerSettings": {
     "evmVersion": "paris",
@@ -85,11 +85,11 @@
         "officialSource": "https://github.com/crytic/slither/releases/tag/0.11.3",
         "index": "https://pypi.org/project/slither-analyzer/0.11.3/",
         "requirements": "requirements-slither-linux-x64.lock",
-        "requirementsSha256": "88a89e743616db6149f874491a25612b4e3a34f5b8576fdd2cf09f7970faa3e5",
+        "requirementsSha256": "56e4e18c5582ed1ec2779a05cdacc0338404c4795b8754d22348ab39250289b6",
         "platform": "CPython 3.12.9 / Linux x86_64 glibc>=2.28; 47 exact binary wheels",
         "cryticCompile": "0.3.11",
         "wheelManifest": "slither-linux-x64-wheels.json",
-        "wheelManifestSha256": "8c0c1ec896c722f9bca1eb8cf5813c3d9087f6c448b32a657cf49d86ad71824c"
+        "wheelManifestSha256": "73155a416351830990089da76a46dc86943ae376d1ff6d14699ce0e26d69e0d9"
       }
     }
   }

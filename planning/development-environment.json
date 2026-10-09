@@ -36,6 +36,11 @@
       "arch": "x64",
       "label": "ubuntu-24.04"
     },
+    "fair-launch-local-evm": {
+      "platform": "linux",
+      "arch": "x64",
+      "label": "ubuntu-24.04"
+    },
     "source-policy-js": {
       "platform": "linux",
       "arch": "x64",

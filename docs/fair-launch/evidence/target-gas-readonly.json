@@ -6,15 +6,7 @@
   "headerGasLimit": "1125899906842624",
   "precompile": "0x000000000000000000000000000000000000006c",
   "writesPerformed": false,
-  "getGasAccountingParams": [
-    "7000000",
-    "32000000",
-    "32000000"
-  ],
-  "getMaxTxGasLimit": [
-    "32000000"
-  ],
-  "getMaxBlockGasLimit": [
-    "32000000"
-  ]
+  "getGasAccountingParams": ["7000000", "32000000", "32000000"],
+  "getMaxTxGasLimit": ["32000000"],
+  "getMaxBlockGasLimit": ["32000000"]
 }

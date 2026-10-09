@@ -62,6 +62,6 @@ Desktop / mobile 现有模块浏览器 fixture 检查通过，但 fixture API �
 | 外部 ETH feeds 实际实时可用性 / SLA                                          | NOT_RUN，已验证两源 HTTPS格式 / age / disagreement / payload / outage拒绝规则；不宣称公网请求能满足本地p95                                     |
 | Testnet 部署 / 注资 / 最后一笔 Mint / gas / confirmations / reorg / 源码验证 | NOT_RUN，未获得操作授权                                                                                                                        |
 | 新服务真实迁移 / ingress切换 / signer启动 / keeper或executor持续签名         | NOT_RUN，交付准备工具与配置，不自动启用                                                                                                        |
-| Hosted GitHub required checks                                                | NOT_RUN / PENDING，必须以真实 PR CI 状态为准，不使用本地结果覆盖                                                                               |
+| Hosted GitHub required checks | 已实际运行；首次 source `72ca153` FAIL，后续按对应失败项修复。完整状态见 `reviews/CI-FOLLOWUP.md` 和 draft PR #47；不使用本地结果覆盖 hosted 门禁。 |
 
 目标链 chain46630和 ArbGasInfo execution caps 的只读观察保存在 `evidence/target-gas-readonly.json`；`writesPerformed=false`。它支持目标策略检查，不是部署 receipt。

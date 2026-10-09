@@ -19,7 +19,7 @@
 | 原可复用合约 | 固定发行 StrategyPass / TestUSDC；AlphaForgeVault / PassLocker 的本金、利润、关闭与锁仓账本                                                                     | IMPLEMENTED            |
 | 原缺口       | 原生 ETH 双向兑换、原子 Fair Launch、真实 AMM / LP、邮件领取、链事件 indexer、两策略受限 TEST 股票 Vault                                                        | 本轮新增               |
 
-本轮独立 clone `worktrees/macbeth01-fair-launch` 基于最新 UI `5c61e91…`，分支 `macbeth01/AF-FAIR-LAUNCH-V3`，没有覆盖上述源码或线上服务。远端 master 基线 `3cb9caa810e34d8ff9f9a6c68b5ef674f489689e` 与最新 UI 相差 48 个既有 commit / 139 个既有变更文件；这些历史保留原作者，draft PR 必须说明继承范围。本轮审查从 `5c61e91…` 开始，不把继承的 UI / release 历史说成新增独立审查已通过。
+本轮独立 clone `worktrees/macbeth01-fair-launch` 基于最新 UI `5c61e91…`，原始分支 `macbeth01/AF-FAIR-LAUNCH-V3`；发布分支为 `codex/alphaforge-fair-launch-v3-20261009`、draft PR [#47](https://github.com/pdbsy/quantpass-arbitrum-hackathon/pull/47)，原提交和原分支保留。没有覆盖上述源码或线上服务。远端 master 基线 `3cb9caa810e34d8ff9f9a6c68b5ef674f489689e` 与最新 UI 相差 48 个既有 commit / 139 个既有变更文件；这些历史保留原作者，draft PR 必须说明继承范围。本轮审查从 `5c61e91…` 开始，不把继承的 UI / release 历史说成新增独立审查已通过。
 
 最小适配为新 ONCHAIN_TESTNET 服务和前端模块：现有 UI 入口尝试读取新配置，已配置时安装真实资金视图；旧 workshop 未提供该路由时继续原模式。原资产合约、Locker、核心 Vault 及原 CI / 保护规则未改写。不会把 mock 健康报告当作新链上线结果。
 
@@ -70,7 +70,7 @@
 
 已发现并修复：SSE 长连接阻止服务退出、嵌套 API error 导致前端失去恢复原因、授权检查和 gas 模拟跨区块并发竞态、未绑定 wallet 错误暴露 accountId 隐藏绑定按钮、丢失私有领取 registry 后新 accountKey 的重复领取风险、ETH卖出最小到账舍入校验、token授权完成后多余allowance误阻止确认、备份工具漏检完整DDL和CHECK约束。保留初始失败负载记录和复测证据，不删除尾部请求或失败样本。
 
-独立源码审查包含实际缺陷复现和针对性检查。后续已实际执行锁定 Semgrep（300源文件、22规则、44 canaries，0发现）和 Slither（53报告，9既有批准、44新增未批准）；Slither原审批门禁为BLOCKED，没有擅自追加批准或过滤报告。详见 `reviews/STATIC-SCANNERS.md`。正式 Codex Security managed scanner 的必需MCP不可用，目标Testnet、真实Google ingress和部署验证仍为NOT_RUN。原GitHub required checks必须实际hosted运行，不能用本地检查覆盖。
+独立源码审查包含实际缺陷复现和针对性检查。后续已实际执行锁定 Semgrep（300源文件、22规则、44 canaries，0发现）和 Slither（53报告，9既有批准、44新增未批准）；Slither原审批门禁为BLOCKED，没有擅自追加批准或过滤报告。详见 `reviews/STATIC-SCANNERS.md`。正式 Codex Security managed scanner 的必需MCP不可用，目标Testnet、真实Google ingress和部署验证仍为NOT_RUN。原GitHub required checks 已实际运行；首次 CI 失败项和精确依赖补丁见 `reviews/CI-FOLLOWUP.md`。不能用本地检查覆盖 hosted 门禁。
 
 ## F. 待授权清单
 

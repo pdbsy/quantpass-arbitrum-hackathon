@@ -60,35 +60,51 @@ export class VerifiedEthReference {
   readonly maxAgeSeconds: number;
   readonly maxDeviationBps: number;
 
-  constructor(options: {
-    fetcher?: typeof fetch;
-    now?: () => number;
-    maxAgeSeconds?: number;
-    maxDeviationBps?: number;
-  } = {}) {
+  constructor(
+    options: {
+      fetcher?: typeof fetch;
+      now?: () => number;
+      maxAgeSeconds?: number;
+      maxDeviationBps?: number;
+    } = {},
+  ) {
     this.#fetcher = options.fetcher ?? fetch;
     this.#now = options.now ?? (() => Math.floor(Date.now() / 1000));
     this.maxAgeSeconds = options.maxAgeSeconds ?? 30;
     this.maxDeviationBps = options.maxDeviationBps ?? 200;
-    if (!Number.isInteger(this.maxAgeSeconds) || this.maxAgeSeconds < 1 || this.maxAgeSeconds > 60
-      || !Number.isInteger(this.maxDeviationBps) || this.maxDeviationBps < 0 || this.maxDeviationBps > 500)
+    if (
+      !Number.isInteger(this.maxAgeSeconds) ||
+      this.maxAgeSeconds < 1 ||
+      this.maxAgeSeconds > 60 ||
+      !Number.isInteger(this.maxDeviationBps) ||
+      this.maxDeviationBps < 0 ||
+      this.maxDeviationBps > 500
+    )
       throw new Error('INVALID_REFERENCE_POLICY');
   }
 
   async read(): Promise<EthReference> {
     const now = this.#now();
-    if (this.#cached && now >= this.#cached.fetchedAt
-      && now - this.#cached.fetchedAt < 5 && now >= this.#cached.observedAt
-      && now - this.#cached.observedAt <= this.maxAgeSeconds) return this.#cached;
+    if (
+      this.#cached &&
+      now >= this.#cached.fetchedAt &&
+      now - this.#cached.fetchedAt < 5 &&
+      now >= this.#cached.observedAt &&
+      now - this.#cached.observedAt <= this.maxAgeSeconds
+    )
+      return this.#cached;
     if (this.#pending) return this.#pending;
-    this.#pending = this.#refresh().finally(() => { this.#pending = undefined; });
+    this.#pending = this.#refresh().finally(() => {
+      this.#pending = undefined;
+    });
     return this.#pending;
   }
 
   async #refresh(): Promise<EthReference> {
     this.#cached = undefined;
     const [coinbaseBody, krakenBody] = await Promise.all([
-      json(this.#fetcher, COINBASE), json(this.#fetcher, KRAKEN),
+      json(this.#fetcher, COINBASE),
+      json(this.#fetcher, KRAKEN),
     ]);
     const primary = object(coinbaseBody);
     const validation = object(krakenBody);
@@ -104,8 +120,7 @@ export class VerifiedEthReference {
     const last = trades.at(-1) as unknown[];
     const primaryRaw = priceToRaw(primary.price);
     const validationRaw = priceToRaw(last[0]);
-    const primaryAt = typeof primary.time === 'string'
-      ? Math.floor(Date.parse(primary.time) / 1000) : NaN;
+    const primaryAt = typeof primary.time === 'string' ? Math.floor(Date.parse(primary.time) / 1000) : NaN;
     const validationAt = typeof last[2] === 'number' ? Math.floor(last[2]) : NaN;
     const now = this.#now();
     for (const at of [primaryAt, validationAt])
@@ -116,10 +131,12 @@ export class VerifiedEthReference {
     if (difference * 10000n > primaryRaw * BigInt(this.maxDeviationBps))
       throw new Error('REFERENCE_PRICE_DEVIATION');
     const reference: EthReference = Object.freeze({
-      priceRaw: primaryRaw.toString(), observedAt: Math.min(primaryAt, validationAt),
-      fetchedAt: now, primaryPriceRaw: primaryRaw.toString(),
+      priceRaw: primaryRaw.toString(),
+      observedAt: Math.min(primaryAt, validationAt),
+      fetchedAt: now,
+      primaryPriceRaw: primaryRaw.toString(),
       validationPriceRaw: validationRaw.toString(),
-      deviationBps: Number(difference * 10000n / primaryRaw),
+      deviationBps: Number((difference * 10000n) / primaryRaw),
       sources: Object.freeze([COINBASE, KRAKEN]),
     });
     this.#cached = reference;
