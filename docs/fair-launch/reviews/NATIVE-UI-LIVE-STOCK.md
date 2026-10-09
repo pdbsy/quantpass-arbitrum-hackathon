@@ -2,7 +2,9 @@
 
 The original home and Trade layout is retained. The catalogue now contains only All in TSLA and All in AMZN. The original 123,345-byte product stylesheet is unchanged (SHA-256 `8b0996e01403be0d0fbf555e03151973cdfe1118ad20f4423324538a32e4aff6`).
 
-Without actual indexed PASS swaps, the upper chart shows a flat 0.5 AF-USDC/PASS initial reference. It does not create candles, volume or historical trades. Once configured, indexed swaps and current pool reserves supply the PASS view. Missing balances and incomplete aggregate windows remain unknown; local financial methods refuse mutation and browser research records are retained.
+TSLA before a verified launch displays Public Mint progress in the main panel, market facts, catalogue card and mobile dock. Subscribed and remaining PASS come from the actual chain snapshot; missing data stays unknown, while the 500,000 public / 1,000,000 total plan is explicitly labelled Planned. The progress bar uses integer inventory arithmetic, and the source identifies its observed L2 block. Only a LAUNCHED snapshot restores the TSLA price view. AMZN keeps its secondary market view.
+
+For AMZN and launched TSLA, without actual indexed PASS swaps, the upper chart shows a flat 0.5 AF-USDC/PASS initial reference. It does not create candles, volume or historical trades. Once configured, indexed swaps and current pool reserves supply the PASS view. Missing balances and incomplete aggregate windows remain unknown; local financial methods refuse mutation and browser research records are retained.
 
 The lower chart reads the corresponding stock through server API routes:
 
@@ -24,6 +26,7 @@ Exact prototype provenance admits only the immutable native source at `6aab8af78
 ## Focused validation
 
 - 25 related checks passed: native strategy views and refusal of old local financial operations; provider parsing/cache/timeout/DST/invalid inputs; API Host/Origin/schema boundaries; fifteen-second browser polling, same-minute updates and failure recovery.
+- Five TSLA Mint checks passed: unknown deployment/synchronization, real subscription percentage and inventory conservation, preparing/sold-out/launch transitions, AMZN and stock-view preservation, catalogue display and cleanup. Final desktop/mobile TSLA/AMZN browser checks passed with actual stock data: TSLA main view, card/filter and mobile dock display Mint; AMZN retains its flat initial reference; detailed stock hover and render recovery remain functional. No wallet calls or HTTP writes occurred.
 - Nine chart detail checks passed: four stock selection/source/render-observer cases and five PASS inspection cases. The new stock checks are included in the default test list.
 - Exact source provenance/import checks: 48 passed. Historical mock wallet/fund checks: 12 passed. Source/coverage mapping checks: 14 passed. These retain historical expectations and negative admission cases; they are not current Testnet acceptance.
 - Both TypeScript projects, scoped lint, formatting and production web build passed. Supply-chain inventory remains unchanged.

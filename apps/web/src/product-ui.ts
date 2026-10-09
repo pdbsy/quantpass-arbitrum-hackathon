@@ -5,6 +5,9 @@ import './kline-hover.css';
 import './wallet-account.css';
 import './launch-market/styles.css';
 import { installLaunchMarket } from './launch-market/install.ts';
+import { installNativeMint } from './launch-market/native-mint.ts';
+import './launch-market/native-mint.css';
+import type { LaunchClientState } from './launch-market/model.ts';
 import { installStockHistory, type StockHistoryHost } from './stock-history.ts';
 import { installStockInspection } from './stock-inspection.ts';
 import './stock-inspection.css';
@@ -33,6 +36,9 @@ import {
 import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
 interface Prototype extends CandleChartHost, StockHistoryHost {
   originalMarketLayout?: boolean;
+  launchState?: LaunchClientState;
+  charts: CandleChartHost['charts'] & { priceBlock(strategy: { id: string }): string };
+  market?: { refresh(): void };
   strategies: { id: string; name: string }[];
   pages: { market: () => string; account: (tab: string) => string; trade: (id: string) => string };
   app: {
@@ -254,6 +260,7 @@ const productPages = AF.originalMarketLayout
 AF.pages.account = productPages.account;
 AF.pages.trade = productPages.trade;
 if (AF.originalMarketLayout) {
+  installNativeMint(AF, document);
   installStockHistory(AF);
   installStockInspection(AF);
 }

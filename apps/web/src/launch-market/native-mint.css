@@ -1,0 +1,50 @@
+.native-mint-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin: 24px 0 16px;
+}
+.native-mint-progress strong {
+  font: 600 48px/1.2 var(--mono, monospace);
+  color: var(--sage-ink);
+}
+.native-mint-progress > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.native-mint-track {
+  height: 18px;
+  overflow: hidden;
+  border: 1px solid var(--ink);
+  border-radius: 2px 4px 3px 2px;
+  background: var(--wash, #e8e5d8);
+}
+.native-mint-track > span {
+  display: block;
+  height: 100%;
+  background: var(--sage-ink);
+}
+.native-mint-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 16px;
+  margin: 26px 0;
+}
+.native-mint-stats dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+.native-mint-stats dd {
+  margin: 5px 0 0;
+  font: 600 17px/1.5 var(--mono, monospace);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .native-mint-progress strong {
+    font-size: 40px;
+  }
+  .native-mint-stats dd {
+    font-size: 14px;
+  }
+}
