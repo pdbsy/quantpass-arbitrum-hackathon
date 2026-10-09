@@ -69,13 +69,6 @@ declare global {
   }
 }
 const AF = window.AF;
-const testnetLink = document.createElement('a');
-testnetLink.href = '/testnet.html';
-testnetLink.className = 'text-link';
-testnetLink.textContent = 'Testnet owner workspace';
-testnetLink.title =
-  'Wallet-only Testnet preview; live operations require the dedicated configured Testnet server.';
-document.querySelector('.nav-right')?.prepend(testnetLink);
 let mockWalletStorage: Storage | undefined;
 try {
   mockWalletStorage = window.localStorage;
