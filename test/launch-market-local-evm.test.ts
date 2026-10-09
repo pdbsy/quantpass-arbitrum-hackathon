@@ -5,12 +5,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
-import { Contract, Interface, parseEther } from 'ethers';
+import { Contract, Interface, Wallet, NonceManager, parseEther, toBeHex } from 'ethers';
 import { deployLocalMarket, artifact } from '../tools/launch-market/local-fixture.ts';
 import { LaunchMarketStore } from '../packages/launch-market/src/store.ts';
 import { LaunchMarketService } from '../packages/launch-market/src/service.ts';
 import { RpcMarketChain } from '../apps/server/src/launch-market-adapters/rpc-chain.ts';
 import { buildVaultQuote } from '../apps/server/src/launch-market-adapters/vault-quotes.ts';
+import { MarketEventIndexer } from '../apps/server/src/launch-market/indexer.ts';
 import { registerLaunchMarketRoutes } from '../apps/server/src/launch-market/routes.ts';
 import type {
   MarketQuote,
@@ -49,6 +50,12 @@ test(
       ) => buildVaultQuote(chain, request, account, snapshot, expires),
     });
     let service = new LaunchMarketService(options());
+    let indexer = new MarketEventIndexer({
+      path: join(dir, 'events.sqlite'),
+      manifest: f.manifest,
+      provider: chain.provider,
+      service,
+    });
     let app = Fastify();
     await app.register(cookie);
     // Explicit offline authentication fixture. The production bridge independently checks Google sessions and CSRF.
@@ -140,9 +147,11 @@ test(
       );
       assert.equal(completed.state, 'COMPLETED');
       assert.equal(completed.confirmations >= 3, true);
+      await indexer.poll();
       return { q, tx, completed };
     }
     try {
+      await indexer.poll();
       await bind('alice', f.alice);
       await bind('bob', f.bob);
       const aliceIdentity = (await api('alice', 'GET', '/api/launch-market/account')).id;
@@ -197,10 +206,15 @@ test(
       assert.equal(crossOwner.statusCode, 403);
       clock = Number((await f.provider.getBlock('latest'))!.timestamp);
       await f.execute(vault, 'execute', true, 40_000000n, 4n * 10n ** 17n, clock + 60, 0);
-      await f.provider.send('evm_increaseTime', [1]);
+      await f.provider.send('evm_increaseTime', [301]);
       await f.provider.send('anvil_mine', ['0x1']);
       clock = Number((await f.provider.getBlock('latest'))!.timestamp);
+      const staleWallet = await chain.wallet(f.alice.address);
+      assert.equal(staleWallet.vaults[0]!.valuationState, 'UNAVAILABLE');
+      assert.equal(staleWallet.vaults[0]!.equityRaw, null);
+      assert.equal(staleWallet.passes.TSLA.lockedRaw, (50n * 10n ** 18n).toString());
       await f.execute(f.feeds[0]!, 'update', 120_000000n, clock, '0x' + 'ab'.repeat(32));
+      await f.execute(f.feeds[0]!, 'updateSession', clock, clock + 3600, clock, '0x' + 'cd'.repeat(32));
       await f.execute(vault, 'execute', false, 4n * 10n ** 17n, 48_000000n, clock + 60, 1);
       await act('alice', 'WITHDRAW', 'AF_USDC', '8000000');
       assert.equal(
@@ -233,13 +247,78 @@ test(
       );
       assert.ok((await pool.getFunction('balanceOf')(f.bob.address)) > 0n);
       await act('alice', 'BUY', 'ETH', parseEther('0.01').toString());
+      assert.equal(indexer.status().state, 'HEALTHY');
+      assert.ok(indexer.history('TSLA', 500).some((event) => event.name === 'Launch'));
+      assert.ok(indexer.history('TSLA', 500).some((event) => event.name === 'Deposited'));
+      assert.ok(indexer.candles('AMZN').length > 0);
+      const indexedHolders = indexer.holders('TSLA', 500);
+      assert.equal(
+        indexedHolders.reduce((sum, holder) => sum + BigInt(holder.balanceRaw), 0n),
+        1000000n * 10n ** 18n,
+      );
+      // A claim broadcast without registering its hash still reconciles from canonical chain logs.
+      const charlie = Wallet.createRandom().connect(f.provider),
+        charlieSigner = new NonceManager(charlie);
+      await f.provider.send('anvil_setBalance', [charlie.address, toBeHex(parseEther('1'))]);
+      const charlieAccount = service.account({
+        email: 'charlie@example.test',
+        subject: 'offline-google-charlie',
+        emailVerified: true,
+      });
+      const challenge = store.bindingChallenge(charlieAccount.id, charlie.address, clock);
+      store.bindWallet(
+        charlieAccount.id,
+        challenge.nonce,
+        await charlie.signMessage(challenge.message),
+        clock,
+      );
+      const orphanCheckpoint = await f.provider.send('evm_snapshot', []);
+      const charlieQuote = await service.quote(
+        {
+          owner: charlie.address,
+          strategyId: 'TSLA',
+          operation: 'CLAIM',
+          asset: 'AF_USDC',
+          amountRaw: '0',
+          slippageBps: 100,
+        },
+        charlieAccount.id,
+      );
+      await (
+        await charlieSigner.sendTransaction({
+          ...charlieQuote.transaction,
+          value: BigInt(charlieQuote.transaction.value),
+        })
+      ).wait();
+      await indexer.poll();
+      assert.equal(store.voucher(charlieAccount.id)!.status, 'INCLUDED');
+      await f.provider.send('anvil_mine', ['0x2']);
+      await indexer.poll();
+      assert.equal(store.voucher(charlieAccount.id)!.status, 'COMPLETED');
+      await f.provider.send('evm_revert', [orphanCheckpoint]);
+      await f.provider.send('anvil_mine', ['0x3']);
+      await indexer.poll();
+      assert.equal(await f.usdc.getFunction('balanceOf')(charlie.address), 0n);
+      assert.equal(store.voucher(charlieAccount.id)!.status, 'REORGED');
+      assert.equal((await service.snapshot()).claim.successfulClaims, 2);
+      assert.equal(indexer.status().state, 'HEALTHY');
       const recorded = await api('alice', 'GET', '/api/launch-market/operations?owner=' + f.alice.address);
       assert.ok(recorded.operations.length >= 10);
       const beforeRestart = await chain.wallet(f.alice.address);
       await app.close();
+      await indexer.close();
       store.close();
       store = new LaunchMarketStore(join(dir, 'market.sqlite'), 'http://127.0.0.1:8547');
       service = new LaunchMarketService(options());
+      indexer = new MarketEventIndexer({
+        path: join(dir, 'events.sqlite'),
+        manifest: f.manifest,
+        provider: chain.provider,
+        service,
+      });
+      await indexer.poll();
+      assert.equal(store.voucher(charlieAccount.id)!.status, 'REORGED');
+      assert.ok(indexer.candles('AMZN').length > 0);
       app = Fastify();
       await app.register(cookie);
       register();
@@ -290,11 +369,14 @@ test(
           finalMintGas: finalReceipt!.gasUsed.toString(),
           claims: String(await f.claim.getFunction('totalClaims')()),
           fixedSuppliesConserved: true,
+          canonicalEventRebuild: true,
+          unregisteredClaimReorgRecovered: true,
           restartRecovered: true,
         }),
       );
     } finally {
       await app.close();
+      await indexer.close();
       store.close();
       chain.close();
       f.provider.destroy();

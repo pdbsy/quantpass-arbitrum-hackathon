@@ -185,15 +185,17 @@ export async function prepareDeployment(input: DeploymentInputs) {
       million,
       admin,
     ]);
-    const feed = await deploy(strategy + 'Feed', 'AlphaForgeTestStock', 'AlphaForgeTestReferenceFeed', [
-      admin,
-      id('TEST_ONLY:' + strategy),
-    ]);
+    const feed = await deploy(
+      strategy + 'Feed',
+      'AlphaForgeStrategyVault',
+      'AlphaForgeStrategyReferenceFeed',
+      [admin, id('TEST_ONLY:' + strategy)],
+    );
     const venue = await deploy(
       strategy + 'StockReserve',
       'AlphaForgeStrategyVault',
       'AlphaForgeStockReserve',
-      [admin, addresses.usdc, addresses[strategy + 'Stock'], addresses[strategy + 'Feed'], 300],
+      [admin, addresses.usdc, addresses[strategy + 'Stock'], addresses[strategy + 'Feed'], 60],
     );
     call(strategy + 'Stock', stock, 'approve', [
       addresses[strategy + 'StockReserve'],
@@ -210,13 +212,13 @@ export async function prepareDeployment(input: DeploymentInputs) {
       operation: strategy + ':UPDATE_TEST_REFERENCE',
       contractAddress: addresses[strategy + 'Feed'],
       chainId: 46630,
-      function: 'update',
+      function: 'update + updateSession',
       caller: admin,
       unsigned: null,
       status: 'REQUIRES_FRESH_TEST_REFERENCE',
       permissionsRequired: 'EXPLICIT_ORACLE_CONFIGURATION_APPROVAL',
       verification:
-        'Explicit test reference, source digest and current onchain timestamp; never derive a stock price from PASS reserves.',
+        'Fresh <=60s test reference, provider-confirmed regular-session UTC bounds/calendar timestamp/digest and current onchain timestamp; never derive a stock price from PASS reserves.',
     });
     void feed;
     configs.push([
@@ -228,7 +230,7 @@ export async function prepareDeployment(input: DeploymentInputs) {
       addresses[strategy + 'StockReserve'],
       addresses[strategy + 'Feed'],
       id('All in ' + strategy),
-      300,
+      60,
     ]);
   }
   configs[0]![4] = addresses.AMZNStock;

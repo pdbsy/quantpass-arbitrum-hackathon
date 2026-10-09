@@ -495,8 +495,9 @@ export class RpcMarketChain implements MarketChain {
     if ((await this.requiredApprovals(tx, owner, block)).length)
       throw new LaunchMarketError('ALLOWANCE_REQUIRED');
     const input = { from: owner, to: address(tx.to), data: tx.data, value: toBeHex(uint(tx.value)) };
-    await this.provider.send('eth_call', [input, 'latest']);
-    const gas = BigInt(String(await this.provider.send('eth_estimateGas', [input])));
+    await this.provider.send('eth_call', [input, block.number]);
+    const gas = BigInt(String(await this.provider.send('eth_estimateGas', [input, block.number])));
+    await this.assertCanonical(block);
     if (gas >= BigInt(block.gasLimit)) throw new LaunchMarketError('TRANSACTION_GAS_EXCEEDS_BLOCK_LIMIT');
     return gas.toString();
   }

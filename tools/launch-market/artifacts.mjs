@@ -15,6 +15,7 @@ const names = [
   'AlphaForgeStrategyVaultFactory',
   'AlphaForgeStockReserve',
   'AlphaForgeStrategyTestStock',
+  'AlphaForgeStrategyReferenceFeed',
 ];
 const write = process.argv.slice(2).includes('--write');
 if (process.argv.slice(2).some((arg) => arg !== '--write')) throw new Error('Unsupported artifact argument');

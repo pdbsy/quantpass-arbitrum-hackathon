@@ -112,18 +112,26 @@ export async function deployLocalMarket(rpcUrl = 'http://127.0.0.1:8547') {
       million,
       owner,
     ]);
-    const feed = await deploy('AlphaForgeTestStock', 'AlphaForgeTestReferenceFeed', [
+    const feed = await deploy('AlphaForgeStrategyVault', 'AlphaForgeStrategyReferenceFeed', [
       owner,
       id('TEST_ONLY:' + strategy),
     ]);
     const time = Number((await provider.getBlock('latest'))!.timestamp);
     await execute(feed, 'update', 100n * 10n ** 6n, time, id('local deterministic test reference'));
+    await execute(
+      feed,
+      'updateSession',
+      time,
+      time + 3600,
+      time,
+      id('isolated local TEST_ONLY calendar window'),
+    );
     const venue = await deploy('AlphaForgeStrategyVault', 'AlphaForgeStockReserve', [
       owner,
       usdc.target,
       stock.target,
       feed.target,
-      300,
+      60,
     ]);
     await execute(stock, 'approve', venue.target, million / 2n);
     await execute(venue, 'fund', stock.target, million / 2n);
@@ -142,7 +150,7 @@ export async function deployLocalMarket(rpcUrl = 'http://127.0.0.1:8547') {
     venues[i]!.target,
     feeds[i]!.target,
     id('All in ' + (i === 0 ? 'TSLA' : 'AMZN')),
-    300,
+    60,
   ]);
   const vaultFactory = await deploy('AlphaForgeStrategyVault', 'AlphaForgeStrategyVaultFactory', [configs]);
   const amznPool = String(await factory.getFunction('getPool')(amzn.target));
