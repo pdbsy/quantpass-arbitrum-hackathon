@@ -1,0 +1,45 @@
+name: Fair Launch targeted checks
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - 'gh-readonly-queue/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fair-launch-local-evm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+      - run: node tools/bootstrap-ci-npm.mjs
+      - run: node tools/check-environment.mjs --ci
+      - run: npm ci --ignore-scripts
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version: '3.12.9'
+          architecture: x64
+          check-latest: false
+      - name: Install existing exact contract toolchain and derive verified dependency subset
+        run: |
+          python3.12 contracts/script/bootstrap.py
+          python3.12 -c "import runpy; runpy.run_path('contracts/script/pinned_dependency.py')['prepare']()"
+      - name: Test only new market and strategy Vault paths
+        working-directory: contracts
+        run: ../.checks/af-chain01/toolchain/bin/forge test --offline --match-path 'test/{market,launch-vault}/*.t.sol'
+      - run: npm run fair-launch:artifacts
+      - run: npm run test:fair-launch:artifacts
+      - run: npm run typecheck
+      - run: npm run test:fair-launch
+      - run: npm run build:web
+      - run: node tools/launch-market/bootstrap-anvil.mjs
+      - run: npm run test:fair-launch:evm
