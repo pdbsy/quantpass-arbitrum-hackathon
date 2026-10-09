@@ -9,6 +9,8 @@ import {
 } from '../../../../packages/launch-market/src/types.ts';
 import { registerLaunchMarketRoutes } from './routes.ts';
 import type { MarketEventIndexer } from './indexer.ts';
+import { StockReferenceHistory, type StockHistoryRange } from '../stock-reference/history.ts';
+import { StockReferenceQuotes } from '../stock-reference/quotes.ts';
 
 export interface LaunchMarketServerOptions {
   readonly service: LaunchMarketService;
@@ -19,6 +21,9 @@ export interface LaunchMarketServerOptions {
   readonly origin: string;
   readonly indexer?: MarketEventIndexer;
   readonly webRoot?: string;
+  /** Read-only UI references, independent of the trusted stock execution/valuation adapter. */
+  readonly stockHistory?: Pick<StockReferenceHistory, 'read'>;
+  readonly stockQuotes?: Pick<StockReferenceQuotes, 'read'>;
   /** Qualifies the concrete RPC reader and external credential/feed adapters before serving. */
   readonly initialize?: () => Promise<void>;
   /** Release concrete provider/feed resources. The builder owns service and indexer shutdown. */
@@ -79,6 +84,37 @@ export async function buildLaunchMarketServer(
     return reply.code(503).send({ error: { code: 'MARKET_UNAVAILABLE' } });
   });
   registerLaunchMarketRoutes(app, options);
+  const stockHistory = options.stockHistory ?? new StockReferenceHistory();
+  const stockQuotes = options.stockQuotes ?? new StockReferenceQuotes();
+  const symbols = ['TSLA', 'AMZN'];
+  app.get<{ Querystring: { symbol: 'TSLA' | 'AMZN'; range?: StockHistoryRange } }>(
+    '/api/stock-reference/candles',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['symbol'],
+          properties: { symbol: { enum: symbols }, range: { enum: ['1D', '1W', '1M', '3M', '1Y'] } },
+        },
+      },
+    },
+    async (request) => stockHistory.read(request.query.symbol, request.query.range ?? '1Y'),
+  );
+  app.get<{ Querystring: { symbol: 'TSLA' | 'AMZN' } }>(
+    '/api/stock-reference/quote',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['symbol'],
+          properties: { symbol: { enum: symbols } },
+        },
+      },
+    },
+    async (request) => stockQuotes.read(request.query.symbol),
+  );
   app.get('/health', async () => ({
     ok:
       options.service.config().deployment === 'NOT_DEPLOYED' ||

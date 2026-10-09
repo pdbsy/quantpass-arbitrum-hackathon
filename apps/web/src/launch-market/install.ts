@@ -1,19 +1,41 @@
 import type { Eip1193Provider } from '../chain-wallet.ts';
 import { LaunchMarketClient } from './client.ts';
 import { MarketActivityClient, renderActivity } from './activity.ts';
-import { inputRaw } from './presentation.ts';
-import type { MarketOperation, PaymentAsset, StrategyId } from './model.ts';
+import { actionable, inputRaw } from './presentation.ts';
+import type { LaunchClientState, MarketOperation, PaymentAsset, StrategyId } from './model.ts';
 import {
   renderAccount,
   renderClaim,
   renderMarket,
   renderTrade,
+  renderQuote,
+  renderTransaction,
   renderVaults,
   type OrderForm,
 } from './shell.ts';
 
 export interface LaunchProductHost {
-  homeHtml?: string;
+  originalMarketLayout?: boolean;
+  launchState?: LaunchClientState;
+  launchForms?: Record<StrategyId, OrderForm>;
+  passMarket?: {
+    actionable(strategy: StrategyId, operation: MarketOperation, asset: PaymentAsset): boolean;
+    quoteHtml(): string;
+    transactionHtml(): string;
+    candles(
+      id: string,
+      range: string,
+    ): readonly {
+      time: number;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      volume: number;
+      quoteVolume: number;
+    }[];
+    metrics(id: string): Readonly<Record<string, number | null>>;
+  };
   pages: {
     market: () => string;
     account: (tab: string) => string;
@@ -45,33 +67,87 @@ export async function installLaunchMarket(
     },
     AMZN: { operation: 'BUY', asset: 'ETH', amount: '0.01', slippageBps: 100 },
   };
-  host.pages.market = () => renderMarket(client.state);
-  host.pages.trade = (id) => {
-    const strategy = id.toUpperCase();
-    if (strategy !== 'TSLA' && strategy !== 'AMZN')
-      return '<div class="wrap inner-page"><h1>Choose a strategy.</h1><p>This market includes All in TSLA and All in AMZN.</p><a class="text-link" href="#/market">Explore strategies ↗</a></div>';
-    return `${renderTrade(client.state, strategy, forms[strategy])}${renderActivity(activity.state[strategy], client.state.config?.deployment === 'CONFIGURED', client.state.config?.manifest?.strategies[strategy].pass)}`;
+  if (!host.originalMarketLayout) {
+    host.pages.market = () => renderMarket(client.state);
+    host.pages.trade = (id) => {
+      const strategy = id.toUpperCase();
+      if (strategy !== 'TSLA' && strategy !== 'AMZN')
+        return '<div class="wrap inner-page"><h1>Choose a strategy.</h1><p>This market includes All in TSLA and All in AMZN.</p><a class="text-link" href="#/market">Explore strategies ↗</a></div>';
+      return `${renderTrade(client.state, strategy, forms[strategy])}${renderActivity(activity.state[strategy], client.state.config?.deployment === 'CONFIGURED', client.state.config?.manifest?.strategies[strategy].pass)}`;
+    };
+    host.pages.account = (tab) =>
+      ['saved', 'notes', 'settings'].includes(tab)
+        ? localAccount(tab)
+        : tab === 'claim'
+          ? renderClaim(client.state)
+          : tab === 'vaults'
+            ? renderVaults(client.state)
+            : renderAccount(client.state);
+    host.pages.rankings = () =>
+      `<div class="wrap inner-page"><span class="section-label">ONCHAIN TEST MARKET</span><h1>Market activity</h1><p>Strategy performance is separate from PASS market prices. Verified trade history will appear as chain events are indexed.</p>${renderMarket(client.state)}</div>`;
+  }
+  host.launchState = client.state;
+  host.launchForms = forms;
+  host.passMarket = {
+    actionable: (strategy, operation, asset) => actionable(client.state, strategy, operation, asset),
+    quoteHtml: () => renderQuote(client.state),
+    transactionHtml: () => renderTransaction(client.state),
+    candles: (id, range) => {
+      const strategy = id.toUpperCase();
+      if (strategy !== 'TSLA' && strategy !== 'AMZN') return [];
+      const seconds = { '24h': 86400, '7d': 604800, '30d': 2592000, '90d': 7776000 }[range];
+      const rows = activity.state[strategy].candles;
+      const latest = rows.at(-1)?.timestamp;
+      // Numbers here are for chart coordinates only. Settlement remains integer base units.
+      return rows
+        .filter((row) => !seconds || latest === undefined || row.timestamp > latest - seconds)
+        .map((row) => ({
+          time: row.timestamp * 1000,
+          open: Number(row.openRaw) / 10000,
+          high: Number(row.highRaw) / 10000,
+          low: Number(row.lowRaw) / 10000,
+          close: Number(row.closeRaw) / 10000,
+          volume: Number(row.volumeUsdcRaw) / 1000000,
+          quoteVolume: Number(row.volumeUsdcRaw) / 10000,
+        }));
+    },
+    metrics: (id) => {
+      const strategy = id.toUpperCase();
+      if (strategy !== 'TSLA' && strategy !== 'AMZN') return {};
+      const market = client.state.snapshot?.markets[strategy];
+      if (!market) return {};
+      const pass = BigInt(market.reservePassRaw);
+      const price =
+        market.state === 'LAUNCHED' && pass > 0n
+          ? Number((BigInt(market.reserveUsdcRaw) * 10n ** 18n) / pass) / 10000
+          : Number(market.mintPriceUsdcRaw) / 10000;
+      return {
+        price,
+        supply: Number(market.totalSupplyRaw) / 1e18,
+        liquidity: market.state === 'LAUNCHED' ? (Number(market.reserveUsdcRaw) / 10000) * 2 : null,
+        // The bounded chart response is not evidence of complete daily turnover or holder totals.
+        volume: null,
+        change: null,
+        holders: null,
+        marketCap: null,
+      };
+    },
   };
-  host.pages.account = (tab) =>
-    ['saved', 'notes', 'settings'].includes(tab)
-      ? localAccount(tab)
-      : tab === 'claim'
-        ? renderClaim(client.state)
-        : tab === 'vaults'
-          ? renderVaults(client.state)
-          : renderAccount(client.state);
-  host.pages.rankings = () =>
-    `<div class="wrap inner-page"><span class="section-label">ONCHAIN TEST MARKET</span><h1>Market activity</h1><p>Strategy performance is separate from PASS market prices. Verified trade history will appear as chain events are indexed.</p>${renderMarket(client.state)}</div>`;
-  if (typeof host.homeHtml === 'string')
-    host.homeHtml =
-      '<section class="hero wrap"><div class="hero-copy"><div class="eyebrow">MAKE IDEAS. FORGE STRATEGIES.</div><h1>Two strategies.<br>One shared market.<br><span class="ink">All on chain.</span></h1><p>All in TSLA begins with a Fair Launch. All in AMZN trades in its existing pool. Hold PASS, fund your own Vault and settle with native test ETH or AF-USDC.</p><a class="primary-btn" href="#/market">Explore the market ↗</a><a class="text-link" href="#/account/claim">Free AF-USDC ↗</a></div></section>';
   const status = document.querySelector('.topline-status');
   if (status) status.textContent = 'Robinhood Chain Testnet · Test assets';
   const footer = document.querySelector('.footer-bottom > span');
-  if (footer) footer.textContent = 'On-chain test assets · Wallet-authorized settlement';
+  if (footer)
+    footer.textContent =
+      client.state.config?.deployment === 'CONFIGURED'
+        ? 'On-chain test assets · Wallet-authorized settlement'
+        : 'Testnet market · Asset contracts not deployed';
   for (const anchor of document.querySelectorAll<HTMLAnchorElement>('[data-nav="trade"]'))
     anchor.href = '#/trade/tsla';
-  const render = () => host.app.render({ preserve: true });
+  const render = () => {
+    host.launchState = client.state;
+    host.launchForms = forms;
+    host.app.render({ preserve: true });
+  };
   activity.subscribe(render);
   const activeTrade = () => {
     const route = location.hash.split('/');
@@ -279,14 +355,17 @@ export async function installLaunchMarket(
       });
     };
   }
-  const polling = window.setInterval(() => {
-    void run(() => client.refresh());
-    activity.requestRefresh();
-  }, 5000);
+  const polling =
+    client.state.config?.deployment === 'CONFIGURED'
+      ? window.setInterval(() => {
+          void run(() => client.refresh());
+          activity.requestRefresh();
+        }, 5000)
+      : null;
   window.addEventListener(
     'pagehide',
     () => {
-      clearInterval(polling);
+      if (polling !== null) clearInterval(polling);
       eventStream?.close();
       activity.dispose();
     },

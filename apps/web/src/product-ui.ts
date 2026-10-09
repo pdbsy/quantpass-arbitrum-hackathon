@@ -5,6 +5,7 @@ import './kline-hover.css';
 import './wallet-account.css';
 import './launch-market/styles.css';
 import { installLaunchMarket } from './launch-market/install.ts';
+import { installStockHistory, type StockHistoryHost } from './stock-history.ts';
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
 import { createM3BrowserRuntime, type M3BrowserDeploymentConfig } from './m3-browser-runtime.ts';
@@ -28,7 +29,8 @@ import {
   type M3PassTransferReview,
 } from './m3-product-runtime.ts';
 import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
-interface Prototype extends CandleChartHost {
+interface Prototype extends CandleChartHost, StockHistoryHost {
+  originalMarketLayout?: boolean;
   strategies: { id: string; name: string }[];
   pages: { market: () => string; account: (tab: string) => string; trade: (id: string) => string };
   app: {
@@ -117,7 +119,10 @@ function hydrate(root: ParentNode): void {
 }
 hydrate(document);
 const footerNote = document.querySelector('.footer-bottom > span');
-if (footerNote) footerNote.textContent = 'Simulated trading · Testnet preview';
+if (footerNote)
+  footerNote.textContent = AF.originalMarketLayout
+    ? 'Testnet market · Asset contracts not deployed'
+    : 'Simulated trading · Testnet preview';
 new MutationObserver((records) => {
   for (const record of records)
     for (const node of record.addedNodes) if (node instanceof Element) hydrate(node);
@@ -218,21 +223,24 @@ function workspace(id: string): string {
   return `<div class="wrap terminal-page"><header class="terminal-heading"><div><span class="section-label">${esc(item.scope)} / LOCAL SIMULATION</span><h1>${esc(item.name)}</h1><p>${esc(item.strategyId)} · ${esc(item.description)}</p></div></header><p>Test access and ledger simulation only. No market prices, yield or strategy performance are supplied by this API.</p>${detail ? `<p>Execution: ${esc(detail.capabilities?.execution ?? 'Unavailable')} · association ${esc(detail.accountStrategy?.status ?? 'Unavailable')}</p>` : ''}${!vault ? `<button class="primary-btn" data-product-claim="${esc(id)}" ${s.user && ['READY', 'EMPTY'].includes(s.phase) && !s.pending ? '' : 'disabled'}>Claim ${esc(item.testPasses)} test Pass ↗</button>` : !v ? '<p>LOADING selected vault…</p>' : `<section class="sketch-box"><h2>Workspace · ${esc(v.ownerId)}</h2><p>${esc(v.vaultId)} · <strong>${esc(v.status)}</strong> · revision ${v.revision}</p>${v.status === 'stopping' ? '<p class="dialog-notice">Stopping — waiting for open orders or positions to settle. Stop is not complete.</p>' : ''}${balances(v)}<div class="inline-actions">${button('deposit', 'Add test funds')}${button('allocate', 'Allocate')}${button('deallocate', 'Deallocate')}${button('start', 'Start simulation')}${button('stop', 'Stop')}</div><h3>Simulation controls</h3><div class="inline-actions">${button('reserveBuy', 'Reserve buy')}${button('fillBuy', 'Fill buy')}${button('cancelOrder', 'Cancel order')}${button('markPosition', 'Mark position')}${button('settlePosition', 'Settle position')}</div><h3>Withdrawal queue</h3><div class="inline-actions">${button('requestWithdrawal', 'Request withdrawal')}${button('confirmWithdrawal', 'Confirm withdrawal')}${button('cancelWithdrawal', 'Cancel withdrawal')}</div>${v.pendingOperations.length ? `<div class="receipt-lines">${v.pendingOperations.map((op) => `<div><span>${esc(op.kind)} · ${esc(op.operationId)} · ${esc(op.status)}</span><span>${esc(units(op.amount))}</span></div>`).join('')}</div>` : '<p>No pending orders or withdrawals.</p>'}<h3>API audit receipts</h3>${s.audit.length ? `<div class="receipt-lines">${s.audit.map((e) => `<div><span>${e.revision} · ${esc(e.commandType)} · ${esc(e.actorId)}</span><span>${esc(e.commandId)}</span></div>`).join('')}</div>` : '<p>No command receipts yet.</p>'}</section>`}<p><a href="#/account/funds" class="text-link">View account funds ↗</a></p></div>`;
 }
 const original = { ...AF.pages };
-AF.pages.market = () => catalogue() + original.market();
-const productPages = extendM3ProductPages(
-  {
-    account: (tab) => account() + original.account(tab),
-    trade: (id) => (AF.strategies.some((s) => s.id === id) ? original.trade(id) : workspace(id)),
-  },
-  {
-    accountId: () => adapter.snapshot.user,
-    contentProvenance: (id) =>
-      AF.strategies.some((strategy) => strategy.id === id) ? 'FIXTURE' : 'LOCAL SIMULATION',
-    ...(onchainRuntime ? { chain: () => onchainRuntime.snapshot } : {}),
-  },
-);
+if (!AF.originalMarketLayout) AF.pages.market = () => catalogue() + original.market();
+const productPages = AF.originalMarketLayout
+  ? { account: original.account, trade: original.trade }
+  : extendM3ProductPages(
+      {
+        account: (tab) => account() + original.account(tab),
+        trade: (id) => (AF.strategies.some((s) => s.id === id) ? original.trade(id) : workspace(id)),
+      },
+      {
+        accountId: () => adapter.snapshot.user,
+        contentProvenance: (id) =>
+          AF.strategies.some((strategy) => strategy.id === id) ? 'FIXTURE' : 'LOCAL SIMULATION',
+        ...(onchainRuntime ? { chain: () => onchainRuntime.snapshot } : {}),
+      },
+    );
 AF.pages.account = productPages.account;
 AF.pages.trade = productPages.trade;
+if (AF.originalMarketLayout) installStockHistory(AF);
 function render(): void {
   AF.app.render({ preserve: true });
 }
