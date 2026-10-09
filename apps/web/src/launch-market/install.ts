@@ -1,5 +1,6 @@
 import type { Eip1193Provider } from '../chain-wallet.ts';
 import { LaunchMarketClient } from './client.ts';
+import { MarketActivityClient, renderActivity } from './activity.ts';
 import { inputRaw } from './presentation.ts';
 import type { MarketOperation, PaymentAsset, StrategyId } from './model.ts';
 import {
@@ -34,21 +35,22 @@ export async function installLaunchMarket(
   localAccount = host.pages.account,
 ): Promise<LaunchMarketClient | null> {
   if (!(await client.initialize())) return null;
+  const activity = new MarketActivityClient({ enabled: client.state.config?.deployment === 'CONFIGURED' });
   const forms: Record<StrategyId, OrderForm> = {
     TSLA: {
       operation: client.state.snapshot?.markets.TSLA.state === 'LAUNCHED' ? 'BUY' : 'MINT',
       asset: 'ETH',
       amount: client.state.snapshot?.markets.TSLA.state === 'LAUNCHED' ? '0.01' : '10',
-      slippageBps: 50,
+      slippageBps: 100,
     },
-    AMZN: { operation: 'BUY', asset: 'ETH', amount: '0.01', slippageBps: 50 },
+    AMZN: { operation: 'BUY', asset: 'ETH', amount: '0.01', slippageBps: 100 },
   };
   host.pages.market = () => renderMarket(client.state);
   host.pages.trade = (id) => {
     const strategy = id.toUpperCase();
     if (strategy !== 'TSLA' && strategy !== 'AMZN')
       return '<div class="wrap inner-page"><h1>Choose a strategy.</h1><p>This market includes All in TSLA and All in AMZN.</p><a class="text-link" href="#/market">Explore strategies ↗</a></div>';
-    return renderTrade(client.state, strategy, forms[strategy]);
+    return `${renderTrade(client.state, strategy, forms[strategy])}${renderActivity(activity.state[strategy], client.state.config?.deployment === 'CONFIGURED', client.state.config?.manifest?.strategies[strategy].pass)}`;
   };
   host.pages.account = (tab) =>
     ['saved', 'notes', 'settings'].includes(tab)
@@ -70,6 +72,13 @@ export async function installLaunchMarket(
   for (const anchor of document.querySelectorAll<HTMLAnchorElement>('[data-nav="trade"]'))
     anchor.href = '#/trade/tsla';
   const render = () => host.app.render({ preserve: true });
+  activity.subscribe(render);
+  const activeTrade = () => {
+    const route = location.hash.split('/');
+    const id = route[1] === 'trade' ? route[2]?.toUpperCase() : null;
+    void activity.setActive(id === 'TSLA' || id === 'AMZN' ? id : null);
+  };
+  activeTrade();
   const run = async (action: () => Promise<void>) => {
     try {
       await action();
@@ -81,9 +90,9 @@ export async function installLaunchMarket(
   client.subscribe((state) => {
     const next = state.snapshot?.markets.TSLA.state;
     if (next === 'LAUNCHED' && previousTslaState !== 'LAUNCHED')
-      forms.TSLA = { operation: 'BUY', asset: 'ETH', amount: '0.01', slippageBps: 50 };
+      forms.TSLA = { operation: 'BUY', asset: 'ETH', amount: '0.01', slippageBps: 100 };
     if (next && next !== 'LAUNCHED' && previousTslaState === 'LAUNCHED')
-      forms.TSLA = { operation: 'MINT', asset: 'ETH', amount: '10', slippageBps: 50 };
+      forms.TSLA = { operation: 'MINT', asset: 'ETH', amount: '10', slippageBps: 100 };
     previousTslaState = next;
     render();
   });
@@ -130,7 +139,7 @@ export async function installLaunchMarket(
           operation: 'CLAIM',
           asset: 'AF_USDC',
           amountRaw: '0',
-          slippageBps: 50,
+          slippageBps: 100,
         }),
       );
     else if (
@@ -145,7 +154,7 @@ export async function installLaunchMarket(
           operation: target.hasAttribute('data-launch-create-vault') ? 'CREATE_VAULT' : 'CLOSE',
           asset: 'AF_USDC',
           amountRaw: '0',
-          slippageBps: 50,
+          slippageBps: 100,
         }),
       );
     } else if (target.hasAttribute('data-launch-side')) {
@@ -230,7 +239,7 @@ export async function installLaunchMarket(
           operation,
           asset: 'AF_USDC',
           amountRaw: inputRaw(operation, 'AF_USDC', amount),
-          slippageBps: 50,
+          slippageBps: 100,
         }),
       );
       return;
@@ -253,6 +262,7 @@ export async function installLaunchMarket(
   });
   window.addEventListener('hashchange', () => {
     client.clearQuote();
+    activeTrade();
   });
 
   let eventStream: EventSource | null = null;
@@ -262,17 +272,23 @@ export async function installLaunchMarket(
       void run(() => client.refresh());
     };
     eventStream.onmessage = (event) => {
-      void run(() => client.stream(JSON.parse(String(event.data))));
+      void run(async () => {
+        const update = JSON.parse(String(event.data));
+        activity.requestRefresh(update.type === 'REORG');
+        await client.stream(update);
+      });
     };
   }
   const polling = window.setInterval(() => {
     void run(() => client.refresh());
+    activity.requestRefresh();
   }, 5000);
   window.addEventListener(
     'pagehide',
     () => {
       clearInterval(polling);
       eventStream?.close();
+      activity.dispose();
     },
     { once: true },
   );

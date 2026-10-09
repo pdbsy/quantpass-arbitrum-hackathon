@@ -4,7 +4,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import { fixture, OWNER, HASH } from './helpers/launch-market-ui-fixture.ts';
+import { fixture, OWNER, HASH, NOW, location } from './helpers/launch-market-ui-fixture.ts';
 import { marketInterfaces } from '../packages/launch-market/src/abi.ts';
 import type { MarketQuote } from '../packages/launch-market/src/types.ts';
 
@@ -44,6 +44,37 @@ test(
         if (url.pathname === '/api/launch-market/events') {
           response.writeHead(200, { 'content-type': 'text/event-stream' });
           response.flushHeaders();
+          return;
+        }
+        for (const name of ['history', 'candles', 'holders'] as const) {
+          if (url.pathname !== `/api/launch-market/${name}`) continue;
+          const records = {
+            history: [
+              {
+                name: 'Swap',
+                emitter: f.state.config.manifest!.strategies.AMZN.pool,
+                strategyId: 'AMZN',
+                timestamp: NOW,
+                fields: { buy: true, amountIn: '10000000', amountOut: '20000000000000000000', fee: '30000' },
+                location: { ...location(), transactionHash: HASH, logIndex: 1 },
+              },
+            ],
+            candles: [
+              {
+                timestamp: NOW,
+                openRaw: '500000',
+                highRaw: '520000',
+                lowRaw: '490000',
+                closeRaw: '510000',
+                volumeUsdcRaw: '10000000',
+              },
+            ],
+            holders: [{ owner: OWNER, balanceRaw: '20000000000000000000' }],
+          };
+          response.setHeader('content-type', 'application/json');
+          response.end(
+            JSON.stringify({ [name]: records[name], location: location(), indexer: { state: 'HEALTHY' } }),
+          );
           return;
         }
         if (url.pathname.startsWith('/api/launch-market/')) {
@@ -135,6 +166,10 @@ test(
         await page.goto(`http://127.0.0.1:${port}/#/trade/amzn`);
         await page.locator('[data-launch-order]').waitFor();
         assert.equal(await page.locator('#launch-payment').inputValue(), 'ETH');
+        assert.equal(await page.locator('#launch-slippage').inputValue(), '100');
+        await page.locator('.launch-candles').waitFor();
+        assert.match(await page.locator('[data-launch-activity]').innerText(), /Volume 10 AF-USDC/);
+        assert.match(await page.locator('[data-launch-activity]').innerText(), /Buy · 20 PASS · 10 AF-USDC/);
         await page.locator('[data-launch-connect]').click();
         await page.locator('#app-dialog').waitFor({ state: 'visible' });
         assert.match(await page.locator('#app-dialog').innerText(), /Browser Wallet/);

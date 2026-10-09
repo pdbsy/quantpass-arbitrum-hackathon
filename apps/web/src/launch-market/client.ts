@@ -93,10 +93,17 @@ export function createLaunchApi(fetcher: typeof fetch = fetch): LaunchApi {
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) csrf = null;
       const result = (await response.json().catch(() => null)) as { error?: unknown; code?: unknown } | null;
-      const code =
-        typeof result?.code === 'string'
-          ? result.code
-          : typeof result?.error === 'string'
+      const nested =
+        result?.error && typeof result.error === 'object' && 'code' in result.error
+          ? result.error.code
+          : null;
+      const validCode = (value: unknown): value is string =>
+        typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(value);
+      const code = validCode(result?.code)
+        ? result.code
+        : validCode(nested)
+          ? nested
+          : validCode(result?.error)
             ? result.error
             : 'MARKET_API_UNAVAILABLE';
       throw new MarketApiError(code, response.status);
@@ -277,6 +284,9 @@ export class LaunchMarketClient {
       ALREADY_CLAIMED: 'This verified account has already claimed its AF-USDC.',
       CLAIM_LIMIT_REACHED: 'All 100 claims have been allocated.',
       INSUFFICIENT_CONVERSION_RESERVE: 'This ETH conversion path has insufficient liquidity. Choose AF-USDC.',
+      ETH_PATH_UNAVAILABLE: 'This ETH conversion path is currently unavailable. Choose AF-USDC.',
+      CLAIM_RECOVERY_REQUIRED:
+        'Your previous claim needs chain confirmation or recovery before another claim can be reviewed.',
       QUOTE_REQUEST_MISMATCH: 'The quote does not match your reviewed request. Request a new quote.',
       QUOTE_TRANSACTION_MISMATCH: 'The contract transaction does not match the quote. Request a new quote.',
       MARKET_ACTION_UNAVAILABLE:

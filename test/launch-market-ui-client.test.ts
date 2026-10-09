@@ -240,6 +240,20 @@ test('same-origin mutations acquire session CSRF without asserting a browser sup
   assert.equal(calls[1]!.options!.credentials, 'same-origin');
 });
 
+test('bounded nested production API error codes remain available for claim and ETH recovery messages', async () => {
+  for (const code of ['CLAIM_RECOVERY_REQUIRED', 'ETH_PATH_UNAVAILABLE']) {
+    const api = createLaunchApi(async () => Response.json({ error: { code } }, { status: 409 }));
+    await assert.rejects(
+      api('/api/launch-market/snapshot'),
+      (error: unknown) => error instanceof Error && error.message === code,
+    );
+  }
+  for (const code of ['x'.repeat(1000), '<script>alert(1)</script>']) {
+    const api = createLaunchApi(async () => Response.json({ error: { code } }, { status: 503 }));
+    await assert.rejects(api('/api/launch-market/snapshot'), /MARKET_API_UNAVAILABLE/);
+  }
+});
+
 test('an API read failure cannot release the outstanding wallet confirmation lock', async () => {
   const { client, provider } = await connected();
   const response = Promise.withResolvers<unknown>();

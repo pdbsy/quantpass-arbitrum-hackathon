@@ -119,7 +119,73 @@
 .launch-market .launch-executor p {
   margin: 16px 0;
 }
+.launch-activity {
+  margin-top: 20px;
+  margin-bottom: 48px;
+}
+.launch-activity .sketch-box {
+  padding: 24px;
+  margin-top: 20px;
+  min-width: 0;
+}
+.launch-activity .launch-candles {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  margin: 24px 0;
+}
+.launch-activity .launch-candles text {
+  fill: var(--muted, #746f62);
+  font-size: 10px;
+}
+.launch-activity .launch-chart-axis {
+  stroke: var(--line, #c7c0b3);
+}
+.launch-activity .launch-activity-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr);
+  gap: 20px;
+}
+.launch-activity .launch-history-scroll {
+  max-height: 450px;
+  overflow: auto;
+  margin: 20px 0;
+}
+.launch-activity table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.launch-activity td,
+.launch-activity th {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid var(--line, #c7c0b3);
+  overflow-wrap: anywhere;
+  max-width: 200px;
+}
+.launch-activity td .small {
+  display: block;
+  margin-top: 6px;
+}
+.launch-activity .launch-holder-list {
+  max-height: 450px;
+  overflow: auto;
+  padding-left: 24px;
+  margin: 20px 0;
+  font-size: 13px;
+}
+.launch-activity .launch-holder-list li {
+  padding: 10px 0;
+}
+.launch-activity .launch-holder-list span {
+  display: block;
+  margin-top: 6px;
+}
 @media (max-width: 720px) {
+  .launch-activity .launch-activity-grid {
+    grid-template-columns: 1fr;
+  }
   .launch-market .launch-terminal,
   .launch-market .launch-market-grid {
     grid-template-columns: 1fr;
