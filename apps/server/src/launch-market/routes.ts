@@ -185,7 +185,8 @@ export function registerLaunchMarketRoutes(app: FastifyInstance, options: Launch
     });
     request.raw.once('aborted', () => response.end());
   });
-  app.addHook('onClose', async () => {
+  // Fastify waits for open connections before onClose. End hijacked SSE sockets before that wait.
+  app.addHook('preClose', async () => {
     for (const client of clients) client.end();
     clients.clear();
   });

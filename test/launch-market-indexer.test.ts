@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createServer } from 'node:net';
 import { Interface, Wallet, ZeroAddress } from 'ethers';
 import { MarketEventIndexer, marketEventInterface } from '../apps/server/src/launch-market/indexer.ts';
 import { buildLaunchMarketServer } from '../apps/server/src/launch-market/server.ts';
@@ -448,3 +449,52 @@ test('dedicated server reports NOT_DEPLOYED and enforces host, origin, strict in
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test(
+  'server shutdown ends a real open SSE connection before Fastify drains connections',
+  { timeout: 3000 },
+  async () => {
+    const f = fixture();
+    const port = await new Promise<number>((done, reject) => {
+      const listener = createServer();
+      listener.once('error', reject);
+      listener.listen(0, '127.0.0.1', () => {
+        const endpoint = listener.address();
+        if (!endpoint || typeof endpoint === 'string') return reject(new Error('NO_LOCAL_PORT'));
+        listener.close((error) => (error ? reject(error) : done(endpoint.port)));
+      });
+    });
+    const origin = 'http://127.0.0.1:' + port;
+    const runtime = await buildLaunchMarketServer({
+      service: f.service,
+      origin,
+      trustedIdentity: () => null,
+    });
+    const controller = new AbortController();
+    let deadline: ReturnType<typeof setTimeout> | null = null;
+    try {
+      await runtime.start('127.0.0.1', port);
+      const response = await fetch(origin + '/api/launch-market/events', { signal: controller.signal });
+      assert.equal(response.status, 200);
+      const reader = response.body!.getReader();
+      assert.equal((await reader.read()).done, false);
+      assert.equal(f.service.broker.connections, 1);
+      const started = performance.now();
+      await Promise.race([
+        runtime.stop(),
+        new Promise<never>((_done, reject) => {
+          deadline = setTimeout(() => reject(new Error('SSE_SHUTDOWN_BLOCKED')), 350);
+        }),
+      ]);
+      assert.ok(performance.now() - started < 350);
+      assert.equal(f.service.broker.connections, 0);
+      assert.equal((await reader.read()).done, true);
+      reader.releaseLock();
+    } finally {
+      if (deadline) clearTimeout(deadline);
+      controller.abort();
+      await runtime.stop();
+      await f.cleanup();
+    }
+  },
+);
