@@ -155,10 +155,6 @@ new MutationObserver((records) => {
   for (const record of records)
     for (const node of record.addedNodes) if (node instanceof Element) hydrate(node);
 }).observe(document.body, { childList: true, subtree: true });
-const status = document.createElement('section');
-status.className = 'wrap local-backend-session';
-status.setAttribute('aria-label', 'Local backend session');
-document.querySelector('main')!.before(status);
 let localError: string | null = null;
 let query = '',
   statusFilter = 'all',
@@ -261,7 +257,7 @@ const productPages = extendM3ProductPages(
     account: (tab) => account() + original.account(tab),
     trade: (id) =>
       AF.strategies.some((s) => s.id === id)
-        ? `<div class="wrap dialog-notice">MOCK / FIXTURE — synthetic charts and separate browser-only Pass exchange. No API vault mapping.</div>${original.trade(id)}`
+        ? original.trade(id)
         : workspace(id),
   },
   {
@@ -275,9 +271,6 @@ const productPages = extendM3ProductPages(
 AF.pages.account = productPages.account;
 AF.pages.trade = productPages.trade;
 function render(): void {
-  const s = adapter.snapshot;
-  const session = productSessionPresentation(s, adapter.mode);
-  status.innerHTML = `<div class="dialog-notice"><div class="inline-actions"><strong data-product-state role="status">${localError ? 'ERROR' : s.phase}</strong><span>API ${esc(s.user ?? 'no session')} · ${esc(session.mode)}</span><button class="text-link" data-product-login="alice" ${s.phase === 'LOADING' ? 'disabled' : ''}>Alice</button><button class="text-link" data-product-login="bob" ${s.phase === 'LOADING' ? 'disabled' : ''}>Bob</button><button class="text-link" data-product-login="derick" ${s.phase === 'LOADING' ? 'disabled' : ''}>Derick</button><button class="text-link" data-product-refresh ${s.phase === 'LOADING' ? 'disabled' : ''}>Refresh API</button>${s.pending && !s.pending.rejection ? `<button class="outline-btn" data-product-retry ${adapter.retryAfterSeconds ? 'disabled' : ''}>Retry original request${adapter.retryAfterSeconds ? ` after ${adapter.retryAfterSeconds}s` : ''}</button>` : ''}${s.pending?.rejection ? '<button class="text-link" data-product-dismiss>Dismiss reviewed rejection</button>' : ''}</div><p data-product-session-hint>${esc(session.hint)}</p>${localError || s.error ? `<p role="alert">${esc(localError ?? s.error)}</p>` : ''}${s.notice ? `<p>${esc(s.notice)}</p>` : ''}${s.pending ? `<p>Unresolved ${esc(s.pending.command.type)} · ${esc(s.pending.command.id)} · reviewed revision ${s.pending.command.expectedRevision}. No new command may be submitted.</p>` : ''}</div>`;
   AF.app.render({ preserve: true });
 }
 async function run(action: () => Promise<void>): Promise<void> {
