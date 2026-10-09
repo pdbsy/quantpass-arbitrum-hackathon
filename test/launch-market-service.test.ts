@@ -404,7 +404,7 @@ test('Mint precision and final inventory are checked before signing; native amou
     const quote = await f.service.quote({ ...mint, asset: 'AF_USDC' }, f.account.id);
     assert.equal(quote.amountInRaw, mint.amountRaw);
     assert.equal(quote.estimatedOutRaw, mint.amountRaw);
-    assert.equal(quote.allowance!.amountRaw, '500000');
+    assert.equal(quote.allowance, null);
     f.chain.current = {
       ...f.chain.current,
       markets: {
