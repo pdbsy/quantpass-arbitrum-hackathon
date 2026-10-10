@@ -2,7 +2,9 @@
 
 **A strategy access market with native ETH trading and isolated user Vaults.**
 
-[Open the app](https://www.ikol.top/alphaforge/) · [Deployment guide](docs/fair-launch/DEPLOYMENT.md) · [Test evidence](docs/fair-launch/TESTING.md) · [Security policy](SECURITY.md)
+[App](https://www.ikol.top/alphaforge/) · [Deployment guide](docs/fair-launch/DEPLOYMENT.md) · [Test evidence](docs/fair-launch/TESTING.md) · [Security policy](SECURITY.md)
+
+The **App** link opens the live AlphaForge website.
 
 AlphaForge connects strategy access rights, a shared on-chain market, and user-controlled capital. Each strategy has a fixed-supply PASS token. Users can subscribe to a new strategy, trade PASS through a common market design, and lock PASS to unlock capacity in their own strategy Vault.
 
@@ -29,6 +31,8 @@ Claim AF-USDC → Mint TSLA / Buy PASS → Hold → Use Vault → Sell PASS → 
 - [Security and asset boundaries](#security-and-asset-boundaries)
 
 ## Two strategies
+
+**For testing only.** All in TSLA and All in AMZN are example strategies used to test issuance, shared-market trading, wallet settlement, and Vault behavior. The developer is not a professional quantitative researcher. These examples are not validated quantitative investment strategies, investment recommendations, or promises of returns. Stock reference charts show the corresponding stocks; they do not establish a validated strategy track record.
 
 | | All in TSLA | All in AMZN |
 | --- | --- | --- |
