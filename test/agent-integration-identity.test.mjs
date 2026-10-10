@@ -59,12 +59,13 @@ function fixture(t, profile = { branch, task: 'AF-M3-CLOSEOUT', title }) {
     sources,
   };
   mkdirSync(join(root, 'docs/management/agents/integrations'), { recursive: true });
-  mkdirSync(join(root, 'tools'));
+  mkdirSync(join(root, 'tools/environment'), { recursive: true });
   for (const name of [
     'agent-identity.mjs',
     'agent-identity-set.mjs',
     'check-agent-identity.mjs',
     'preserved-source-identity.mjs',
+    'environment/policy.mjs',
     'agent-integration-identity.mjs',
   ]) {
     const path = new URL(`../tools/${name}`, import.meta.url);

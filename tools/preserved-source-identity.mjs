@@ -1,5 +1,6 @@
 import { validateCommitSetIdentity } from './agent-identity-set.mjs';
 import { lstatSync } from 'node:fs';
+import { hostedRepositoryMatches, repositoryNamesMatch } from './environment/policy.mjs';
 
 // The user retired the worker-role requirement for this task. Preserve the
 // already authored source objects; this profile grants no merge or chain rights.
@@ -27,10 +28,12 @@ export function verifyPreservedSourceImport(profile, { branch, head, prTitle, pu
     pull &&
     (pull.head?.ref !== branch ||
       pull.head?.sha !== head ||
-      pull.head?.repo?.full_name !== profile.repository ||
+      !repositoryNamesMatch(pull.head?.repo?.full_name, profile.repository) ||
+      !hostedRepositoryMatches(pull.head?.repo?.full_name, pull.head?.repo?.id) ||
       pull.base?.ref !== 'master' ||
       pull.base?.sha !== profile.base ||
-      pull.base?.repo?.full_name !== profile.repository)
+      pull.base?.repo?.full_name !== pull.head?.repo?.full_name ||
+      !hostedRepositoryMatches(pull.base?.repo?.full_name, pull.base?.repo?.id))
   )
     throw new Error('Preserved source import requires canonical same-repository PR context');
 

@@ -2,7 +2,7 @@ import { dirname, resolve } from 'node:path';
 import { realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { readInputs, npmCli, ROOT } from './environment/observe.mjs';
-import { overrideKinds } from './environment/policy.mjs';
+import { hostedRepositoryMatches, overrideKinds, repositoryNamesMatch } from './environment/policy.mjs';
 let stage = 'inputs';
 // Explicit bootstrap, separate from the offline doctor. Hosted ephemeral Node only.
 try {
@@ -11,7 +11,8 @@ try {
     process.argv.length !== 2 ||
     process.env.GITHUB_ACTIONS !== 'true' ||
     process.env.RUNNER_ENVIRONMENT !== 'github-hosted' ||
-    process.env.GITHUB_REPOSITORY !== inputs.supply.repository ||
+    !repositoryNamesMatch(process.env.GITHUB_REPOSITORY, inputs.supply.repository) ||
+    !hostedRepositoryMatches(process.env.GITHUB_REPOSITORY, process.env.GITHUB_REPOSITORY_ID) ||
     process.versions.node !== inputs.node ||
     overrideKinds(process.env).length
   )

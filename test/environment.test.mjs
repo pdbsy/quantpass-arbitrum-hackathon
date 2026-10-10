@@ -11,6 +11,12 @@ import {
   overrideKinds,
   nativePackagesValid,
   CONFIG,
+  CANONICAL_REPOSITORY,
+  HISTORICAL_REPOSITORY,
+  CANONICAL_REPOSITORY_ID,
+  repositoryNamesMatch,
+  hostedRepositoryMatches,
+  repositoryRemoteMatches,
 } from '../tools/environment/policy.mjs';
 import { validateReport, writeReport } from '../tools/environment/report.mjs';
 
@@ -63,6 +69,36 @@ const observation = () => ({
     'legacy-peer-deps': 'false',
   },
   commands: [],
+});
+
+test('repository rename keeps exact historical aliases and binds current hosted identity to its stable id', () => {
+  for (const name of [HISTORICAL_REPOSITORY, CANONICAL_REPOSITORY]) {
+    assert.equal(repositoryNamesMatch(name, HISTORICAL_REPOSITORY), true);
+    assert.equal(hostedRepositoryMatches(name, CANONICAL_REPOSITORY_ID), true);
+    assert.equal(hostedRepositoryMatches(name, String(CANONICAL_REPOSITORY_ID)), true);
+    for (const remote of [
+      `https://github.com/${name}`,
+      `https://github.com/${name}.git`,
+      `git@github.com:${name}.git`,
+    ])
+      assert.equal(repositoryRemoteMatches(remote, HISTORICAL_REPOSITORY), true);
+  }
+  assert.equal(hostedRepositoryMatches(HISTORICAL_REPOSITORY), true);
+  for (const id of [undefined, null, 0, CANONICAL_REPOSITORY_ID + 1, '01359073455'])
+    assert.equal(hostedRepositoryMatches(CANONICAL_REPOSITORY, id), false);
+  for (const name of ['other/Alphaforge', 'pdbsy/other', 'pdbsy/alphaforge', 'pdbsy/Alphaforge.git']) {
+    assert.equal(repositoryNamesMatch(name, HISTORICAL_REPOSITORY), false);
+    assert.equal(hostedRepositoryMatches(name, CANONICAL_REPOSITORY_ID), false);
+    assert.equal(repositoryRemoteMatches(`https://github.com/${name}.git`, HISTORICAL_REPOSITORY), false);
+  }
+  for (const remote of [
+    `https://example.invalid/${CANONICAL_REPOSITORY}.git`,
+    `https://github.com/${CANONICAL_REPOSITORY}.git?redirect=1`,
+    `https://github.com:443/${CANONICAL_REPOSITORY}.git`,
+  ])
+    assert.equal(repositoryRemoteMatches(remote, HISTORICAL_REPOSITORY), false);
+  assert.equal(repositoryNamesMatch(CANONICAL_REPOSITORY, 'other/repo'), false);
+  assert.equal(repositoryRemoteMatches(`https://github.com/${CANONICAL_REPOSITORY}`, 'other/repo'), false);
 });
 
 test('empty and approved overrides stay clean while proxy, mirror and npm overrides are rejected', () => {

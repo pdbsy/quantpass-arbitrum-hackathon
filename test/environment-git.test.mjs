@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fixtureExec } from './helpers/git-fixture.mjs';
 import { gitIdentity } from '../tools/environment/observe.mjs';
+import { CANONICAL_REPOSITORY, CANONICAL_REPOSITORY_ID } from '../tools/environment/policy.mjs';
 
 const repository = 'pdbsy/quantpass-arbitrum-hackathon';
 test('real Git fixtures isolate configuration, normalize CRLF and bind detached PR parents', () => {
@@ -42,6 +43,23 @@ test('real Git fixtures isolate configuration, normalize CRLF and bind detached 
     assert.equal(identity.base, base);
     assert.equal(identity.head, merge);
     assert.equal(identity.historyValid, true);
+    const renamedEvent = {
+      event: 'pull_request',
+      sha: merge,
+      ref: 'refs/pull/9/merge',
+      repository: CANONICAL_REPOSITORY,
+      repositoryId: CANONICAL_REPOSITORY_ID,
+      head,
+      base,
+    };
+    assert.equal(gitIdentity(run, renamedEvent).historyValid, true);
+    for (const change of [
+      { repository: 'foreign/Alphaforge' },
+      { repository: 'pdbsy/other' },
+      { repositoryId: undefined },
+      { repositoryId: CANONICAL_REPOSITORY_ID + 1 },
+    ])
+      assert.equal(gitIdentity(run, { ...renamedEvent, ...change }).historyValid, false);
     assert.equal(
       gitIdentity(run, {
         event: 'pull_request',

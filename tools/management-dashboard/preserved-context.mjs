@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { constants, fstatSync, lstatSync, openSync, readSync, closeSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { FAIR_LAUNCH_IMPORT, verifyPreservedSourceImport } from '../preserved-source-identity.mjs';
+import { hostedRepositoryMatches, repositoryNamesMatch } from '../environment/policy.mjs';
 
 // This snapshot remains evidence for its original source, never for a newer
 // Fair Launch commit. Its original manifest and closure are immutable objects.
@@ -85,10 +86,12 @@ export function preservedManagementContext(environment, baseBranch, recordedBran
     (eventName === 'pull_request' && environment.GITHUB_HEAD_REF === branch);
   if (!assigned || recordedBranch !== PRESERVED_MANAGEMENT_SNAPSHOT.branch) return null;
   requireContext(environment.GITHUB_ACTIONS === 'true' && baseBranch === 'master');
-  requireContext(environment.GITHUB_REPOSITORY === FAIR_LAUNCH_IMPORT.repository);
+  requireContext(repositoryNamesMatch(environment.GITHUB_REPOSITORY, FAIR_LAUNCH_IMPORT.repository));
+  requireContext(hostedRepositoryMatches(environment.GITHUB_REPOSITORY, environment.GITHUB_REPOSITORY_ID));
   requireContext(/^[a-f0-9]{40}$/.test(environment.GITHUB_SHA ?? ''));
   const event = eventPayload(environment.GITHUB_EVENT_PATH);
-  requireContext(event.repository?.full_name === FAIR_LAUNCH_IMPORT.repository);
+  requireContext(event.repository?.full_name === environment.GITHUB_REPOSITORY);
+  requireContext(hostedRepositoryMatches(event.repository.full_name, event.repository.id));
   if (eventName === 'pull_request') {
     const match = /^refs\/pull\/([1-9][0-9]{0,9})\/merge$/.exec(environment.GITHUB_REF ?? '');
     requireContext(match && event.number === Number(match[1]) && environment.GITHUB_BASE_REF === baseBranch);

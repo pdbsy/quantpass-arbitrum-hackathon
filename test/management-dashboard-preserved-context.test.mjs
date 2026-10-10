@@ -9,6 +9,7 @@ import { main as checkDashboard } from '../tools/build-management-dashboard.mjs'
 import { collectRecordedGitState } from '../tools/management-dashboard/sources.mjs';
 import { PRESERVED_MANAGEMENT_SNAPSHOT } from '../tools/management-dashboard/preserved-context.mjs';
 import { FAIR_LAUNCH_IMPORT } from '../tools/preserved-source-identity.mjs';
+import { CANONICAL_REPOSITORY, CANONICAL_REPOSITORY_ID } from '../tools/environment/policy.mjs';
 
 const sourceRoot = fileURLToPath(new URL('../', import.meta.url));
 const git = (root, args, options = {}) =>
@@ -138,6 +139,41 @@ test('canonical Fair Launch PR verifies current merge graph and frozen historica
   await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID', { ...f.environment, GITHUB_SHA: f.head });
   git(f.root, ['update-ref', '-d', 'refs/remotes/pull/47/merge']);
   await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+});
+
+test('renamed Fair Launch push and PR preserve evidence only for the exact repository identity', async (t) => {
+  const f = await fixture(t);
+  f.environment.GITHUB_REPOSITORY = CANONICAL_REPOSITORY;
+  f.environment.GITHUB_REPOSITORY_ID = String(CANONICAL_REPOSITORY_ID);
+  f.event.repository = { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID };
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  assert.deepEqual(await collect(f), f.recorded);
+  await rejects(f, 'RECORDED_GIT_CI_CONTEXT_INVALID', {
+    ...f.environment,
+    GITHUB_REPOSITORY_ID: String(CANONICAL_REPOSITORY_ID + 1),
+  });
+  await pullLayout(f);
+  f.environment.GITHUB_REPOSITORY = CANONICAL_REPOSITORY;
+  f.environment.GITHUB_REPOSITORY_ID = String(CANONICAL_REPOSITORY_ID);
+  f.event.repository = { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID };
+  for (const side of ['head', 'base'])
+    f.event.pull_request[side].repo = { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID };
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  assert.deepEqual(await collect(f), f.recorded);
+  for (const mutation of [
+    (event) => (event.repository.id = CANONICAL_REPOSITORY_ID + 1),
+    (event) => (event.repository.full_name = 'other/Alphaforge'),
+    (event) => (event.pull_request.head.repo.full_name = 'pdbsy/other'),
+    (event) => (event.pull_request.base.repo.full_name = FAIR_LAUNCH_IMPORT.repository),
+    (event) => (event.pull_request.head.repo.id = CANONICAL_REPOSITORY_ID + 1),
+  ]) {
+    const event = structuredClone(f.event);
+    mutation(event);
+    await writeFile(f.eventPath, JSON.stringify(event));
+    const result = await collect(f);
+    assert.equal(result.status, 'DATA_SOURCE_ERROR');
+    assert.equal(result.commit, undefined);
+  }
 });
 
 test('preserved dashboard context rejects forks and altered event, base, source, and record identity', async (t) => {

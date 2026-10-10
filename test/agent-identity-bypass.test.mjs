@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateCommitSetIdentity } from '../tools/agent-identity-set.mjs';
 import { verifyPreservedSourceImport } from '../tools/preserved-source-identity.mjs';
+import { CANONICAL_REPOSITORY, CANONICAL_REPOSITORY_ID } from '../tools/environment/policy.mjs';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -138,6 +139,35 @@ test('assigned source import rejects substituted history and noncanonical PR bin
   fixture.git('commit', '--allow-empty', '-qm', 'different ancestry');
   // Even identical source files cannot substitute for the pinned source commit.
   assert.throws(() => fixture.verify());
+});
+
+test('renamed source import requires the same approved repository on both PR sides', (t) => {
+  const fixture = preservedFixture(t);
+  const pull = {
+    head: {
+      ref: fixture.profile.branch,
+      sha: fixture.source,
+      repo: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+    },
+    base: {
+      ref: 'master',
+      sha: fixture.base,
+      repo: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+    },
+  };
+  assert.deepEqual(fixture.verify({ pull }), { preserved: 1, added: 0 });
+  for (const side of ['head', 'base'])
+    for (const repo of [
+      { full_name: 'other/Alphaforge', id: CANONICAL_REPOSITORY_ID },
+      { full_name: 'pdbsy/other', id: CANONICAL_REPOSITORY_ID },
+      { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID + 1 },
+      { full_name: CANONICAL_REPOSITORY },
+      { full_name: fixture.profile.repository, id: CANONICAL_REPOSITORY_ID },
+    ]) {
+      const changed = structuredClone(pull);
+      changed[side].repo = repo;
+      assert.throws(() => fixture.verify({ pull: changed }), /canonical same-repository PR context/);
+    }
 });
 
 test('source import exception cannot append new worker labels or identity trailers', (t) => {
