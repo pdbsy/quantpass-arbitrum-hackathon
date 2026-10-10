@@ -65,3 +65,47 @@ test('multi-asset strategy form preserves weights, external mode and the price t
   assert.throws(() => parametersFromForm({ ...form, weight: '80', weightB: '30' }));
   assert.throws(() => parametersFromForm({ ...form, strategyMode: 'unknown' }));
 });
+
+test('external JSON targets bind the current run frame and cannot spend beyond eligible weights', async () => {
+  const ui = await import('../apps/web/src/automata-client.ts');
+  assert.ok(ui.externalDecisionFromJson, 'an explicit external JSON submission parser is required');
+  const context = {
+    protocol: 'alphaforge-targets-v1',
+    scope: 'TEST_ONLY',
+    runId: 'run-1',
+    revision: 4,
+    frameSeq: 2,
+    mode: 'external',
+    status: 'running',
+    ready: true,
+    eligibleAssets: ['rwa-a', 'rwa-b'],
+    lastDecision: null,
+  };
+  assert.deepEqual(ui.externalDecisionFromJson('{"rwa-a":3000,"rwa-b":2000}', context, 'signal-1'), {
+    protocol: 'alphaforge-targets-v1',
+    runId: 'run-1',
+    id: 'signal-1',
+    expectedRevision: 4,
+    frameSeq: 2,
+    targets: { 'rwa-a': 3000, 'rwa-b': 2000 },
+  });
+  for (const raw of [
+    '{',
+    '[]',
+    'null',
+    '{"other":100}',
+    '{"rwa-a":10001}',
+    '{"rwa-a":5000,"rwa-b":6000}',
+    '{"rwa-a":1.5}',
+    '{"rwa-a":-1}',
+  ])
+    assert.throws(() => ui.externalDecisionFromJson(raw, context, 'signal-1'));
+  for (const changed of [
+    { ready: false },
+    { mode: 'rebalance' },
+    { scope: 'PRODUCTION' },
+    { lastDecision: { frameSeq: 2 } },
+    { status: 'stopped' },
+  ])
+    assert.throws(() => ui.externalDecisionFromJson('{}', { ...context, ...changed }, 'signal-1'));
+});

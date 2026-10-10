@@ -38,6 +38,12 @@ test('My Account shows one wallet connection and unavailable holdings without ex
   assert.equal((html.match(/<button\b/g) ?? []).length, 1);
   assert.match(html, /ETH balance/);
   assert.match(html, /Pass holdings/);
+  for (const tab of ['passes', 'saved', 'notes', 'funds', 'settings'])
+    assert.match(
+      html,
+      new RegExp(`href="#/account/${tab}"`),
+      'wallet account keeps product sections discoverable',
+    );
   assert.doesNotMatch(html, /LOCAL BALANCE|alice|NOT DEPLOYED|API ACCOUNT|WALLET \/ TESTNET/);
 });
 
@@ -97,10 +103,30 @@ test('page extension preserves the trade page without a chain diagnostics panel'
   const local = pages.trade('core-flow-demo');
   assert.equal(local, '<div>original trade core-flow-demo</div>');
 
-  assert.match(pages.account('funds'), /AlphaForge account · alice/);
+  assert.equal(pages.account('funds'), '<div>original account funds</div>');
   accountId = 'bob';
-  assert.match(pages.account('activity'), /AlphaForge account · bob/);
-  assert.match(pages.account('activity'), /original account activity/);
+  assert.equal(pages.account('activity'), '<div>original account activity</div>');
+});
+
+test('every account subroute preserves its content without the retired diagnostic shell', () => {
+  let chainReads = 0;
+  const pages = extendM3ProductPages(
+    { account: (tab) => `<main>account ${tab}</main>`, trade: () => '' },
+    {
+      accountId: () => 'alice',
+      contentProvenance: () => 'FIXTURE',
+      chain: () => {
+        chainReads++;
+        return undefined;
+      },
+    },
+  );
+  for (const tab of ['saved', 'notes', 'trials', 'funds', 'settings', 'activity']) {
+    assert.equal(pages.account(tab), `<main>account ${tab}</main>`);
+  }
+  assert.equal(chainReads, 0, 'local account content must not acquire wallet authority');
+  assert.match(pages.account('trades'), /Connect Wallet/);
+  assert.equal(chainReads, 1);
 });
 
 test('strategy shell separates fixture content from unavailable Testnet capabilities', () => {
@@ -737,7 +763,7 @@ test('reorged projection permits only owner exit actions backed by live simulati
   assert.match(html, /data-chain-action="close"[^>]*>Close<\/button>/);
 });
 
-test('account diagnostics read fresh onchain state without adding diagnostics to trade', () => {
+test('wallet account reads the current address while local subroutes and trade stay free of diagnostics', () => {
   let health = 'LIVE' as 'LIVE' | 'DEGRADED';
   let walletAddress = '0x1111111111111111111111111111111111111111';
   const pages = extendM3ProductPages(
@@ -766,15 +792,14 @@ test('account diagnostics read fresh onchain state without adding diagnostics to
   );
 
   assert.equal(pages.trade('trend'), '<div>trade trend</div>');
-  assert.doesNotMatch(pages.account('funds'), /INDEXER DEGRADED/);
-  assert.match(pages.account('funds'), new RegExp(walletAddress));
-  assert.match(pages.account('funds'), /INDEXING/);
+  assert.equal(pages.account('funds'), '<div>account funds</div>');
+  assert.match(pages.account('trades'), new RegExp(walletAddress));
   health = 'DEGRADED';
   walletAddress = '0x2222222222222222222222222222222222222222';
   assert.equal(pages.trade('trend'), '<div>trade trend</div>');
-  assert.match(pages.account('funds'), /INDEXER DEGRADED/);
-  assert.match(pages.account('funds'), new RegExp(walletAddress));
-  assert.match(pages.account('funds'), /INJECTED MOCK/);
+  assert.equal(pages.account('funds'), '<div>account funds</div>');
+  assert.match(pages.account('trades'), new RegExp(walletAddress));
+  assert.doesNotMatch(pages.account('trades'), /INDEXER DEGRADED|INDEXING|INJECTED MOCK/);
 });
 
 test('pending transaction evidence never promotes signature or confirmation to product readiness', () => {
@@ -883,10 +908,11 @@ test('unreviewed or cross-chain Vault selector metadata never becomes an actiona
       }),
     },
   );
-  const account = pages.account('funds');
+  const account = renderM3AccountShell({ onchain, vaultSelection: { selected: valid, options } });
   assert.match(account, /data-chain-vault-select/);
   assert.match(account, new RegExp(`value="46630:${vaultA}" selected`));
   assert.doesNotMatch(pages.trade('trend'), /data-chain-vault-select/);
+  assert.equal(pages.account('funds'), '');
 });
 
 test('wallet account preserves zero and wei precision and rejects invalid wallet values', () => {
@@ -963,11 +989,117 @@ test('account connects a visibly mock wallet backed by the demo trading ledger',
   assert.match(html, /Use Pass/);
   assert.match(html, /Frozen \(in use\) 2\.5 · Available 7\.5/);
   assert.match(html, /Allocated 2\.5 USDC/);
-  assert.doesNotMatch(html, /USDC balance|wallet-usdc|9997\.5/);
+  assert.match(html, /Mock USDC · Available funds/);
+  assert.match(html, /9997\.5/);
+  assert.match(html, /href="#\/trade\/trend"/);
+  assert.match(html, /1 mock strategy/);
   assert.match(html, /1 ETH = 2688 USDC/);
   assert.doesNotMatch(html, /Buy or sell Pass/);
   assert.equal((html.match(/<button\b/g) ?? []).length, 1);
   assert.doesNotMatch(pages.trade('trend'), /9965\.68|Mock wallet/);
+});
+
+test('Account invites an explicit Mock Wallet connection without showing local vault funds', () => {
+  const pages = extendM3ProductPages(
+    { account: () => 'DERICK VAULT 5000000 USDT', trade: () => '' },
+    {
+      accountId: () => 'derick',
+      contentProvenance: () => 'FIXTURE',
+      mockWallet: () => undefined,
+    },
+  );
+  const html = pages.account('trades');
+  assert.match(html, /data-wallet-choice="mock"[^>]*>[^]*Connect Mock Wallet/);
+  assert.match(html, /Pass holdings/);
+  assert.match(html, /Ridgeline · Prism · Echo/);
+  assert.match(html, /Choose Browser Wallet/);
+  assert.doesNotMatch(html, /DERICK VAULT|5000000|>2250<|API ACCOUNT/);
+  assert.equal(pages.account('funds'), 'DERICK VAULT 5000000 USDT');
+});
+
+test('Pass Holdings shows a collection of independently allocated mock strategy Passes', () => {
+  const pages = extendM3ProductPages(
+    { account: () => 'API FUNDS', trade: () => '' },
+    {
+      accountId: () => 'alice',
+      contentProvenance: () => 'FIXTURE',
+      mockWallet: () => ({
+        address: '0x000000000000000000000000000000000000de00',
+        ethBalance: '10000',
+        ethValueUsdc: '26880000',
+        usdcBalance: '9900',
+        holdings: [
+          {
+            id: 'trend',
+            name: 'Ridgeline',
+            quantity: 1000,
+            frozenPass: '100',
+            availablePass: '900',
+            allocatedUsdc: '100',
+          },
+          {
+            id: 'factor',
+            name: 'Prism',
+            quantity: 750,
+            frozenPass: '0',
+            availablePass: '750',
+            allocatedUsdc: '0',
+          },
+          {
+            id: 'mean',
+            name: 'Echo',
+            quantity: 500,
+            frozenPass: '0',
+            availablePass: '500',
+            allocatedUsdc: '0',
+          },
+        ],
+      }),
+    },
+  );
+  const html = pages.account('trades');
+  assert.match(html, /2,250 <span>PASS/);
+  assert.match(html, /3 mock strategies/);
+  for (const id of ['trend', 'factor', 'mean']) {
+    assert.match(html, new RegExp(`data-wallet-position="${id}"`));
+    assert.match(html, new RegExp(`href="#/trade/${id}"`));
+  }
+  assert.match(html, /Frozen \(in use\) 100 · Available 900/);
+  assert.match(html, /Allocated 100 USDC/);
+  assert.doesNotMatch(html, /API FUNDS|RWA|USDT/);
+});
+
+test('Mock Wallet invitation preserves the connected browser wallet presentation', () => {
+  const pages = extendM3ProductPages(
+    { account: () => '', trade: () => '' },
+    {
+      accountId: () => 'alice',
+      contentProvenance: () => 'FIXTURE',
+      mockWallet: () => undefined,
+      chain: () => ({
+        wallet: {
+          status: 'CONNECTED',
+          address: '0x1111111111111111111111111111111111111111',
+          ethBalanceWei: '1000000000000000000',
+        },
+        network: { status: 'CORRECT', chainId: 46630 },
+        transaction: { status: 'IDLE' },
+        onchain: {
+          deployment: 'UNAVAILABLE',
+          health: 'UNAVAILABLE',
+          readiness: 'UNKNOWN',
+          owner: 'UNKNOWN',
+          writeMode: 'DISABLED',
+          exitPath: 'UNAVAILABLE',
+          supportedActions: [],
+        },
+      }),
+    },
+  );
+  const html = pages.account('trades');
+  assert.match(html, /0x1111…1111/);
+  assert.match(html, /<strong>1<\/strong>/);
+  assert.doesNotMatch(html, /Connect Mock Wallet|Your first strategies/);
 });
 
 test('mock session persists only its connection and always reads fresh simulated balances', async () => {

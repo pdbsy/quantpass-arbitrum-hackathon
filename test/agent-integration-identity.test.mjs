@@ -59,11 +59,13 @@ function fixture(t, profile = { branch, task: 'AF-M3-CLOSEOUT', title }) {
     sources,
   };
   mkdirSync(join(root, 'docs/management/agents/integrations'), { recursive: true });
-  mkdirSync(join(root, 'tools'));
+  mkdirSync(join(root, 'tools/environment'), { recursive: true });
   for (const name of [
     'agent-identity.mjs',
     'agent-identity-set.mjs',
     'check-agent-identity.mjs',
+    'preserved-source-identity.mjs',
+    'environment/policy.mjs',
     'agent-integration-identity.mjs',
   ]) {
     const path = new URL(`../tools/${name}`, import.meta.url);
@@ -604,4 +606,168 @@ test('stacked closeout sources require a pinned manager checkpoint and every own
   head = s.record(manifest);
   s.git('update-ref', `refs/remotes/origin/${sources[0].branch}`, s.base);
   assert.throws(() => check(), /missing required ancestry/);
+});
+
+async function releaseHistoryTool() {
+  const module = await import('../tools/check-release-history.mjs').catch(() => ({}));
+  assert.equal(typeof module.verifyReleaseHistory, 'function', 'release history verifier must exist');
+  return module.verifyReleaseHistory;
+}
+
+function releaseHeads(f) {
+  return f.sources.map((source, index) => ({ worker: `W${index + 1}`, head: source.head }));
+}
+
+test('release history rejects a partial candidate instead of accepting worker branch existence', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  assert.throws(
+    () =>
+      verifyReleaseHistory({ root: f.root, base: f.base, head: f.sources[0].head, sources: releaseHeads(f) }),
+    /SOURCE_NOT_IN_CANDIDATE/,
+  );
+});
+
+test('release history retains all exact original commits in an actual merge candidate', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  const result = verifyReleaseHistory({
+    root: f.root,
+    base: f.base,
+    head: f.git('rev-parse', 'HEAD'),
+    sources: releaseHeads(f),
+  });
+  assert.equal(result.state, 'EXACT_SOURCE_HISTORY_VERIFIED');
+  assert.equal(result.sources, 4);
+  assert.equal(result.independentApproval, false);
+  for (const patch of [
+    { sources: releaseHeads(f).slice(1) },
+    { sources: releaseHeads(f).map((entry) => ({ ...entry, head: f.sources[0].head })) },
+    { sources: [...releaseHeads(f).slice(0, 3), { worker: 'W1', head: f.sources[3].head }] },
+    { sources: releaseHeads(f).map((entry, index) => (index === 0 ? { ...entry, head: f.base } : entry)) },
+    {
+      sources: releaseHeads(f).map((entry, index) =>
+        index === 0 ? { ...entry, head: 'f'.repeat(40) } : entry,
+      ),
+    },
+    { head: '--all' },
+  ])
+    assert.throws(() =>
+      verifyReleaseHistory({
+        root: f.root,
+        base: f.base,
+        head: f.git('rev-parse', 'HEAD'),
+        sources: releaseHeads(f),
+        ...patch,
+      }),
+    );
+});
+
+test('release history rejects an unrelated worker commit and shallow provenance', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  const candidate = f.git('rev-parse', 'HEAD');
+  f.git('switch', '--orphan', 'unrelated-release-source');
+  f.git('commit', '--allow-empty', '-qm', 'Unrelated history');
+  const unrelated = f.git('rev-parse', 'HEAD');
+  const sources = releaseHeads(f).map((entry, index) =>
+    index === 0 ? { ...entry, head: unrelated } : entry,
+  );
+  assert.throws(
+    () => verifyReleaseHistory({ root: f.root, base: f.base, head: candidate, sources }),
+    /SOURCE_BASE_MISMATCH/,
+  );
+  writeFileSync(join(f.root, '.git/shallow'), `${f.base}\n`);
+  assert.throws(
+    () => verifyReleaseHistory({ root: f.root, base: f.base, head: candidate, sources: releaseHeads(f) }),
+    /FULL_HISTORY_REQUIRED/,
+  );
+});
+
+test('release history rejects grafted ancestry and ignores replacement parents', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  f.git('switch', '-qc', 'unmerged-release-candidate', f.base);
+  f.git('commit', '--allow-empty', '-qm', 'Candidate contains no worker source');
+  const candidate = f.git('rev-parse', 'HEAD');
+  const check = () =>
+    verifyReleaseHistory({ root: f.root, base: f.base, head: candidate, sources: releaseHeads(f) });
+  assert.throws(check, /SOURCE_NOT_IN_CANDIDATE/);
+  const parents = [f.base, ...f.sources.map((source) => source.head)];
+  // A replacement commit has all fake parents, but the actual candidate object does not.
+  const tree = f.git('rev-parse', candidate + '^{tree}');
+  const replacement = f.git(
+    'commit-tree',
+    tree,
+    ...parents.flatMap((parent) => ['-p', parent]),
+    '-m',
+    'Fake parents',
+  );
+  f.git('replace', candidate, replacement);
+  assert.throws(check, /SOURCE_NOT_IN_CANDIDATE/);
+  f.git('replace', '-d', candidate);
+  const graftPath = f.git('rev-parse', '--git-path', 'info/grafts');
+  writeFileSync(join(f.root, graftPath), [candidate, ...parents].join(' ') + '\n');
+  assert.throws(check, /UNMODIFIED_HISTORY_REQUIRED/);
+});
+
+test('release history binds the supplied root to the effective Git repository', async (t) => {
+  const verifyReleaseHistory = await releaseHistoryTool();
+  const f = fixture(t);
+  const nested = join(f.root, 'nested-source');
+  mkdirSync(nested);
+  assert.throws(
+    () =>
+      verifyReleaseHistory({
+        root: nested,
+        base: f.base,
+        head: f.git('rev-parse', 'HEAD'),
+        sources: releaseHeads(f),
+      }),
+    /RELEASE_ROOT_REQUIRED/,
+  );
+});
+
+test(
+  'release history binds Windows drive spelling to its native canonical root',
+  { skip: process.platform !== 'win32' },
+  async (t) => {
+    const verifyReleaseHistory = await releaseHistoryTool();
+    const f = fixture(t);
+    const root = f.root.replace(/^[a-z]:/i, (drive) =>
+      drive[0] === drive[0].toUpperCase() ? drive.toLowerCase() : drive.toUpperCase(),
+    );
+    const result = verifyReleaseHistory({
+      root,
+      base: f.base,
+      head: f.git('rev-parse', 'HEAD'),
+      sources: releaseHeads(f),
+    });
+    assert.equal(result.state, 'EXACT_SOURCE_HISTORY_VERIFIED');
+    assert.equal(result.independentApproval, false);
+  },
+);
+
+test('release history rejects environment substitution of an identical external Git context', (t) => {
+  const f = fixture(t);
+  const foreign = join(f.root, 'foreign-copy');
+  f.git('clone', '--no-hardlinks', '--quiet', f.root, foreign);
+  const input = { root: f.root, base: f.base, head: f.git('rev-parse', 'HEAD'), sources: releaseHeads(f) };
+  const moduleUrl = new URL('../tools/check-release-history.mjs', import.meta.url).href;
+  const source = `import {verifyReleaseHistory} from ${JSON.stringify(moduleUrl)};try {console.log(JSON.stringify(verifyReleaseHistory(${JSON.stringify(input)})))} catch(error) {console.log(error.message);process.exitCode=2}`;
+  for (const environment of [
+    { GIT_DIR: join(foreign, '.git') },
+    { GIT_WORK_TREE: foreign },
+    { GIT_OBJECT_DIRECTORY: join(foreign, '.git/objects') },
+  ]) {
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', source], {
+      cwd: f.root,
+      env: { ...process.env, ...environment },
+      encoding: 'utf8',
+      timeout: 5000,
+      maxBuffer: 4096,
+    });
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stdout, /UNMODIFIED_GIT_CONTEXT_REQUIRED/);
+  }
 });

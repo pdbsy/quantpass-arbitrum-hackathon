@@ -1,0 +1,15 @@
+
+> alphaforge-robinhood-chain-hackathon@0.1.0 test:fair-launch:browser-evm
+> node --test --test-isolation=none test/launch-market-ui-evm.test.ts
+
+✔ actual browser wallet signatures settle ETH Mint and AMZN ETH buy/sell with canonical receipts and Bob SSE (38375.623726ms)
+ℹ Actual Mint and BUY canonical receipts completed; Bob observed the new AMZN reserves through SSE with polling snapshots held.
+ℹ PASS exact approval and native SELL completed at three inclusive canonical blocks; four actual Alice transactions, two real binding signatures, zero Bob transactions. Hydrated BUY/SELL tabs also passed native pointer clicks.
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 38820.371985

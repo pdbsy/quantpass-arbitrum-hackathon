@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "release": "alphaforge-engineering-testnet-20261003",
+  "base": "3cb9caa810e34d8ff9f9a6c68b5ef674f489689e",
+  "baseTree": "66edd0027fd2ae564a3a485e6ea5c5bc577fea5c",
+  "authority": "docs/release/2026-10-03/source-spec.md",
+  "labelMeaning": "User-assigned collaboration labels; not cryptographic identities or independent approvals",
+  "historicalRegistry": "docs/management/agents/registry.json",
+  "historicalRegistryUnchanged": true,
+  "childWorkersAllowed": false,
+  "sustained24HourGate": "WAIVED_BY_USER",
+  "workers": [
+    {
+      "worker": "W1",
+      "task": "AFREL-001",
+      "scope": "product",
+      "branch": "codex/alphaforge-w1-product-20261003",
+      "acceptance": "NOT_RUN"
+    },
+    {
+      "worker": "W2",
+      "task": "AFREL-002",
+      "scope": "runtime",
+      "branch": "codex/alphaforge-w2-runtime-20261003",
+      "acceptance": "NOT_RUN"
+    },
+    {
+      "worker": "W3",
+      "task": "AFREL-003",
+      "scope": "container",
+      "branch": "codex/alphaforge-w3-container-20261003",
+      "acceptance": "NOT_RUN"
+    },
+    {
+      "worker": "W4",
+      "task": "AFREL-004",
+      "scope": "mock-e2e",
+      "branch": "codex/alphaforge-w4-mock-e2e-20261003",
+      "acceptance": "NOT_RUN"
+    },
+    {
+      "worker": "W5",
+      "task": "AFREL-005",
+      "scope": "integration",
+      "branch": "codex/alphaforge-release-integration-20261003",
+      "acceptance": "NOT_RUN"
+    }
+  ]
+}

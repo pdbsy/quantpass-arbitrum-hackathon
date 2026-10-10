@@ -22,6 +22,9 @@ import {
   nativePackagesValid,
   unsafeGitConfig,
   GIT_NULL_DEVICE,
+  CANONICAL_REPOSITORY,
+  hostedRepositoryMatches,
+  repositoryRemoteMatches,
 } from './policy.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -99,7 +102,7 @@ export function gitIdentity(git, event) {
     if (git(['rev-parse', '--is-shallow-repository']) !== 'false') return identity;
     if (![identity.head, identity.tree, identity.base].every((s) => sha.test(s))) return identity;
     if (event.event) {
-      if (event.repository !== 'pdbsy/quantpass-arbitrum-hackathon' || event.sha !== identity.head)
+      if (!hostedRepositoryMatches(event.repository, event.repositoryId) || event.sha !== identity.head)
         return identity;
       if (event.event === 'pull_request' || event.event === 'merge_group') {
         if (!sha.test(event.head) || !sha.test(event.base)) return identity;
@@ -144,14 +147,24 @@ function githubEvent(env) {
     sha: env.GITHUB_SHA,
     ref: env.GITHUB_REF,
     repository: env.GITHUB_REPOSITORY,
+    repositoryId: env.GITHUB_REPOSITORY_ID,
   };
   try {
     const data = JSON.parse(boundedRead(env.GITHUB_EVENT_PATH));
+    if (
+      event.repository === CANONICAL_REPOSITORY &&
+      (data.repository?.full_name !== event.repository ||
+        !hostedRepositoryMatches(event.repository, data.repository?.id))
+    )
+      return { ...event, repository: null };
     if (event.event === 'pull_request') {
       if (
         data.pull_request?.base?.repo?.full_name !== event.repository ||
         data.pull_request?.base?.ref !== 'master' ||
-        data.pull_request?.head?.repo?.full_name !== event.repository
+        data.pull_request?.head?.repo?.full_name !== event.repository ||
+        (event.repository === CANONICAL_REPOSITORY &&
+          (!hostedRepositoryMatches(event.repository, data.pull_request.base.repo.id) ||
+            !hostedRepositoryMatches(event.repository, data.pull_request.head.repo.id)))
       )
         return { ...event, repository: null };
       event.head = data.pull_request.head.sha;
@@ -326,11 +339,7 @@ export function inspectEnvironment({ root = ROOT, mode = 'dev', environment = pr
     o.rootValid = realpathSync.native(git(['rev-parse', '--show-toplevel'])) === realpathSync.native(root);
     const origin = git(['remote', 'get-url', 'origin']);
     const expected = inputs.supply.repository;
-    o.originValid = [
-      `https://github.com/${expected}`,
-      `https://github.com/${expected}.git`,
-      `git@github.com:${expected}.git`,
-    ].includes(origin);
+    o.originValid = repositoryRemoteMatches(origin, expected);
     Object.assign(o, gitIdentity(git, githubEvent(environment)));
     o.clean = git(['status', '--porcelain=v1', '--untracked-files=all']) === '';
     o.hiddenIndex = git(['ls-files', '-v', '-z'])

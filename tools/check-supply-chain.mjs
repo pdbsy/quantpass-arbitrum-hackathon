@@ -357,6 +357,13 @@ export function renderNpmSbom(lockfile, packageJson, policy) {
 const readContents = Object.freeze({ contents: 'read' });
 const workflowProfiles = new Map([
   [
+    '.github/workflows/fair-launch.yml',
+    {
+      events: ['push', 'pull_request', 'workflow_dispatch'],
+      jobs: new Map([['fair-launch-local-evm', readContents]]),
+    },
+  ],
+  [
     '.github/workflows/ci.yml',
     {
       events: ['push', 'pull_request', 'merge_group', 'workflow_dispatch'],
@@ -365,6 +372,8 @@ const workflowProfiles = new Map([
         ['verify-windows', readContents],
         ['verify-macos', readContents],
         ['contracts-m3-macos', readContents],
+        ['contracts-m3-linux', readContents],
+        ['container-testnet', readContents],
         ['source-policy-js', readContents],
         ['dependency-delta-audit', readContents],
         ['semgrep-ce', readContents],

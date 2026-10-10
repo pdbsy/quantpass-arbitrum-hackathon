@@ -1,0 +1,42 @@
+/* This overlay is a reading surface only; every tap still reaches the chart or its controls. */
+.candle-detail-tooltip.reference-detail-tooltip {
+  position: fixed;
+  z-index: 80;
+  width: min(306px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 12px 15px;
+  pointer-events: none;
+}
+.reference-detail-tooltip > strong {
+  display: block;
+}
+.reference-detail-kind {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted, #666);
+  font-size: 10px;
+}
+.reference-detail-tooltip dl {
+  gap: 3px 12px;
+  margin-block: 9px;
+}
+.reference-inspection-cursor {
+  pointer-events: none;
+}
+.reference-inspection-cursor line {
+  stroke: var(--muted, #666);
+  stroke-dasharray: 3 4;
+}
+.reference-inspection-cursor circle {
+  fill: var(--sheet, #f4efe5);
+  stroke: var(--ink, #292720);
+  stroke-width: 1.5;
+}
+@media (max-width: 650px) {
+  .candle-detail-tooltip.reference-detail-tooltip {
+    width: min(282px, calc(100vw - 16px));
+    padding: 10px 12px;
+  }
+}

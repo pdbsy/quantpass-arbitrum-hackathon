@@ -7,14 +7,15 @@ import fs, {
   readFileSync,
   realpathSync,
   existsSync,
+  lstatSync,
   readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import childProcess, { execFileSync } from 'node:child_process';
-import { syncBuiltinESMExports } from 'node:module';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import test from 'node:test';
 import { installScanner, selectPlatform, verifyBytes } from '../tools/security/bootstrap.mjs';
 import { verifyRuleFixtures } from '../tools/ci/check-semgrep.mjs';
@@ -22,6 +23,64 @@ import { verifySecretCanary } from '../tools/ci/check-gitleaks.mjs';
 import { fixtureExec } from './helpers/git-fixture.mjs';
 
 const root = resolve(import.meta.dirname, '..');
+
+function stageInstalledEthersRuntime(fixture) {
+  const installedRoot = realpathSync(join(root, 'node_modules'));
+  const copied = new Set();
+  let files = 0;
+  let bytes = 0;
+  const inspectPackage = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === 'node_modules') continue;
+      const path = join(directory, entry.name);
+      const metadata = lstatSync(path);
+      assert.ok(!metadata.isSymbolicLink(), 'fixture package must not contain symbolic links');
+      if (metadata.isDirectory()) inspectPackage(path);
+      else {
+        assert.ok(metadata.isFile(), 'fixture package must contain regular files');
+        files++;
+        bytes += metadata.size;
+        assert.ok(files <= 10000 && bytes <= 64 * 1024 * 1024, 'fixture runtime copy is bounded');
+      }
+    }
+  };
+  const stage = (name, from) => {
+    assert.match(name, /^(?:@[A-Za-z0-9._-]+\/)?[A-Za-z0-9._-]+$/);
+    // Type declaration packages are not loaded by this JavaScript runtime.
+    if (name.startsWith('@types/')) return;
+    let directory = dirname(createRequire(join(from, 'package.json')).resolve(name));
+    let manifest;
+    for (let depth = 0; depth < 16; depth++) {
+      const path = join(directory, 'package.json');
+      if (existsSync(path)) {
+        const value = JSON.parse(readFileSync(path, 'utf8'));
+        if (value.name === name) {
+          manifest = value;
+          break;
+        }
+      }
+      directory = dirname(directory);
+    }
+    assert.ok(manifest, 'installed runtime package identity must match');
+    const source = realpathSync(directory);
+    const location = relative(installedRoot, source);
+    assert.ok(
+      location && !isAbsolute(location) && !location.startsWith('..' + sep) && location !== '..',
+      'installed runtime must stay in node_modules',
+    );
+    if (copied.has(source)) return;
+    copied.add(source);
+    assert.ok(copied.size <= 64, 'fixture runtime dependency graph is bounded');
+    inspectPackage(source);
+    cpSync(source, join(fixture, 'node_modules', location), {
+      recursive: true,
+      filter: (path) => path === source || basename(path) !== 'node_modules',
+    });
+    for (const dependency of Object.keys(manifest.dependencies ?? {})) stage(dependency, source);
+  };
+  stage('ethers', root);
+  assert.ok(copied.size > 1, 'real ethers runtime dependencies must be staged');
+}
 
 test('qualified Gitleaks canary rejects a missing config and a real current-tree detection loss', async (t) => {
   const lock = JSON.parse(readFileSync(join(root, 'planning/security-scanners.lock.json')));
@@ -91,6 +150,9 @@ test('qualified Gitleaks gate rejects an extra synthetic finding in both history
   const fixtureCache = join(fixture, '.checks/security-scanners/downloads');
   mkdirSync(fixtureCache, { recursive: true });
   cpSync(cache, join(fixtureCache, asset.filename));
+  // This fixture proceeds into a real complete scan, so it needs the installed
+  // address-proof runtime. Missing-history fixtures deliberately remain dependency-free.
+  stageInstalledEthersRuntime(fixture);
 
   const canary = [
     'ghp',

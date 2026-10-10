@@ -1,0 +1,74 @@
+{
+  "compiler": "0.8.31",
+  "optimizer": false,
+  "viaIR": false,
+  "evmVersion": "paris",
+  "contracts": [
+    {
+      "name": "AlphaForgeFairLaunch",
+      "runtimeBytes": 13658,
+      "creationBytes": 17215,
+      "sourceSha256": "486b71e62ac7c302560943feace3d977d9520d64639550191063a684c4df6b9b"
+    },
+    {
+      "name": "AlphaForgePassFactory",
+      "runtimeBytes": 20889,
+      "creationBytes": 21962,
+      "sourceSha256": "47577367c51e09664776c845d9d70bcbfae88776210fd31274abc38797392945"
+    },
+    {
+      "name": "AlphaForgePassPool",
+      "runtimeBytes": 13466,
+      "creationBytes": 15570,
+      "sourceSha256": "58e4174562d8342fb2dce4c8370b24c22fd65d3526455cdad6079aa6743587e6"
+    },
+    {
+      "name": "AlphaForgeNativeReserve",
+      "runtimeBytes": 21947,
+      "creationBytes": 26054,
+      "sourceSha256": "4bd982a8bb4c85d849663d08d8ebab103f218b46fe2729c6920a15ebff09c489"
+    },
+    {
+      "name": "AlphaForgeMarketRouter",
+      "runtimeBytes": 9258,
+      "creationBytes": 10627,
+      "sourceSha256": "eab97285abc31657bb0169525e123235c1b4e8f99de24a1ce78faa58872f6268"
+    },
+    {
+      "name": "AlphaForgeClaimReserve",
+      "runtimeBytes": 11769,
+      "creationBytes": 14808,
+      "sourceSha256": "ac31a831eee70a7371ab1c71429c4502b01d3fcc6294fc28ded3585fdb4b6e21"
+    },
+    {
+      "name": "AlphaForgeStrategyVault",
+      "runtimeBytes": 21903,
+      "creationBytes": 31843,
+      "sourceSha256": "50bab2a4462605c1760b42c6ce8c9b2a5a9da0c9d6f03578dd140778f87795d2"
+    },
+    {
+      "name": "AlphaForgeStrategyVaultFactory",
+      "runtimeBytes": 5461,
+      "creationBytes": 41188,
+      "sourceSha256": "50bab2a4462605c1760b42c6ce8c9b2a5a9da0c9d6f03578dd140778f87795d2"
+    },
+    {
+      "name": "AlphaForgeStockReserve",
+      "runtimeBytes": 7014,
+      "creationBytes": 8571,
+      "sourceSha256": "50bab2a4462605c1760b42c6ce8c9b2a5a9da0c9d6f03578dd140778f87795d2"
+    },
+    {
+      "name": "AlphaForgeStrategyTestStock",
+      "runtimeBytes": 3616,
+      "creationBytes": 6247,
+      "sourceSha256": "50bab2a4462605c1760b42c6ce8c9b2a5a9da0c9d6f03578dd140778f87795d2"
+    },
+    {
+      "name": "AlphaForgeStrategyReferenceFeed",
+      "runtimeBytes": 3473,
+      "creationBytes": 4123,
+      "sourceSha256": "50bab2a4462605c1760b42c6ce8c9b2a5a9da0c9d6f03578dd140778f87795d2"
+    }
+  ]
+}

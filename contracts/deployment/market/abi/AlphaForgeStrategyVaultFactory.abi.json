@@ -1,0 +1,224 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "configs",
+        "type": "tuple[2]",
+        "internalType": "struct AlphaForgeStrategyVaultFactory.Strategy[2]",
+        "components": [
+          {
+            "name": "creator",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "pass",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "usdc",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "targetStock",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "otherStock",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "stockReserve",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "referenceFeed",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "strategyRef",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "maxPriceAge",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "createVault",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "created",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "generations",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "strategy",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AlphaForgeStrategyVaultFactory.Strategy",
+        "components": [
+          {
+            "name": "creator",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "pass",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "usdc",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "targetStock",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "otherStock",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "stockReserve",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "referenceFeed",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "strategyRef",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "maxPriceAge",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "vaults",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "VaultCreated",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "strategyIndex",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "vault",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "generation",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  }
+]

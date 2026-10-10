@@ -10,6 +10,8 @@ import { scanSources, sourceTargets } from '../tools/ci/check-source-policy.mjs'
 import { compareLocks, classifyAudit, candidateRefs } from '../tools/ci/check-dependency-delta.mjs';
 import { validateCIGateWorkflows } from '../tools/ci/workflow-contract.mjs';
 import { assertUnchanged } from '../tools/ci/context.mjs';
+import { cleanEnvironment } from '../tools/ci/context.mjs';
+import { spawnSync } from 'node:child_process';
 
 test('source policy rejects a real aggregate byte overflow before linting any files', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'alphaforge-source-byte-limit-'));
@@ -72,6 +74,20 @@ test('contract host rejects unsupported execution environments before tool insta
     assert.throws(() => validateContractHost({ ...host, ...patch }));
 });
 
+test('native Linux contract host requires x64 Node and exact x86_64 CPython', () => {
+  const host = { platform: 'linux', arch: 'x64', python: '3.12.9', pythonArch: 'x86_64' };
+  assert.doesNotThrow(() => validateContractHost(host));
+  for (const patch of [
+    { platform: 'darwin' },
+    { platform: 'win32' },
+    { arch: 'arm64' },
+    { python: '3.12.10' },
+    { pythonArch: 'arm64' },
+    { pythonArch: 'x64' },
+  ])
+    assert.throws(() => validateContractHost({ ...host, ...patch }));
+});
+
 test('contract stages stop on bootstrap/probe/test failure and never invent ABI success', () => {
   for (const [failAt, expected, completed] of [
     [0, 'BLOCKED', 1],
@@ -93,6 +109,116 @@ test('contract stages stop on bootstrap/probe/test failure and never invent ABI 
   assert.equal(report.state, 'PASS');
   assert.equal(report.abi, 'PASS');
   assert.deepEqual(calls[2], ['/bin/bash', ['contracts/script/check-phase1-contracts.sh']]);
+});
+
+test('native bootstrap child receives no pip configuration while later stages retain isolated controls', () => {
+  const observed = [];
+  const report = runContractStages((_file, _args, options) => {
+    const child = spawnSync(process.execPath, ['-e', 'console.log(JSON.stringify(process.env))'], {
+      encoding: 'utf8',
+      env: options?.env ?? cleanEnvironment(),
+    });
+    assert.equal(child.status, 0);
+    observed.push(JSON.parse(child.stdout));
+    return { status: 0, signal: null };
+  });
+  assert.equal(report.state, 'PASS');
+  for (const key of ['PIP_CONFIG_FILE', 'PIP_NO_INPUT', 'PIP_DISABLE_PIP_VERSION_CHECK']) {
+    assert.equal(observed[0][key], undefined, 'bootstrap rejects any inherited pip configuration');
+    assert.equal(observed[1][key], cleanEnvironment()[key]);
+    assert.equal(observed[2][key], cleanEnvironment()[key]);
+  }
+  assert.equal(observed[0].PYTHONNOUSERSITE, '1');
+});
+
+test('container gate refuses nonnative host/daemon and stops at every failed or incomplete stage', async () => {
+  const { validateContainerHost, runContainerStages } = await import('../tools/ci/verify-container.mjs');
+  const host = { platform: 'linux', arch: 'x64', dockerOS: 'linux', dockerArch: 'x86_64' };
+  assert.doesNotThrow(() => validateContainerHost(host));
+  for (const patch of [
+    { platform: 'darwin' },
+    { arch: 'arm64' },
+    { dockerOS: 'windows' },
+    { dockerArch: 'aarch64' },
+  ])
+    assert.throws(() => validateContainerHost({ ...host, ...patch }));
+  const runtime = 'sha256:' + 'a'.repeat(64),
+    verification = 'sha256:' + 'b'.repeat(64);
+  const outputs = [
+    '# tests 1\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n',
+    runtime + '\n',
+    JSON.stringify({
+      scope: 'ACTUAL_PRODUCTION_BINARY_ADMISSION_AND_NEGATIVE_STARTUP_NOT_READINESS',
+      image: runtime,
+      checks: 14,
+      fail: 0,
+      productionEmptyConfig: 'REJECTED',
+      productionMockFixture: 'ABSENT',
+    }),
+    verification + '\n',
+    JSON.stringify({
+      scope: 'MOCK_CONTAINER_LIFECYCLE_NOT_REAL_CHAIN',
+      image: verification,
+      checks: 7,
+      fail: 0,
+      retainedEvidence: true,
+      results: [
+        'REAL_TLS_LIVENESS_MOCK_NOT_DEPLOYMENT',
+        'PUBLIC_EXECUTOR_RECOVERY_ISOLATION',
+        'NONROOT_IDENTITIES_CAPABILITY_DROP',
+        'SIGTERM_GRACEFUL_STOP',
+        'COLD_SNAPSHOT_VERIFIED_INDEPENDENT_COPY',
+        'IMAGE_REPLACEMENT_PERSISTENCE_AFTER_BACKUP',
+        'CHILD_DEATH_STOPS_PEERS_PRESERVES_LEASE_NO_RESTART',
+      ],
+    }),
+  ];
+  for (let failAt = 0; failAt < outputs.length; failAt++) {
+    let calls = 0;
+    const report = runContainerStages(() => ({
+      status: calls === failAt ? 1 : 0,
+      signal: null,
+      stdout: outputs[calls++],
+    }));
+    assert.equal(report.state, 'FAIL');
+    assert.equal(calls, failAt + 1);
+  }
+  for (const incomplete of [
+    { status: null, signal: 'SIGTERM' },
+    { status: 0, error: new Error('output limit') },
+  ])
+    assert.equal(runContainerStages(() => incomplete).state, 'BLOCKED');
+  const calls = [];
+  const pass = runContainerStages((file, args) => {
+    calls.push([file, args]);
+    return { status: 0, signal: null, stdout: outputs[calls.length - 1] };
+  });
+  assert.equal(pass.state, 'PASS');
+  assert.equal(calls[2][1].at(-1), runtime);
+  assert.equal(calls[4][1].at(-1), verification);
+  assert.equal(pass.chainReadiness, 'NOT_RUN');
+  for (const [index, value] of [
+    [0, outputs[0].replace('# pass 1', '# pass 0').replace('# skipped 0', '# skipped 1')],
+    [0, outputs[0].replace('# tests 1', '# tests 0').replace('# pass 1', '# pass 0')],
+    [0, '# tests 1\n# pass 1\n# fail 0\n'],
+    [2, JSON.stringify({ ...JSON.parse(outputs[2]), image: verification })],
+    [2, JSON.stringify({ ...JSON.parse(outputs[2]), checks: 0 })],
+    [2, JSON.stringify({ ...JSON.parse(outputs[2]), productionMockFixture: 'PRESENT' })],
+    [4, JSON.stringify({ ...JSON.parse(outputs[4]), results: JSON.parse(outputs[4]).results.slice(1) })],
+  ]) {
+    let at = 0;
+    const rejected = runContainerStages(() => {
+      const current = at++;
+      return { status: 0, signal: null, stdout: current === index ? value : outputs[current] };
+    });
+    assert.equal(rejected.state, 'BLOCKED');
+    assert.equal(at, index + 1);
+  }
+  let count = 0;
+  assert.equal(
+    runContainerStages(() => ({ status: 0, stdout: outputs[count++].replace('sha256:', 'mutable:') })).state,
+    'BLOCKED',
+  );
 });
 
 test('Phase One contract gate cannot skip artifact manifest and rehearsal failures', () => {
@@ -235,6 +361,8 @@ test('actual CI gate contracts reject skipped, replaced and weakened jobs', asyn
   assert.doesNotThrow(() => validateCIGateWorkflows(stringify(workflow)));
   for (const job of [
     'contracts-m3-macos',
+    'contracts-m3-linux',
+    'container-testnet',
     'source-policy-js',
     'dependency-delta-audit',
     'semgrep-ce',
@@ -270,7 +398,7 @@ test('actual CI gate contracts reject skipped, replaced and weakened jobs', asyn
 
 test('Python gate qualification refuses version, architecture and floating setup drift', async () => {
   const workflow = parse(await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
-  for (const job of ['contracts-m3-macos', 'semgrep-ce']) {
+  for (const job of ['contracts-m3-macos', 'contracts-m3-linux', 'semgrep-ce']) {
     for (const patch of [
       { 'python-version': '3.12.10' },
       { architecture: 'unsupported' },

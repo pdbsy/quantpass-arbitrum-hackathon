@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, realpathSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
+import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { relative, resolve, sep } from 'node:path';
 
 const exact = (value, keys) =>
   value &&
@@ -8,17 +8,13 @@ const exact = (value, keys) =>
   !Array.isArray(value) &&
   Object.keys(value).length === keys.length &&
   Object.keys(value).every((key) => keys.includes(key));
-export function evaluateSlitherAdmissions(report, review, repository, now = Date.now()) {
+export function evaluateSlitherAdmissions(report, review, repository, now = Date.now(), executionContext) {
+  const version = review?.schemaVersion;
+  const keys = ['schemaVersion', 'slitherVersion', 'expiresAt', 'approvalRef', 'sourceHashes', 'findings'];
+  if (version === 2) keys.push('approvalScope', 'findingSourcePaths');
   if (
-    !exact(review, [
-      'schemaVersion',
-      'slitherVersion',
-      'expiresAt',
-      'approvalRef',
-      'sourceHashes',
-      'findings',
-    ]) ||
-    review.schemaVersion !== 1 ||
+    !exact(review, keys) ||
+    ![1, 2].includes(version) ||
     review.slitherVersion !== '0.11.3' ||
     review.approvalRef !== 'docs/specs/AF-TESTNET-SLITHER-REVIEW.md' ||
     !Number.isFinite(Date.parse(review.expiresAt)) ||
@@ -27,6 +23,29 @@ export function evaluateSlitherAdmissions(report, review, repository, now = Date
     !review.sourceHashes.length
   )
     throw new Error('SLITHER_REVIEW_INVALID');
+  // This qualifies static residual-risk acceptance, never a deployment grant.
+  // Execution consumers must independently authorize the operation and supply
+  // the actual observed chain/environment, rather than trust the review label.
+  const scope = {
+    chainId: 46630,
+    environment: 'ONCHAIN_TESTNET',
+    mainnetAuthorized: false,
+    authorization: 'RESIDUAL_RISK_ACCEPTANCE_ONLY',
+  };
+  if (
+    version === 2 &&
+    (!exact(review.approvalScope, Object.keys(scope)) ||
+      Object.keys(scope).some((key) => review.approvalScope[key] !== scope[key]))
+  )
+    throw new Error('SLITHER_APPROVAL_SCOPE');
+  if (
+    executionContext !== undefined &&
+    (version !== 2 ||
+      !exact(executionContext, ['chainId', 'environment']) ||
+      executionContext.chainId !== scope.chainId ||
+      executionContext.environment !== scope.environment)
+  )
+    throw new Error('SLITHER_EXECUTION_SCOPE');
   if (
     !report ||
     report.success !== true ||
@@ -61,19 +80,40 @@ export function evaluateSlitherAdmissions(report, review, repository, now = Date
       throw new Error('SLITHER_SOURCE_CHANGED');
     sources.add(item.path);
   }
+  if (version === 2) {
+    const currentSources = new Set();
+    const collect = (directory) => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const file = resolve(directory, entry.name);
+        if (entry.isSymbolicLink()) throw new Error('SLITHER_SOURCE_INVALID');
+        if (entry.isDirectory()) collect(file);
+        else if (entry.isFile() && entry.name.endsWith('.sol'))
+          currentSources.add(relative(repository, file).split(sep).join('/'));
+      }
+    };
+    for (const name of ['contracts/src', 'contracts/test']) {
+      const directory = resolve(repository, name);
+      if (lstatSync(directory).isSymbolicLink()) throw new Error('SLITHER_SOURCE_INVALID');
+      collect(directory);
+    }
+    if (currentSources.size !== sources.size || [...currentSources].some((name) => !sources.has(name)))
+      throw new Error('SLITHER_SOURCE_SET_CHANGED');
+  }
   const accepted = new Map();
   for (const item of review.findings) {
+    const entryKeys = [
+      'id',
+      'check',
+      'impact',
+      'confidence',
+      'function',
+      'reviewState',
+      'rationale',
+      'evidence',
+    ];
+    if (version === 2 && Object.hasOwn(item ?? {}, 'elementType')) entryKeys.push('elementType');
     if (
-      !exact(item, [
-        'id',
-        'check',
-        'impact',
-        'confidence',
-        'function',
-        'reviewState',
-        'rationale',
-        'evidence',
-      ]) ||
+      !exact(item, entryKeys) ||
       !/^[a-f0-9]{64}$/.test(item.id) ||
       accepted.has(item.id) ||
       item.reviewState !== 'APPROVED_BY_USER' ||
@@ -84,6 +124,12 @@ export function evaluateSlitherAdmissions(report, review, repository, now = Date
       !item.evidence.length
     )
       throw new Error('SLITHER_USER_APPROVAL_REQUIRED');
+    const elementType = Object.hasOwn(item, 'elementType') ? item.elementType : 'function';
+    if (
+      !['function', 'contract'].includes(elementType) ||
+      (elementType === 'contract' && item.check !== 'missing-inheritance')
+    )
+      throw new Error('SLITHER_UNREVIEWED_FINDING');
     for (const evidence of item.evidence) {
       if (typeof evidence !== 'string') throw new Error('SLITHER_EVIDENCE_INVALID');
       const split = evidence.split('#');
@@ -97,17 +143,30 @@ export function evaluateSlitherAdmissions(report, review, repository, now = Date
     }
     accepted.set(item.id, item);
   }
+  if (
+    version === 2 &&
+    (!exact(review.findingSourcePaths, [...accepted.keys()]) ||
+      Object.values(review.findingSourcePaths).some((path) => typeof path !== 'string' || !sources.has(path)))
+  )
+    throw new Error('SLITHER_FINDING_SOURCE_BINDING');
   const seen = new Set();
   for (const finding of report.results.detectors) {
     const entry = accepted.get(finding?.id);
-    const first = finding?.elements?.find((item) => item.type === 'function');
+    const elementType = entry && Object.hasOwn(entry, 'elementType') ? entry.elementType : 'function';
+    const first = finding?.elements?.find((item) => item.type === elementType);
+    const identity =
+      elementType === 'function'
+        ? `${first?.type_specific_fields?.parent?.name}.${first?.name}`
+        : first?.name;
+    const sourcePath = 'contracts/' + first?.source_mapping?.filename_relative;
     if (
       !entry ||
       seen.has(finding.id) ||
       ['check', 'impact', 'confidence'].some((key) => finding[key] !== entry[key]) ||
       !first ||
-      `${first.type_specific_fields?.parent?.name}.${first.name}` !== entry.function ||
-      !sources.has('contracts/' + first.source_mapping?.filename_relative)
+      identity !== entry.function ||
+      !sources.has(sourcePath) ||
+      (version === 2 && review.findingSourcePaths[finding.id] !== sourcePath)
     )
       throw new Error('SLITHER_UNREVIEWED_FINDING');
     seen.add(finding.id);
@@ -115,5 +174,6 @@ export function evaluateSlitherAdmissions(report, review, repository, now = Date
   return {
     admitted: seen.size,
     reviewSha256: createHash('sha256').update(JSON.stringify(review)).digest('hex'),
+    ...(version === 2 ? { approvalScope: scope, deploymentAuthorized: false } : {}),
   };
 }

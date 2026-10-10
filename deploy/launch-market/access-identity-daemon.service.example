@@ -1,0 +1,33 @@
+[Unit]
+Description=AlphaForge verified account identity bridge
+After=ikol-access.service
+Requires=ikol-access.service
+
+[Service]
+Type=simple
+User=ikol-access
+Group=alphaforge-workshop
+WorkingDirectory=/opt/alphaforge-fair-launch/releases/APPROVED_RELEASE
+# Verified Node 24.21.0; byte-identical to the approved toolchain binary.
+# SHA256 7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c
+ExecStart=/opt/ikol-access/runtime/node tools/launch-market/access-identity-daemon.ts
+Environment=AF_ACCESS_IDENTITY_DB=/var/lib/ikol-access/access.sqlite
+Environment=AF_ACCESS_IDENTITY_SOCKET=/run/alphaforge-identity/identity.sock
+RuntimeDirectory=alphaforge-identity
+RuntimeDirectoryMode=0710
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_UNIX
+ReadOnlyPaths=/var/lib/ikol-access/access.sqlite
+ReadOnlyPaths=-/var/lib/ikol-access/access.sqlite-wal
+ReadOnlyPaths=-/var/lib/ikol-access/access.sqlite-shm
+ReadWritePaths=/run/alphaforge-identity
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -11,6 +11,12 @@ import {
   overrideKinds,
   nativePackagesValid,
   CONFIG,
+  CANONICAL_REPOSITORY,
+  HISTORICAL_REPOSITORY,
+  CANONICAL_REPOSITORY_ID,
+  repositoryNamesMatch,
+  hostedRepositoryMatches,
+  repositoryRemoteMatches,
 } from '../tools/environment/policy.mjs';
 import { validateReport, writeReport } from '../tools/environment/report.mjs';
 
@@ -63,6 +69,36 @@ const observation = () => ({
     'legacy-peer-deps': 'false',
   },
   commands: [],
+});
+
+test('repository rename keeps exact historical aliases and binds current hosted identity to its stable id', () => {
+  for (const name of [HISTORICAL_REPOSITORY, CANONICAL_REPOSITORY]) {
+    assert.equal(repositoryNamesMatch(name, HISTORICAL_REPOSITORY), true);
+    assert.equal(hostedRepositoryMatches(name, CANONICAL_REPOSITORY_ID), true);
+    assert.equal(hostedRepositoryMatches(name, String(CANONICAL_REPOSITORY_ID)), true);
+    for (const remote of [
+      `https://github.com/${name}`,
+      `https://github.com/${name}.git`,
+      `git@github.com:${name}.git`,
+    ])
+      assert.equal(repositoryRemoteMatches(remote, HISTORICAL_REPOSITORY), true);
+  }
+  assert.equal(hostedRepositoryMatches(HISTORICAL_REPOSITORY), true);
+  for (const id of [undefined, null, 0, CANONICAL_REPOSITORY_ID + 1, '01359073455'])
+    assert.equal(hostedRepositoryMatches(CANONICAL_REPOSITORY, id), false);
+  for (const name of ['other/Alphaforge', 'pdbsy/other', 'pdbsy/alphaforge', 'pdbsy/Alphaforge.git']) {
+    assert.equal(repositoryNamesMatch(name, HISTORICAL_REPOSITORY), false);
+    assert.equal(hostedRepositoryMatches(name, CANONICAL_REPOSITORY_ID), false);
+    assert.equal(repositoryRemoteMatches(`https://github.com/${name}.git`, HISTORICAL_REPOSITORY), false);
+  }
+  for (const remote of [
+    `https://example.invalid/${CANONICAL_REPOSITORY}.git`,
+    `https://github.com/${CANONICAL_REPOSITORY}.git?redirect=1`,
+    `https://github.com:443/${CANONICAL_REPOSITORY}.git`,
+  ])
+    assert.equal(repositoryRemoteMatches(remote, HISTORICAL_REPOSITORY), false);
+  assert.equal(repositoryNamesMatch(CANONICAL_REPOSITORY, 'other/repo'), false);
+  assert.equal(repositoryRemoteMatches(`https://github.com/${CANONICAL_REPOSITORY}`, 'other/repo'), false);
 });
 
 test('empty and approved overrides stay clean while proxy, mirror and npm overrides are rejected', () => {
@@ -140,6 +176,9 @@ test('admission rejects wrong tools, architecture, registry, TLS, omission and h
 test('new CI gates are admitted only on their assigned native platform', () => {
   for (const [job, platform, arch] of [
     ['contracts-m3-macos', 'darwin', 'arm64'],
+    ['contracts-m3-linux', 'linux', 'x64'],
+    ['fair-launch-local-evm', 'linux', 'x64'],
+    ['container-testnet', 'linux', 'x64'],
     ['source-policy-js', 'linux', 'x64'],
     ['dependency-delta-audit', 'linux', 'x64'],
     ['semgrep-ce', 'linux', 'x64'],
@@ -149,6 +188,25 @@ test('new CI gates are admitted only on their assigned native platform', () => {
     const candidate = { ...observation(), job, platform, arch, nativeArch: arch };
     assert.equal(evaluate(inputs(), candidate, 'ci').exitCode, 0);
     assert.equal(evaluate(inputs(), { ...candidate, platform: 'win32' }, 'ci').exitCode, 1);
+  }
+});
+
+test('Fair Launch admission rejects runner profile drift and unassigned job or architecture', () => {
+  const job = 'fair-launch-local-evm';
+  const candidate = { ...observation(), job };
+  for (const change of [
+    { job: `${job}-unapproved` },
+    { arch: 'arm64', nativeArch: 'arm64' },
+    { platform: 'darwin', arch: 'arm64', nativeArch: 'arm64' },
+  ]) {
+    const report = evaluate(inputs(), { ...candidate, ...change }, 'ci');
+    assert.equal(report.checks.find((item) => item.id === 'platform').status, 'FAIL');
+    assert.equal(report.eligibleForEvidence, false);
+  }
+  for (const change of [{ label: 'ubuntu-latest' }, { arch: 'arm64' }, { platform: 'darwin' }]) {
+    const altered = inputs();
+    Object.assign(altered.policy.runnerJobs[job], change);
+    assert.throws(() => validateInputs(altered), /Invalid environment inputs/);
   }
 });
 

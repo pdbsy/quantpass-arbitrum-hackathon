@@ -138,6 +138,7 @@ export class OrderJournal {
           throw new Error('ORDER_DATABASE_CORRUPT');
       }
       this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=3000');
+      this.verifyRows();
       this.verifyOutcomes();
     } catch (error) {
       if (this.db.isTransaction) this.db.exec('ROLLBACK');
@@ -189,7 +190,47 @@ export class OrderJournal {
   attempts(): number {
     return Number(this.db.prepare('SELECT count(*) AS n FROM orders WHERE nonce IS NOT NULL').get()!.n);
   }
+  /** On restart, corruption cannot turn a reserved nonce into an apparently free executor. */
+  private verifyRows() {
+    let count = 0;
+    for (const row of this.db.prepare('SELECT * FROM orders').iterate()) {
+      try {
+        if (++count > 1000000 || typeof row.intent !== 'string' || row.intent.length > 32768)
+          throw new Error();
+        const intent = validate(JSON.parse(row.intent));
+        if (row.id !== intent.id || row.executor !== intent.executor) throw new Error();
+        const unsigned = ['PREPARED', 'CANCELLED'].includes(String(row.state));
+        if (unsigned) {
+          if ([row.nonce, row.raw_transaction, row.transaction_hash, row.evidence].some((v) => v !== null))
+            throw new Error();
+        } else {
+          if (typeof row.nonce !== 'string' || !integer(row.nonce) || BigInt(row.nonce) > 2147483647n)
+            throw new Error();
+          if (row.state === 'RESERVED') {
+            if ([row.raw_transaction, row.transaction_hash, row.evidence].some((v) => v !== null))
+              throw new Error();
+          } else {
+            if (
+              typeof row.raw_transaction !== 'string' ||
+              signedHash(row.raw_transaction, { intent, nonce: row.nonce }) !== row.transaction_hash
+            )
+              throw new Error();
+            if (['SIGNED', 'BROADCAST_UNCERTAIN'].includes(String(row.state)) && row.evidence !== null)
+              throw new Error();
+            if (
+              ['RECONCILED', 'REVERTED', 'REORGED'].includes(String(row.state)) &&
+              (typeof row.evidence !== 'string' || !row.evidence || row.evidence.length > 32768)
+            )
+              throw new Error();
+          }
+        }
+      } catch {
+        throw new Error('ORDER_ROW_INTEGRITY');
+      }
+    }
+  }
   verifyOutcomes() {
+    const latest = new Map<string, { state: string; evidence: string }>();
     let count = 0;
     for (const row of this.db
       .prepare('SELECT id,payload,sha256 FROM order_outcomes ORDER BY sequence')
@@ -206,10 +247,23 @@ export class OrderJournal {
         payload.id !== row.id ||
         !['RECONCILED', 'REVERTED', 'REORGED'].includes(payload.state) ||
         typeof payload.evidence !== 'string' ||
+        !payload.evidence ||
+        payload.evidence.length > 32768 ||
+        Object.keys(payload).length !== 3 ||
         !this.get(payload.id)
       )
         throw new Error('ORDER_OUTCOME_INTEGRITY');
+      latest.set(payload.id, { state: payload.state, evidence: payload.evidence });
     }
+    for (const [id, outcome] of latest) {
+      const order = this.get(id);
+      if (order?.state !== outcome.state || order.evidence !== outcome.evidence)
+        throw new Error('ORDER_OUTCOME_INTEGRITY');
+    }
+    for (const row of this.db
+      .prepare("SELECT id FROM orders WHERE state IN('RECONCILED','REVERTED','REORGED')")
+      .iterate())
+      if (!latest.has(String(row.id))) throw new Error('ORDER_OUTCOME_INTEGRITY');
   }
   reconcileCandidates(after = '') {
     return this.db

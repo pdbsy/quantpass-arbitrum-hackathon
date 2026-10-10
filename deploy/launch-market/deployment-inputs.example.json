@@ -1,0 +1,19 @@
+{
+  "chainId": 46630,
+  "nonce": 0,
+  "deployer": null,
+  "administrator": null,
+  "quoteSigner": null,
+  "claimSigner": null,
+  "tslaLpRecipient": null,
+  "amznLpRecipient": null,
+  "usdcSupplyRaw": null,
+  "conversionUsdcRaw": null,
+  "conversionEthRaw": null,
+  "stockReserveUsdcRaw": null,
+  "stockReserveUnitsRaw": null,
+  "ethPerTransactionRaw": null,
+  "ethPerAccountDailyRaw": null,
+  "ethGlobalDailyRaw": null,
+  "ethMinimumReserveRaw": null
+}

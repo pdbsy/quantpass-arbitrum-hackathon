@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "mode": "LOCAL_EVM_TESTED_NOT_DEPLOYED",
+  "reviewedProductCommit": "1f482a4f3083b8f4a9be0468d56d94267ba272b1",
+  "integratedBrowserTestCommit": "9184824ffe82e63d34941add0ea25fcb6b67f681",
+  "finalMintGas": "3178873",
+  "localFinalMintGasBudget": "6000000",
+  "checks": {
+    "marketFoundryTests": {
+      "status": "PASS",
+      "tests": 30,
+      "evidence": "Executed earlier in this task; commands and scope in TESTING.md; raw stdout not exported."
+    },
+    "strategyVaultFoundryTests": {
+      "status": "PASS",
+      "tests": 7,
+      "evidence": "Executed earlier in this task; commands and scope in TESTING.md; raw stdout not exported."
+    },
+    "compiledAbiAndSizeIdentity": {
+      "status": "PASS",
+      "contracts": 11,
+      "evidence": "contracts/deployment/market/artifact-sizes.json"
+    },
+    "unsignedPreparation": {
+      "status": "PASS",
+      "tests": 2
+    },
+    "finalTargetedNode": {
+      "status": "PASS",
+      "tests": 73,
+      "failed": 0,
+      "log": "unit-final.log"
+    },
+    "actualLocalAliceBob": {
+      "status": "PASS",
+      "tests": 1,
+      "failed": 0,
+      "log": "local-evm-final.log"
+    },
+    "actualBrowserHttpWalletEvm": {
+      "status": "PASS",
+      "tests": 1,
+      "failed": 0,
+      "log": "browser-evm-final.log"
+    },
+    "serverAndWebTypecheck": {
+      "status": "PASS",
+      "exitCode": 0,
+      "log": "typecheck-final.log"
+    },
+    "scopedLint": {
+      "status": "PASS",
+      "exitCode": 0,
+      "log": "lint-final.log"
+    },
+    "scopedFormat": {
+      "status": "PASS",
+      "exitCode": 0
+    },
+    "secretChecker": {
+      "status": "PASS",
+      "exitCode": 0,
+      "checkedFiles": 1183,
+      "log": "secrets-final.log"
+    },
+    "webBuild": {
+      "status": "PASS",
+      "exitCode": 0,
+      "log": "build-final.log"
+    },
+    "sustainedLoad": {
+      "status": "PASS",
+      "report": "load-final-1800s.json",
+      "durationSeconds": 1800.42,
+      "activeSeconds": 300,
+      "users": 20,
+      "trades": 1220,
+      "reads": 18001,
+      "minimumSseConnections": 100,
+      "failures": 0
+    },
+    "independentSourceReview": {
+      "status": "SECURITY_REVIEWED",
+      "scope": "Immutable product delta; Macbeth05 plain engineering/security source review with focused reproductions; not a formal scanner or GitHub approval."
+    },
+    "semgrepStatic": {
+      "status": "PASS",
+      "version": "1.177.0",
+      "sourceCommit": "223d0d1b417b5b4de42319d3ed6bccbaf9a26126",
+      "sourceFiles": 300,
+      "rules": 22,
+      "canaries": 44,
+      "findings": 0,
+      "errors": 0,
+      "report": "semgrep-static.json"
+    },
+    "slitherStatic": {
+      "status": "SCAN_COMPLETED_GATE_BLOCKED",
+      "version": "0.11.3",
+      "sourceCommit": "223d0d1b417b5b4de42319d3ed6bccbaf9a26126",
+      "scanExitCode": 255,
+      "admissionExitCode": 1,
+      "totalFindings": 53,
+      "previouslyApproved": 9,
+      "newUnapproved": 44,
+      "report": "slither-review.json"
+    }
+  },
+  "notRun": [
+    "formalCodexSecurityScanner",
+    "liveGoogleIngress",
+    "liveAlpacaCredentials",
+    "externalEthFeedSla",
+    "targetTestnetDeploymentFundingAndTransactions",
+    "targetFinalMintGasExecution",
+    "targetContractExplorerVerification",
+    "liveServiceMigrationAndSwitch",
+    "continuousKeeperOrExecutorSigning",
+    "hostedGithubChecks"
+  ],
+  "publication": {
+    "status": "PREPARED_FOR_HISTORY_PRESERVING_PUBLICATION",
+    "method": "Verified Git bundle imported by an isolated temporary GitHub Actions publication job. Existing commit authors and history are retained; no protected branch or chain operation."
+  },
+  "testIdentityAndReference": "Explicit offline fixtures only; random test wallet keys remain in memory; actual EVM assets, receipts and logs."
+}

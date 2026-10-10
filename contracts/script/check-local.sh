@@ -20,8 +20,8 @@ import subprocess
 import sys
 import tarfile
 sys.path.insert(0, str(Path('script').resolve()))
-from bootstrap import verify
-lock = json.loads(Path('toolchain.lock.json').read_text())
+from bootstrap import verify, select_lock
+lock = select_lock(json.loads(Path('toolchain.lock.json').read_text()))
 for name in ('foundry', 'solc', 'openzeppelin'):
     verify(Path('../.checks/af-chain01/toolchain/downloads') / lock[name]['filename'], lock[name])
 with tarfile.open(Path('../.checks/af-chain01/toolchain/downloads') / lock['foundry']['filename']) as archive:
@@ -35,9 +35,9 @@ with tarfile.open(Path('../.checks/af-chain01/toolchain/downloads') / lock['open
             installed = Path('node_modules/@openzeppelin/contracts') / member.name.removeprefix('package/')
             if not installed.is_file() or archive.extractfile(member).read() != installed.read_bytes():
                 raise SystemExit('Installed OpenZeppelin content mismatch: ' + member.name)
-if hashlib.sha256(Path('requirements-slither.lock').read_bytes()).hexdigest() != lock['slither']['requirementsSha256']:
+if hashlib.sha256(Path(lock['slither']['requirements']).read_bytes()).hexdigest() != lock['slither']['requirementsSha256']:
     raise SystemExit('Slither lock mismatch')
-for line in Path('requirements-slither.lock').read_text().splitlines():
+for line in Path(lock['slither']['requirements']).read_text().splitlines():
     if line and not line.startswith('#'):
         name, version = line.split()[0].split('==')
         if importlib.metadata.version(name) != version:

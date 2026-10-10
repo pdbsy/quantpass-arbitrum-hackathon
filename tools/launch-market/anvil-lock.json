@@ -1,0 +1,8 @@
+{
+  "platform": "linux-x64",
+  "version": "1.5.1",
+  "commit": "b0a9dd9ceda36f63e2326ce530c10e6916f4b8a2",
+  "url": "https://registry.npmjs.org/@foundry-rs/anvil-linux-amd64/-/anvil-linux-amd64-1.5.1.tgz",
+  "integrity": "sha512-17AQOAcW1/iLQ9batoTWNMDp6hcCvh5rH0f5fkEzvsiv50Sq6Q4jyyGB30YEdQnHFkkmmQNKsZz/R1RhuyxJkg==",
+  "binarySha256": "b47362d2159aa0f2f575320e5e529bb5a91093cb62dc6bd30c0022018aa9f738"
+}

@@ -6,6 +6,7 @@ import { resolve, sep } from 'node:path';
 
 import { parseTaskRecord, parseWorkerLog } from './markdown.mjs';
 import { redactValue } from './redact.mjs';
+import { preservedManagementContext, verifyPreservedManagementSource } from './preserved-context.mjs';
 
 const execFileAsync = promisify(execFile);
 const maximumSourceBytes = 1024 * 1024;
@@ -496,7 +497,8 @@ async function requireRecordedAncestor(root, recordedCommit, logicalHead) {
   try {
     await git(root, ['merge-base', '--is-ancestor', recordedCommit, logicalHead]);
   } catch (error) {
-    if (error?.code === 1) throw new SourceError('RECORDED_GIT_COMMIT_MISMATCH');
+    // Git 2.43 can also return 1 for a damaged graph, with diagnostics on stderr.
+    if (error?.code === 1 && error.stderr === '') throw new SourceError('RECORDED_GIT_COMMIT_MISMATCH');
     throw error;
   }
 }
@@ -506,7 +508,7 @@ async function mergeBase(root, first, second) {
   try {
     commit = await git(root, ['merge-base', first, second]);
   } catch (error) {
-    if (error?.code === 1) throw new SourceError('RECORDED_GIT_GRAPH_MISMATCH');
+    if (error?.code === 1 && error.stderr === '') throw new SourceError('RECORDED_GIT_GRAPH_MISMATCH');
     throw error;
   }
   if (!gitCommitPattern.test(commit)) throw new SourceError('RECORDED_GIT_GRAPH_MISMATCH');
@@ -645,11 +647,13 @@ export async function collectRecordedGitState(root, baseRef, recorded, options =
     if (!gitCommitPattern.test(recorded?.commit ?? '')) throw new SourceError('RECORDED_GIT_COMMIT_INVALID');
     if (!gitCommitPattern.test(recorded?.tree ?? '')) throw new SourceError('RECORDED_GIT_TREE_INVALID');
     if (recorded?.dirtyFiles !== 0) throw new SourceError('RECORDED_GIT_NOT_CLEAN');
-    context = parseGitHubActionsContext(
-      options.environment === undefined ? {} : options.environment,
-      validatedBase,
-      recordedBranch,
-    );
+    const environment = options.environment === undefined ? {} : options.environment;
+    try {
+      context = preservedManagementContext(environment, validatedBase, recordedBranch);
+    } catch {
+      throw new SourceError('RECORDED_GIT_CI_CONTEXT_INVALID');
+    }
+    context ??= parseGitHubActionsContext(environment, validatedBase, recordedBranch);
   } catch (error) {
     return sourceFailure(
       '.git',
@@ -671,7 +675,16 @@ export async function collectRecordedGitState(root, baseRef, recorded, options =
     let logicalHead;
     let comparisonBaseCommit = base.commit;
 
-    if (context.kind === 'pull_request') {
+    if (context.kind === 'preserved_source') {
+      const expectedBranch = context.eventName === 'pull_request' ? '' : context.branch;
+      if (currentBranch !== expectedBranch) throw new SourceError('RECORDED_GIT_BRANCH_MISMATCH');
+      try {
+        logicalHead = verifyPreservedManagementSource(root, context, head, base.commit, recorded);
+        comparisonBaseCommit = context.comparisonBaseCommit ?? comparisonBaseCommit;
+      } catch {
+        throw new SourceError('RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+      }
+    } else if (context.kind === 'pull_request') {
       if (currentBranch !== '') throw new SourceError('RECORDED_GIT_BRANCH_MISMATCH');
       if (context.sha !== head) throw new SourceError('RECORDED_GIT_HEAD_MISMATCH');
       const mergeRef = `refs/remotes/pull/${context.number}/merge`;

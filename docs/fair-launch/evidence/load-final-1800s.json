@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "mode": "LOCAL_EVM_ONLY",
+  "network": "isolated pinned Anvil 1.5.1 / chain 46630",
+  "fullRequirementRequested": true,
+  "fullDurationCompleted": true,
+  "passed": true,
+  "interrupted": false,
+  "durationSeconds": 1800,
+  "activeSeconds": 300,
+  "elapsedSeconds": 1800.42,
+  "users": 20,
+  "claims": 20,
+  "trades": 1220,
+  "approvals": 1220,
+  "maxConcurrentActors": 20,
+  "sse": {
+    "target": 100,
+    "minConnected": 100,
+    "events": 424601,
+    "snapshots": 198601,
+    "versionGaps": 0,
+    "oldUpdates": 0,
+    "distinctObservedAmznReserves": 62,
+    "reconnectVerified": true,
+    "reconnectLatencyMs": 106.24,
+    "publishToDelivery": {
+      "count": 198501,
+      "failures": 0,
+      "meanMs": 10.64,
+      "p50Ms": 5,
+      "p95Ms": 60,
+      "p99Ms": 73,
+      "maxMs": 671.89,
+      "sampled": 198501,
+      "percentileResolutionMs": 1
+    }
+  },
+  "reads": {
+    "targetRps": 10,
+    "requests": 18001,
+    "achievedRps": 10
+  },
+  "latency": {
+    "/api/launch-market/wallet/challenge": {
+      "count": 20,
+      "failures": 0,
+      "meanMs": 6.94,
+      "p50Ms": 7,
+      "p95Ms": 8,
+      "p99Ms": 17,
+      "maxMs": 16.07,
+      "sampled": 20,
+      "percentileResolutionMs": 1
+    },
+    "/api/launch-market/wallet/bind": {
+      "count": 20,
+      "failures": 0,
+      "meanMs": 8.87,
+      "p50Ms": 9,
+      "p95Ms": 11,
+      "p99Ms": 18,
+      "maxMs": 17.23,
+      "sampled": 20,
+      "percentileResolutionMs": 1
+    },
+    "/api/launch-market/quote": {
+      "count": 6060,
+      "failures": 0,
+      "meanMs": 246.34,
+      "p50Ms": 227,
+      "p95Ms": 392,
+      "p99Ms": 495,
+      "maxMs": 757.3,
+      "sampled": 6060,
+      "percentileResolutionMs": 1
+    },
+    "/api/launch-market/submissions": {
+      "count": 1240,
+      "failures": 0,
+      "meanMs": 69.89,
+      "p50Ms": 69,
+      "p95Ms": 83,
+      "p99Ms": 110,
+      "maxMs": 109.29,
+      "sampled": 1240,
+      "percentileResolutionMs": 1
+    },
+    "/api/launch-market/operations/:id": {
+      "count": 2280,
+      "failures": 0,
+      "meanMs": 166.15,
+      "p50Ms": 158,
+      "p95Ms": 225,
+      "p99Ms": 243,
+      "maxMs": 248.11,
+      "sampled": 2280,
+      "percentileResolutionMs": 1
+    },
+    "/api/launch-market/snapshot": {
+      "count": 9002,
+      "failures": 0,
+      "meanMs": 53.35,
+      "p50Ms": 45,
+      "p95Ms": 103,
+      "p99Ms": 186,
+      "maxMs": 408.51,
+      "sampled": 9002,
+      "percentileResolutionMs": 1
+    },
+    "sse_publish_to_delivery": {
+      "count": 198501,
+      "failures": 0,
+      "meanMs": 10.64,
+      "p50Ms": 5,
+      "p95Ms": 60,
+      "p99Ms": 73,
+      "maxMs": 671.89,
+      "sampled": 198501,
+      "percentileResolutionMs": 1
+    },
+    "/api/launch-market/wallet": {
+      "count": 5400,
+      "failures": 0,
+      "meanMs": 68.29,
+      "p50Ms": 57,
+      "p95Ms": 130,
+      "p99Ms": 208,
+      "maxMs": 424.4,
+      "sampled": 5400,
+      "percentileResolutionMs": 1
+    }
+  },
+  "thresholds": {
+    "apiP95LimitMs": 1000,
+    "apiLatencyPassed": true,
+    "sseDeliveryP95LimitMs": 5000,
+    "deliveryLatencyPassed": true,
+    "reconnectLimitMs": 10000
+  },
+  "memory": {
+    "peakRssMiB": 332,
+    "peakHeapMiB": 112
+  },
+  "failureCounts": {},
+  "failures": [],
+  "failureDetailsTruncated": false
+}

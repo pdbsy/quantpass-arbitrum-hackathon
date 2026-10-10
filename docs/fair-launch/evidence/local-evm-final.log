@@ -1,0 +1,14 @@
+
+> alphaforge-robinhood-chain-hackathon@0.1.0 test:fair-launch:evm
+> node tools/launch-market/local-check.mjs
+
+{"test":"actual-local-EVM-Alice-Bob","chainId":46630,"finalMintGas":"3178873","claims":"2","fixedSuppliesConserved":true,"canonicalEventRebuild":true,"unregisteredClaimReorgRecovered":true,"restartRecovered":true}
+✔ Alice and Bob use actual EVM claims, native mint/trading, owner Vaults and atomic Fair Launch (18592.439088ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19670.481863

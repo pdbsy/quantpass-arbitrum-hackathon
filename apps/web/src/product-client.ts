@@ -36,7 +36,7 @@ export interface ProductReadTransaction {
 }
 export type BeginProductRead = (isCurrent: () => boolean) => ProductReadTransaction;
 export type ClientStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
-export type Identity = 'alice' | 'bob';
+export type Identity = 'alice' | 'bob' | 'derick';
 export type Strategy = (typeof STRATEGIES)[number];
 export type ClientPhase = 'LOADING' | 'EMPTY' | 'READY' | 'ERROR' | 'PENDING' | 'STALE' | 'DISCONNECTED';
 export type CommandType = Command['type'];
@@ -92,7 +92,7 @@ const commandFields: Record<CommandType, readonly string[]> = {
   payFees: ['amount'],
 };
 function identity(value: unknown): value is Identity {
-  return value === 'alice' || value === 'bob';
+  return value === 'alice' || value === 'bob' || value === 'derick';
 }
 function validId(value: unknown): value is string {
   return typeof value === 'string' && idPattern.test(value);

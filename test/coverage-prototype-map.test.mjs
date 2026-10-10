@@ -86,7 +86,7 @@ test('mapper fails closed on ambiguous lexical boundaries instead of returning a
     assert.throws(() => buildPrototypeMap(html));
 });
 
-test('actual tracked prototype maps exactly to the served bytes across all seventeen substitutions', async (t) => {
+test('actual tracked prototype maps exactly to the served bytes across all style substitutions', async (t) => {
   const html = readFileSync('apps/web/prototype/AlphaForge_v3_EN.html', 'utf8');
   const result = buildPrototypeMap(html);
   assert.ok(result, 'mapping must exist');
@@ -96,7 +96,8 @@ test('actual tracked prototype maps exactly to the served bytes across all seven
   const served = readFileSync(join(output, 'public/user-ui.js'), 'utf8');
   assert.equal(result.generated, served);
   assert.equal(result.generated, normalizeStyles(result.original));
-  assert.equal(result.insertions.length, 17);
+  // The recorded native two-strategy source has sixteen inline style substitutions.
+  assert.equal(result.insertions.length, 16);
   for (const edit of result.insertions) {
     assert.equal(result.originalOffset(edit.generatedStart - 1), result.scriptStart + edit.originalStart - 1);
     assert.equal(result.originalOffset(edit.generatedStart), result.scriptStart + edit.originalStart);

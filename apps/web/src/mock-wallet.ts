@@ -14,6 +14,16 @@ export interface MockWalletSnapshot {
     readonly availablePass?: string;
   }[];
 }
+export interface MockPassGrant {
+  readonly strategy: string;
+  readonly quantity: number;
+}
+// Free browser-only demonstration capacity. The exchange records each grant once.
+export const MOCK_STARTER_PASS_GRANTS: readonly MockPassGrant[] = Object.freeze([
+  Object.freeze({ strategy: 'trend', quantity: 1000 }),
+  Object.freeze({ strategy: 'factor', quantity: 750 }),
+  Object.freeze({ strategy: 'mean', quantity: 500 }),
+]);
 const storageKey = 'alphaforge.mock-wallet.v1';
 // A display identifier only. There is no private key, provider or chain authority.
 const address = '0x000000000000000000000000000000000000de00';
@@ -33,6 +43,7 @@ export function createMockWalletSession(
   readExchange: () => unknown,
   strategies: readonly { readonly id: string; readonly name: string }[],
   storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
+  seedHoldings?: (grants: readonly MockPassGrant[]) => void,
 ) {
   let connected = false;
   try {
@@ -40,6 +51,16 @@ export function createMockWalletSession(
   } catch {
     /* Session-only mode. */
   }
+  const seed = () => {
+    try {
+      seedHoldings?.(
+        MOCK_STARTER_PASS_GRANTS.filter((grant) => strategies.some((s) => s.id === grant.strategy)),
+      );
+    } catch {
+      /* Keep the existing ledger if a grant cannot be validated or persisted. */
+    }
+  };
+  if (connected) seed();
   return {
     connect() {
       connected = true;
@@ -48,6 +69,7 @@ export function createMockWalletSession(
       } catch {
         /* Keep the in-memory choice. */
       }
+      seed();
     },
     disconnect() {
       connected = false;

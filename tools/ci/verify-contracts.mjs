@@ -12,17 +12,15 @@ import {
   renameSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { root, inspect, assertUnchanged, run, emit, main } from './context.mjs';
+import { root, inspect, assertUnchanged, run, emit, main, cleanEnvironment } from './context.mjs';
 import { evaluateSlitherAdmissions } from './slither-review.mjs';
 
 export function validateContractHost(host) {
-  if (
-    host.platform !== 'darwin' ||
-    host.arch !== 'arm64' ||
-    host.python !== '3.12.9' ||
-    host.pythonArch !== 'arm64'
-  )
-    throw new Error('Contract CI requires Darwin arm64 and native CPython 3.12.9');
+  const nativePlatform =
+    (host.platform === 'darwin' && host.arch === 'arm64' && host.pythonArch === 'arm64') ||
+    (host.platform === 'linux' && host.arch === 'x64' && host.pythonArch === 'x86_64');
+  if (!nativePlatform || host.python !== '3.12.9')
+    throw new Error('Contract CI requires Darwin arm64 or Linux x64 with native CPython 3.12.9');
 }
 const maxSlitherBytes = 16 * 1024 * 1024;
 
@@ -154,7 +152,13 @@ export function runContractStages(execute, slitherReportPath) {
         };
       }
     }
-    const result = execute(file, args);
+    const environment = cleanEnvironment();
+    // Native bootstrap rejects inherited pip configuration and invokes pip with
+    // its own --isolated/--require-hashes flags. Keep later gate controls intact.
+    if (stage === 'bootstrap')
+      for (const key of ['PIP_CONFIG_FILE', 'PIP_NO_INPUT', 'PIP_DISABLE_PIP_VERSION_CHECK'])
+        delete environment[key];
+    const result = execute(file, args, { env: environment });
     const incomplete = Boolean(result.error || result.signal || !Number.isInteger(result.status));
     const state =
       incomplete || (result.status !== 0 && stage !== 'contracts-and-abi')
@@ -206,8 +210,8 @@ await main(import.meta.url, () => {
   const lockBytes = readFileSync(resolve(root, 'contracts/toolchain.lock.json'));
   const lock = JSON.parse(lockBytes);
   const report = runContractStages(
-    (file, args) => {
-      const result = run(file, args, { timeout: 20 * 60 * 1000 });
+    (file, args, options) => {
+      const result = run(file, args, { ...options, timeout: 20 * 60 * 1000 });
       if (result.stdout) console.log(result.stdout);
       if (result.stderr) console.error(result.stderr);
       if (file.endsWith('/solc') && result.status === 0 && !result.stdout.includes(lock.solc.longVersion))
@@ -218,7 +222,7 @@ await main(import.meta.url, () => {
   );
   assertUnchanged(before, inspect());
   emit({
-    gate: 'contracts-m3-macos',
+    gate: process.platform === 'linux' ? 'contracts-m3-linux' : 'contracts-m3-macos',
     ...before,
     contractLockSha256: createHash('sha256').update(lockBytes).digest('hex'),
     python: JSON.parse(probe.stdout),

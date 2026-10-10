@@ -47,3 +47,41 @@ test('status projection exposes only the matching owner Vault and rejects stale 
     rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test('executor export projects live reference and backup state without private provider fields or other-owner records', async () => {
+  const status = await import('../packages/testnet/src/execution-status.ts');
+  assert.equal(typeof status.executionStatusExport, 'function');
+  const folder = realpathSync(mkdtempSync(join(tmpdir(), 'alphaforge-runtime-status-'))),
+    file = join(folder, 'execution-status.json');
+  const owner = '0x' + '1'.repeat(40),
+    vault = '0x' + '2'.repeat(40),
+    digest = '0x' + 'ab'.repeat(32);
+  try {
+    const projection = status.executionStatusExport({
+      configurationDigest: digest,
+      observedAt: 100000,
+      signingEnabled: false,
+      state: 'PREPARED_SIGNING_DISABLED',
+      referencePaused: false,
+      lastMinute: 60000,
+      backups: { state: 'VERIFIED', lastVerifiedAt: 90000, lastBackupId: 'private-path' },
+      vaults: [{ owner, vault, state: 'PREPARED_SIGNING_DISABLED' }],
+      rpcUrl: 'https://secret.invalid',
+      rawTransaction: 'secret-envelope',
+    });
+    assert.equal(JSON.stringify(projection).includes('secret'), false);
+    assert.equal(JSON.stringify(projection).includes('private-path'), false);
+    writeFileSync(file, JSON.stringify(projection));
+    const result = readExecutionStatus({ file, configurationDigest: digest }, owner, vault, 100001);
+    assert.ok('runtime' in result && result.runtime);
+    assert.equal(result.runtime.process, 'RUNNING');
+    assert.equal(result.runtime.reference.state, 'CURRENT');
+    assert.equal(result.runtime.backups.state, 'VERIFIED');
+    assert.equal(
+      readExecutionStatus({ file, configurationDigest: digest }, owner, vault, 200001).state,
+      'STATUS_UNAVAILABLE_OR_STALE',
+    );
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});

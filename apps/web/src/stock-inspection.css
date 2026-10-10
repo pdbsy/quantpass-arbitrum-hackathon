@@ -1,0 +1,30 @@
+/* Reuse the existing inspection styling; a viewport overlay never resizes the stock chart. */
+.candle-detail-tooltip.stock-detail-tooltip {
+  position: fixed;
+  z-index: 80;
+  width: min(306px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 12px 15px;
+  pointer-events: none;
+}
+.stock-detail-tooltip > strong {
+  display: block;
+}
+.stock-detail-kind {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted, #666);
+  font-size: 10px;
+}
+.stock-detail-tooltip dl {
+  gap: 3px 12px;
+  margin-block: 9px;
+}
+@media (max-width: 650px) {
+  .candle-detail-tooltip.stock-detail-tooltip {
+    width: min(282px, calc(100vw - 16px));
+    padding: 10px 12px;
+  }
+}

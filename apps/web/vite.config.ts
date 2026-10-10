@@ -47,6 +47,7 @@ export default defineConfig({
         automata: fileURLToPath(new URL('./automata.html', import.meta.url)),
         referencePaper: fileURLToPath(new URL('./reference-paper.html', import.meta.url)),
         testnet: fileURLToPath(new URL('./testnet.html', import.meta.url)),
+        deployment: fileURLToPath(new URL('./deployment.html', import.meta.url)),
       },
     },
   },

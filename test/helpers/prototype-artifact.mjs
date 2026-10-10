@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { FAIR_LAUNCH_IMPORT, verifyPreservedMasterImport } from '../../tools/preserved-source-identity.mjs';
 
 const path = 'apps/web/prototype/AlphaForge_v3_EN.html';
 const originalCommit = 'ebf8df18647f72afd7dafadf80638ed2f4c7a44b';
@@ -19,6 +20,16 @@ const fundingCommit = 'a6bee70e7ef0c4cdfed373a898b92309a977e94f';
 const fundingSha256 = 'a1b637d33bf78a549a0cee1691a32ab5c2bb778ae4593145a4c850600452a639';
 const usdcCommit = 'd820d2bc1a13329a79a46a9aae55a2e4e794a213';
 const usdcSha256 = 'abd0d7671d4af239c3e33cafebd3084e16372c7865681ad1e47c57eccd2c2b80';
+const releaseSnapshotCommit = 'c0bba0abc80a056a0a61d6a3fbf960cd768d3ac1';
+const maintenanceBaseCommit = '5c8c73f2c7df700d264bdf01ff6b87b98412059c';
+const mockHoldingsCommit = 'd4ace125257188d808e530c9f59beeb4a29e8ef2';
+const mockHoldingsSha256 = '60931718e8a35b57b98f3ed7626ee501a0f74a9979789b91bfb73f810db8d0ca';
+// The user-authorized native two-strategy revision was reviewed and committed
+// before this admission. Keep its source identity separate from every historical
+// repair and fictional-wallet artifact; this does not admit future display edits.
+const nativeMarketCommit = '6aab8af781100c5156ee5126c36cad486fd35704';
+const nativeMarketParentCommit = '9b46d4509599c17a7c27efb93353d16651b34612';
+const nativeMarketSha256 = 'e07288bbb00309d6c235b5010a976906c31f825d32cbbd30968f48e53b31458b';
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 // Keep the original artifact in the complete, immutable Git history. The current
@@ -50,8 +61,11 @@ export async function verifiedPrototypeArtifacts(root) {
     { commit: fundingCommit, hash: fundingSha256, bytes: 290335 },
     { commit: usdcCommit, hash: usdcSha256, bytes: 292005 },
   ];
-  const selected = recorded.find((revision) => revision.hash === currentSha256);
-  for (const revision of recorded) {
+  const mockHoldingsRevision = { commit: mockHoldingsCommit, hash: mockHoldingsSha256, bytes: 294417 };
+  const nativeMarketRevision = { commit: nativeMarketCommit, hash: nativeMarketSha256, bytes: 277392 };
+  const admittedRevisions = [...recorded, mockHoldingsRevision, nativeMarketRevision];
+  const selected = admittedRevisions.find((revision) => revision.hash === currentSha256);
+  for (const revision of admittedRevisions) {
     const content = git('show', `${revision.commit}:${path}`);
     assert.equal(Buffer.byteLength(content), revision.bytes);
     assert.equal(digest(content), revision.hash, 'recorded source revision must remain exact');
@@ -77,7 +91,22 @@ export async function verifiedPrototypeArtifacts(root) {
     }
   };
   const head = commit('HEAD');
-  const required = [...recorded].reverse().find((revision) => ancestor(revision.commit, head));
+  let nativeSourceImported = false;
+  if (!ancestor(nativeMarketCommit, head)) {
+    try {
+      const preserved = verifyPreservedMasterImport(FAIR_LAUNCH_IMPORT, {
+        head,
+        git: (...args) => git(...args).trim(),
+      });
+      nativeSourceImported = ancestor(nativeMarketCommit, preserved.sourceHead);
+    } catch {
+      // Only the exact retained-source squash may substitute for direct ancestry.
+      // Every other candidate still fails the ordinary source checks below.
+    }
+  }
+  const required = nativeSourceImported
+    ? nativeMarketRevision
+    : [...admittedRevisions].reverse().find((revision) => ancestor(revision.commit, head));
   if (required)
     assert.equal(currentSha256, required.hash, 'a later candidate must not roll back the recorded revision');
   for (let i = 1; i < recorded.length; i++)
@@ -85,7 +114,42 @@ export async function verifiedPrototypeArtifacts(root) {
       ancestor(recorded[i - 1].commit, recorded[i].commit),
       'revisions must preserve prior source history',
     );
-  if (selected && !ancestor(selected.commit, head)) {
+  // The maintenance change follows the sealed S3 release, whose wallet source
+  // was squash-integrated. Preserve that fixed chain rather than claiming the
+  // original wallet feature commit is a direct ancestor of this new revision.
+  assert.ok(
+    ancestor(releaseSnapshotCommit, maintenanceBaseCommit),
+    'maintenance must inherit the S3 release',
+  );
+  assert.equal(git('rev-parse', `${mockHoldingsCommit}^`).trim(), maintenanceBaseCommit);
+  const maintenancePrototype = git('show', `${maintenanceBaseCommit}:${path}`);
+  assert.equal(Buffer.byteLength(maintenancePrototype), 292005);
+  assert.equal(
+    digest(maintenancePrototype),
+    usdcSha256,
+    'maintenance must preserve the prior wallet artifact',
+  );
+  if (selected === mockHoldingsRevision)
+    assert.ok(
+      ancestor(mockHoldingsCommit, head),
+      'new Mock Pass bytes require their actual maintenance source ancestry',
+    );
+  assert.equal(git('rev-parse', `${nativeMarketCommit}^`).trim(), nativeMarketParentCommit);
+  assert.ok(
+    ancestor(mockHoldingsCommit, nativeMarketParentCommit),
+    'native market source must inherit the admitted maintenance history',
+  );
+  if (selected === nativeMarketRevision)
+    assert.ok(
+      ancestor(nativeMarketCommit, head) || nativeSourceImported,
+      'native market bytes require their actual reviewed source ancestry',
+    );
+  if (
+    selected &&
+    (!ancestor(selected.commit, head) ||
+      selected === mockHoldingsRevision ||
+      selected === nativeMarketRevision)
+  ) {
     // Protected master uses squash merges. Keep the original source branch and
     // require its complete tree to occur on master, not just matching UI bytes.
     const base = '05a7e16be347ea56bfa51ced4d5277cfdd55058c';
@@ -97,7 +161,15 @@ export async function verifiedPrototypeArtifacts(root) {
       [usdcCommit, source],
     ])
       assert.ok(ancestor(before, after), 'wallet integration must retain its exact source ancestry');
-    assert.equal(currentSha256, usdcSha256, 'integrated wallet cannot roll back its final source');
+    assert.equal(
+      currentSha256,
+      selected === nativeMarketRevision
+        ? nativeMarketSha256
+        : selected === mockHoldingsRevision
+          ? mockHoldingsSha256
+          : usdcSha256,
+      'integrated wallet cannot roll back its final source',
+    );
     const tree = git('rev-parse', `${source}^{tree}`).trim();
     const bridges = git('log', '--first-parent', '--max-count=4096', '--format=%H %T', `${base}..${master}`)
       .trim()
@@ -179,7 +251,18 @@ export async function verifiedPrototypeArtifacts(root) {
   assert.equal(prior.outsideScript, before.outsideScript, 'prior script boundary remains exact');
   const after = blocks(current);
   assert.equal(after.style, before.style, 'the original CSS remains byte-identical');
-  assert.equal(after.outsideScript, before.outsideScript, 'HTML outside the repaired script remains exact');
+  if (selected === nativeMarketRevision) {
+    // Only the fixed native source admits its reviewed testnet copy and TSLA
+    // navigation. Historical repairs retain the original boundary assertion.
+    const nativeMarketSource = git('show', `${nativeMarketCommit}:${path}`);
+    assert.equal(
+      after.outsideScript,
+      blocks(nativeMarketSource).outsideScript,
+      'native market HTML outside the script must match its exact reviewed source',
+    );
+  } else {
+    assert.equal(after.outsideScript, before.outsideScript, 'HTML outside the repaired script remains exact');
+  }
   return {
     original,
     current,
@@ -197,6 +280,13 @@ export async function verifiedPrototypeArtifacts(root) {
     fundingSha256,
     usdcCommit,
     usdcSha256,
+    releaseSnapshotCommit,
+    maintenanceBaseCommit,
+    mockHoldingsCommit,
+    mockHoldingsSha256,
+    nativeMarketCommit,
+    nativeMarketParentCommit,
+    nativeMarketSha256,
     currentSha256,
   };
 }

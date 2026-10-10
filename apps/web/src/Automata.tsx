@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   parametersFromForm,
+  externalDecisionFromJson,
+  type ExternalStrategyContext,
   requestSimulation as request,
   SimulationError,
   type ConfigForm,
@@ -19,6 +21,7 @@ interface Vault {
   activeCash: string;
   status: string;
   strategyId: string;
+  passes: string;
 }
 interface Pending {
   owner: string;
@@ -89,6 +92,12 @@ export function Automata() {
     upper: '10',
     lower: '-5',
   });
+  const [externalJson, setExternalJson] = useState<Record<string, string>>({});
+  const [decisionDraft, setDecisionDraft] = useState<{
+    owner: string;
+    runId: string;
+    body: ReturnType<typeof externalDecisionFromJson>;
+  } | null>(null);
   const lock = useRef(false);
   const generation = useRef(0);
   const vault = vaults.find((v) => v.strategyId === 'core-flow-demo');
@@ -109,6 +118,7 @@ export function Automata() {
       request<{ items: RunView[] }>('/api/v1/automata'),
     ]);
     if (epoch !== generation.current) return;
+    if (owner && owner !== identity.user) setDecisionDraft(null);
     setOwner(identity.user);
     setMessage((current) =>
       current.startsWith('请选择') || current.startsWith('请先选择')
@@ -194,10 +204,10 @@ export function Automata() {
     <div className="af-shell">
       <div className="af-banner">LOCAL / MOCK · 合成 RWA 行情 · 不连接钱包、不签名、不使用真实资金</div>
       <header className="af-header">
-        <a href="/" className="af-brand">
-          AlphaForge <small>HACKATHON</small>
+        <a href="/#directory" className="af-brand">
+          RWA <small>模拟运行</small>
         </a>
-        <a href="/">返回策略工作台 ↗</a>
+        <a href="/#directory">返回目录 ↗</a>
       </header>
       <main>
         <section className="af-heading">
@@ -216,6 +226,11 @@ export function Automata() {
                 const user = e.target.value;
                 if (user)
                   void perform(async () => {
+                    setOwner('');
+                    setRuns([]);
+                    setVaults([]);
+                    setDecisionDraft(null);
+                    setExternalJson({});
                     await request('/api/demo/session', { user });
                     setRuns([]);
                     setVaults([]);
@@ -228,6 +243,9 @@ export function Automata() {
               </option>
               <option value="bob" disabled={!!pending && pending.owner !== 'bob'}>
                 Bob
+              </option>
+              <option value="derick" disabled={!!pending && pending.owner !== 'derick'}>
+                Derick
               </option>
             </select>
           </label>
@@ -264,7 +282,7 @@ export function Automata() {
           <div>
             <span>闲置余额</span>
             <strong>
-              {money(vault?.idle ?? '0')} <small>模拟 AF-USDC</small>
+              {money(vault?.idle ?? '0')} <small>模拟 USDT</small>
             </strong>
           </div>
           <div>
@@ -278,6 +296,16 @@ export function Automata() {
         </section>
         <section className="af-panel af-vault" aria-label="Vault 与 Pass">
           <h2>Vault 与 Pass</h2>
+          <div className="af-vault-balances">
+            <div>
+              <span>当前账户</span>
+              <strong>{owner || '未选择'}</strong>
+            </div>
+            <div>
+              <span>持有 PASS</span>
+              <strong>{vault?.passes ?? '0'} PASS</strong>
+            </div>
+          </div>
           {!vault ? (
             <button
               disabled={disabled}
@@ -332,7 +360,7 @@ export function Automata() {
               ) : (
                 <>
                   <label>
-                    存入 / 取出金额（模拟 AF-USDC）
+                    存入 / 取出金额（模拟 USDT）
                     <input
                       inputMode="decimal"
                       disabled={disabled}
@@ -446,7 +474,7 @@ export function Automata() {
               }}
             >
               <label>
-                运行资金（模拟 AF-USDC）
+                运行资金（模拟 USDT）
                 <input
                   value={capital}
                   onChange={(e) => setCapital(e.target.value)}
@@ -523,11 +551,8 @@ export function Automata() {
                 )}
                 {form.mode !== 'off' && (
                   <div className="af-fields">
-                    {field('upper', form.mode === 'price' ? '价格上限（模拟 AF-USDC）' : '收益上限 %')}
-                    {field(
-                      'lower',
-                      form.mode === 'price' ? '价格下限（模拟 AF-USDC）' : '收益下限 %（负数）',
-                    )}
+                    {field('upper', form.mode === 'price' ? '价格上限（模拟 USDT）' : '收益上限 %')}
+                    {field('lower', form.mode === 'price' ? '价格下限（模拟 USDT）' : '收益下限 %（负数）')}
                   </div>
                 )}
                 <small>上下限可留空一个；触碰即清仓整个组合。停止后不会自动重启。</small>
@@ -603,7 +628,7 @@ export function Automata() {
                   </p>
                 )}
                 {run.settlementReleased !== '0' && (
-                  <p>结算时超出额度、已归还闲置：{money(run.settlementReleased)} 模拟 AF-USDC</p>
+                  <p>结算时超出额度、已归还闲置：{money(run.settlementReleased)} 模拟 USDT</p>
                 )}
                 {(run.state.reason || run.runtimeError) && (
                   <p className="af-warning">{run.runtimeError ?? run.state.reason}</p>
@@ -641,6 +666,68 @@ export function Automata() {
                       POST /api/v1/automata/{run.state.id}/decisions
                     </p>
                     <small>信号仅对当前帧执行一次。部分成交不会自动补单；后续调仓需读取新状态再提交。</small>
+                    <label>
+                      外部策略目标 JSON（基点，10000 = 100%）
+                      <textarea
+                        aria-label="外部策略目标 JSON"
+                        value={externalJson[run.state.id] ?? ''}
+                        placeholder={'{"rwa-a":3000,"rwa-b":2000}'}
+                        disabled={disabled}
+                        onChange={(e) => {
+                          setExternalJson({ ...externalJson, [run.state.id]: e.target.value });
+                          setDecisionDraft(null);
+                        }}
+                      />
+                    </label>
+                    <p>只提交当前模拟账户和当前行情帧的目标。空对象表示目标全部为现金；不会连接真实钱包。</p>
+                    <button
+                      disabled={disabled || run.state.status !== 'running'}
+                      onClick={() =>
+                        void perform(async () => {
+                          const context = await request<ExternalStrategyContext>(
+                            `/api/v1/automata/${run.state.id}/strategy-context`,
+                          );
+                          const body = externalDecisionFromJson(
+                            externalJson[run.state.id] ?? '',
+                            context,
+                            crypto.randomUUID(),
+                          );
+                          setDecisionDraft({ owner, runId: run.state.id, body });
+                        })
+                      }
+                    >
+                      预览 JSON 信号
+                    </button>
+                    {decisionDraft?.runId === run.state.id && decisionDraft.owner === owner && (
+                      <div className="af-warning" data-external-preview>
+                        <h3>确认当前帧目标</h3>
+                        <pre>{JSON.stringify(decisionDraft.body, null, 2)}</pre>
+                        <button
+                          disabled={disabled}
+                          onClick={() =>
+                            void perform(async () => {
+                              const context = await request<ExternalStrategyContext>(
+                                `/api/v1/automata/${run.state.id}/strategy-context`,
+                              );
+                              if (
+                                context.revision !== decisionDraft.body.expectedRevision ||
+                                context.frameSeq !== decisionDraft.body.frameSeq
+                              ) {
+                                setDecisionDraft(null);
+                                throw new Error('行情帧或账户状态已变化，请重新预览信号');
+                              }
+                              await mutate(`/api/v1/automata/${run.state.id}/decisions`, decisionDraft.body);
+                              setDecisionDraft(null);
+                            })
+                          }
+                        >
+                          确认提交 JSON 信号
+                        </button>
+                        <button disabled={busy} onClick={() => setDecisionDraft(null)}>
+                          取消信号预览
+                        </button>
+                      </div>
+                    )}
                   </details>
                 )}
                 <div className="af-actions">
@@ -701,7 +788,7 @@ export function Automata() {
                     >
                       撤回到闲置
                     </button>
-                    <small>最多撤回 {money(run.state.cash)} 模拟 AF-USDC；不自动卖出持仓。</small>
+                    <small>最多撤回 {money(run.state.cash)} 模拟 USDT；不自动卖出持仓。</small>
                   </div>
                 )}
                 <div className="af-table">
@@ -771,9 +858,7 @@ export function Automata() {
           </section>
         </div>
       </main>
-      <footer className="af-footer">
-        AlphaForge · 本地交易自动机底座 · 参考股票价格与代币成交报价独立建模
-      </footer>
+      <footer className="af-footer">RWA 模拟运行 · 参考股票价格与代币成交报价独立建模</footer>
     </div>
   );
 }

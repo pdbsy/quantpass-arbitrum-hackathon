@@ -1,3 +1,11 @@
+import { testnetNetworkIdentity } from '../../../packages/testnet/src/network-identity.ts';
+import { evidenceHash } from '../../../packages/testnet/src/executor-plan.ts';
+import {
+  parseReleaseIdentity,
+  parseArchivedTestResults,
+  type ReleaseIdentity,
+  type ArchivedTestResults,
+} from '../../../packages/testnet/src/runtime-status.ts';
 import { join, resolve } from 'node:path';
 import { lstatSync, realpathSync } from 'node:fs';
 import type { FastifyInstance } from 'fastify';
@@ -17,8 +25,25 @@ import { ServerBackups } from '../../../packages/testnet/src/server-backups.ts';
 import { readTradingSnapshot } from '../../../packages/testnet/src/trading-reader.ts';
 import { readExecutionStatus } from '../../../packages/testnet/src/execution-status.ts';
 
+/** A broken deployment cannot starve other owners' indexes; shared storage remains a global gate. */
+export async function syncPublicRuntimes(runtimes: readonly TradingChainRuntime[], canWrite: () => boolean) {
+  let failed = false;
+  for (const runtime of runtimes) {
+    if (!canWrite()) throw new Error('PUBLIC_TESTNET_STORAGE_BLOCKED');
+    try {
+      await runtime.syncToHead();
+    } catch {
+      failed = true;
+    }
+  }
+  if (failed) throw new Error('PUBLIC_TESTNET_SYNC_INCOMPLETE');
+}
+
 export interface TestnetStartupOptions {
   readonly configuration: unknown;
+  readonly now?: () => number;
+  readonly releaseIdentity?: ReleaseIdentity;
+  readonly archivedTestResults?: ArchivedTestResults;
   readonly manifestReader: (file: string) => Promise<unknown>;
   readonly rpcEndpoint?: string;
   readonly webRoot?: string;
@@ -29,6 +54,11 @@ export interface TestnetStartupOptions {
 /** Explicit operational entry. Bootstrap, doctor and offline preflight never invoke it. */
 export async function startPublicTestnetServer(options: TestnetStartupOptions) {
   const config = parsePublicTestnetConfig(options.configuration);
+  const now = options.now ?? Date.now;
+  const releaseIdentity = options.releaseIdentity ? parseReleaseIdentity(options.releaseIdentity) : undefined;
+  const archivedTestResults = options.archivedTestResults
+    ? parseArchivedTestResults(options.archivedTestResults, now())
+    : undefined;
   if (options.webRoot) {
     const root = resolve(options.webRoot),
       entry = join(root, 'testnet.html');
@@ -81,6 +111,13 @@ export async function startPublicTestnetServer(options: TestnetStartupOptions) {
     );
     deployments.push({ binding, manifest, inventory });
   }
+  const configurationDigest = evidenceHash(config);
+  const network = testnetNetworkIdentity({
+    chainId: config.chainId,
+    profile: config.profile,
+    configurationDigest,
+    deployments,
+  });
   for (const d of deployments) await readTradingSnapshot(rpc!, d.manifest, d.inventory);
   // All operator inputs qualify before any directory, database, listener or timer is created.
   const storage = privateServerStorage(config.dataDirectory, config.maxStorageBytes);
@@ -97,10 +134,10 @@ export async function startPublicTestnetServer(options: TestnetStartupOptions) {
     if (maintenance) return Promise.reject(new Error('PUBLIC_TESTNET_MAINTENANCE'));
     const next = tail.then(async () => {
       if (!storage.canWrite()) throw new Error('PUBLIC_TESTNET_STORAGE_BLOCKED');
-      for (const entry of runtimes) {
-        if (!storage.canWrite(64 * 1024 * 1024)) throw new Error('PUBLIC_TESTNET_STORAGE_BLOCKED');
-        await entry.runtime.syncToHead();
-      }
+      await syncPublicRuntimes(
+        runtimes.map((entry) => entry.runtime),
+        () => storage.canWrite(64 * 1024 * 1024),
+      );
     });
     tail = next.catch(() => {});
     return next;
@@ -118,7 +155,7 @@ export async function startPublicTestnetServer(options: TestnetStartupOptions) {
       return Promise.reject(error);
     }
     const next = tail
-      .then(() => backups!.create(Date.now(), kind))
+      .then(() => backups!.create(now(), kind))
       .finally(() => {
         for (const release of releases) release();
         maintenance = false;
@@ -147,6 +184,7 @@ export async function startPublicTestnetServer(options: TestnetStartupOptions) {
       throw new Error('PUBLIC_TESTNET_CLOSE_FAILED');
   };
   try {
+    storage.bindIdentity(config.profile, network.digest);
     auth = new WalletAuthStore(storage.databasePath('wallet-auth'), config.origin, {
       challengeTtlMs: config.challengeTtlMs,
       sessionTtlMs: config.sessionTtlMs,
@@ -159,6 +197,7 @@ export async function startPublicTestnetServer(options: TestnetStartupOptions) {
           dbPath: storage.databasePath('vault-' + deployment.binding.id),
           evidencePath: storage.databasePath('evidence-' + deployment.binding.id),
           rpc: rpc!,
+          now,
           manifest: deployment.manifest,
           inventory: deployment.inventory,
         }),
@@ -175,7 +214,14 @@ export async function startPublicTestnetServer(options: TestnetStartupOptions) {
       await backups.verifyLatest();
     }
     app = await buildPublicTestnetApp({
-      executionStatus: (owner, vault) => readExecutionStatus(config.executorStatus, owner, vault),
+      now,
+      runtimeStatus: {
+        configurationDigest,
+        networkDigest: network.digest,
+        ...(releaseIdentity ? { releaseIdentity } : {}),
+        ...(archivedTestResults ? { archivedTestResults } : {}),
+      },
+      executionStatus: (owner, vault) => readExecutionStatus(config.executorStatus, owner, vault, now()),
       origin: config.origin,
       auth,
       runtimes,
@@ -187,7 +233,7 @@ export async function startPublicTestnetServer(options: TestnetStartupOptions) {
     if (options.port !== undefined) await app.listen({ host: '127.0.0.1', port: options.port });
     const cycle = async () => {
       await syncNow().catch(() => {});
-      if (backups?.due(Date.now()) && storage.canWrite()) await backupNow('AUTOMATIC').catch(() => {});
+      if (backups?.due(now()) && storage.canWrite()) await backupNow('AUTOMATIC').catch(() => {});
     };
     const schedule = () => {
       if (closed) return;

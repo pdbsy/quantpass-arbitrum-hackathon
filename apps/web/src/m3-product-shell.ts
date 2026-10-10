@@ -605,45 +605,53 @@ export function renderWalletAccount(input: AccountShellInput): string {
 }
 
 function renderMockWalletAccount(mock: MockWalletSnapshot): string {
+  const totalPass = mock.holdings
+    ?.reduce((total, holding) => total + BigInt(holding.quantity), 0n)
+    .toLocaleString('en-US');
   const holdings = mock.holdings
     ?.map(
       (holding) =>
-        `<details class="wallet-holding" name="wallet-holdings" data-wallet-position="${escapeHtml(holding.id)}"><summary class="wallet-pass-row sketch-box"><span class="wallet-pass-icon" aria-hidden="true">α</span><div><h3>${escapeHtml(holding.name)}</h3><span class="small muted">Mock Pass · Use Pass</span></div><div class="wallet-pass-quantity"><strong>${escapeHtml(holding.quantity)}</strong> <span>Pass</span><small>Frozen (in use) ${escapeHtml(holding.frozenPass ?? '—')} · Available ${escapeHtml(holding.availablePass ?? '—')}</small><small>Allocated ${escapeHtml(holding.allocatedUsdc ?? '—')} USDC</small></div></summary><div data-wallet-funding-slot></div></details>`,
+        `<details class="wallet-holding" name="wallet-holdings" data-wallet-position="${escapeHtml(holding.id)}"><summary class="wallet-pass-row sketch-box"><span class="wallet-pass-icon" aria-hidden="true">α</span><div class="wallet-pass-strategy"><span class="section-label">MOCK STRATEGY</span><h3>${escapeHtml(holding.name)}</h3><span class="small muted">Use Pass · Configure strategy funds</span></div><div class="wallet-pass-quantity"><strong>${escapeHtml(holding.quantity)}</strong> <span>Pass</span><small>Frozen (in use) ${escapeHtml(holding.frozenPass ?? '—')} · Available ${escapeHtml(holding.availablePass ?? '—')}</small><small>Allocated ${escapeHtml(holding.allocatedUsdc ?? '—')} USDC</small></div></summary><div class="wallet-holding-actions"><a class="text-link" href="#/trade/${encodeURIComponent(holding.id)}">View strategy ↗</a><span class="small muted">1 Pass = 1 USDC allocation capacity</span></div><div data-wallet-funding-slot></div></details>`,
     )
     .join('');
   return `<section class="wrap wallet-account" data-wallet-account aria-label="Wallet account">
-    <header class="wallet-account-header"><div><span class="section-label">ALPHAFORGE DEMO</span><h1>My Account</h1></div><button class="primary-btn wallet-connect" data-chain-connect title="${escapeHtml(mock.address)}"><span class="wallet-status-dot connected" aria-hidden="true"></span>${escapeHtml(mock.address.slice(0, 6))}…${escapeHtml(mock.address.slice(-4))}</button></header>
+    <header class="wallet-account-header"><div><span class="section-label">YOUR MOCK PORTFOLIO</span><h1>My Account</h1><p class="wallet-account-intro">A few strategies. Your own place to try them.</p></div><button class="primary-btn wallet-connect" data-chain-connect title="${escapeHtml(mock.address)}"><span class="wallet-status-dot connected" aria-hidden="true"></span>${escapeHtml(mock.address.slice(0, 6))}…${escapeHtml(mock.address.slice(-4))}</button></header>
     <div class="wallet-network"><span>Mock wallet · Simulated balances</span><span class="wallet-connected">Connected</span></div>
-    <article class="sketch-box wallet-eth"><span class="section-label">ETH balance</span><div class="wallet-amount"><strong>${escapeHtml(mock.ethBalance ?? '—')}</strong><span>ETH</span></div><p class="small muted">≈ ${escapeHtml(mock.ethValueUsdc ?? '—')} USDC<br>1 ETH = ${MOCK_ETH_USDC_RATE} USDC · Mock rate</p></article>
-    <section class="wallet-passes" aria-label="Pass holdings"><header><h2>Pass holdings</h2><span class="small muted">Strategy access</span></header>${holdings || `<div class="wallet-empty sketch-box"><span class="wallet-pass-icon" aria-hidden="true">α</span><h3>${mock.holdings ? 'No Passes yet' : 'Pass balance unavailable'}</h3><p>${mock.holdings ? 'Explore the market to try a demo trade.' : 'Demo trading records could not be read.'}</p></div>`}</section>
+    <div class="wallet-balance-grid"><article class="sketch-box wallet-eth"><span class="section-label">ETH balance</span><div class="wallet-amount"><strong>${escapeHtml(mock.ethBalance ?? '—')}</strong><span>ETH</span></div><p class="small muted">≈ ${escapeHtml(mock.ethValueUsdc ?? '—')} USDC<br>1 ETH = ${MOCK_ETH_USDC_RATE} USDC · Mock rate</p></article><article class="sketch-box wallet-usdc"><span class="section-label">Mock USDC · Available funds</span><div class="wallet-amount"><strong>${escapeHtml(mock.usdcBalance ?? '—')}</strong><span>USDC</span></div><p class="small muted">Available to configure your mock strategies.</p></article></div>
+    <section class="wallet-passes" aria-label="Pass holdings"><header><div><span class="section-label">YOUR STRATEGY COLLECTION</span><h2>Pass holdings</h2></div><div class="wallet-pass-overview"><strong>${escapeHtml(totalPass ?? '—')} <span>PASS</span></strong><span class="small muted">${mock.holdings ? `${mock.holdings.length} mock ${mock.holdings.length === 1 ? 'strategy' : 'strategies'}` : 'Holdings unavailable'}</span></div></header><p class="wallet-pass-help">Each Pass belongs to a strategy. Open a holding to allocate mock funds; Passes in use are released when you withdraw.</p>${holdings || `<div class="wallet-empty sketch-box"><span class="wallet-pass-icon" aria-hidden="true">α</span><h3>${mock.holdings ? 'No Passes yet' : 'Pass balance unavailable'}</h3><p>${mock.holdings ? 'Explore the Strategy Market to build your collection.' : 'Demo trading records could not be read.'}</p>${mock.holdings ? '<a class="text-link" href="#/market">Explore strategies ↗</a>' : ''}</div>`}</section>
   </section>`;
+}
+
+function renderMockWalletInvitation(wallet?: WalletPresentation): string {
+  const notice =
+    wallet?.status === 'CONNECTION_REJECTED'
+      ? 'Browser wallet connection cancelled. You can still try the Mock Wallet.'
+      : wallet?.errorCode
+        ? 'Browser wallet unavailable. You can try the Mock Wallet below.'
+        : '';
+  return `<section class="wrap wallet-account" data-wallet-account aria-label="Wallet account"><header class="wallet-account-header"><div><span class="section-label">YOUR MOCK PORTFOLIO</span><h1>My Account</h1><p class="wallet-account-intro">Collect strategy Passes. Try an idea.</p></div><button class="primary-btn wallet-connect" data-wallet-choice="mock"><span class="wallet-status-dot" aria-hidden="true"></span>Connect Mock Wallet</button></header><div class="wallet-network"><span>Mock wallet · Simulated balances</span><span>Not connected</span></div>${notice ? `<p class="wallet-notice" role="status">${notice}</p>` : ''}<section class="wallet-passes" aria-label="Pass holdings"><header><div><span class="section-label">YOUR STRATEGY COLLECTION</span><h2>Pass holdings</h2></div><span class="small muted">Strategy access</span></header><div class="wallet-empty wallet-invitation sketch-box"><span class="wallet-pass-icon" aria-hidden="true">α</span><h3>Your first strategies are ready.</h3><p>Connect Mock Wallet to receive demo strategy Passes and see your holdings here.</p><span class="wallet-starter-strategies">Ridgeline · Prism · Echo</span><p class="small muted">Simulated balances · No wallet extension needed</p></div></section><p class="wallet-browser-option">Using a Testnet wallet? <button class="text-link" data-chain-connect>Choose Browser Wallet ↗</button></p></section>`;
 }
 
 export function extendM3ProductPages(pages: M3ProductPages, options: M3PageExtensionOptions): M3ProductPages {
   return {
     account: (tab) => {
+      if (tab !== 'trades') return pages.account(tab);
+      const navigation = `<nav class="wrap account-tabs" aria-label="Account sections"><a href="#/account/trades" aria-current="page">Pass Holdings</a><a href="#/account/passes">Trial Passes</a><a href="#/account/saved">Saved strategies</a><a href="#/account/notes">My notes</a><a href="#/account/funds">Demo funds</a><a href="#/account/settings">Settings</a></nav>`;
       const mock = options.mockWallet?.();
-      if (tab === 'trades' && mock) return renderMockWalletAccount(mock);
+      if (mock) return navigation + renderMockWalletAccount(mock);
       const chain = options.chain?.();
       const onchain = chain?.onchain ?? options.onchain?.();
-      if (tab === 'trades')
-        return renderWalletAccount({
+      if (
+        options.mockWallet &&
+        (!chain || !['CONNECTED', 'CONNECTING', 'ACCOUNT_CHANGED'].includes(chain.wallet.status))
+      )
+        return navigation + renderMockWalletInvitation(chain?.wallet);
+      return (
+        navigation +
+        renderWalletAccount({
           ...(chain ? { wallet: chain.wallet, network: chain.network, transaction: chain.transaction } : {}),
           ...(onchain ? { onchain } : {}),
-        });
-      return (
-        renderM3AccountShell({
-          accountId: options.accountId(),
-          ...(chain
-            ? {
-                wallet: chain.wallet,
-                network: chain.network,
-                transaction: chain.transaction,
-                ...(chain.vaultSelection ? { vaultSelection: chain.vaultSelection } : {}),
-              }
-            : {}),
-          ...(onchain ? { onchain } : {}),
-        }) + pages.account(tab)
+        })
       );
     },
     trade: (strategyId) => pages.trade(strategyId),

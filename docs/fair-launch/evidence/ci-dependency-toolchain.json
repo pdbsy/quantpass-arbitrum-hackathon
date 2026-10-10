@@ -1,0 +1,110 @@
+{
+  "observedAt": "2026-10-09T10:16:39.563634+00:00",
+  "state": "PASS_SCOPED_TOOLCHAIN_PATCH",
+  "inputSourceHead": "72ca153da595809e2e54ca29707256a4745e126b",
+  "inputDefinition": "Isolated contracts checkout plus exact five lock-file overlays; runtime contract source and bootstrap unchanged. Not a final integrated checkout qualification.",
+  "advisory": "https://github.com/aio-libs/multidict/security/advisories/GHSA-54p9-h82j-f925",
+  "release": "https://github.com/aio-libs/multidict/releases/tag/v6.9.1",
+  "registryMetadata": "https://pypi.org/pypi/multidict/6.9.1/json",
+  "registryMetadataSha256": "19b3cc3ace93ce2c0c093fe7fa83f6873716773326ce1520438de133b6c13224",
+  "change": {
+    "package": "multidict",
+    "before": "6.8.0",
+    "after": "6.9.1",
+    "otherPackageVersionsChanged": 0,
+    "slitherVersion": "0.11.3",
+    "projectPythonPin": "3.12.9"
+  },
+  "sourceFileSha256": {
+    "requirements-slither.lock": "sha256:43d50e9ec44aca1ad86cd5d69583cab85cbcdcc2b8724c3f6bbd0fefdfb6b369",
+    "requirements-slither-linux-x64.lock": "sha256:56e4e18c5582ed1ec2779a05cdacc0338404c4795b8754d22348ab39250289b6",
+    "slither-darwin-arm64-wheels.json": "sha256:cf92d219190f80d6a879eeb422eae3b0c8ee71d2bc7d48bbc00e51d96597aa5f",
+    "slither-linux-x64-wheels.json": "sha256:73155a416351830990089da76a46dc86943ae376d1ff6d14699ce0e26d69e0d9",
+    "toolchain.lock.json": "sha256:563d94700d3df4e99a12331ba321c76bbb0350645214b0344e0378816a840224"
+  },
+  "profiles": {
+    "darwin-arm64": {
+      "entries": 47,
+      "unchangedEntries": 46,
+      "wheel": {
+        "pin": "multidict==6.9.1",
+        "filename": "multidict-6.9.1-cp312-cp312-macosx_11_0_arm64.whl",
+        "url": "https://files.pythonhosted.org/packages/36/eb/6ae44062466c26c8469ef43f2481a6a48d8cea0587b2d54514ec92e2adfd/multidict-6.9.1-cp312-cp312-macosx_11_0_arm64.whl",
+        "sha256": "6ed30be8918e18c8bed0a2e8b70639ecf02feb61ed00ca2e41cfcb2a50fa3f42"
+      },
+      "requirementsSha256": "43d50e9ec44aca1ad86cd5d69583cab85cbcdcc2b8724c3f6bbd0fefdfb6b369",
+      "wheelManifestSha256": "cf92d219190f80d6a879eeb422eae3b0c8ee71d2bc7d48bbc00e51d96597aa5f"
+    },
+    "linux-x64": {
+      "entries": 47,
+      "unchangedEntries": 46,
+      "wheel": {
+        "pin": "multidict==6.9.1",
+        "filename": "multidict-6.9.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "url": "https://files.pythonhosted.org/packages/ed/5b/db08419c1e1f7c9d60cfd2787b2b517d7ae4ebbda8281b48a33eb5141467/multidict-6.9.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "sha256": "976fd7689d69ec78d67d31d38d396d8adb562f7e8368279f76aed4aa451fa06d"
+      },
+      "requirementsSha256": "56e4e18c5582ed1ec2779a05cdacc0338404c4795b8754d22348ab39250289b6",
+      "wheelManifestSha256": "73155a416351830990089da76a46dc86943ae376d1ff6d14699ce0e26d69e0d9"
+    }
+  },
+  "linux": {
+    "originalOfflineBootstrap": "PASS",
+    "bootstrapExit": 0,
+    "pipCheck": "PASS",
+    "pipCheckExit": 0,
+    "existingToolchainTests": {
+      "passed": 34,
+      "failed": 0,
+      "exitCode": 0
+    }
+  },
+  "darwinArm64": {
+    "offlineExplicitPlatformHashLockedResolution": "PASS",
+    "resolvedWheelCount": 47,
+    "resolverExit": 0,
+    "nativeRuntimeQualification": "NOT_RUN"
+  },
+  "leakRegression": {
+    "before": {
+      "version": "6.8.0",
+      "implementation": "multidict._multidict",
+      "python": "3.12.9",
+      "operandCount": 5000,
+      "leakedSentinelReferences": {
+        "reflected_union": 5000,
+        "subtraction": 5000,
+        "intersection_control": 0
+      }
+    },
+    "after": {
+      "version": "6.9.1",
+      "implementation": "multidict._multidict",
+      "python": "3.12.9",
+      "operandCount": 5000,
+      "leakedSentinelReferences": {
+        "reflected_union": 0,
+        "subtraction": 0,
+        "intersection_control": 0
+      }
+    }
+  },
+  "slitherCompatibility": {
+    "scanCompleted": true,
+    "success": true,
+    "error": null,
+    "pedanticExit": 255,
+    "totalFindings": 53,
+    "exactPreviousFindingIDsPreserved": true,
+    "existingApprovedFindingCount": 9,
+    "newNotUserApprovedFindingCount": 44,
+    "admissionsModified": false,
+    "gate": "BLOCKED_NEW_FINDINGS_NOT_USER_APPROVED",
+    "newRawReportSha256": "2edb0e4137fa1d37cebdd1a8c03321a3cf6bcac5d8d848392598176b7eccdc8e"
+  },
+  "limits": [
+    "Registry integrity is not independent supply-chain provenance.",
+    "The CPython arm64 graph was resolved and hash-checked, not executed on Darwin.",
+    "No product tests repeated and no chain deployment, wallet signing, or broadcasting."
+  ]
+}

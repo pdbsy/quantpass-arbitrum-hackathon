@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateCommitSetIdentity } from '../tools/agent-identity-set.mjs';
+import {
+  verifyPreservedSourceImport,
+  verifyPreservedMasterImport,
+} from '../tools/preserved-source-identity.mjs';
+import { CANONICAL_REPOSITORY, CANONICAL_REPOSITORY_ID } from '../tools/environment/policy.mjs';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const commit = {
   subject: 'chore(agents): [Macbeth01] update setup',
@@ -39,4 +48,209 @@ test('worker-labelled PRs and commits cannot bypass checks on a non-worker branc
     }),
     { skipped: true, verified: 0 },
   );
+});
+
+function preservedFixture(t) {
+  const directory = mkdtempSync(join(tmpdir(), 'af-preserved-source-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync('git', args, {
+      cwd: directory,
+      encoding: 'utf8',
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' },
+    }).trim();
+  git('init', '-q', '-b', 'fixture');
+  git('config', 'user.name', 'Preserved source fixture');
+  git('config', 'user.email', 'fixture@example.invalid');
+  writeFileSync(join(directory, 'source.txt'), 'original content\n');
+  git('add', '.');
+  git('commit', '-qm', 'initial fixture');
+  const base = git('rev-parse', 'HEAD');
+  git('commit', '--allow-empty', '-qm', '[Macbeth01] historical source');
+  const source = git('rev-parse', 'HEAD');
+  const profile = {
+    branch: 'codex/assigned-source-import',
+    repository: 'pdbsy/quantpass-arbitrum-hackathon',
+    base,
+    source,
+    originalCommitCount: 1,
+  };
+  const records = () =>
+    git('--no-replace-objects', 'log', '--format=%H%x00%s%x00%b%x1e', `${base}..HEAD`)
+      .split('\x1e')
+      .map((row) => row.trim())
+      .filter(Boolean)
+      .map((row) => {
+        const [sha, subject, body = ''] = row.split('\x00');
+        return { sha, subject, body };
+      });
+  const verify = (overrides = {}) => {
+    const head = git('rev-parse', 'HEAD');
+    return verifyPreservedSourceImport(profile, {
+      branch: profile.branch,
+      head,
+      prTitle: 'Publish reviewed source',
+      pull: {
+        head: { ref: profile.branch, sha: head, repo: { full_name: profile.repository } },
+        base: { ref: 'master', sha: base, repo: { full_name: profile.repository } },
+      },
+      commits: records(),
+      git,
+      ...overrides,
+    });
+  };
+  return { git, base, source, profile, verify };
+}
+
+test('assigned source import retains exact original objects while allowing ordinary follow-up', (t) => {
+  const fixture = preservedFixture(t);
+  fixture.git('commit', '--allow-empty', '-qm', 'docs: describe scanner results');
+  assert.deepEqual(fixture.verify(), { preserved: 1, added: 1 });
+  assert.throws(() => fixture.verify({ branch: 'codex/unassigned-import' }));
+  assert.throws(() => fixture.verify({ commits: [] }));
+  assert.throws(() =>
+    fixture.verify({
+      commits: [{ sha: fixture.source, subject: '[Macbeth01] historical source', body: '' }],
+    }),
+  );
+  assert.throws(() => fixture.verify({ prTitle: '[Macbeth01] new worker claim' }));
+});
+
+test('assigned source import rejects substituted history and noncanonical PR binding', (t) => {
+  const fixture = preservedFixture(t);
+  assert.throws(() =>
+    fixture.verify({
+      pull: {
+        head: {
+          ref: fixture.profile.branch,
+          sha: fixture.source,
+          repo: { full_name: 'untrusted/fork' },
+        },
+        base: { ref: 'master', sha: fixture.base, repo: { full_name: fixture.profile.repository } },
+      },
+    }),
+  );
+  fixture.git('checkout', '-qb', 'rewritten', fixture.base);
+  fixture.git(
+    '-c',
+    'user.name=Rewritten fixture',
+    'commit',
+    '--allow-empty',
+    '-qm',
+    '[Macbeth01] historical source',
+  );
+  fixture.git('commit', '--allow-empty', '-qm', 'different ancestry');
+  // Even identical source files cannot substitute for the pinned source commit.
+  assert.throws(() => fixture.verify());
+});
+
+test('renamed source import requires the same approved repository on both PR sides', (t) => {
+  const fixture = preservedFixture(t);
+  const pull = {
+    head: {
+      ref: fixture.profile.branch,
+      sha: fixture.source,
+      repo: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+    },
+    base: {
+      ref: 'master',
+      sha: fixture.base,
+      repo: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+    },
+  };
+  assert.deepEqual(fixture.verify({ pull }), { preserved: 1, added: 0 });
+  for (const side of ['head', 'base'])
+    for (const repo of [
+      { full_name: 'other/Alphaforge', id: CANONICAL_REPOSITORY_ID },
+      { full_name: 'pdbsy/other', id: CANONICAL_REPOSITORY_ID },
+      { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID + 1 },
+      { full_name: CANONICAL_REPOSITORY },
+      { full_name: fixture.profile.repository, id: CANONICAL_REPOSITORY_ID },
+    ]) {
+      const changed = structuredClone(pull);
+      changed[side].repo = repo;
+      assert.throws(() => fixture.verify({ pull: changed }), /canonical same-repository PR context/);
+    }
+});
+
+test('source import exception cannot append new worker labels or identity trailers', (t) => {
+  const fixture = preservedFixture(t);
+  fixture.git('commit', '--allow-empty', '-qm', '[Macbeth01] new worker attribution');
+  assert.throws(() => fixture.verify());
+  fixture.git('reset', '--hard', fixture.source);
+  fixture.git('commit', '--allow-empty', '-qm', 'ordinary-looking change', '-m', 'Agent-ID: Macbeth01');
+  assert.throws(() => fixture.verify());
+});
+
+test('source import rejects alternate graft-file ancestry', (t) => {
+  const fixture = preservedFixture(t);
+  const originalGraftFile = process.env.GIT_GRAFT_FILE;
+  try {
+    process.env.GIT_GRAFT_FILE = join(tmpdir(), 'af-untrusted-grafts');
+    assert.throws(() => fixture.verify(), /alternate graft/);
+  } finally {
+    if (originalGraftFile === undefined) delete process.env.GIT_GRAFT_FILE;
+    else process.env.GIT_GRAFT_FILE = originalGraftFile;
+  }
+});
+
+function masterFixture(t) {
+  const f = preservedFixture(t);
+  f.git('commit', '--allow-empty', '-qm', 'Ordinary reviewed source follow-up');
+  const sourceHead = f.git('rev-parse', 'HEAD');
+  f.git('update-ref', `refs/remotes/origin/${f.profile.branch}`, sourceHead);
+  const tree = f.git('rev-parse', `${sourceHead}^{tree}`);
+  const squash = (...args) => {
+    const head = f.git('commit-tree', tree, '-p', f.base, ...args);
+    f.git('update-ref', 'refs/remotes/origin/master', head);
+    return head;
+  };
+  const head = squash('-m', 'Merge reviewed import using linear history');
+  const verify = (candidate = head) =>
+    verifyPreservedMasterImport(f.profile, { head: candidate, git: f.git });
+  return { ...f, sourceHead, tree, squash, head, verify };
+}
+
+test('first master squash proves the entire source tree and retained original history', (t) => {
+  const f = masterFixture(t);
+  assert.deepEqual(f.verify(), {
+    head: f.head,
+    sourceHead: f.sourceHead,
+    sourceTree: f.tree,
+    preserved: 1,
+    added: 1,
+  });
+  f.git('update-ref', '-d', `refs/remotes/origin/${f.profile.branch}`);
+  assert.throws(() => f.verify());
+  // Matching source files cannot replace the pinned original commit graph.
+  const substituted = f.git('commit-tree', f.tree, '-p', f.base, '-m', 'Substituted source history');
+  f.git('update-ref', `refs/remotes/origin/${f.profile.branch}`, substituted);
+  assert.throws(() => f.verify());
+});
+
+test('master squash proof cannot admit another parent, another tree, or a later master commit', (t) => {
+  const f = masterFixture(t);
+  const wrongParent = f.git('commit-tree', f.tree, '-p', f.sourceHead, '-m', 'Wrong squash parent');
+  f.git('update-ref', 'refs/remotes/origin/master', wrongParent);
+  assert.throws(() => f.verify(wrongParent));
+  const merge = f.squash('-p', f.sourceHead, '-m', 'Nonlinear master merge');
+  assert.throws(() => f.verify(merge));
+  const changedTree = f.git('mktree');
+  const changed = f.git('commit-tree', changedTree, '-p', f.base, '-m', 'Changed source tree');
+  f.git('update-ref', 'refs/remotes/origin/master', changed);
+  assert.throws(() => f.verify(changed));
+  const later = f.git('commit-tree', f.tree, '-p', f.head, '-m', 'Later ordinary master commit');
+  f.git('update-ref', 'refs/remotes/origin/master', later);
+  assert.throws(() => f.verify(later));
+});
+
+test('master squash retains ordinary commit identity validation for source and master', (t) => {
+  const f = masterFixture(t);
+  const attributed = f.squash('-m', '[Macbeth01] unvalidated master claim');
+  assert.throws(() => f.verify(attributed));
+  f.git('commit', '--allow-empty', '-qm', 'New source attribution', '-m', 'Agent-ID: Macbeth01');
+  const badSource = f.git('rev-parse', 'HEAD');
+  f.git('update-ref', `refs/remotes/origin/${f.profile.branch}`, badSource);
+  const ordinary = f.squash('-m', 'Ordinary master squash');
+  assert.throws(() => f.verify(ordinary));
 });

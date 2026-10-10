@@ -1,0 +1,214 @@
+.launch-market .launch-network {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0;
+}
+.launch-market .launch-market-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.launch-market .launch-terminal {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
+  gap: 32px;
+  margin-top: 30px;
+}
+.launch-market .launch-terminal > section {
+  min-width: 0;
+}
+.launch-market .launch-stats {
+  margin: 20px 0;
+}
+.launch-market .order-quote > div {
+  align-items: baseline;
+  gap: 16px;
+}
+.launch-market .order-quote dd {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.launch-market .launch-stats dd {
+  max-width: 60%;
+}
+.launch-market .launch-fair-note {
+  margin: 30px 0;
+}
+.launch-market .launch-fair-note h2 {
+  font-size: 28px;
+  margin: 16px 0;
+}
+.launch-market .launch-fair-note p {
+  line-height: 1.7;
+  margin: 12px 0;
+}
+.launch-market .order-card select {
+  width: 100%;
+  min-height: 44px;
+  margin: 8px 0 20px;
+  background: var(--paper, #f5f0e5);
+}
+.launch-market .order-card .pass-amount-wrap {
+  margin: 8px 0 18px;
+}
+.launch-market .launch-reviewed {
+  margin-top: 24px;
+  padding: 24px;
+}
+.launch-market .launch-reviewed h2 {
+  font-size: 26px;
+  overflow-wrap: anywhere;
+}
+.launch-market .launch-reviewed p {
+  margin: 16px 0;
+  line-height: 1.6;
+}
+.launch-market .launch-transaction {
+  margin: 24px 0;
+  padding: 24px;
+}
+.launch-market .launch-transaction p {
+  font-size: 13px;
+  margin: 12px 0;
+}
+.launch-market .launch-hash {
+  display: block;
+  overflow-wrap: anywhere;
+  margin: 12px 0;
+}
+.launch-market .launch-wallet-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.launch-market .launch-feedback {
+  margin: 20px 0;
+  overflow-wrap: anywhere;
+}
+.launch-market .launch-claim {
+  max-width: 680px;
+  margin-top: 30px;
+}
+.launch-market .launch-claim p {
+  margin: 20px 0;
+  line-height: 1.7;
+}
+.launch-market .launch-vault {
+  margin: 24px 0;
+  padding: 24px;
+}
+.launch-market .launch-executor {
+  margin: 24px 0;
+  padding: 20px 0;
+  border-top: 1px solid var(--line, #c7c0b3);
+}
+.launch-market .launch-executor label,
+.launch-market .launch-executor input {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  box-sizing: border-box;
+}
+.launch-market .launch-executor input {
+  min-height: 44px;
+  margin: 8px 0 16px;
+}
+.launch-market .launch-executor summary,
+.launch-market .launch-executor p {
+  margin: 16px 0;
+}
+.launch-activity {
+  margin-top: 20px;
+  margin-bottom: 48px;
+}
+.launch-activity .sketch-box {
+  padding: 24px;
+  margin-top: 20px;
+  min-width: 0;
+}
+.launch-activity .launch-candles {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  margin: 24px 0;
+}
+.launch-activity .launch-candles text {
+  fill: var(--muted, #746f62);
+  font-size: 10px;
+}
+.launch-activity .launch-chart-axis {
+  stroke: var(--line, #c7c0b3);
+}
+.launch-activity .launch-activity-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr);
+  gap: 20px;
+}
+.launch-activity .launch-history-scroll {
+  max-height: 450px;
+  overflow: auto;
+  margin: 20px 0;
+}
+.launch-activity table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.launch-activity td,
+.launch-activity th {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid var(--line, #c7c0b3);
+  overflow-wrap: anywhere;
+  max-width: 200px;
+}
+.launch-activity td .small {
+  display: block;
+  margin-top: 6px;
+}
+.launch-activity .launch-holder-list {
+  max-height: 450px;
+  overflow: auto;
+  padding-left: 24px;
+  margin: 20px 0;
+  font-size: 13px;
+}
+.launch-activity .launch-holder-list li {
+  padding: 10px 0;
+}
+.launch-activity .launch-holder-list span {
+  display: block;
+  margin-top: 6px;
+}
+@media (max-width: 720px) {
+  .launch-activity .launch-activity-grid {
+    grid-template-columns: 1fr;
+  }
+  .launch-market .launch-terminal,
+  .launch-market .launch-market-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .launch-market .launch-network {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .launch-market .terminal-heading {
+    display: block;
+  }
+  .launch-market .launch-wallet-actions {
+    align-items: flex-start;
+    margin-top: 20px;
+  }
+  .launch-market .launch-stats dd {
+    max-width: 55%;
+  }
+  .launch-market .wallet-pass-row {
+    align-items: flex-start;
+  }
+  .launch-market .wallet-pass-quantity {
+    font-size: 14px;
+  }
+}

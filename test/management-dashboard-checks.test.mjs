@@ -115,6 +115,7 @@ test('check registry has unique fixed commands and explicit unregistered checks'
 
   const unitArguments = CHECK_REGISTRY.find((check) => check.id === 'unit').args;
   for (const path of [
+    'test/release-mock-evidence.test.mjs',
     'test/management-dashboard-schema.test.mjs',
     'test/management-dashboard-sources.test.mjs',
     'test/management-dashboard-checks.test.mjs',

@@ -91,3 +91,38 @@ test('offline help and invalid arguments cannot start a server or silently accep
     assert.equal(result.stderr.trim(), 'TESTNET_PREFLIGHT_USAGE');
   }
 });
+
+test('public offline preflight emits unsigned identities and missing-input blockers without creating storage', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'alphaforge-public-preflight-'));
+  try {
+    const config = join(folder, 'operator.json');
+    await writeFile(
+      config,
+      JSON.stringify({
+        schemaVersion: 1,
+        profile: 'PUBLIC_TESTNET',
+        chainId: 46630,
+        origin: 'https://test.example',
+        dataDirectory: join(folder, 'uncreated'),
+        syncIntervalMs: 5000,
+        challengeTtlMs: 60000,
+        sessionTtlMs: 60000,
+        maxAuthRows: 10,
+        maxStorageBytes: 1048576,
+        vaults: [],
+      }),
+    );
+    const result = spawnSync(executable, [cli, config], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.readiness, 'NOT_CONFIGURED');
+    assert.match(report.configurationDigest, /^0x[a-f0-9]{64}$/);
+    assert.match(report.networkDigest, /^0x[a-f0-9]{64}$/);
+    assert.equal(report.mainnet, 'DISABLED_UNCONFIGURED');
+    assert.equal(report.deploymentReceipts, 'NOT_RUN');
+    assert.equal(report.rpcCapabilities.qualification, 'NOT_RUN');
+    assert.deepEqual(await readdir(folder), ['operator.json']);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});

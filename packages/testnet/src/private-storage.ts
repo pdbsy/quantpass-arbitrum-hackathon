@@ -1,7 +1,9 @@
+import { readRegularBytes } from './bounded-file.ts';
 import {
   closeSync,
   constants,
   fstatSync,
+  fsyncSync,
   lstatSync,
   mkdirSync,
   openSync,
@@ -122,6 +124,52 @@ export function privateServerStorage(folder: string, maxBytes: number) {
         );
       } catch {
         return false;
+      }
+    },
+    bindIdentity: (profile: string, digest: string) => {
+      if (
+        closed ||
+        !['PUBLIC_TESTNET', 'RESTRICTED_TESTNET_EXECUTOR'].includes(profile) ||
+        !/^0x[a-f0-9]{64}$/.test(digest) ||
+        /^0x0+$/.test(digest)
+      )
+        throw new Error('TESTNET_STORAGE_NAMESPACE');
+      assertRoot();
+      const path = join(folder, 'network-identity.json');
+      const encoded =
+        JSON.stringify({
+          schemaVersion: 1,
+          environment: 'robinhood-chain-testnet',
+          chainId: 46630,
+          profile,
+          digest,
+        }) + '\n';
+      try {
+        inspectFile(path);
+        const original = new TextDecoder('utf-8', { fatal: true }).decode(readRegularBytes(path, 4096));
+        if (original !== encoded) throw new Error('TESTNET_STORAGE_NAMESPACE');
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        if (readdirSync(folder).some((name) => name !== '.server.lock'))
+          throw new Error('TESTNET_STORAGE_NAMESPACE_MIGRATION_REQUIRED', { cause: error });
+        const descriptor = openSync(
+          path,
+          constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0),
+          0o600,
+        );
+        try {
+          writeFileSync(descriptor, encoded);
+          fsyncSync(descriptor);
+        } finally {
+          closeSync(descriptor);
+        }
+        inspectFile(path);
+        const parentDescriptor = openSync(folder, constants.O_RDONLY);
+        try {
+          fsyncSync(parentDescriptor);
+        } finally {
+          closeSync(parentDescriptor);
+        }
       }
     },
     databasePath: (name: string, applicationId?: number) => {

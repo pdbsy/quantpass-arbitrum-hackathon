@@ -21,6 +21,7 @@ import { basename, dirname, delimiter, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:net';
 import { boundedRead, inspectEnvironment, readInputs } from '../tools/environment/observe.mjs';
+import { CANONICAL_REPOSITORY, CANONICAL_REPOSITORY_ID } from '../tools/environment/policy.mjs';
 
 const repository = resolve(import.meta.dirname, '..');
 // These are real isolated fixture probes, never host/hosted admission evidence.
@@ -519,6 +520,42 @@ test('real inspection decodes PR and merge-queue event fixtures without treating
     writeFileSync(eventFile, bytes);
     assert.equal(status(f.inspect({ mode: 'ci', environment }), 'history'), 'BLOCKED');
   }
+  const renamedPayload = structuredClone(payload);
+  renamedPayload.repository = { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID };
+  for (const side of ['head', 'base'])
+    renamedPayload.pull_request[side].repo = {
+      full_name: CANONICAL_REPOSITORY,
+      id: CANONICAL_REPOSITORY_ID,
+    };
+  const renamedEnvironment = {
+    ...environment,
+    GITHUB_REPOSITORY: CANONICAL_REPOSITORY,
+    GITHUB_REPOSITORY_ID: String(CANONICAL_REPOSITORY_ID),
+  };
+  f.git('remote', 'set-url', 'origin', `https://github.com/${CANONICAL_REPOSITORY}.git`);
+  writeFileSync(eventFile, JSON.stringify(renamedPayload));
+  report = f.inspect({ mode: 'ci', environment: renamedEnvironment });
+  assert.equal(status(report, 'repository'), 'PASS');
+  assert.equal(status(report, 'history'), 'PASS');
+  assert.equal(report.sourceHead, head);
+  for (const mutate of [
+    (p) => (p.repository.id = CANONICAL_REPOSITORY_ID + 1),
+    (p) => (p.pull_request.base.repo.full_name = repositoryName),
+    (p) => (p.pull_request.head.repo.id = CANONICAL_REPOSITORY_ID + 1),
+  ]) {
+    const invalid = structuredClone(renamedPayload);
+    mutate(invalid);
+    writeFileSync(eventFile, JSON.stringify(invalid));
+    assert.equal(status(f.inspect({ mode: 'ci', environment: renamedEnvironment }), 'history'), 'BLOCKED');
+  }
+  writeFileSync(eventFile, JSON.stringify(renamedPayload));
+  assert.equal(
+    status(
+      f.inspect({ mode: 'ci', environment: { ...renamedEnvironment, GITHUB_REPOSITORY_ID: undefined } }),
+      'history',
+    ),
+    'BLOCKED',
+  );
   writeFileSync(eventFile, JSON.stringify({ merge_group: { head_sha: merge, base_sha: base } }));
   const queueEnv = {
     ...environment,

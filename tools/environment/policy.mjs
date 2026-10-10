@@ -1,6 +1,34 @@
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
+// GitHub renamed the same repository; historical policy and evidence keep their
+// original spelling. These exact aliases never authorize another repository.
+export const CANONICAL_REPOSITORY = 'pdbsy/Alphaforge';
+export const HISTORICAL_REPOSITORY = 'pdbsy/quantpass-arbitrum-hackathon';
+export const CANONICAL_REPOSITORY_ID = 1359073455;
+
+export function repositoryNamesMatch(actual, expected) {
+  return (
+    [HISTORICAL_REPOSITORY, CANONICAL_REPOSITORY].includes(actual) &&
+    [HISTORICAL_REPOSITORY, CANONICAL_REPOSITORY].includes(expected)
+  );
+}
+
+export function hostedRepositoryMatches(name, id) {
+  if (!repositoryNamesMatch(name, HISTORICAL_REPOSITORY)) return false;
+  if (id === undefined && name === HISTORICAL_REPOSITORY) return true;
+  return id === CANONICAL_REPOSITORY_ID || id === String(CANONICAL_REPOSITORY_ID);
+}
+
+export function repositoryRemoteMatches(remote, expected) {
+  if (!repositoryNamesMatch(expected, HISTORICAL_REPOSITORY)) return false;
+  return [HISTORICAL_REPOSITORY, CANONICAL_REPOSITORY].some((name) =>
+    [`https://github.com/${name}`, `https://github.com/${name}.git`, `git@github.com:${name}.git`].includes(
+      remote,
+    ),
+  );
+}
+
 export const CHECK_IDS = [
   'inputs',
   'tools',
@@ -84,6 +112,9 @@ export function validateInputs(i) {
       'verify-windows': { platform: 'win32', arch: 'x64', label: 'windows-2025' },
       'verify-macos': { platform: 'darwin', arch: 'arm64', label: 'macos-15' },
       'contracts-m3-macos': { platform: 'darwin', arch: 'arm64', label: 'macos-15' },
+      'contracts-m3-linux': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
+      'fair-launch-local-evm': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
+      'container-testnet': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
       'source-policy-js': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
       'dependency-delta-audit': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },
       'semgrep-ce': { platform: 'linux', arch: 'x64', label: 'ubuntu-24.04' },

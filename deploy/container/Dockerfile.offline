@@ -1,0 +1,35 @@
+# Immutable official Linux x86_64 image; tools are not sourced from the host.
+FROM --platform=linux/amd64 node:24.21.0-bookworm-slim@sha256:5cbc7caba8c2c0f0bca675d1b61b9f2857e1cf1853c6164ee9dd409501a936e7 AS build
+WORKDIR /opt/alphaforge
+COPY package.json package-lock.json .node-version .npmrc tsconfig.json ./
+COPY tools/environment/ tools/environment/
+COPY deploy/container/ deploy/container/
+RUN --network=none --mount=type=bind,from=reviewed-artifacts,source=/,target=/reviewed,ro node deploy/container/build-provenance.mjs bootstrap-npm-offline && node deploy/container/seed-npm-cache.mjs && npm ci --offline --cache=/tmp/npm-cache --ignore-scripts
+COPY apps/ apps/
+COPY packages/ packages/
+COPY tools/import-user-ui.mjs tools/html-source-ranges.mjs tools/
+COPY docs/ docs/
+RUN npm run build:web && node deploy/container/build-provenance.mjs
+
+FROM --platform=linux/amd64 node:24.21.0-bookworm-slim@sha256:5cbc7caba8c2c0f0bca675d1b61b9f2857e1cf1853c6164ee9dd409501a936e7 AS runtime
+WORKDIR /opt/alphaforge
+COPY --from=build /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+COPY --from=build /opt/alphaforge/package.json /opt/alphaforge/package-lock.json /opt/alphaforge/.npmrc /opt/alphaforge/.node-version ./
+COPY --from=build /opt/alphaforge/node_modules node_modules/
+COPY --from=build /opt/alphaforge/packages packages/
+COPY --from=build /opt/alphaforge/apps/server/src apps/server/src/
+COPY --from=build /opt/alphaforge/apps/web/dist apps/web/dist/
+COPY --from=build /opt/alphaforge/tools/environment tools/environment/
+COPY tools/testnet tools/testnet/
+COPY --from=build /opt/alphaforge/deploy/container deploy/container/
+COPY deploy/testnet/vendor deploy/testnet/vendor/
+EXPOSE 8443
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["node", "deploy/container/supervisor.mjs"]
+
+FROM runtime AS verification
+COPY test/container-fixtures test/container-fixtures/
+ENTRYPOINT ["node", "test/container-fixtures/runtime.mjs", "--mock-no-signing"]
+
+# The default target is the production package and contains no MOCK fixture.
+FROM runtime AS release

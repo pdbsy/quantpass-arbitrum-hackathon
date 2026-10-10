@@ -1,7 +1,18 @@
+import { productSessionPresentation } from './product-session.ts';
+import { installProductNavigation } from './product-navigation.ts';
 import { installCandleInspection, type CandleChartHost } from './kline-hover.ts';
 import './kline-hover.css';
 import './wallet-account.css';
-import { createMockWalletSession, formatMockUsdc } from './mock-wallet.ts';
+import './launch-market/styles.css';
+import { installLaunchMarket } from './launch-market/install.ts';
+import { installNativeMint } from './launch-market/native-mint.ts';
+import './launch-market/native-mint.css';
+import type { LaunchClientState } from './launch-market/model.ts';
+import { installStockHistory, type StockHistoryHost } from './stock-history.ts';
+import { installStockInspection } from './stock-inspection.ts';
+import './stock-inspection.css';
+import { installReferenceInspection } from './reference-inspection.ts';
+import './reference-inspection.css';
 import { ProductAdapter, type ProductVault, type StrategySummary } from './product-adapter.ts';
 import type { CommandFields, CommandReview, CommandType } from './product-client.ts';
 import { createM3BrowserRuntime, type M3BrowserDeploymentConfig } from './m3-browser-runtime.ts';
@@ -25,30 +36,12 @@ import {
   type M3PassTransferReview,
 } from './m3-product-runtime.ts';
 import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
-interface MockFundingReview {
-  readonly strategy: string;
-  readonly kind: 'deposit' | 'withdraw';
-  readonly amount: number;
-}
-interface Prototype extends CandleChartHost {
+interface Prototype extends CandleChartHost, StockHistoryHost {
+  originalMarketLayout?: boolean;
+  launchState?: LaunchClientState;
+  charts: CandleChartHost['charts'] & { priceBlock(strategy: { id: string }): string };
+  market?: { refresh(): void };
   strategies: { id: string; name: string }[];
-  exchange: {
-    read: () => unknown;
-    fundingSnapshot: (id: string) => {
-      cash: number;
-      allocated: number;
-      passQty: number;
-      frozen: number;
-      available: number;
-      maxDeposit: number;
-    };
-    reviewFunding: (request: {
-      strategy: string;
-      kind: 'deposit' | 'withdraw';
-      amount: number;
-    }) => MockFundingReview;
-    executeFunding: (review: MockFundingReview) => unknown;
-  };
   pages: { market: () => string; account: (tab: string) => string; trade: (id: string) => string };
   app: {
     render: (options?: { preserve?: boolean }) => void;
@@ -66,19 +59,20 @@ declare global {
   }
 }
 const AF = window.AF;
-const automataLink = document.createElement('a');
-automataLink.href = '/automata.html';
-automataLink.className = 'outline-btn';
-automataLink.textContent = 'RWA 模拟运行';
-document.querySelector('.nav-right')?.prepend(automataLink);
-let mockWalletStorage: Storage | undefined;
-try {
-  mockWalletStorage = window.localStorage;
-} catch {
-  /* Session-only demo connection. */
-}
-const mockWallet = createMockWalletSession(() => AF.exchange.read(), AF.strategies, mockWalletStorage);
-installCandleInspection(AF);
+// Server configuration selects the canonical chain market. The imported workshop keeps its layout and router.
+installCandleInspection(
+  AF,
+  document,
+  AF.originalMarketLayout
+    ? {
+        quoteUnit: 'AF-USDC',
+        volumeUnit: 'AF-USDC',
+        english: true,
+        sourceLabel: 'Indexed chain swaps',
+      }
+    : {},
+);
+installProductNavigation();
 let onchainRuntime = AF.m3OnchainRuntime;
 if (!onchainRuntime && import.meta.env.DEV && new URLSearchParams(location.search).get('m3Fixture') === '1') {
   const fixtureModule = await import('./m3-injected-runtime-fixture.ts');
@@ -146,15 +140,14 @@ function hydrate(root: ParentNode): void {
 }
 hydrate(document);
 const footerNote = document.querySelector('.footer-bottom > span');
-if (footerNote) footerNote.textContent = 'Simulated trading · Mock wallet & Testnet preview';
+if (footerNote)
+  footerNote.textContent = AF.originalMarketLayout
+    ? 'Testnet market · Asset contracts not deployed'
+    : 'Simulated trading · Testnet preview';
 new MutationObserver((records) => {
   for (const record of records)
     for (const node of record.addedNodes) if (node instanceof Element) hydrate(node);
 }).observe(document.body, { childList: true, subtree: true });
-const status = document.createElement('section');
-status.className = 'wrap local-backend-session';
-status.setAttribute('aria-label', 'Local backend session');
-document.querySelector('main')!.before(status);
 let localError: string | null = null;
 let query = '',
   statusFilter = 'all',
@@ -217,22 +210,30 @@ function balances(v: ProductVault): string {
     ['feesAccrued', 'Fees accrued'],
     ['feesPaid', 'Fees paid'],
   ];
-  return `<div class="receipt"><div class="receipt-lines">${labels.map(([key, label]) => `<div><span>${label}</span><span>${esc(units(v.balances[key!]))}</span></div>`).join('')}<div><span>Test Pass access</span><span>${esc(v.passBalance.total)} Pass</span></div><div><span>Access allowance (not cash)</span><span>${esc(units(v.passBalance.allowance))}</span></div></div></div>`;
+  return `<div class="receipt"><div class="receipt-lines">${labels.map(([key, label]) => `<div><span>${label}</span><span>${esc(units(v.balances[key!]))} USDT</span></div>`).join('')}<div><span>Simulated strategy access</span><span>${esc(v.passBalance.total)} PASS</span></div><div><span>Access allowance (not cash)</span><span>${esc(units(v.passBalance.allowance))} USDT capacity</span></div></div></div>`;
 }
 function account(): string {
   const s = adapter.snapshot;
-  return `<section class="wrap section"><span class="section-label">API ACCOUNT / ${esc(s.user ?? 'NO SESSION')}</span><h2>Backend vaults & test access.</h2><p>${adapter.mode === 'legacy' ? 'Legacy API capability: unavailable financial fields are shown explicitly.' : 'Canonical account and strategy relationships from the local backend.'}</p>${
+  const session = productSessionPresentation(s, adapter.mode);
+  if (!session.usable)
+    return `<section class="wrap section" aria-label="API account unavailable"><h2>Backend account unavailable</h2><p>${esc(session.hint)}</p><p>Browser workshop records below are separate local mock data.</p></section>`;
+  const totalPass = s.vaults.reduce((sum, v) => sum + BigInt(v.passBalance.total), 0n).toString();
+  const availableUsdt = s.vaults.reduce((sum, v) => sum + BigInt(String(v.balances.idle)), 0n).toString();
+  return `<section class="wrap section"><span class="section-label">API ACCOUNT / ${esc(s.user ?? 'NO SESSION')}</span><h2>Backend vaults & test access.</h2><div class="receipt"><div class="receipt-lines"><div><span>Simulated PASS</span><strong>${esc(totalPass)} PASS</strong></div><div><span>Available simulated USDT</span><strong>${esc(units(availableUsdt))} USDT</strong></div></div></div><p>${adapter.mode === 'legacy' ? 'Legacy API capability: unavailable financial fields are shown explicitly.' : 'Canonical account and strategy relationships from the local backend.'}</p>${
     s.account
       ? `<p>Account owner: ${esc(s.account.ownerId)} · ${s.account.strategies.length} registered strategy relationships.</p><div class="receipt-lines">${s.account.strategies
           .map((a) => {
             const pass = s.account!.passBalances.find((p) => p.strategyId === a.strategyId);
-            return `<div><span>${esc(a.strategyId)} · ${esc(a.status)}</span><span>${esc(pass?.total ?? 'Unavailable')} Pass</span></div>`;
+            return `<div><span>${esc(a.strategyId)} · ${esc(a.status)}</span><span>${esc(pass?.total ?? 'Unavailable')} PASS</span></div>`;
           })
           .join('')}</div>`
       : ''
   }${s.vaults.length ? s.vaults.map((v) => `<article class="sketch-box"><h3>${esc(v.strategyId)}</h3><p>Owner ${esc(v.ownerId)} · ${esc(v.status)} · revision ${v.revision}</p><p class="small">Vault ${esc(v.vaultId)}</p>${balances(v)}<a class="text-link" data-product-strategy="${esc(v.strategyId)}" href="#/trade/${encodeURIComponent(v.strategyId)}">Open ${esc(v.strategyId)} workspace ↗</a></article>`).join('') : '<p>EMPTY — No backend vaults for this identity. Claim test access from the API catalogue.</p>'}<p class="dialog-notice">MOCK / FIXTURE below: the original browser trial funds and Pass exchange are independent from these API balances.</p></section>`;
 }
 function workspace(id: string): string {
+  const session = productSessionPresentation(adapter.snapshot, adapter.mode);
+  if (!session.usable)
+    return `<div class="wrap inner-page"><h1>API strategy workspace</h1><p>${esc(session.hint)}</p></div>`;
   const s = adapter.snapshot,
     item = s.strategies.find((v) => v.strategyId === id),
     detail = s.details.find((v) => v.strategyId === id),
@@ -243,28 +244,32 @@ function workspace(id: string): string {
   return `<div class="wrap terminal-page"><header class="terminal-heading"><div><span class="section-label">${esc(item.scope)} / LOCAL SIMULATION</span><h1>${esc(item.name)}</h1><p>${esc(item.strategyId)} · ${esc(item.description)}</p></div></header><p>Test access and ledger simulation only. No market prices, yield or strategy performance are supplied by this API.</p>${detail ? `<p>Execution: ${esc(detail.capabilities?.execution ?? 'Unavailable')} · association ${esc(detail.accountStrategy?.status ?? 'Unavailable')}</p>` : ''}${!vault ? `<button class="primary-btn" data-product-claim="${esc(id)}" ${s.user && ['READY', 'EMPTY'].includes(s.phase) && !s.pending ? '' : 'disabled'}>Claim ${esc(item.testPasses)} test Pass ↗</button>` : !v ? '<p>LOADING selected vault…</p>' : `<section class="sketch-box"><h2>Workspace · ${esc(v.ownerId)}</h2><p>${esc(v.vaultId)} · <strong>${esc(v.status)}</strong> · revision ${v.revision}</p>${v.status === 'stopping' ? '<p class="dialog-notice">Stopping — waiting for open orders or positions to settle. Stop is not complete.</p>' : ''}${balances(v)}<div class="inline-actions">${button('deposit', 'Add test funds')}${button('allocate', 'Allocate')}${button('deallocate', 'Deallocate')}${button('start', 'Start simulation')}${button('stop', 'Stop')}</div><h3>Simulation controls</h3><div class="inline-actions">${button('reserveBuy', 'Reserve buy')}${button('fillBuy', 'Fill buy')}${button('cancelOrder', 'Cancel order')}${button('markPosition', 'Mark position')}${button('settlePosition', 'Settle position')}</div><h3>Withdrawal queue</h3><div class="inline-actions">${button('requestWithdrawal', 'Request withdrawal')}${button('confirmWithdrawal', 'Confirm withdrawal')}${button('cancelWithdrawal', 'Cancel withdrawal')}</div>${v.pendingOperations.length ? `<div class="receipt-lines">${v.pendingOperations.map((op) => `<div><span>${esc(op.kind)} · ${esc(op.operationId)} · ${esc(op.status)}</span><span>${esc(units(op.amount))}</span></div>`).join('')}</div>` : '<p>No pending orders or withdrawals.</p>'}<h3>API audit receipts</h3>${s.audit.length ? `<div class="receipt-lines">${s.audit.map((e) => `<div><span>${e.revision} · ${esc(e.commandType)} · ${esc(e.actorId)}</span><span>${esc(e.commandId)}</span></div>`).join('')}</div>` : '<p>No command receipts yet.</p>'}</section>`}<p><a href="#/account/funds" class="text-link">View account funds ↗</a></p></div>`;
 }
 const original = { ...AF.pages };
-AF.pages.market = () => catalogue() + original.market();
-const productPages = extendM3ProductPages(
-  {
-    account: (tab) => account() + original.account(tab),
-    trade: (id) =>
-      AF.strategies.some((s) => s.id === id)
-        ? `<div class="wrap dialog-notice">MOCK / FIXTURE — synthetic charts and separate browser-only Pass exchange. No API vault mapping.</div>${original.trade(id)}`
-        : workspace(id),
-  },
-  {
-    accountId: () => adapter.snapshot.user,
-    mockWallet: () => mockWallet.snapshot(),
-    contentProvenance: (id) =>
-      AF.strategies.some((strategy) => strategy.id === id) ? 'FIXTURE' : 'LOCAL SIMULATION',
-    ...(onchainRuntime ? { chain: () => onchainRuntime.snapshot } : {}),
-  },
-);
+if (!AF.originalMarketLayout) AF.pages.market = () => catalogue() + original.market();
+const productPages = AF.originalMarketLayout
+  ? { account: original.account, trade: original.trade }
+  : extendM3ProductPages(
+      {
+        account: (tab) => account() + original.account(tab),
+        trade: (id) => (AF.strategies.some((s) => s.id === id) ? original.trade(id) : workspace(id)),
+      },
+      {
+        accountId: () => adapter.snapshot.user,
+        contentProvenance: (id) =>
+          AF.strategies.some((strategy) => strategy.id === id) ? 'FIXTURE' : 'LOCAL SIMULATION',
+        ...(onchainRuntime ? { chain: () => onchainRuntime.snapshot } : {}),
+      },
+    );
 AF.pages.account = productPages.account;
 AF.pages.trade = productPages.trade;
+if (AF.originalMarketLayout) {
+  installNativeMint(AF, document);
+  installStockHistory(AF);
+  installStockInspection(AF);
+  installReferenceInspection(AF);
+  // Display the correct Mint/market view immediately, without waiting for any API response.
+  AF.app.render({ preserve: true });
+}
 function render(): void {
-  const s = adapter.snapshot;
-  status.innerHTML = `<div class="dialog-notice"><div class="inline-actions"><strong data-product-state role="status">${localError ? 'ERROR' : s.phase}</strong><span>API ${esc(s.user ?? 'no session')} · ${adapter.mode === 'v1' ? 'v1' : adapter.mode === 'legacy' ? 'legacy compatibility' : 'connecting'}</span><button class="text-link" data-product-login="alice" ${s.phase === 'LOADING' ? 'disabled' : ''}>Alice</button><button class="text-link" data-product-login="bob" ${s.phase === 'LOADING' ? 'disabled' : ''}>Bob</button><button class="text-link" data-product-refresh ${s.phase === 'LOADING' ? 'disabled' : ''}>Refresh API</button>${s.pending && !s.pending.rejection ? `<button class="outline-btn" data-product-retry ${adapter.retryAfterSeconds ? 'disabled' : ''}>Retry original request${adapter.retryAfterSeconds ? ` after ${adapter.retryAfterSeconds}s` : ''}</button>` : ''}${s.pending?.rejection ? '<button class="text-link" data-product-dismiss>Dismiss reviewed rejection</button>' : ''}</div>${localError || s.error ? `<p role="alert">${esc(localError ?? s.error)}</p>` : ''}${s.notice ? `<p>${esc(s.notice)}</p>` : ''}${s.pending ? `<p>Unresolved ${esc(s.pending.command.type)} · ${esc(s.pending.command.id)} · reviewed revision ${s.pending.command.expectedRevision}. No new command may be submitted.</p>` : ''}</div>`;
   AF.app.render({ preserve: true });
 }
 async function run(action: () => Promise<void>): Promise<void> {
@@ -497,7 +502,7 @@ async function reviewPassTransfer(control: HTMLElement): Promise<void> {
 }
 document.addEventListener('click', (event) => {
   const target = (event.target as Element).closest<HTMLElement>(
-    '[data-product-login],[data-product-refresh],[data-product-retry],[data-product-dismiss],[data-product-command],[data-product-review],[data-product-confirm],[data-product-claim],[data-chain-connect],[data-wallet-choice],[data-mock-funding-side],[data-mock-funding-confirm],[data-chain-refresh],[data-chain-action],[data-chain-review],[data-chain-confirm],[data-chain-approve],[data-pass-transfer],[data-pass-review],[data-pass-confirm]',
+    '[data-product-login],[data-product-refresh],[data-product-retry],[data-product-dismiss],[data-product-command],[data-product-review],[data-product-confirm],[data-product-claim],[data-chain-connect],[data-wallet-choice],[data-chain-refresh],[data-chain-action],[data-chain-review],[data-chain-confirm],[data-chain-approve],[data-pass-transfer],[data-pass-review],[data-pass-confirm]',
   );
   if (!target) return;
   event.preventDefault();
@@ -513,7 +518,7 @@ document.addEventListener('click', (event) => {
       claimId = null;
       AF.app.closeDialog();
       void run(async () => {
-        await client.selectIdentity(target.dataset.productLogin as 'alice' | 'bob');
+        await client.selectIdentity(target.dataset.productLogin as 'alice' | 'bob' | 'derick');
         await alignVault();
       });
     } else if (target.hasAttribute('data-product-refresh'))
@@ -534,47 +539,17 @@ document.addEventListener('click', (event) => {
     } else if (target.hasAttribute('data-chain-connect')) {
       if (target.closest('[data-wallet-account]')) {
         AF.app.openDialog(
-          `<span class="section-label">CHOOSE YOUR WALLET</span><h2>Connect Wallet</h2><div class="wallet-options"><button class="primary-btn" data-wallet-choice="mock">Mock Wallet <span>Demo ETH &amp; Pass · No extension needed</span></button><button class="outline-btn" data-wallet-choice="browser">Browser Wallet <span>Robinhood Chain Testnet</span></button></div>${mockWallet.snapshot() ? '<button class="text-link" data-wallet-choice="disconnect">Disconnect Mock Wallet</button>' : ''}`,
+          `<span class="section-label">CONNECT YOUR WALLET</span><h2>Connect Wallet</h2><p>Choose your browser wallet to continue.</p><div class="wallet-options"><button class="primary-btn" data-wallet-choice="browser">Browser Wallet <span>Robinhood Chain Testnet</span></button></div><p class="small muted">On mobile, open this page in your wallet’s browser.</p>`,
         );
       } else {
         if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');
         void run(() => onchainRuntime.connect());
       }
-    } else if (target.hasAttribute('data-mock-funding-side')) {
-      const holding = target.closest<HTMLElement>('[data-wallet-position]');
-      const kind = target.dataset.mockFundingSide;
-      if (!holding || !mockWallet.snapshot() || (kind !== 'deposit' && kind !== 'withdraw')) return;
-      const slot = holding.querySelector<HTMLElement>('[data-wallet-funding-slot]');
-      if (slot) slot.innerHTML = fundingPanel(holding.dataset.walletPosition!, kind);
-    } else if (target.hasAttribute('data-mock-funding-confirm')) {
-      if (!fundingReview || !mockWallet.snapshot()) return;
-      const reviewed = fundingReview;
-      fundingReview = null;
-      try {
-        AF.exchange.executeFunding(reviewed);
-        AF.app.closeDialog();
-        render();
-        AF.app.openDialog(
-          `<span class="section-label">MOCK STRATEGY ALLOCATION</span><h2>${reviewed.kind === 'deposit' ? 'Funds allocated.' : 'Funds returned to your wallet.'}</h2><p>${esc(formatMockUsdc(reviewed.amount))} USDC · ${reviewed.kind === 'deposit' ? 'Pass frozen for use' : 'Pass released'}.</p><p class="small muted">Local simulation. No strategy execution or on-chain transaction.</p><button class="primary-btn" data-close>Done</button>`,
-        );
-      } catch (failure) {
-        showConfirmDialogError(
-          target,
-          failure instanceof Error ? failure.message : 'Unable to update allocation.',
-        );
-      }
     } else if (target.hasAttribute('data-wallet-choice')) {
-      const choice = target.dataset.walletChoice;
-      if (!['mock', 'browser', 'disconnect'].includes(choice ?? '')) return;
-      fundingReview = null;
-      if (choice === 'mock') mockWallet.connect();
-      else mockWallet.disconnect();
+      if (target.dataset.walletChoice !== 'browser') return;
+      if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');
       AF.app.closeDialog();
-      render();
-      if (choice === 'browser') {
-        if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');
-        void run(() => onchainRuntime.connect());
-      }
+      void run(() => onchainRuntime.connect());
     } else if (target.hasAttribute('data-chain-refresh')) {
       if (!onchainRuntime) throw Error('CHAIN_RUNTIME_UNAVAILABLE');
       void run(() => onchainRuntime.refresh());
@@ -674,73 +649,6 @@ document.addEventListener('click', (event) => {
     error(err);
   }
 });
-let fundingReview: MockFundingReview | null = null;
-const fundingMoney = (value: number) => esc(formatMockUsdc(value));
-function fundingPanel(id: string, kind: 'deposit' | 'withdraw' = 'deposit'): string {
-  const state = AF.exchange.fundingSnapshot(id);
-  const maximum = kind === 'deposit' ? state.maxDeposit : state.allocated;
-  return `<section class="wallet-funding sketch-box"><span class="section-label">USE PASS · MOCK STRATEGY</span><h2>Strategy funds</h2><div class="order-side"><button type="button" data-mock-funding-side="deposit" aria-pressed="${kind === 'deposit'}">Deposit</button><button type="button" data-mock-funding-side="withdraw" aria-pressed="${kind === 'withdraw'}">Withdraw</button></div><dl class="order-quote"><div><dt>Wallet available</dt><dd>${fundingMoney(state.cash)} USDC</dd></div><div><dt>Allocated to strategy</dt><dd>${fundingMoney(state.allocated)} USDC</dd></div><div><dt>Available Pass</dt><dd>${fundingMoney(state.available)} Pass</dd></div></dl><form data-mock-funding-form data-strategy="${esc(id)}" data-kind="${kind}"><label for="mock-funding-amount">${kind === 'deposit' ? 'Deposit amount' : 'Withdraw amount'} · USDC</label><div class="pass-amount-wrap"><input id="mock-funding-amount" name="amount" type="text" inputmode="decimal" autocomplete="off" value="${formatMockUsdc(maximum)}" required><span>USDC</span></div><p class="form-error" data-funding-error role="alert"></p><button class="primary-btn full" type="submit" ${maximum === 0 ? 'disabled' : ''}>Review ${kind === 'deposit' ? 'deposit' : 'withdrawal'} ↗</button></form><p class="small muted">1 Pass = 1 USDC capacity. Deposits freeze Pass; withdrawals release them. Mock balances.</p></section>`;
-}
-document.querySelector('dialog')?.addEventListener('close', () => {
-  fundingReview = null;
-});
-document.addEventListener('submit', (event) => {
-  const form = event.target;
-  if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-mock-funding-form')) return;
-  event.preventDefault();
-  fundingReview = null;
-  try {
-    if (!mockWallet.snapshot()) throw Error('Connect the Mock wallet first.');
-    const strategy = form.dataset.strategy!;
-    const kind = form.dataset.kind;
-    if (kind !== 'deposit' && kind !== 'withdraw') throw Error('Invalid allocation action.');
-    const rawAmount = new FormData(form).get('amount');
-    if (typeof rawAmount !== 'string') throw Error('Enter a USDC amount.');
-    const amount = Number(parseUnits(rawAmount, 6));
-    const reviewed = AF.exchange.reviewFunding({ strategy, kind, amount });
-    const name = AF.strategies.find((item) => item.id === strategy)?.name ?? strategy;
-    fundingReview = reviewed;
-    AF.app.openDialog(
-      `<span class="section-label">USE PASS · REVIEW FUNDING</span><h2>Review ${kind === 'deposit' ? 'deposit' : 'withdrawal'}.</h2><p>${esc(name)}</p><div class="receipt"><div class="receipt-amount">${fundingMoney(amount)} <small>USDC</small></div><p>${kind === 'deposit' ? 'Wallet → Strategy allocation' : 'Strategy allocation → Wallet'}</p><p class="small muted">${fundingMoney(amount)} Pass will be ${kind === 'deposit' ? 'frozen (in use)' : 'released'}. Total Pass ownership stays unchanged. Mock transaction.</p></div><p data-product-dialog-error class="form-error" role="alert"></p><div class="dialog-actions"><button class="primary-btn" data-mock-funding-confirm>Confirm ${kind === 'deposit' ? 'deposit' : 'withdrawal'}</button><button class="text-link" data-close>Cancel</button></div>`,
-    );
-  } catch (failure) {
-    const output = form.querySelector('[data-funding-error]');
-    if (output)
-      output.textContent = failure instanceof Error ? failure.message : 'Unable to review allocation.';
-  }
-});
-// Mount only the selected holding's strategy funding controls.
-document.addEventListener(
-  'toggle',
-  (event) => {
-    const holding = event.target;
-    if (!(holding instanceof HTMLDetailsElement) || !holding.hasAttribute('data-wallet-position')) return;
-    const slot = holding.querySelector<HTMLElement>('[data-wallet-funding-slot]');
-    if (!slot) return;
-    if (!holding.open) {
-      slot.replaceChildren();
-      slot.removeAttribute('id');
-      return;
-    }
-    const id = holding.dataset.walletPosition;
-    const position = mockWallet.snapshot()?.holdings?.find((item) => item.id === id);
-    const strategy = AF.strategies.find((item) => item.id === id);
-    if (!position || !strategy) {
-      holding.open = false;
-      return;
-    }
-    for (const other of document.querySelectorAll<HTMLDetailsElement>('[data-wallet-position]')) {
-      if (other === holding) continue;
-      other.open = false;
-      const otherSlot = other.querySelector('[data-wallet-funding-slot]');
-      otherSlot?.replaceChildren();
-      otherSlot?.removeAttribute('id');
-    }
-    slot.innerHTML = fundingPanel(strategy.id);
-  },
-  true,
-);
-
 document.addEventListener('input', (event) => {
   const input = event.target as HTMLInputElement;
   if (input.hasAttribute('data-product-search')) {
@@ -773,7 +681,6 @@ document.addEventListener('change', (event) => {
   if (rows) rows.innerHTML = catalogueRows();
 });
 window.addEventListener('hashchange', () => {
-  fundingReview = null;
   draft = null;
   claimId = null;
   onchainDraft = null;
@@ -802,3 +709,7 @@ setInterval(() => {
     render();
   }
 }, 1000);
+void installLaunchMarket(AF, window.ethereum, undefined, original.account).catch((error) => {
+  localError = error instanceof Error ? error.message : 'MARKET_INITIALIZATION_FAILED';
+  render();
+});

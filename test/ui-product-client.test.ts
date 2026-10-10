@@ -804,3 +804,26 @@ test('default browser dependencies load an empty owner account and cannot prepar
   assert.throws(() => client.prepare(), /VAULT_REQUIRED/);
   assert.deepEqual(seen.sort(), ['/api/session', '/api/strategies', '/api/vaults']);
 });
+
+test('session presentation reserves EMPTY for a verified identity and labels unavailable cached data', async () => {
+  const ui = await import('../apps/web/src/product-session.ts').catch(() => null);
+  assert.ok(ui?.productSessionPresentation, 'phase-aware product session presentation is required');
+  assert.match(
+    ui.productSessionPresentation({ phase: 'DISCONNECTED', user: null }, null).hint,
+    /Choose Alice, Bob or Derick/,
+  );
+  assert.doesNotMatch(
+    ui.productSessionPresentation({ phase: 'DISCONNECTED', user: null }, null).mode,
+    /connecting/,
+  );
+  assert.match(
+    ui.productSessionPresentation({ phase: 'EMPTY', user: 'bob' }, 'v1').hint,
+    /no backend Vaults/,
+  );
+  assert.equal(ui.productSessionPresentation({ phase: 'EMPTY', user: null }, 'v1').usable, false);
+  assert.equal(ui.productSessionPresentation({ phase: 'STALE', user: 'alice' }, 'v1').usable, false);
+  assert.match(
+    ui.productSessionPresentation({ phase: 'DISCONNECTED', user: 'alice' }, 'v1').hint,
+    /unavailable|cached/i,
+  );
+});
