@@ -237,6 +237,14 @@ test('wrong rule, extra/duplicate/multiline findings, private key, wrong blob an
     .replace(/"token": "0x[0-9a-fA-F]{40}"/, '"token": "0x' + 'a'.repeat(64) + '"');
   assert.equal(adjudicate(scan, { ...proof, blob: Buffer.from(privateKey) }).state, 'FAIL');
   assert.equal(adjudicate(scan, { ...proof, blob: Buffer.from('{}\n') }).state, 'FAIL');
+  assert.equal(adjudicate(scan, { ...proof, blob: Buffer.alloc(2 * 1024 * 1024 + 1, 65) }).state, 'FAIL');
+  assert.equal(
+    adjudicate(scan, {
+      ...proof,
+      published: { ...proof.published, rootTree: Buffer.alloc(2 * 1024 * 1024 + 1, 65) },
+    }).state,
+    'FAIL',
+  );
   assert.equal(adjudicate(scan, null).state, 'FAIL');
   for (const time of ['2026-10-09T23:59:59Z', occurrence.expiresAt, '2027-01-01T00:00:00Z'])
     assert.equal(adjudicate(scan, proof, { observedAt: new Date(time) }).state, 'FAIL');

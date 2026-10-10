@@ -5,10 +5,6 @@ import { root, git, inspect, assertUnchanged, run, emit, main, cleanEnvironment 
 import { installScanner } from '../security/bootstrap.mjs';
 import { classifyGitleaks, decodeReport } from '../security/results.mjs';
 import { adjudicateGitleaksHistory, readGitleaksExceptionProof } from '../security/gitleaks-disposition.mjs';
-import {
-  adjudicateGitleaksPublicDeployment,
-  readGitleaksPublicDeploymentProof,
-} from '../security/gitleaks-public-deployment.mjs';
 import { stageSources } from '../security/staging.mjs';
 
 function gitIn(cwd, args) {
@@ -156,6 +152,10 @@ await main(import.meta.url, async () => {
   const history = historyCoverage(root);
   if (!history.refs.some((x) => x.name === 'refs/remotes/origin/master'))
     throw new Error('Fetched master ref required for history coverage');
+  // History coverage must fail closed before loading address-proof dependencies
+  // or installing scanners, including in an incomplete isolated checkout.
+  const { adjudicateGitleaksPublicDeployment, readGitleaksPublicDeploymentProof } =
+    await import('../security/gitleaks-public-deployment.mjs');
   const tool = await installScanner('gitleaks');
   try {
     writeFileSync(join(tool.directory, 'gitleaks.toml'), '[extend]\nuseDefault = true\n');

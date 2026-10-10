@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { getAddress, getCreateAddress } from 'ethers';
-import { cleanEnvironment } from '../ci/context.mjs';
+import { cleanEnvironment, root as repositoryRoot } from '../ci/context.mjs';
 import { classifyGitleaks } from './results.mjs';
 
 // This is a proof for fourteen occurrences in one already published immutable blob.
@@ -54,8 +54,33 @@ const labels = Object.freeze([
 ]);
 const oid = (v) => typeof v === 'string' && /^[0-9a-f]{40}$/.test(v);
 const sha256 = (data) => createHash('sha256').update(data).digest('hex');
-const objectId = (type, data) =>
-  createHash('sha1').update(`${type} ${data.length}\0`).update(data).digest('hex');
+// Git's canonical SHA-1 OID is a protocol identity. The independent public payload pin remains SHA-256.
+// hash-object without -w only computes an identifier; it does not create repository objects.
+const objectId = (type, data) => {
+  if (!['blob', 'commit', 'tree'].includes(type) || !Buffer.isBuffer(data) || data.length > 2 * 1024 * 1024)
+    fail();
+  const output = execFileSync(
+    'git',
+    ['--no-replace-objects', 'hash-object', '-t', type, '--stdin', '--no-filters'],
+    {
+      cwd: repositoryRoot,
+      env: {
+        ...cleanEnvironment(),
+        GIT_CONFIG_NOSYSTEM: '1',
+        GIT_CONFIG_GLOBAL: '/dev/null',
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_GRAFT_FILE: '/dev/null',
+        GIT_NO_LAZY_FETCH: '1',
+      },
+      input: data,
+      timeout: 5000,
+      maxBuffer: 1024,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    },
+  ).toString('utf8');
+  if (!/^[0-9a-f]{40}\n$/.test(output)) fail();
+  return output.trim();
+};
 const fail = () => {
   throw new Error('PUBLIC_DEPLOYMENT_PROOF_REJECTED');
 };
