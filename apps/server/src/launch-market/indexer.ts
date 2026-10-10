@@ -109,6 +109,7 @@ export class MarketEventIndexer {
   readonly maxBlocks: number;
   #tail: Promise<void> | null = null;
   #timer: ReturnType<typeof setInterval> | null = null;
+  #closing = false;
   #closed = false;
   #state: 'NOT_RUN' | 'SYNCING' | 'HEALTHY' | 'DEGRADED' = 'NOT_RUN';
   #error: string | null = null;
@@ -551,9 +552,42 @@ PRAGMA user_version=1;`);
     await this.#tail?.catch(() => {});
   }
   async close(): Promise<void> {
+    this.#closing = true;
     await this.stop();
     this.#closed = true;
     if (this.db.isOpen) this.db.close();
+  }
+  /** Wait only for existing work; the synchronous reader cannot mix a scan with an older projection. */
+  async readStableHistory<T>(read: () => T): Promise<T> {
+    const unavailable = () => new LaunchMarketError('MARKET_HISTORY_SYNCING', 503);
+    if (this.#closing || this.#closed || !this.options.service.projector.latest()) throw unavailable();
+    if (!this.#tail) {
+      if (this.#state !== 'HEALTHY') throw unavailable();
+      return read();
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(unavailable()), 5000);
+      timer.unref();
+    });
+    try {
+      // A subsequent poll may have started before this continuation; it shares the original deadline.
+      while (this.#tail) {
+        await Promise.race([this.#tail, deadline]).catch(() => {
+          throw unavailable();
+        });
+      }
+      if (
+        this.#closing ||
+        this.#closed ||
+        this.#state !== 'HEALTHY' ||
+        !this.options.service.projector.latest()
+      )
+        throw unavailable();
+      return read();
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
   history(strategy: StrategyId, limit = 100): readonly IndexedMarketEvent[] {
     if (!Number.isInteger(limit) || limit < 1 || limit > 500)

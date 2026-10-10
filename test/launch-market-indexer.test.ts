@@ -99,6 +99,7 @@ class RpcFixture {
   logs: Array<Record<string, unknown>> = [];
   calls = 0;
   injectForeign = false;
+  beforeSend: ((method: string, params: unknown[]) => Promise<void>) | null = null;
   beforeSnapshot: ((at?: MarketSnapshotTarget) => Promise<void>) | null = null;
   hash(height: number) {
     return h(height + (height >= 2 ? this.fork * 1000 : 0));
@@ -121,6 +122,7 @@ class RpcFixture {
   }
   async send(method: string, params: unknown[]): Promise<unknown> {
     this.calls++;
+    await this.beforeSend?.(method, params);
     if (method === 'eth_chainId') return qty(46630);
     if (method === 'eth_getBlockByNumber') {
       const height = params[0] === 'latest' ? this.height : Number(BigInt(String(params[0])));
@@ -215,6 +217,362 @@ function fixture(maxBlocksPerPoll = 500) {
     },
   };
 }
+
+function pendingGate() {
+  let release!: () => void;
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
+async function stableHistoryServer(f: ReturnType<typeof fixture>) {
+  f.rpc.claims = 0;
+  f.indexer.start = () => {};
+  const server = await buildLaunchMarketServer({
+    service: f.service,
+    indexer: f.indexer,
+    origin: 'http://localhost',
+    trustedIdentity: () => null,
+  });
+  await server.app.ready();
+  return server;
+}
+function sixHistoryRequests(server: Awaited<ReturnType<typeof stableHistoryServer>>) {
+  return (['TSLA', 'AMZN'] as const).flatMap((strategyId) =>
+    (['history', 'holders', 'candles'] as const).map((name) => ({
+      name,
+      strategyId,
+      response: server.app.inject({
+        method: 'GET',
+        url: `/api/launch-market/${name}?strategyId=${strategyId}`,
+        headers: { host: 'localhost' },
+      }),
+    })),
+  );
+}
+
+test('stable history waits for a normal in-flight poll and returns consistent data on all six routes', async () => {
+  const f = fixture(),
+    entered = pendingGate(),
+    gate = pendingGate(),
+    server = await stableHistoryServer(f);
+  let poll: Promise<void> | null = null;
+  try {
+    f.rpc.height = 3;
+    f.rpc.log(a(6), 'Transfer', [ZeroAddress, a(30), P], 3, 0);
+    f.rpc.log(a(8), 'Transfer', [ZeroAddress, a(30), P], 3, 1);
+    f.rpc.beforeSnapshot = async (at) => {
+      assert.equal(at?.blockNumber, '3');
+      entered.release();
+      await gate.promise;
+    };
+    poll = f.indexer.poll();
+    await entered.promise;
+    assert.equal(f.indexer.status().blockNumber, '3');
+    assert.equal(f.service.projector.latest()?.location.blockNumber, '2');
+    let completed = 0;
+    const requests = sixHistoryRequests(server).map(async ({ response }) => {
+      const result = await response;
+      completed++;
+      return result;
+    });
+    await yieldEventLoop();
+    assert.equal(completed, 0, 'no route may mix the new cursor with the previous projection');
+    gate.release();
+    await poll;
+    for (const response of await Promise.all(requests)) {
+      assert.equal(response.statusCode, 200);
+      const body = response.json();
+      assert.deepEqual(body.location, f.service.projector.latest()!.location);
+      assert.equal(body.indexer.state, 'HEALTHY');
+      assert.equal(body.indexer.blockHash, body.location.blockHash);
+    }
+  } finally {
+    gate.release();
+    await poll?.catch(() => {});
+    await server.stop();
+    await f.cleanup();
+  }
+});
+
+test('stable history keeps initial backfill, a true backlog, and a failed poll unavailable on all six routes', async () => {
+  for (const scenario of ['initial', 'backlog', 'failure']) {
+    const f = fixture(scenario === 'failure' ? 500 : 1),
+      entered = pendingGate(),
+      gate = pendingGate();
+    if (scenario === 'initial') f.rpc.height = 4;
+    if (scenario === 'backlog') f.rpc.height = 1;
+    const server = await stableHistoryServer(f);
+    let poll: Promise<unknown> | null = null;
+    try {
+      if (scenario === 'initial') {
+        assert.equal(f.indexer.status().state, 'SYNCING');
+        assert.equal(f.service.projector.latest(), null);
+      } else if (scenario === 'backlog') {
+        assert.equal(f.indexer.status().state, 'HEALTHY');
+        assert.equal(f.service.projector.latest()?.location.blockNumber, '1');
+        f.rpc.height = 4;
+        await f.indexer.poll();
+        assert.equal(f.indexer.status().state, 'SYNCING');
+        assert.equal(f.indexer.status().blockNumber, '2');
+      } else {
+        f.rpc.height = 3;
+        f.rpc.beforeSnapshot = async () => {
+          entered.release();
+          await gate.promise;
+          throw new LaunchMarketError('TEST_RPC_FAILURE', 503);
+        };
+        poll = f.indexer.poll().catch((error: unknown) => error);
+        await entered.promise;
+      }
+      const requests = sixHistoryRequests(server);
+      gate.release();
+      await poll;
+      for (const { response } of requests) {
+        const result = await response;
+        assert.equal(result.statusCode, 503);
+        assert.equal(result.json().error.code, 'MARKET_HISTORY_SYNCING');
+      }
+      assert.equal(f.indexer.status().state, scenario === 'failure' ? 'DEGRADED' : 'SYNCING');
+      assert.equal(
+        f.service.projector.latest()?.location.blockNumber ?? null,
+        scenario === 'initial' ? null : scenario === 'backlog' ? '1' : '2',
+      );
+    } finally {
+      gate.release();
+      await poll;
+      await server.stop();
+      await f.cleanup();
+    }
+  }
+});
+
+test('stable history never leaks the old fork while rewind is checking canonical block identity', async () => {
+  const f = fixture(),
+    entered = pendingGate(),
+    gate = pendingGate();
+  for (const [index, pass] of [a(6), a(8)].entries()) {
+    f.rpc.log(pass, 'Transfer', [ZeroAddress, a(30), 10n * P], 1, index);
+    f.rpc.log(pass, 'Transfer', [a(30), a(31), P], 2, index);
+  }
+  f.rpc.log(a(9), 'Swap', [a(30), a(30), true, 25_000_000n, 50n * P, 75_000n], 2, 2);
+  const server = await stableHistoryServer(f);
+  let poll: Promise<void> | null = null;
+  try {
+    f.rpc.fork = 1;
+    for (const [index, pass] of [a(6), a(8)].entries())
+      f.rpc.log(pass, 'Transfer', [a(30), a(32), 2n * P], 2, index);
+    f.rpc.log(a(9), 'Swap', [a(30), a(30), true, 90_000_000n, 50n * P, 270_000n], 2, 2);
+    f.rpc.beforeSend = async (method, params) => {
+      if (method === 'eth_getBlockByNumber' && params[0] === '0x2') {
+        f.rpc.beforeSend = null;
+        entered.release();
+        await gate.promise;
+      }
+    };
+    poll = f.indexer.poll();
+    await entered.promise;
+    let completed = 0;
+    const requests = sixHistoryRequests(server).map(async (request) => {
+      const response = await request.response;
+      completed++;
+      return { ...request, response };
+    });
+    await yieldEventLoop();
+    assert.equal(completed, 0);
+    gate.release();
+    await poll;
+    for (const { name, strategyId, response } of await Promise.all(requests)) {
+      assert.equal(response.statusCode, 200);
+      const body = response.json();
+      assert.equal(body.location.blockHash, f.rpc.hash(2));
+      assert.equal(body.indexer.state, 'HEALTHY');
+      if (name === 'holders') {
+        assert.equal(
+          body.holders.some((entry: { owner: string }) => entry.owner === a(31)),
+          false,
+        );
+        assert.ok(body.holders.some((entry: { owner: string }) => entry.owner === a(32)));
+      } else if (name === 'history') {
+        for (const event of body.history)
+          if (event.location.blockNumber === '2') assert.equal(event.location.blockHash, f.rpc.hash(2));
+      } else if (strategyId === 'AMZN') assert.equal(body.candles[0].volumeUsdcRaw, '90000000');
+    }
+  } finally {
+    gate.release();
+    await poll?.catch(() => {});
+    await server.stop();
+    await f.cleanup();
+  }
+});
+
+test('stable history uses one absolute five-second deadline across poll reentry and clears its timer', async (t) => {
+  const f = fixture(),
+    firstEntered = pendingGate(),
+    secondEntered = pendingGate(),
+    firstGate = pendingGate(),
+    secondGate = pendingGate();
+  let first: Promise<void> | null = null,
+    second: Promise<void> | null = null;
+  try {
+    f.rpc.claims = 0;
+    await f.indexer.poll();
+    let calls = 0;
+    f.rpc.beforeSnapshot = async () => {
+      if (++calls === 1) {
+        firstEntered.release();
+        await firstGate.promise;
+      } else {
+        secondEntered.release();
+        await secondGate.promise;
+      }
+    };
+    first = f.indexer.poll();
+    await firstEntered.promise;
+    const restarted = first.then(() => {
+      second = f.indexer.poll();
+    });
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const clear = t.mock.method(globalThis, 'clearTimeout');
+    let reads = 0,
+      finished = false;
+    const reading = f.indexer
+      .readStableHistory(() => ++reads)
+      .then(
+        (value) => {
+          finished = true;
+          return value;
+        },
+        (error: unknown) => {
+          finished = true;
+          return error;
+        },
+      );
+    t.mock.timers.tick(4000);
+    firstGate.release();
+    await restarted;
+    await secondEntered.promise;
+    t.mock.timers.tick(999);
+    await yieldEventLoop();
+    assert.equal(finished, false);
+    assert.equal(reads, 0);
+    t.mock.timers.tick(1);
+    assert.match(String(await reading), /MARKET_HISTORY_SYNCING/);
+    assert.equal(reads, 0);
+    assert.equal(clear.mock.callCount(), 1);
+  } finally {
+    firstGate.release();
+    secondGate.release();
+    t.mock.timers.reset();
+    await first?.catch(() => {});
+    await Promise.resolve(second).catch(() => {});
+    await f.cleanup();
+  }
+});
+
+test('stable history waits through poll reentry and runs its callback synchronously at the newest projection', async (t) => {
+  const f = fixture(),
+    firstEntered = pendingGate(),
+    secondEntered = pendingGate(),
+    firstGate = pendingGate(),
+    secondGate = pendingGate();
+  let first: Promise<void> | null = null,
+    second: Promise<void> | null = null;
+  try {
+    f.rpc.claims = 0;
+    await f.indexer.poll();
+    f.rpc.height = 3;
+    let calls = 0;
+    f.rpc.beforeSnapshot = async () => {
+      if (++calls === 1) {
+        firstEntered.release();
+        await firstGate.promise;
+      } else {
+        secondEntered.release();
+        await secondGate.promise;
+      }
+    };
+    first = f.indexer.poll();
+    await firstEntered.promise;
+    const restarted = first.then(() => {
+      f.rpc.height = 4;
+      second = f.indexer.poll();
+    });
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const clear = t.mock.method(globalThis, 'clearTimeout');
+    let reads = 0;
+    const reading = f.indexer.readStableHistory(() => {
+      reads++;
+      return {
+        location: f.service.projector.latest()!.location,
+        indexer: f.indexer.status(),
+      };
+    });
+    firstGate.release();
+    await restarted;
+    await secondEntered.promise;
+    assert.equal(reads, 0);
+    secondGate.release();
+    const result = await reading;
+    assert.equal(reads, 1);
+    assert.equal(result.location.blockNumber, '4');
+    assert.equal(result.indexer.state, 'HEALTHY');
+    assert.equal(result.indexer.blockHash, result.location.blockHash);
+    assert.equal(clear.mock.callCount(), 1);
+  } finally {
+    firstGate.release();
+    secondGate.release();
+    t.mock.timers.reset();
+    await first?.catch(() => {});
+    await Promise.resolve(second).catch(() => {});
+    await f.cleanup();
+  }
+});
+
+test('stable history preserves callback errors and blocks reads as soon as shutdown begins', async () => {
+  const f = fixture(),
+    entered = pendingGate(),
+    gate = pendingGate();
+  let poll: Promise<void> | null = null,
+    closing: Promise<void> | null = null;
+  try {
+    f.rpc.claims = 0;
+    await f.indexer.poll();
+    const original = new LaunchMarketError('READ_CALLBACK_FAILURE', 400);
+    await assert.rejects(
+      f.indexer.readStableHistory(() => {
+        throw original;
+      }),
+      (error) => error === original,
+    );
+    f.rpc.beforeSnapshot = async () => {
+      entered.release();
+      await gate.promise;
+    };
+    poll = f.indexer.poll();
+    await entered.promise;
+    let reads = 0;
+    const reading = f.indexer.readStableHistory(() => ++reads).catch((error: unknown) => error);
+    closing = f.indexer.close();
+    await assert.rejects(
+      f.indexer.readStableHistory(() => ++reads),
+      /MARKET_HISTORY_SYNCING/,
+    );
+    gate.release();
+    assert.match(String(await reading), /MARKET_HISTORY_SYNCING/);
+    await closing;
+    await assert.rejects(
+      f.indexer.readStableHistory(() => ++reads),
+      /MARKET_HISTORY_SYNCING/,
+    );
+    assert.equal(reads, 0);
+  } finally {
+    gate.release();
+    await poll?.catch(() => {});
+    await closing;
+    await f.cleanup();
+  }
+});
 
 test('bootstrap reads during partial history catch-up do not publish or advance the indexer cursor', async () => {
   const f = fixture(1);
