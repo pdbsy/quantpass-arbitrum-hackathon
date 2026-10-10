@@ -59,6 +59,8 @@ export async function buildLaunchMarketServer(
     logger: false,
     bodyLimit: 16_384,
     requestTimeout: 10_000,
+    // The first bounded historical scan can exceed Fastify's default 10-second readiness deadline.
+    pluginTimeout: 60_000,
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
   });
   await app.register(cookie);

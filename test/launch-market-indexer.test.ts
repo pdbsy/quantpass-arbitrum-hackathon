@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
+import { setImmediate as yieldEventLoop } from 'node:timers/promises';
 import { Interface, Wallet, ZeroAddress } from 'ethers';
 import { MarketEventIndexer, marketEventInterface } from '../apps/server/src/launch-market/indexer.ts';
 import { buildLaunchMarketServer } from '../apps/server/src/launch-market/server.ts';
@@ -236,6 +237,89 @@ test('bootstrap reads during partial history catch-up do not publish or advance 
     assert.deepEqual(published, []);
   } finally {
     await f.cleanup();
+  }
+});
+
+test('startup accepts a slow first history scan but keeps a bounded readiness deadline', async (t) => {
+  for (const expires of [false, true]) {
+    const f = fixture(1);
+    let scanStarted = false;
+    let release!: () => void;
+    const scanPending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const originalPoll = f.indexer.poll.bind(f.indexer);
+    let backgroundStarted = false;
+    const initialPoll = async () => {
+      scanStarted = true;
+      await scanPending;
+      await originalPoll();
+    };
+    f.indexer.poll = initialPoll;
+    f.indexer.start = () => {
+      backgroundStarted = true;
+    };
+    f.rpc.height = 3;
+    f.rpc.claims = 0;
+    const server = await buildLaunchMarketServer({
+      service: f.service,
+      indexer: f.indexer,
+      origin: 'http://localhost',
+      trustedIdentity: () => null,
+    });
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    try {
+      assert.equal(server.app.initialConfig.pluginTimeout, 60000);
+      let finished = false;
+      const ready = server.app.ready().then(
+        () => {
+          finished = true;
+          return null;
+        },
+        (error: unknown) => {
+          finished = true;
+          return error;
+        },
+      );
+      for (let turn = 0; !scanStarted && turn < 20; turn++) {
+        t.mock.timers.tick(0);
+        await yieldEventLoop();
+      }
+      assert.equal(scanStarted, true);
+      t.mock.timers.tick(10001);
+      await Promise.resolve();
+      assert.equal(finished, false, 'the measured 17-second startup scan must not fail at ten seconds');
+      assert.equal(backgroundStarted, false);
+      if (expires) {
+        t.mock.timers.tick(50000);
+        await yieldEventLoop();
+        t.mock.timers.tick(0);
+        assert.match(String((await ready) as Error), /onReady.*timed out/);
+        assert.equal(backgroundStarted, false);
+      } else {
+        t.mock.timers.tick(7000);
+        release();
+        assert.equal(await ready, null);
+        assert.equal(backgroundStarted, true);
+        assert.equal(f.indexer.status().state, 'SYNCING');
+        assert.equal(f.indexer.status().blockNumber, '1');
+        assert.equal(f.service.projector.latest(), null);
+        const history = await server.app.inject({
+          method: 'GET',
+          url: '/api/launch-market/history?strategyId=AMZN',
+          headers: { host: 'localhost' },
+        });
+        assert.equal(history.statusCode, 503);
+        assert.equal(history.json().error.code, 'MARKET_HISTORY_SYNCING');
+      }
+    } finally {
+      release();
+      // Fastify timeouts do not cancel an in-flight hook; drain it before closing isolated resources.
+      t.mock.timers.reset();
+      await yieldEventLoop();
+      await server.stop();
+      await f.cleanup();
+    }
   }
 });
 
