@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 const maximumGitOutputBytes = 4 * 1024 * 1024;
 const maximumTextBytes = 2 * 1024 * 1024;
-const maximumTotalTextBytes = 12 * 1024 * 1024;
+// Includes the public deployment plan and every repository file; keep a finite
+// aggregate budget while allowing the current ~13 MiB baseline to be fully scanned.
+const maximumTotalTextBytes = 16 * 1024 * 1024;
 const maximumFiles = 10_000;
 const maximumStructuredDepth = 32;
 const maximumStructuredProperties = 10_000;

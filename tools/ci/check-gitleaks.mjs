@@ -5,6 +5,10 @@ import { root, git, inspect, assertUnchanged, run, emit, main, cleanEnvironment 
 import { installScanner } from '../security/bootstrap.mjs';
 import { classifyGitleaks, decodeReport } from '../security/results.mjs';
 import { adjudicateGitleaksHistory, readGitleaksExceptionProof } from '../security/gitleaks-disposition.mjs';
+import {
+  adjudicateGitleaksPublicDeployment,
+  readGitleaksPublicDeploymentProof,
+} from '../security/gitleaks-public-deployment.mjs';
 import { stageSources } from '../security/staging.mjs';
 
 function gitIn(cwd, args) {
@@ -159,21 +163,47 @@ await main(import.meta.url, async () => {
     const canary = verifySecretCanary(tool);
     const historyScan = scan(tool, 'git', root, 'history.json');
     const historyResult = historyScan.classification;
-    const historyDisposition = adjudicateGitleaksHistory(
+    const publicHistory = adjudicateGitleaksPublicDeployment(
       historyScan.scanValue,
-      historyResult.state === 'FAIL' ? readGitleaksExceptionProof(root) : null,
+      readGitleaksPublicDeploymentProof(root, historyScan.scanValue, { scope: 'history' }),
+      { scope: 'history' },
     );
+    const legacyHistory = adjudicateGitleaksHistory(
+      publicHistory.remainingScanValue,
+      publicHistory.state === 'FAIL' ? readGitleaksExceptionProof(root) : null,
+    );
+    // Preserve the complete unsuppressed report. Only proven immutable public
+    // addresses are separated before the existing one-occurrence disposition.
+    const historyDisposition = {
+      raw: historyResult,
+      state: legacyHistory.state,
+      dispositions: [...publicHistory.dispositions, ...legacyHistory.dispositions],
+    };
     const source = join(tool.directory, 'source');
     mkdirSync(source);
     const coverage = stageSources(root, source, git('ls-files', '-z').split('\0').filter(Boolean));
-    const filesResult = scan(tool, 'dir', source, 'files.json').classification;
+    const filesScan = scan(tool, 'dir', source, 'files.json');
+    const filesResult = filesScan.classification;
+    const publicFiles = adjudicateGitleaksPublicDeployment(
+      filesScan.scanValue,
+      readGitleaksPublicDeploymentProof(root, filesScan.scanValue, {
+        scope: 'current',
+        stagedRoot: source,
+      }),
+      { scope: 'current', stagedRoot: source },
+    );
+    const currentFilesDisposition = {
+      raw: filesResult,
+      state: publicFiles.state,
+      dispositions: publicFiles.dispositions,
+    };
     const after = historyCoverage(root);
     if (JSON.stringify(history) !== JSON.stringify(after))
       throw new Error('History refs changed during Gitleaks scan');
     assertUnchanged(before, inspect());
-    const state = [historyDisposition.state, filesResult.state].includes('BLOCKED')
+    const state = [historyDisposition.state, currentFilesDisposition.state].includes('BLOCKED')
       ? 'BLOCKED'
-      : [historyDisposition.state, filesResult.state].includes('FAIL')
+      : [historyDisposition.state, currentFilesDisposition.state].includes('FAIL')
         ? 'FAIL'
         : 'PASS';
     emit({
@@ -192,6 +222,9 @@ await main(import.meta.url, async () => {
       historyReportSha256: createHash('sha256').update(historyScan.text).digest('hex'),
       historyScannerExit: historyScan.scanValue.status,
       currentFiles: filesResult,
+      currentFilesDisposition,
+      currentFilesReportSha256: createHash('sha256').update(filesScan.text).digest('hex'),
+      currentFilesScannerExit: filesScan.scanValue.status,
       boundary:
         'Pinned CLI default detectors on all locally fetched refs plus HEAD and tracked current files. No remote credential validity check; no coverage of unavailable/deleted remote refs or untracked personal files.',
     });
