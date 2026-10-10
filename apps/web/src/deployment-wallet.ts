@@ -590,13 +590,13 @@ export class DeploymentWalletSession {
       action = this.actions[entry.index]!,
       unsigned = action.unsigned!,
       blockNumber = quantity(receipt.blockNumber),
-      blockHash = hash(receipt.blockHash);
+      blockHash = hash(receipt.blockHash),
+      transactionPending = tx.blockNumber === null && tx.blockHash === null;
     if (
       hash(receipt.transactionHash) !== transactionHash ||
       address(receipt.from) !== DEPLOYMENT_ADMIN ||
       (unsigned.to === null ? receipt.to !== null : address(receipt.to) !== address(unsigned.to)) ||
-      hash(tx.blockHash) !== blockHash ||
-      quantity(tx.blockNumber) !== blockNumber
+      (!transactionPending && (hash(tx.blockHash) !== blockHash || quantity(tx.blockNumber) !== blockNumber))
     )
       fail('DEPLOYMENT_RECEIPT_MISMATCH');
     const canonical = object(
@@ -617,6 +617,8 @@ export class DeploymentWalletSession {
       effectiveGasPrice = quantity(receipt.effectiveGasPrice);
     if (gasUsed > raw(entry.gasLimitRaw) || effectiveGasPrice > raw(entry.maxFeePerGasRaw))
       fail('DEPLOYMENT_RECEIPT_BUDGET_MISMATCH');
+    // Wallet RPC methods can observe inclusion at different times. Keep the known hash until both agree.
+    if (transactionPending) return { ...entry, state: 'SUBMITTED' };
     const head = await this.#head();
     const canonicalAgain = object(
       await this.#provider.request({ method: 'eth_getBlockByNumber', params: [hex(blockNumber), false] }),

@@ -391,6 +391,78 @@ test('uncertain wallet result never resends; manually supplied actual hash must 
   assert.throws(() => files.session.verificationReceipts(), /ALL_RECEIPTS_REQUIRED/);
 });
 
+test('pending transaction and included receipt retain the hash until a read-only check observes consistent inclusion', async () => {
+  const files = fixture();
+  let includedTransaction: Record<string, unknown> | undefined;
+  files.provider.hook = (method) => {
+    if (method !== 'eth_getTransactionByHash') return;
+    const transaction = files.provider.transactions.get(hash(1000))!;
+    includedTransaction ??= copy(transaction);
+    transaction.blockNumber = null;
+    transaction.blockHash = null;
+  };
+  const submitted = await files.session.sendNext();
+  assert.equal(submitted.entries[0]!.state, 'SUBMITTED');
+  assert.equal(submitted.entries[0]!.transactionHash, hash(1000));
+  assert.equal(files.saved()!.entries[0]!.transactionHash, hash(1000));
+  assert.equal(files.session.nextIndex, 0);
+  assert.equal(files.provider.sends.length, 1);
+  files.provider.head = 102n;
+  await files.session.reconcile();
+  assert.equal(files.session.journal.entries[0]!.state, 'SUBMITTED');
+  await assert.rejects(files.session.sendNext(), /RECOVERY_REQUIRED/);
+  assert.equal(files.provider.sends.length, 1);
+  files.provider.hook = null;
+  files.provider.transactions.set(hash(1000), includedTransaction!);
+  const callsBeforeConfirmation = files.provider.calls.length;
+  await files.session.reconcile();
+  assert.equal(files.session.journal.entries[0]!.state, 'CONFIRMED');
+  assert.equal(files.session.journal.entries[0]!.transactionHash, hash(1000));
+  assert.equal(files.session.nextIndex, 1);
+  assert.equal(files.provider.sends.length, 1);
+  assert.equal(
+    files.provider.calls.slice(callsBeforeConfirmation).some((call) => /send|sign/i.test(call.method)),
+    false,
+  );
+});
+
+test('missing or malformed block metadata cannot qualify as a pending transaction with an included receipt', async () => {
+  for (const metadata of [
+    { blockNumber: undefined, blockHash: undefined },
+    { blockNumber: null, blockHash: hash(100) },
+    { blockNumber: '0x64', blockHash: null },
+    { blockNumber: '0x64', blockHash: '0x1234' },
+    { blockNumber: 'not-a-quantity', blockHash: hash(100) },
+  ]) {
+    const files = fixture();
+    await files.session.sendNext();
+    Object.assign(files.provider.transactions.get(hash(1000))!, metadata);
+    await assert.rejects(files.session.reconcile(), /INVALID_TRANSACTION_HASH|INVALID_WALLET_RPC_RESPONSE/);
+    assert.equal(files.session.nextIndex, 0);
+    await assert.rejects(files.session.sendNext(), /INVALID_TRANSACTION_HASH|INVALID_WALLET_RPC_RESPONSE/);
+    assert.equal(files.provider.sends.length, 1);
+  }
+  for (const metadata of [
+    { blockNumber: null },
+    { blockHash: null },
+    { blockHash: '0x1234' },
+    { transactionHash: hash(2000) },
+    { contractAddress: DEPLOYMENT_ADMIN },
+    { gasUsed: '0x10000000' },
+  ]) {
+    const files = fixture();
+    await files.session.sendNext();
+    Object.assign(files.provider.transactions.get(hash(1000))!, { blockNumber: null, blockHash: null });
+    Object.assign(files.provider.receipts.get(hash(1000))!, metadata);
+    await assert.rejects(
+      files.session.reconcile(),
+      /INVALID_TRANSACTION_HASH|INVALID_WALLET_RPC_RESPONSE|RECEIPT_MISMATCH|RECEIPT_BUDGET_MISMATCH/,
+    );
+    assert.equal(files.session.nextIndex, 0);
+    assert.equal(files.provider.sends.length, 1);
+  }
+});
+
 test('mutated chain transaction fields, revert and reorg invalidate saved confirmations', async () => {
   for (const [field, value] of [
     ['nonce', '0x1'],

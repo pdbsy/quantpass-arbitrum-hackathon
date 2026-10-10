@@ -59,6 +59,16 @@ function movement(action: DeploymentAction): string {
     })
     .join(' + ');
 }
+function progressNotice(ready: string): string {
+  const pending = session?.journal.entries.find((entry) => entry.state !== 'CONFIRMED');
+  if (pending?.state === 'SUBMITTED')
+    return 'Transaction submitted. Waiting for the wallet and chain to synchronize. Click Check chain confirmations; keep this transaction instead of signing it again.';
+  if (pending?.state === 'INCLUDED')
+    return 'Transaction included. Click Check chain confirmations after 3 L2 blocks, including the inclusion block, before the next signature.';
+  if (pending)
+    return 'The saved transaction needs verification. Check chain confirmations or recover its actual wallet transaction hash before continuing.';
+  return ready;
+}
 function render() {
   const entries = session?.journal.entries ?? [];
   const next = session?.nextIndex ?? 0;
@@ -102,8 +112,8 @@ function render() {
       <details><summary>Expected result & exact calldata</summary><pre>${esc(JSON.stringify(current.expectedOutput, null, 2))}</pre><pre>${esc(current.unsigned!.data)}</pre></details>`
           : ''
       }
-      <div class="deployment-actions"><button data-connect ${busy || !session ? 'disabled' : ''}>${connected ? 'Reconnect approved wallet' : 'Connect approved wallet'}</button>
-      <button data-check ${busy || !connected ? 'disabled' : ''}>Check chain confirmations</button>
+      <div class="deployment-actions"><button class="${!connected ? 'deployment-primary' : ''}" data-connect ${busy || !session ? 'disabled' : ''}>${connected ? 'Reconnect approved wallet' : 'Connect approved wallet'}</button>
+      <button class="${connected && needsRecovery ? 'deployment-primary' : ''}" data-check ${busy || !connected ? 'disabled' : ''}>Check chain confirmations</button>
       <button class="deployment-primary" data-send ${busy || !connected || !verified || needsRecovery || complete ? 'disabled' : ''}>${busy ? 'Checking wallet / chain…' : 'Review & sign this step'}</button></div>
       <p class="deployment-note">A step advances after its transaction matches the plan, succeeds, and has 3 L2 blocks including its inclusion block. This does not mean L1 finality. Check confirmations after the wallet submits. Keep the displayed gas and fee values.</p>
       <p class="deployment-note">Open this workflow in one tab. The wallet handles each approval and broadcasts it itself. If an approval remains open past the signing window, reject it in your wallet. After a rejected or uncertain result, stop and check your wallet before continuing.</p>
@@ -133,7 +143,9 @@ function render() {
         connected = true;
         await session!.reconcile();
         verified = true;
-        return 'Approved wallet connected. Review the next step or check the saved transaction.';
+        return progressNotice(
+          'Approved wallet connected. Review the next step or check the saved transaction.',
+        );
       }),
   );
   root.querySelector('[data-check]')?.addEventListener(
@@ -142,7 +154,7 @@ function render() {
       void action(async () => {
         await session!.reconcile();
         verified = true;
-        return 'Chain receipts checked. Included transactions need 3 L2 blocks before the next signature.';
+        return progressNotice('Chain receipts checked. The next unsigned step is ready for review.');
       }),
   );
   root.querySelector('[data-send]')?.addEventListener(
@@ -151,7 +163,7 @@ function render() {
       void action(async () => {
         await session!.sendNext();
         verified = true;
-        return 'Wallet result recorded and checked. Check chain confirmations before signing the next step.';
+        return progressNotice('Wallet transaction confirmed. The next unsigned step is ready for review.');
       }),
   );
   root.querySelector('[data-recover]')?.addEventListener('click', () => {
