@@ -23,6 +23,9 @@ let connected = false;
 let verified = false;
 let notice = 'Load and verify the approved plan before connecting your wallet.';
 let error = false;
+let recoveryHash: string | null = null;
+let recoveryFeedback = '';
+let recoveryError = false;
 const esc = (value: unknown): string =>
   String(value).replace(
     /[&<>"']/g,
@@ -74,6 +77,7 @@ function render() {
   const next = session?.nextIndex ?? 0;
   const current = session?.actions[next];
   const needsRecovery = entries.some((entry) => entry.state !== 'CONFIRMED');
+  const savedRecoveryHash = entries.find((entry) => entry.state !== 'CONFIRMED')?.transactionHash ?? null;
   const complete = verified && entries.length === 41 && entries.every((entry) => entry.state === 'CONFIRMED');
   root.innerHTML = `<header class="deployment-header"><a class="deployment-brand" href="./#/home">AlphaForge</a><span class="deployment-label">ROBINHOOD CHAIN TESTNET · ADMINISTRATOR</span></header>
     <main><p class="deployment-label">APPROVED DEPLOYMENT / 46630</p><h1>Launch the test market.</h1>
@@ -119,9 +123,10 @@ function render() {
       <p class="deployment-note">Open this workflow in one tab. The wallet handles each approval and broadcasts it itself. If an approval remains open past the signing window, reject it in your wallet. After a rejected or uncertain result, stop and check your wallet before continuing.</p>
       ${complete ? '<p>Server activation still requires actual contract, balance, pool, and permission verification. These wallet receipts alone do not mark the market live.</p>' : ''}
       <div class="deployment-actions"><button data-download ${busy || !complete ? 'disabled' : ''}>Download verification receipts</button><button data-copy ${busy || !complete ? 'disabled' : ''}>Copy transaction hashes</button></div>
-      <details${needsRecovery ? ' open' : ''}><summary>Recover an uncertain wallet result</summary><p>Use the actual transaction hash from your wallet. This only checks the chain; it never sends another transaction.</p>
-      <label for="deployment-recovery">Transaction hash</label><input id="deployment-recovery" autocomplete="off" spellcheck="false" placeholder="0x…" maxlength="66"><button data-recover ${busy || !connected || !needsRecovery ? 'disabled' : ''}>Verify this hash</button>
-      ${lastWalletHash || session?.lastObservedHash ? `<p>Last wallet hash: <span class="deployment-address">${esc(lastWalletHash ?? session?.lastObservedHash)}</span></p>` : ''}</details>
+      <details${needsRecovery || recoveryFeedback ? ' open' : ''}><summary>Recover an uncertain wallet result</summary><p>Use the actual transaction hash from your wallet. This only checks the chain; it never sends another transaction.</p>
+      <label for="deployment-recovery">Transaction hash</label><input id="deployment-recovery" autocomplete="off" spellcheck="false" placeholder="0x…" maxlength="66" value="${esc(recoveryHash ?? savedRecoveryHash ?? '')}" aria-invalid="${recoveryError}" aria-describedby="deployment-recovery-feedback"><div class="deployment-actions"><button data-recover ${busy || !connected || !needsRecovery ? 'disabled' : ''}>Verify this hash</button><button data-use-hash ${busy || !savedRecoveryHash ? 'disabled' : ''}>Use saved transaction hash</button></div>
+      <p id="deployment-recovery-feedback" role="status" aria-live="polite" class="deployment-feedback${recoveryError ? ' deployment-error' : ''}" ${recoveryFeedback ? '' : 'hidden'}>${esc(recoveryFeedback)}</p>
+      ${lastWalletHash || session?.lastObservedHash || savedRecoveryHash ? `<p>Last wallet hash: <span class="deployment-address">${esc(lastWalletHash ?? session?.lastObservedHash ?? savedRecoveryHash)}</span></p>` : ''}</details>
     </section>
     <section class="deployment-card"><h2>Approved sequence</h2><ol class="deployment-sequence">${
       session
@@ -161,18 +166,54 @@ function render() {
     'click',
     () =>
       void action(async () => {
+        recoveryHash = null;
+        recoveryFeedback = '';
+        recoveryError = false;
         await session!.sendNext();
         verified = true;
         return progressNotice('Wallet transaction confirmed. The next unsigned step is ready for review.');
       }),
   );
   root.querySelector('[data-recover]')?.addEventListener('click', () => {
+    if (busy) return;
     const transactionHash = root.querySelector<HTMLInputElement>('#deployment-recovery')?.value.trim() ?? '';
+    recoveryHash = transactionHash;
+    if (!/^0x[0-9a-fA-F]{64}$/.test(transactionHash)) {
+      recoveryError = true;
+      recoveryFeedback =
+        'Enter the full transaction hash shown below. A wallet or contract address cannot verify a transaction. You can use the saved transaction hash.';
+      render();
+      root.querySelector<HTMLInputElement>('#deployment-recovery')?.focus();
+      return;
+    }
+    recoveryError = false;
+    recoveryFeedback = 'Checking the existing transaction on chain…';
     void action(async () => {
-      await session!.recover(transactionHash);
-      verified = true;
-      return 'Recovered hash verified against the approved step. No new transaction was sent.';
+      try {
+        await session!.recover(transactionHash);
+        verified = true;
+        recoveryFeedback = progressNotice(
+          'Saved transaction verified. Continue with the next unsigned step.',
+        );
+        return recoveryFeedback;
+      } catch (caught) {
+        recoveryError = true;
+        recoveryFeedback =
+          caught instanceof Error
+            ? caught.message
+            : 'The transaction could not be verified. Keep the saved transaction and check again.';
+        throw caught;
+      }
     });
+  });
+  root.querySelector('[data-use-hash]')?.addEventListener('click', () => {
+    if (busy) return;
+    recoveryHash = savedRecoveryHash;
+    recoveryError = false;
+    recoveryFeedback =
+      'Saved transaction hash selected. Click Verify this hash to check its existing receipt.';
+    render();
+    root.querySelector<HTMLInputElement>('#deployment-recovery')?.focus();
   });
   root.querySelector('[data-download]')?.addEventListener(
     'click',
