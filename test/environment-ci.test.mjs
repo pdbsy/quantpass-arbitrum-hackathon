@@ -4,7 +4,7 @@ import { verify } from '../tools/verify-ci.mjs';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import {
   CANONICAL_REPOSITORY,
@@ -74,7 +74,7 @@ syncBuiltinESMExports();
   );
   const run = (repository, id) => {
     writeFileSync(marker, '');
-    const result = spawnSync(process.execPath, ['--import', preload, bootstrap], {
+    const result = spawnSync(process.execPath, ['--import', pathToFileURL(preload).href, bootstrap], {
       encoding: 'utf8',
       env: {
         PATH: process.env.PATH,
