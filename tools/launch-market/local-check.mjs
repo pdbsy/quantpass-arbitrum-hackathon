@@ -5,6 +5,12 @@ import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 
 const root = resolve(new URL('../..', import.meta.url).pathname);
+const arguments_ = process.argv.slice(2);
+if (arguments_.length > 1 || (arguments_.length === 1 && arguments_[0] !== '--wallet-receipts'))
+  throw new Error('LOCAL_CHECK_ARGUMENTS');
+const testFiles = arguments_.length
+  ? ['test/launch-wallet-deployment-verify.test.ts']
+  : ['test/launch-market-local-evm.test.ts', 'test/launch-wallet-deployment-verify.test.ts'];
 const binary = resolve(root, '.checks/af-chain01/toolchain/bin/anvil');
 const lock = JSON.parse(await readFile(new URL('./anvil-lock.json', import.meta.url), 'utf8'));
 if (
@@ -56,11 +62,11 @@ try {
     await new Promise((done) => setTimeout(done, 100));
   }
   if (!ready) throw new Error('LOCAL_ANVIL_START_FAILED');
-  const child = spawn(
-    process.execPath,
-    ['--test', '--test-isolation=none', 'test/launch-market-local-evm.test.ts'],
-    { cwd: root, env: { ...process.env, AF_LOCAL_EVM_RPC: url }, stdio: 'inherit' },
-  );
+  const child = spawn(process.execPath, ['--test', '--test-isolation=none', ...testFiles], {
+    cwd: root,
+    env: { ...process.env, AF_LOCAL_EVM_RPC: url, AF_WALLET_VERIFY_LOCAL_RPC: url },
+    stdio: 'inherit',
+  });
   process.exitCode = await new Promise((done, reject) => {
     child.once('error', reject);
     child.once('exit', (code, signal) => done(signal ? 1 : (code ?? 1)));

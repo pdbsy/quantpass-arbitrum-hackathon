@@ -26,6 +26,8 @@ npm run test:fair-launch:evm
 
 ## 无签名部署准备
 
+2026-10-10 的继续上线请求、登录 Unix 连接、加密 voucher 加载、部署 journal 的具体能力与尚未实现的真实签名 / 状态核验接入，见 [实际上线继续工作](GO-LIVE.md)。该记录不把组件隔离测试或系统模板视为目标链已上线。
+
 填写 `deploy/launch-market/deployment-inputs.example.json` 的显式地址与资金参数，保存到私有新文件。示例中的 `null` 必须替换，不能默认 LP 归部署者或收款 EOA。准备工具只读取编译产物并输出 calldata，没有 RPC、交易签名或广播功能。
 
 ```bash

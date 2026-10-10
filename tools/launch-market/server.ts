@@ -1,40 +1,25 @@
-import { lstatSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Wallet, id } from 'ethers';
+import { id } from 'ethers';
 import { readRegularBytes } from '../../packages/testnet/src/bounded-file.ts';
 import { privateServerStorage } from '../../packages/testnet/src/private-storage.ts';
 import { LaunchMarketStore } from '../../packages/launch-market/src/store.ts';
 import { LaunchMarketService } from '../../packages/launch-market/src/service.ts';
 import type { LaunchMarketManifest } from '../../packages/launch-market/src/types.ts';
 import { AccessIdentityBridge } from '../../apps/server/src/launch-market-adapters/access-identity.ts';
+import { AccessIdentitySocketClient } from '../../apps/server/src/launch-market-adapters/access-identity-socket.ts';
+import { loadOfflineVoucherSigner } from '../../apps/server/src/launch-market-adapters/offline-voucher-signer.ts';
 import { VerifiedEthReference } from '../../apps/server/src/launch-market-adapters/eth-reference.ts';
 import { RpcMarketChain } from '../../apps/server/src/launch-market-adapters/rpc-chain.ts';
 import { buildVaultQuote } from '../../apps/server/src/launch-market-adapters/vault-quotes.ts';
 import { MarketEventIndexer } from '../../apps/server/src/launch-market/indexer.ts';
 import { buildLaunchMarketServer } from '../../apps/server/src/launch-market/server.ts';
 
-function signer(path: string | undefined): Wallet | null {
-  if (!path) return null;
-  const absolute = resolve(path),
-    stat = lstatSync(absolute);
-  if (
-    !stat.isFile() ||
-    stat.nlink !== 1 ||
-    (stat.mode & 0o077) !== 0 ||
-    stat.uid !== process.getuid?.() ||
-    realpathSync(absolute) !== absolute
-  )
-    throw new Error('PRIVATE_SIGNER_FILE_REQUIRED');
-  const raw = new TextDecoder('utf-8', { fatal: true }).decode(readRegularBytes(absolute, 256)).trim();
-  if (!/^0x[0-9a-fA-F]{64}$/.test(raw)) throw new Error('INVALID_SIGNER_FILE');
-  // Offline EIP-712 signer only: never attached to a provider or used for transaction broadcasting.
-  return new Wallet(raw);
-}
-
 export async function startMarketServer(env: Readonly<Record<string, string | undefined>>) {
   const origin = env.AF_MARKET_ORIGIN;
   if (!origin || !env.AF_MARKET_DATA_DIR) throw new Error('MARKET_ORIGIN_AND_PRIVATE_STORAGE_REQUIRED');
+  if (env.AF_ACCESS_IDENTITY_DB && env.AF_ACCESS_IDENTITY_SOCKET)
+    throw new Error('IDENTITY_BRIDGE_CONFIGURATION_CONFLICT');
   const folder = resolve(env.AF_MARKET_DATA_DIR),
     storage = privateServerStorage(folder, 512 * 1024 * 1024);
   let chain: RpcMarketChain | null = null,
@@ -55,8 +40,19 @@ export async function startMarketServer(env: Readonly<Record<string, string | un
       await chain.initialize();
     }
     if (env.AF_ACCESS_IDENTITY_DB) bridge = new AccessIdentityBridge(resolve(env.AF_ACCESS_IDENTITY_DB));
-    const quoteSigner = signer(env.AF_MARKET_QUOTE_SIGNER_FILE),
-      claimSigner = signer(env.AF_MARKET_CLAIM_SIGNER_FILE);
+    const identityClient = env.AF_ACCESS_IDENTITY_SOCKET
+      ? new AccessIdentitySocketClient(env.AF_ACCESS_IDENTITY_SOCKET)
+      : null;
+    const quoteSigner = await loadOfflineVoucherSigner({
+        ...(env.AF_MARKET_QUOTE_SIGNER_FILE ? { rawFile: env.AF_MARKET_QUOTE_SIGNER_FILE } : {}),
+        ...(env.AF_MARKET_QUOTE_KEYSTORE_FILE ? { keystoreFile: env.AF_MARKET_QUOTE_KEYSTORE_FILE } : {}),
+        ...(env.AF_MARKET_QUOTE_UNLOCK_FILE ? { unlockFile: env.AF_MARKET_QUOTE_UNLOCK_FILE } : {}),
+      }),
+      claimSigner = await loadOfflineVoucherSigner({
+        ...(env.AF_MARKET_CLAIM_SIGNER_FILE ? { rawFile: env.AF_MARKET_CLAIM_SIGNER_FILE } : {}),
+        ...(env.AF_MARKET_CLAIM_KEYSTORE_FILE ? { keystoreFile: env.AF_MARKET_CLAIM_KEYSTORE_FILE } : {}),
+        ...(env.AF_MARKET_CLAIM_UNLOCK_FILE ? { unlockFile: env.AF_MARKET_CLAIM_UNLOCK_FILE } : {}),
+      });
     const feed = new VerifiedEthReference();
     const reader = chain;
     const service = new LaunchMarketService({
@@ -93,8 +89,8 @@ export async function startMarketServer(env: Readonly<Record<string, string | un
       webRoot: env.AF_MARKET_WEB_ROOT
         ? resolve(env.AF_MARKET_WEB_ROOT)
         : resolve(new URL('../../apps/web/dist', import.meta.url).pathname),
-      trustedIdentity: (request) => {
-        const identity = bridge?.identity(request);
+      trustedIdentity: async (request) => {
+        const identity = identityClient ? await identityClient.identity(request) : bridge?.identity(request);
         return identity ? { email: identity.email, subject: identity.subject, emailVerified: true } : null;
       },
       dispose: async () => {
