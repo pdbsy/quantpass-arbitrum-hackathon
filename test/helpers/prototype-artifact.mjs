@@ -3,7 +3,10 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { FAIR_LAUNCH_IMPORT, verifyPreservedMasterImport } from '../../tools/preserved-source-identity.mjs';
+import {
+  FAIR_LAUNCH_IMPORT,
+  verifyPreservedIntegrationAnchor,
+} from '../../tools/preserved-source-identity.mjs';
 
 const path = 'apps/web/prototype/AlphaForge_v3_EN.html';
 const originalCommit = 'ebf8df18647f72afd7dafadf80638ed2f4c7a44b';
@@ -94,13 +97,14 @@ export async function verifiedPrototypeArtifacts(root) {
   let nativeSourceImported = false;
   if (!ancestor(nativeMarketCommit, head)) {
     try {
-      const preserved = verifyPreservedMasterImport(FAIR_LAUNCH_IMPORT, {
+      const preserved = verifyPreservedIntegrationAnchor(FAIR_LAUNCH_IMPORT, {
         head,
         git: (...args) => git(...args).trim(),
       });
       nativeSourceImported = ancestor(nativeMarketCommit, preserved.sourceHead);
     } catch {
-      // Only the exact retained-source squash may substitute for direct ancestry.
+      // Only descendants of the immutable retained-source integration may
+      // substitute for direct ancestry; every new commit retains identity checks.
       // Every other candidate still fails the ordinary source checks below.
     }
   }

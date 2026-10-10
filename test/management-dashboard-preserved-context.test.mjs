@@ -10,6 +10,8 @@ import { collectRecordedGitState } from '../tools/management-dashboard/sources.m
 import { PRESERVED_MANAGEMENT_SNAPSHOT } from '../tools/management-dashboard/preserved-context.mjs';
 import { FAIR_LAUNCH_IMPORT } from '../tools/preserved-source-identity.mjs';
 import { CANONICAL_REPOSITORY, CANONICAL_REPOSITORY_ID } from '../tools/environment/policy.mjs';
+import { MANAGER_INTEGRATIONS } from '../tools/agent-identity.mjs';
+import { validateCommitSetIdentity } from '../tools/agent-identity-set.mjs';
 
 const sourceRoot = fileURLToPath(new URL('../', import.meta.url));
 const git = (root, args, options = {}) =>
@@ -132,6 +134,109 @@ async function masterLayout(f, parent = FAIR_LAUNCH_IMPORT.base, tree) {
   return head;
 }
 
+async function integratedFixture(t) {
+  const f = await fixture(t);
+  const anchor = FAIR_LAUNCH_IMPORT.integration;
+  git(f.root, ['fetch', '--quiet', sourceRoot, anchor.commit, anchor.sourceHead]);
+  f.sourceBranch = 'codex/ordinary-followup-fixture';
+  git(f.root, ['checkout', '--quiet', '-b', f.sourceBranch, anchor.commit]);
+  git(f.root, ['branch', '-f', 'master', anchor.commit]);
+  git(f.root, ['update-ref', 'refs/remotes/origin/master', anchor.commit]);
+  git(f.root, ['update-ref', `refs/remotes/origin/${FAIR_LAUNCH_IMPORT.branch}`, anchor.sourceHead]);
+  await writeFile(join(f.root, 'ordinary-followup.txt'), 'ordinary work after the immutable integration\n');
+  git(f.root, ['add', 'ordinary-followup.txt']);
+  git(f.root, ['commit', '--quiet', '-m', 'Ordinary follow-up after Fair Launch integration']);
+  f.head = git(f.root, ['rev-parse', 'HEAD']);
+  git(f.root, ['update-ref', `refs/remotes/origin/${f.sourceBranch}`, f.head]);
+  f.event = {
+    ref: `refs/heads/${f.sourceBranch}`,
+    before: '0'.repeat(40),
+    after: f.head,
+    repository: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+  };
+  f.environment = {
+    ...f.environment,
+    GITHUB_REPOSITORY: CANONICAL_REPOSITORY,
+    GITHUB_REPOSITORY_ID: String(CANONICAL_REPOSITORY_ID),
+    GITHUB_REF: f.event.ref,
+    GITHUB_SHA: f.head,
+    GITHUB_HEAD_REF: '',
+    GITHUB_BASE_REF: '',
+  };
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  return f;
+}
+
+async function integratedPull(f, parent = FAIR_LAUNCH_IMPORT.integration.commit, tree) {
+  const merge = git(f.root, [
+    'commit-tree',
+    tree ?? git(f.root, ['rev-parse', `${f.head}^{tree}`]),
+    '-p',
+    parent,
+    '-p',
+    f.head,
+    '-m',
+    'Ordinary follow-up PR merge fixture',
+  ]);
+  git(f.root, ['update-ref', 'refs/remotes/pull/48/merge', merge]);
+  git(f.root, ['checkout', '--quiet', '--detach', merge]);
+  f.event = {
+    repository: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+    number: 48,
+    pull_request: {
+      title: 'Ordinary Fair Launch follow-up',
+      head: {
+        ref: f.sourceBranch,
+        sha: f.head,
+        repo: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+      },
+      base: {
+        ref: 'master',
+        sha: FAIR_LAUNCH_IMPORT.integration.commit,
+        repo: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+      },
+    },
+  };
+  f.environment = {
+    ...f.environment,
+    GITHUB_EVENT_NAME: 'pull_request',
+    GITHUB_REF: 'refs/pull/48/merge',
+    GITHUB_SHA: merge,
+    GITHUB_HEAD_REF: f.sourceBranch,
+    GITHUB_BASE_REF: 'master',
+  };
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+}
+
+async function integratedMaster(f) {
+  const master = git(f.root, [
+    'commit-tree',
+    git(f.root, ['rev-parse', `${f.head}^{tree}`]),
+    '-p',
+    FAIR_LAUNCH_IMPORT.integration.commit,
+    '-m',
+    'Merge ordinary follow-up using linear history',
+  ]);
+  git(f.root, ['checkout', '--quiet', '-B', 'master', master]);
+  git(f.root, ['update-ref', 'refs/remotes/origin/master', master]);
+  f.event = {
+    ref: 'refs/heads/master',
+    before: FAIR_LAUNCH_IMPORT.integration.commit,
+    after: master,
+    repository: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+  };
+  f.environment = {
+    ...f.environment,
+    GITHUB_EVENT_NAME: 'push',
+    GITHUB_REF: f.event.ref,
+    GITHUB_SHA: master,
+    GITHUB_HEAD_REF: '',
+    GITHUB_BASE_REF: '',
+  };
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  return master;
+}
+
 function checkIdentity(f, extra = {}) {
   return fixtureExec(process.execPath, [join(sourceRoot, 'tools/check-agent-identity.mjs')], {
     cwd: f.root,
@@ -236,6 +341,154 @@ test('actual first master push verifies all original objects and preserves histo
   assert.deepEqual(await collect(f), f.recorded);
 });
 
+test('ordinary source pushes and dispatch after the exact integration preserve only historical evidence', async (t) => {
+  const f = await integratedFixture(t);
+  assert.match(checkIdentity(f), /Integration anchor .* ordinary push identity: 0 worker provenance/);
+  assert.deepEqual(await collect(f), f.recorded);
+  const first = f.head;
+  await writeFile(join(f.root, 'ordinary-followup.txt'), 'second ordinary source change\n');
+  git(f.root, ['add', 'ordinary-followup.txt']);
+  git(f.root, ['commit', '--quiet', '-m', 'Continue the ordinary source branch']);
+  f.head = git(f.root, ['rev-parse', 'HEAD']);
+  git(f.root, ['update-ref', `refs/remotes/origin/${f.sourceBranch}`, f.head]);
+  f.event = { ...f.event, before: first, after: f.head };
+  f.environment.GITHUB_SHA = f.head;
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  assert.match(checkIdentity(f), /ordinary push identity: 0 worker provenance/);
+  assert.deepEqual(await collect(f), f.recorded);
+  f.event.ref = f.sourceBranch;
+  f.environment.GITHUB_EVENT_NAME = 'workflow_dispatch';
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  assert.match(checkIdentity(f), /ordinary workflow_dispatch identity/);
+  assert.deepEqual(await collect(f), f.recorded);
+});
+
+test('ordinary follow-up PR and actual master push retain the exact original snapshot', async (t) => {
+  const f = await integratedFixture(t);
+  const original = await Promise.all(recordPaths.map((path) => readFile(join(f.root, path))));
+  await integratedPull(f);
+  assert.match(checkIdentity(f), /ordinary pull_request identity: 0 worker provenance/);
+  assert.deepEqual(await collect(f), f.recorded);
+  await checkDashboard(['--check'], { root: f.root, environment: f.environment });
+  const master = await integratedMaster(f);
+  assert.match(checkIdentity(f), /ordinary push identity: 0 worker provenance/);
+  assert.deepEqual(await collect(f), f.recorded);
+  await checkDashboard(['--check'], { root: f.root, environment: f.environment });
+  assert.notEqual(master, PRESERVED_MANAGEMENT_SNAPSHOT.commit);
+  assert.deepEqual(await Promise.all(recordPaths.map((path) => readFile(join(f.root, path)))), original);
+  for (const mutation of [
+    (event) => (event.before = FAIR_LAUNCH_IMPORT.base),
+    (event) => {
+      event.before = FAIR_LAUNCH_IMPORT.source;
+      event.after = f.head;
+      event.ref = `refs/heads/${f.sourceBranch}`;
+    },
+  ]) {
+    const changed = structuredClone(f.event);
+    mutation(changed);
+    await writeFile(f.eventPath, JSON.stringify(changed));
+    assert.throws(() => checkIdentity(f));
+    assert.equal((await collect(f)).status, 'DATA_SOURCE_ERROR');
+  }
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  f.event.ref = 'master';
+  f.environment.GITHUB_EVENT_NAME = 'workflow_dispatch';
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  assert.match(checkIdentity(f), /ordinary workflow_dispatch identity/);
+  assert.deepEqual(await collect(f), f.recorded);
+});
+
+test('post-integration master push validates every ordinary linear commit in a rebase range', async (t) => {
+  const f = await integratedFixture(t);
+  git(f.root, ['checkout', '--quiet', '-B', 'master', f.head]);
+  git(f.root, ['commit', '--quiet', '--allow-empty', '-m', 'Second linear ordinary master commit']);
+  const head = git(f.root, ['rev-parse', 'HEAD']);
+  git(f.root, ['update-ref', 'refs/remotes/origin/master', head]);
+  f.event = {
+    ...f.event,
+    ref: 'refs/heads/master',
+    before: FAIR_LAUNCH_IMPORT.integration.commit,
+    after: head,
+  };
+  f.environment = { ...f.environment, GITHUB_REF: f.event.ref, GITHUB_SHA: head };
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  assert.match(checkIdentity(f), /ordinary push identity: 0 worker provenance/);
+  assert.deepEqual(await collect(f), f.recorded);
+});
+
+test('post-integration PR rejects foreign identity, altered refs, parents, and frozen source', async (t) => {
+  const f = await integratedFixture(t);
+  await integratedPull(f);
+  for (const mutation of [
+    (event) => (event.pull_request.head.repo.full_name = 'foreign/Alphaforge'),
+    (event) => (event.pull_request.base.repo.id = CANONICAL_REPOSITORY_ID + 1),
+    (event) => (event.pull_request.head.ref = FAIR_LAUNCH_IMPORT.branch),
+    (event) => (event.pull_request.base.sha = FAIR_LAUNCH_IMPORT.base),
+    (event) => (event.pull_request.head.sha = FAIR_LAUNCH_IMPORT.integration.commit),
+  ]) {
+    const changed = structuredClone(f.event);
+    mutation(changed);
+    await writeFile(f.eventPath, JSON.stringify(changed));
+    assert.throws(() => checkIdentity(f));
+    assert.equal((await collect(f)).status, 'DATA_SOURCE_ERROR');
+  }
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  git(f.root, ['update-ref', `refs/remotes/origin/${FAIR_LAUNCH_IMPORT.branch}`, FAIR_LAUNCH_IMPORT.source]);
+  assert.throws(() => checkIdentity(f));
+  await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+  git(f.root, [
+    'update-ref',
+    `refs/remotes/origin/${FAIR_LAUNCH_IMPORT.branch}`,
+    FAIR_LAUNCH_IMPORT.integration.sourceHead,
+  ]);
+  await integratedPull(f, FAIR_LAUNCH_IMPORT.base);
+  assert.throws(() => checkIdentity(f));
+  await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+});
+
+test('post-integration work cannot alter frozen reports or introduce unattributed worker claims', async (t) => {
+  const f = await integratedFixture(t);
+  const source = f.head;
+  await writeFile(
+    join(f.root, recordPaths[0]),
+    Buffer.concat([await readFile(join(f.root, recordPaths[0])), Buffer.from('\n')]),
+  );
+  git(f.root, ['add', recordPaths[0]]);
+  git(f.root, ['commit', '--quiet', '-m', 'Alter immutable historical report fixture']);
+  f.head = git(f.root, ['rev-parse', 'HEAD']);
+  git(f.root, ['update-ref', `refs/remotes/origin/${f.sourceBranch}`, f.head]);
+  await integratedPull(f);
+  await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+  git(f.root, ['checkout', '--quiet', f.sourceBranch]);
+  git(f.root, ['reset', '--hard', '--quiet', source]);
+  git(f.root, ['commit', '--quiet', '--allow-empty', '-m', '[Macbeth01] Unattributed new source work']);
+  f.head = git(f.root, ['rev-parse', 'HEAD']);
+  git(f.root, ['update-ref', `refs/remotes/origin/${f.sourceBranch}`, f.head]);
+  await integratedPull(f);
+  assert.throws(() => checkIdentity(f));
+  await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+});
+
+test('anchored follow-up evidence cannot bypass registered manager integration admission', async (t) => {
+  const f = await integratedFixture(t);
+  const manager = MANAGER_INTEGRATIONS[0];
+  git(f.root, ['checkout', '--quiet', '-b', manager.branch, FAIR_LAUNCH_IMPORT.integration.commit]);
+  const subject = `[Macbeth01][${manager.task}] Ordinary manager-looking fixture`;
+  const body = `Agent-ID: Macbeth01\nTask-ID: ${manager.task}`;
+  git(f.root, ['commit', '--quiet', '--allow-empty', '-m', subject, '-m', body]);
+  const head = git(f.root, ['rev-parse', 'HEAD']);
+  assert.equal(
+    validateCommitSetIdentity({ branch: manager.branch, commits: [{ subject, body }] }).verified,
+    1,
+  );
+  git(f.root, ['update-ref', `refs/remotes/origin/${manager.branch}`, head]);
+  f.event = { ...f.event, ref: `refs/heads/${manager.branch}`, after: head };
+  f.environment = { ...f.environment, GITHUB_REF: f.event.ref, GITHUB_SHA: head };
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  assert.throws(() => checkIdentity(f));
+  await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+});
+
 test('master admission rejects mismatched hosted identity, event head, and original base', async (t) => {
   const f = await fixture(t);
   await masterLayout(f);
@@ -292,7 +545,9 @@ test('master dashboard proof rejects changed tree, wrong parent, and later maste
   const later = git(f.root, ['rev-parse', 'HEAD']);
   git(f.root, ['update-ref', 'refs/remotes/origin/master', later]);
   await writeFile(f.eventPath, JSON.stringify({ ...f.event, before: firstMaster, after: later }));
-  await rejects(f, 'RECORDED_GIT_CI_CONTEXT_INVALID', { ...f.environment, GITHUB_SHA: later });
+  // This fabricated earlier squash is unrelated to the immutable integration
+  // anchor; recognizing a follow-up context does not admit its source proof.
+  await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID', { ...f.environment, GITHUB_SHA: later });
   // A normal later master range gets ordinary identity validation, not an import exemption.
   assert.match(
     checkIdentity(f, { GITHUB_SHA: later }),
