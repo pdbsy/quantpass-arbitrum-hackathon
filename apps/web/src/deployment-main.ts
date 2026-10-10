@@ -31,6 +31,12 @@ const esc = (value: unknown): string =>
     /[&<>"']/g,
     (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!,
   );
+function failureMessage(caught: unknown, fallback: string): string {
+  if (!(caught instanceof Error)) return fallback;
+  if (caught.message.startsWith('INVALID_WALLET_RPC_RESPONSE:'))
+    return `The wallet returned incomplete or invalid chain data. Keep the saved transaction; verification has not advanced. Error detail: ${caught.message}`;
+  return caught.message;
+}
 function amount(value: string, decimals: number): string {
   const number = BigInt(value),
     divisor = 10n ** BigInt(decimals),
@@ -198,10 +204,10 @@ function render() {
         return recoveryFeedback;
       } catch (caught) {
         recoveryError = true;
-        recoveryFeedback =
-          caught instanceof Error
-            ? caught.message
-            : 'The transaction could not be verified. Keep the saved transaction and check again.';
+        recoveryFeedback = failureMessage(
+          caught,
+          'The transaction could not be verified. Keep the saved transaction and check again.',
+        );
         throw caught;
       }
     });
@@ -276,10 +282,7 @@ async function action(work: () => Promise<string>) {
   } catch (caught) {
     verified = false;
     error = true;
-    notice =
-      caught instanceof Error
-        ? caught.message
-        : 'Wallet or chain request failed. Stop and check the actual transaction.';
+    notice = failureMessage(caught, 'Wallet or chain request failed. Stop and check the actual transaction.');
   } finally {
     busy = false;
     render();

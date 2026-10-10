@@ -463,6 +463,56 @@ test('missing or malformed block metadata cannot qualify as a pending transactio
   }
 });
 
+test('recovery numeric field diagnostics preserve strict parsing, durable state and read-only recovery', async () => {
+  for (const { target, field, value, kind } of [
+    { target: 'transaction', field: 'chainId', value: undefined, kind: 'missing' },
+    { target: 'transaction', field: 'maxFeePerGas', value: null, kind: 'null' },
+    { target: 'transaction', field: 'nonce', value: 0, kind: 'non-string' },
+    { target: 'transaction', field: 'value', value: '0x00', kind: 'noncanonical' },
+    { target: 'transaction', field: 'gas', value: '0x' + 'f'.repeat(65), kind: 'noncanonical' },
+    { target: 'receipt', field: 'effectiveGasPrice', value: undefined, kind: 'missing' },
+    { target: 'receipt', field: 'status', value: '0x01', kind: 'noncanonical' },
+    {
+      target: 'receipt',
+      field: 'gasUsed',
+      value: 'unexpected-sensitive-wallet-value',
+      kind: 'noncanonical',
+    },
+  ]) {
+    const files = fixture();
+    await files.session.sendNext();
+    const before = files.session.journal,
+      durableBefore = files.saved(),
+      lastHash = files.session.lastObservedHash,
+      response =
+        target === 'transaction'
+          ? files.provider.transactions.get(hash(1000))!
+          : files.provider.receipts.get(hash(1000))!,
+      original = response[field],
+      method = target === 'transaction' ? 'eth_getTransactionByHash' : 'eth_getTransactionReceipt';
+    response[field] = value;
+    await assert.rejects(files.session.recover(hash(1000)), {
+      message: `INVALID_WALLET_RPC_RESPONSE: ${method}.${field} (${kind})`,
+    });
+    assert.deepEqual(files.session.journal, before);
+    assert.deepEqual(files.saved(), durableBefore);
+    assert.equal(files.session.lastObservedHash, lastHash);
+    assert.equal(files.session.nextIndex, 0);
+    assert.equal(files.provider.sends.length, 1);
+    response[field] = original;
+    files.provider.head = 102n;
+    const readOnlyStart = files.provider.calls.length;
+    await files.session.recover(hash(1000));
+    assert.equal(files.session.journal.entries[0]!.state, 'CONFIRMED');
+    assert.equal(files.session.nextIndex, 1);
+    assert.equal(files.provider.sends.length, 1);
+    assert.equal(
+      files.provider.calls.slice(readOnlyStart).some((call) => /send|sign/i.test(call.method)),
+      false,
+    );
+  }
+});
+
 test('mutated chain transaction fields, revert and reorg invalidate saved confirmations', async () => {
   for (const [field, value] of [
     ['nonce', '0x1'],

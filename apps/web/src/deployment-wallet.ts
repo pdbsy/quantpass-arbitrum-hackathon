@@ -100,9 +100,18 @@ function raw(value: unknown): bigint {
   if (result >= 2n ** 256n) fail('INVALID_DEPLOYMENT_INTEGER');
   return result;
 }
-function quantity(value: unknown): bigint {
-  if (typeof value !== 'string' || !/^0x(0|[1-9a-fA-F][0-9a-fA-F]{0,63})$/.test(value))
-    fail('INVALID_WALLET_RPC_RESPONSE');
+function quantity(value: unknown, field: string): bigint {
+  if (typeof value !== 'string' || !/^0x(0|[1-9a-fA-F][0-9a-fA-F]{0,63})$/.test(value)) {
+    const kind =
+      value === undefined
+        ? 'missing'
+        : value === null
+          ? 'null'
+          : typeof value !== 'string'
+            ? 'non-string'
+            : 'noncanonical';
+    fail(`INVALID_WALLET_RPC_RESPONSE: ${field} (${kind})`);
+  }
   return BigInt(value);
 }
 function address(value: unknown): string {
@@ -392,7 +401,7 @@ export class DeploymentWalletSession {
     this.#journal = checked;
   }
   async #identity() {
-    if (quantity(await this.#provider.request({ method: 'eth_chainId' })) !== 46630n)
+    if (quantity(await this.#provider.request({ method: 'eth_chainId' }), 'eth_chainId.result') !== 46630n)
       fail('DEPLOYMENT_WRONG_NETWORK');
     const accounts = await this.#provider.request({ method: 'eth_accounts' });
     if (!Array.isArray(accounts) || accounts.length === 0 || address(accounts[0]) !== DEPLOYMENT_ADMIN)
@@ -400,7 +409,7 @@ export class DeploymentWalletSession {
   }
   async connect() {
     await this.#provider.request({ method: 'eth_requestAccounts' });
-    if (quantity(await this.#provider.request({ method: 'eth_chainId' })) !== 46630n) {
+    if (quantity(await this.#provider.request({ method: 'eth_chainId' }), 'eth_chainId.result') !== 46630n) {
       const switchNetwork = () =>
         this.#provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hex(46630n) }] });
       try {
@@ -445,11 +454,11 @@ export class DeploymentWalletSession {
     const block = object(
       await this.#provider.request({ method: 'eth_getBlockByNumber', params: ['latest', false] }),
     );
-    const age = this.#now() - Number(quantity(block.timestamp));
+    const age = this.#now() - Number(quantity(block.timestamp, 'eth_getBlockByNumber.timestamp'));
     if (age < 0 || age > this.payload.budget.maxHeadAgeSeconds) fail('DEPLOYMENT_STALE_HEAD');
     hash(block.hash);
-    quantity(block.number);
-    quantity(block.gasLimit);
+    quantity(block.number, 'eth_getBlockByNumber.number');
+    quantity(block.gasLimit, 'eth_getBlockByNumber.gasLimit');
     return block;
   }
   async #executionLimit(blockTag: string): Promise<bigint> {
@@ -499,14 +508,18 @@ export class DeploymentWalletSession {
       );
     const balance = quantity(
       await this.#provider.request({ method: 'eth_getBalance', params: [DEPLOYMENT_ADMIN, tag] }),
+      'eth_getBalance.result',
     );
     this.lastBalanceRaw = balance.toString();
     if (balance < remainingGas + remainingValue + raw(budget.minimumRemainingEthRaw))
       fail('DEPLOYMENT_INSUFFICIENT_ETH');
     if (
       (head.baseFeePerGas !== undefined &&
-        quantity(head.baseFeePerGas) + raw(budget.maxPriorityFeePerGasRaw) > raw(budget.maxFeePerGasRaw)) ||
-      quantity(await this.#provider.request({ method: 'eth_gasPrice' })) > raw(budget.maxFeePerGasRaw)
+        quantity(head.baseFeePerGas, 'eth_getBlockByNumber.baseFeePerGas') +
+          raw(budget.maxPriorityFeePerGasRaw) >
+          raw(budget.maxFeePerGasRaw)) ||
+      quantity(await this.#provider.request({ method: 'eth_gasPrice' }), 'eth_gasPrice.result') >
+        raw(budget.maxFeePerGasRaw)
     )
       fail('DEPLOYMENT_FEE_CAP_TOO_LOW');
     await this.#identity();
@@ -515,12 +528,14 @@ export class DeploymentWalletSession {
           method: 'eth_getTransactionCount',
           params: [DEPLOYMENT_ADMIN, 'latest'],
         }),
+        'eth_getTransactionCount.result',
       ),
       pending = quantity(
         await this.#provider.request({
           method: 'eth_getTransactionCount',
           params: [DEPLOYMENT_ADMIN, 'pending'],
         }),
+        'eth_getTransactionCount.result',
       );
     if (latest !== BigInt(index) || pending !== latest) fail('DEPLOYMENT_NONCE_COMPETITION');
     const previous = this.#journal.entries.at(-1);
@@ -533,8 +548,8 @@ export class DeploymentWalletSession {
       );
       if (
         hash(anchor.hash) !== previous.blockHash ||
-        quantity(anchor.number) !== raw(previous.blockNumber!) ||
-        quantity(head.number) < raw(previous.blockNumber!) + 2n
+        quantity(anchor.number, 'eth_getBlockByNumber.number') !== raw(previous.blockNumber!) ||
+        quantity(head.number, 'eth_getBlockByNumber.number') < raw(previous.blockNumber!) + 2n
       )
         fail('DEPLOYMENT_CONFIRMATION_ANCHOR_CHANGED');
     }
@@ -543,10 +558,14 @@ export class DeploymentWalletSession {
     );
     if (
       hash(canonicalHead.hash) !== hash(head.hash) ||
-      quantity(canonicalHead.number) !== quantity(head.number)
+      quantity(canonicalHead.number, 'eth_getBlockByNumber.number') !==
+        quantity(head.number, 'eth_getBlockByNumber.number')
     )
       fail('DEPLOYMENT_HEAD_REORGED');
-    if (this.#now() - Number(quantity(head.timestamp)) > budget.maxHeadAgeSeconds)
+    if (
+      this.#now() - Number(quantity(head.timestamp, 'eth_getBlockByNumber.timestamp')) >
+      budget.maxHeadAgeSeconds
+    )
       fail('DEPLOYMENT_STALE_HEAD');
   }
   #matchesTransaction(value: unknown, index: number, entry: DeploymentEntry, transactionHash: string) {
@@ -557,14 +576,16 @@ export class DeploymentWalletSession {
       hash(transaction.hash) !== transactionHash ||
       address(transaction.from) !== DEPLOYMENT_ADMIN ||
       (unsigned.to === null ? transaction.to !== null : address(transaction.to) !== address(unsigned.to)) ||
-      quantity(transaction.chainId) !== 46630n ||
-      quantity(transaction.nonce) !== BigInt(index) ||
+      quantity(transaction.chainId, 'eth_getTransactionByHash.chainId') !== 46630n ||
+      quantity(transaction.nonce, 'eth_getTransactionByHash.nonce') !== BigInt(index) ||
       bytes(transaction.input, 65536) !== unsigned.data.toLowerCase() ||
-      quantity(transaction.value) !== raw(unsigned.value) ||
-      quantity(transaction.type) !== 2n ||
-      quantity(transaction.gas) !== raw(entry.gasLimitRaw) ||
-      quantity(transaction.maxFeePerGas) !== raw(entry.maxFeePerGasRaw) ||
-      quantity(transaction.maxPriorityFeePerGas) !== raw(entry.maxPriorityFeePerGasRaw) ||
+      quantity(transaction.value, 'eth_getTransactionByHash.value') !== raw(unsigned.value) ||
+      quantity(transaction.type, 'eth_getTransactionByHash.type') !== 2n ||
+      quantity(transaction.gas, 'eth_getTransactionByHash.gas') !== raw(entry.gasLimitRaw) ||
+      quantity(transaction.maxFeePerGas, 'eth_getTransactionByHash.maxFeePerGas') !==
+        raw(entry.maxFeePerGasRaw) ||
+      quantity(transaction.maxPriorityFeePerGas, 'eth_getTransactionByHash.maxPriorityFeePerGas') !==
+        raw(entry.maxPriorityFeePerGasRaw) ||
       (transaction.accessList !== undefined &&
         (!Array.isArray(transaction.accessList) || transaction.accessList.length !== 0))
     )
@@ -589,22 +610,25 @@ export class DeploymentWalletSession {
     const receipt = object(receiptValue),
       action = this.actions[entry.index]!,
       unsigned = action.unsigned!,
-      blockNumber = quantity(receipt.blockNumber),
+      blockNumber = quantity(receipt.blockNumber, 'eth_getTransactionReceipt.blockNumber'),
       blockHash = hash(receipt.blockHash),
       transactionPending = tx.blockNumber === null && tx.blockHash === null;
     if (
       hash(receipt.transactionHash) !== transactionHash ||
       address(receipt.from) !== DEPLOYMENT_ADMIN ||
       (unsigned.to === null ? receipt.to !== null : address(receipt.to) !== address(unsigned.to)) ||
-      (!transactionPending && (hash(tx.blockHash) !== blockHash || quantity(tx.blockNumber) !== blockNumber))
+      (!transactionPending &&
+        (hash(tx.blockHash) !== blockHash ||
+          quantity(tx.blockNumber, 'eth_getTransactionByHash.blockNumber') !== blockNumber))
     )
       fail('DEPLOYMENT_RECEIPT_MISMATCH');
     const canonical = object(
       await this.#provider.request({ method: 'eth_getBlockByNumber', params: [hex(blockNumber), false] }),
     );
-    if (quantity(canonical.number) !== blockNumber) fail('DEPLOYMENT_RECEIPT_MISMATCH');
+    if (quantity(canonical.number, 'eth_getBlockByNumber.number') !== blockNumber)
+      fail('DEPLOYMENT_RECEIPT_MISMATCH');
     if (hash(canonical.hash) !== blockHash) return { ...entry, state: 'REORGED' };
-    const status = quantity(receipt.status);
+    const status = quantity(receipt.status, 'eth_getTransactionReceipt.status');
     if (status === 0n) return { ...entry, state: 'REVERTED' };
     if (
       status !== 1n ||
@@ -613,8 +637,8 @@ export class DeploymentWalletSession {
         : receipt.contractAddress !== null)
     )
       fail('DEPLOYMENT_RECEIPT_MISMATCH');
-    const gasUsed = quantity(receipt.gasUsed),
-      effectiveGasPrice = quantity(receipt.effectiveGasPrice);
+    const gasUsed = quantity(receipt.gasUsed, 'eth_getTransactionReceipt.gasUsed'),
+      effectiveGasPrice = quantity(receipt.effectiveGasPrice, 'eth_getTransactionReceipt.effectiveGasPrice');
     if (gasUsed > raw(entry.gasLimitRaw) || effectiveGasPrice > raw(entry.maxFeePerGasRaw))
       fail('DEPLOYMENT_RECEIPT_BUDGET_MISMATCH');
     // Wallet RPC methods can observe inclusion at different times. Keep the known hash until both agree.
@@ -623,9 +647,10 @@ export class DeploymentWalletSession {
     const canonicalAgain = object(
       await this.#provider.request({ method: 'eth_getBlockByNumber', params: [hex(blockNumber), false] }),
     );
-    if (quantity(canonicalAgain.number) !== blockNumber) fail('DEPLOYMENT_RECEIPT_MISMATCH');
+    if (quantity(canonicalAgain.number, 'eth_getBlockByNumber.number') !== blockNumber)
+      fail('DEPLOYMENT_RECEIPT_MISMATCH');
     if (hash(canonicalAgain.hash) !== blockHash) return { ...entry, state: 'REORGED' };
-    const confirmed = quantity(head.number) >= blockNumber + 2n;
+    const confirmed = quantity(head.number, 'eth_getBlockByNumber.number') >= blockNumber + 2n;
     return {
       ...entry,
       state: confirmed ? 'CONFIRMED' : 'INCLUDED',
@@ -680,18 +705,21 @@ export class DeploymentWalletSession {
             method: 'eth_getTransactionCount',
             params: [DEPLOYMENT_ADMIN, 'latest'],
           }),
+          'eth_getTransactionCount.result',
         ),
         pending = quantity(
           await this.#provider.request({
             method: 'eth_getTransactionCount',
             params: [DEPLOYMENT_ADMIN, 'pending'],
           }),
+          'eth_getTransactionCount.result',
         );
       if (latest !== BigInt(index) || pending !== latest) fail('DEPLOYMENT_NONCE_COMPETITION');
       const head = await this.#head(),
         budget = this.payload.budget,
         balance = quantity(
           await this.#provider.request({ method: 'eth_getBalance', params: [DEPLOYMENT_ADMIN, 'latest'] }),
+          'eth_getBalance.result',
         );
       this.lastBalanceRaw = balance.toString();
       const remaining = this.actions.slice(index),
@@ -707,7 +735,9 @@ export class DeploymentWalletSession {
         fail('DEPLOYMENT_INSUFFICIENT_ETH');
       if (
         head.baseFeePerGas !== undefined &&
-        quantity(head.baseFeePerGas) + raw(budget.maxPriorityFeePerGasRaw) > raw(budget.maxFeePerGasRaw)
+        quantity(head.baseFeePerGas, 'eth_getBlockByNumber.baseFeePerGas') +
+          raw(budget.maxPriorityFeePerGasRaw) >
+          raw(budget.maxFeePerGasRaw)
       )
         fail('DEPLOYMENT_FEE_CAP_TOO_LOW');
       const entry: DeploymentEntry = {
@@ -727,6 +757,7 @@ export class DeploymentWalletSession {
           method: 'eth_estimateGas',
           params: [this.#transaction(index, entry)],
         }),
+        'eth_estimateGas.result',
       );
       if (estimate === 0n || estimate > raw(budget.maxGasPerTransactionRaw)) fail('DEPLOYMENT_GAS_LIMIT');
       const buffered = (estimate * 120n + 99n) / 100n;
