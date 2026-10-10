@@ -1,5 +1,6 @@
 import './deployment.css';
 import { DEPLOYMENT_APPROVAL } from './deployment-approval.ts';
+import { runDeploymentSequence } from './deployment-runner.ts';
 import {
   DEPLOYMENT_ADMIN,
   DeploymentWalletSession,
@@ -26,6 +27,7 @@ let error = false;
 let recoveryHash: string | null = null;
 let recoveryFeedback = '';
 let recoveryError = false;
+let continuousRun: AbortController | null = null;
 const esc = (value: unknown): string =>
   String(value).replace(
     /[&<>"']/g,
@@ -33,6 +35,16 @@ const esc = (value: unknown): string =>
   );
 function failureMessage(caught: unknown, fallback: string): string {
   if (!(caught instanceof Error)) return fallback;
+  if (caught.message === 'DEPLOYMENT_CONTINUOUS_STOPPED')
+    return 'Continuous deployment stopped. Any submitted transaction remains saved. Check its confirmations before continuing.';
+  if (caught.message === 'DEPLOYMENT_CONTINUOUS_TAB_HIDDEN')
+    return 'Continuous deployment stopped because this tab was hidden. Any submitted transaction remains saved. Return to this tab and check confirmations before continuing.';
+  if (caught.message === 'DEPLOYMENT_CONTINUOUS_WALLET_CHANGED')
+    return 'Continuous deployment stopped because the wallet or network changed. Reconnect the approved wallet and check the saved transaction.';
+  if (caught.message === 'DEPLOYMENT_SEQUENCE_CONFIRMATION_TIMEOUT')
+    return 'Confirmation is taking longer than expected. The transaction remains saved; check confirmations before continuing.';
+  if (caught.message === 'DEPLOYMENT_SEQUENCE_RECOVERY_REQUIRED')
+    return 'Continuous deployment stopped because a saved transaction needs recovery. Verify its actual wallet hash before continuing.';
   if (caught.message === 'DEPLOYMENT_READ_RPC_UNAVAILABLE')
     return `Could not read Robinhood Chain Testnet. Keep the saved transaction and try checking confirmations again. Error detail: ${caught.message}`;
   if (caught.message.startsWith('DEPLOYMENT_READ_RPC_'))
@@ -89,9 +101,14 @@ function render() {
   const needsRecovery = entries.some((entry) => entry.state !== 'CONFIRMED');
   const savedRecoveryHash = entries.find((entry) => entry.state !== 'CONFIRMED')?.transactionHash ?? null;
   const complete = verified && entries.length === 41 && entries.every((entry) => entry.state === 'CONFIRMED');
+  const blockedRecovery = entries.some(
+    (entry) =>
+      entry.state !== 'CONFIRMED' &&
+      (!entry.transactionHash || !['SUBMITTED', 'INCLUDED'].includes(entry.state)),
+  );
   root.innerHTML = `<header class="deployment-header"><a class="deployment-brand" href="./#/home">AlphaForge</a><span class="deployment-label">ROBINHOOD CHAIN TESTNET · ADMINISTRATOR</span></header>
     <main><p class="deployment-label">APPROVED DEPLOYMENT / 46630</p><h1>Launch the test market.</h1>
-    <p class="deployment-lede">Connect your approved wallet → review and sign one step → check confirmations → continue to the next step.</p>
+    <p class="deployment-lede">Connect your approved wallet → start the remaining steps → approve each transaction in your wallet. This page checks confirmations and continues automatically.</p>
     <section class="deployment-card"><h2>Ownership & funding</h2><dl>
       <div><dt>Deployer / administrator</dt><dd class="deployment-address">${DEPLOYMENT_ADMIN}</dd></div>
       <div><dt>TSLA & AMZN LP recipient</dt><dd class="deployment-address">${DEPLOYMENT_ADMIN}</dd></div>
@@ -128,7 +145,10 @@ function render() {
       }
       <div class="deployment-actions"><button class="${!connected ? 'deployment-primary' : ''}" data-connect ${busy || !session ? 'disabled' : ''}>${connected ? 'Reconnect approved wallet' : 'Connect approved wallet'}</button>
       <button class="${connected && needsRecovery ? 'deployment-primary' : ''}" data-check ${busy || !connected ? 'disabled' : ''}>Check chain confirmations</button>
-      <button class="deployment-primary" data-send ${busy || !connected || !verified || needsRecovery || complete ? 'disabled' : ''}>${busy ? 'Checking wallet / chain…' : 'Review & sign this step'}</button></div>
+      <button data-send ${busy || !connected || !verified || needsRecovery || complete ? 'disabled' : ''}>Review & sign this step</button></div>
+      <div class="deployment-actions"><button class="deployment-primary" data-continue ${busy || !connected || !verified || blockedRecovery || complete ? 'disabled' : ''}>Start remaining steps</button>
+      ${continuousRun ? `<button data-stop ${continuousRun.signal.aborted ? 'disabled' : ''}>${continuousRun.signal.aborted ? 'Stopping after current request…' : 'Stop continuing'}</button>` : ''}</div>
+      <p class="deployment-note">Start once; approve each transaction in Phantom or your connected wallet. Keep this tab visible. Each successful step waits for chain confirmation before the next wallet request. Stop prevents further requests; an open wallet approval or an already submitted transaction must still be handled in your wallet. Reloading never resumes signing automatically.</p>
       <p class="deployment-note">Chain verification reads directly from the official Robinhood Chain Testnet interface. Your wallet signs and broadcasts each approved step.</p>
       <p class="deployment-note">A step advances after its transaction matches the plan, succeeds, and has 3 L2 blocks including its inclusion block. This does not mean L1 finality. Check confirmations after the wallet submits. Keep the displayed gas and fee values.</p>
       <p class="deployment-note">Open this workflow in one tab. The wallet handles each approval and broadcasts it itself. If an approval remains open past the signing window, reject it in your wallet. After a rejected or uncertain result, stop and check your wallet before continuing.</p>
@@ -185,6 +205,45 @@ function render() {
         return progressNotice('Wallet transaction confirmed. The next unsigned step is ready for review.');
       }),
   );
+  root.querySelector('[data-continue]')?.addEventListener('click', () => {
+    if (busy || !connected || !verified || blockedRecovery || complete) return;
+    continuousRun = new AbortController();
+    const controller = continuousRun;
+    void action(async () => {
+      recoveryHash = null;
+      recoveryFeedback = '';
+      recoveryError = false;
+      await runDeploymentSequence({
+        session: session!,
+        signal: controller.signal,
+        onProgress: async (progress) => {
+          if (progress.phase !== 'COMPLETED' && Date.now() / 1000 >= payload!.approvalExpiresAt)
+            throw new Error('DEPLOYMENT_APPROVAL_EXPIRED');
+          verified = progress.phase !== 'VERIFYING';
+          lastWalletHash = session?.lastObservedHash ?? lastWalletHash;
+          notice =
+            progress.phase === 'VERIFYING'
+              ? 'Checking saved transactions before continuing…'
+              : progress.phase === 'AWAITING_WALLET'
+                ? `Review step ${progress.nextIndex + 1} / ${progress.total} below, then approve it in your wallet. You can stop before further wallet requests.`
+                : progress.phase === 'WAITING_CONFIRMATIONS'
+                  ? `Waiting for step ${progress.nextIndex + 1} / ${progress.total} to confirm on chain. The next wallet request opens automatically after verification.`
+                  : 'All approved wallet transactions confirmed.';
+          render();
+          // Paint the next operation and asset movement before its wallet request.
+          await new Promise<void>((resolve) => setTimeout(resolve, 50));
+        },
+      });
+      verified = true;
+      return 'All approved wallet transactions confirmed. Download the receipts for server activation verification.';
+    });
+  });
+  root.querySelector('[data-stop]')?.addEventListener('click', () => {
+    continuousRun?.abort(new Error('DEPLOYMENT_CONTINUOUS_STOPPED'));
+    notice =
+      'Stopping further wallet requests. If a wallet approval is already open, finish or reject it in your wallet; its result will remain saved.';
+    render();
+  });
   root.querySelector('[data-recover]')?.addEventListener('click', () => {
     if (busy) return;
     const transactionHash = root.querySelector<HTMLInputElement>('#deployment-recovery')?.value.trim() ?? '';
@@ -289,6 +348,7 @@ async function action(work: () => Promise<string>) {
     error = true;
     notice = failureMessage(caught, 'Wallet or chain request failed. Stop and check the actual transaction.');
   } finally {
+    continuousRun = null;
     busy = false;
     render();
   }
@@ -299,7 +359,11 @@ try {
     DEPLOYMENT_APPROVAL.payloadUrl,
     DEPLOYMENT_APPROVAL.payloadSha256,
   );
-  provider = (window as unknown as { ethereum?: DeploymentProvider }).ethereum;
+  const wallets = window as unknown as {
+    ethereum?: DeploymentProvider;
+    phantom?: { ethereum?: DeploymentProvider };
+  };
+  provider = wallets.phantom?.ethereum ?? wallets.ethereum;
   if (!provider) throw new Error('Install or open your Ethereum wallet to continue.');
   if (!navigator.locks)
     throw new Error(
@@ -307,6 +371,7 @@ try {
     );
   reloadDurableSession();
   const walletChanged = () => {
+    continuousRun?.abort(new Error('DEPLOYMENT_CONTINUOUS_WALLET_CHANGED'));
     connected = false;
     verified = false;
     notice = 'Wallet or network changed. Reconnect the approved wallet on Robinhood Chain Testnet.';
@@ -314,6 +379,17 @@ try {
   };
   provider.on?.('accountsChanged', walletChanged);
   provider.on?.('chainChanged', walletChanged);
+  provider.on?.('disconnect', walletChanged);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && continuousRun) {
+      continuousRun.abort(new Error('DEPLOYMENT_CONTINUOUS_TAB_HIDDEN'));
+      notice = failureMessage(continuousRun.signal.reason, 'Continuous deployment stopped.');
+      render();
+    }
+  });
+  window.addEventListener('pagehide', () => {
+    continuousRun?.abort(new Error('DEPLOYMENT_CONTINUOUS_TAB_HIDDEN'));
+  });
   notice = 'Approved plan verified. Connect 0x8676…64cf on Robinhood Chain Testnet (46630).';
 } catch (caught) {
   error = true;

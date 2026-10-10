@@ -1004,6 +1004,72 @@ test('a global wallet lock prevents two prompts across tabs and reloads durable 
   );
 });
 
+test('a sequence stopped during the final asynchronous nonce guard creates no intent or wallet prompt', async () => {
+  const files = fixture(),
+    controller = new AbortController(),
+    reason = new Error('USER_STOPPED');
+  let pendingReads = 0;
+  files.provider.hook = (method, params) => {
+    if (method === 'eth_getTransactionCount' && params?.[1] === 'pending' && ++pendingReads === 3)
+      controller.abort(reason);
+  };
+  await assert.rejects(files.session.sendNext(controller.signal), (error) => error === reason);
+  assert.equal(pendingReads, 3);
+  assert.equal(files.provider.sends.length, 0);
+  assert.equal(files.session.journal.entries.length, 0);
+  assert.equal(files.saved()!.entries.length, 0);
+});
+
+test('a synchronous durable save stopping the sequence retains intent and cannot open or retry a wallet prompt', async () => {
+  const controller = new AbortController(),
+    reason = new Error('USER_STOPPED');
+  const files = fixture({
+    save: (journal) => {
+      if (journal.entries.at(-1)?.state === 'INTENT') controller.abort(reason);
+    },
+  });
+  await assert.rejects(files.session.sendNext(controller.signal), (error) => error === reason);
+  assert.equal(files.provider.sends.length, 0);
+  assert.equal(files.session.journal.entries[0]!.state, 'INTENT');
+  assert.equal(files.saved()!.entries[0]!.state, 'INTENT');
+  await assert.rejects(files.session.sendNext(), /RECOVERY_REQUIRED/);
+  assert.equal(files.provider.sends.length, 0);
+});
+
+test('a wallet prompt already open persists its returned hash and receipt even if the sequence stops', async () => {
+  const files = fixture(),
+    controller = new AbortController();
+  let opened!: () => void,
+    release!: () => void,
+    settled = false;
+  const prompt = new Promise<void>((resolve) => {
+      opened = resolve;
+    }),
+    result = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  files.provider.hook = async (method) => {
+    if (method === 'eth_sendTransaction') {
+      opened();
+      await result;
+    }
+  };
+  const send = files.session.sendNext(controller.signal).finally(() => {
+    settled = true;
+  });
+  await prompt;
+  controller.abort(new Error('USER_STOPPED'));
+  await Promise.resolve();
+  assert.equal(settled, false);
+  assert.equal(files.saved()!.entries[0]!.state, 'INTENT');
+  release();
+  await send;
+  assert.equal(files.provider.sends.length, 1);
+  assert.equal(files.session.journal.entries[0]!.transactionHash, hash(1000));
+  assert.equal(files.session.journal.entries[0]!.state, 'INCLUDED');
+  assert.deepEqual(files.saved(), files.session.journal);
+});
+
 test('all 41 actual matched receipts are required before exporting hashes; saved hints alone are rechecked', async () => {
   const files = fixture();
   files.provider.estimate = 100000n;

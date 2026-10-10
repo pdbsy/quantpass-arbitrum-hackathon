@@ -822,10 +822,11 @@ export class DeploymentWalletSession {
       this.#busy = false;
     }
   }
-  async sendNext() {
+  async sendNext(signal?: AbortSignal) {
     if (this.#busy) fail('DEPLOYMENT_REQUEST_IN_PROGRESS');
     this.#busy = true;
     try {
+      signal?.throwIfAborted();
       if (this.#storageFailed) fail('DEPLOYMENT_RECOVERY_STORAGE_FAILED');
       await this.#reconcile();
       const index = this.nextIndex;
@@ -900,8 +901,11 @@ export class DeploymentWalletSession {
         buffered > raw(budget.maxGasPerTransactionRaw) ? raw(budget.maxGasPerTransactionRaw) : buffered
       ).toString();
       await this.#finalPreflight(index, entry, remainingGas, remainingValue);
+      // A stopped sequence must not create a new intent or open a wallet prompt after awaited checks.
+      signal?.throwIfAborted();
       this.#persist({ ...this.journal, entries: [...this.#journal.entries, entry] });
       // No await occurs between this fresh deadline check and opening the wallet prompt.
+      signal?.throwIfAborted();
       if (this.#now() >= this.payload.approvalExpiresAt) fail('DEPLOYMENT_APPROVAL_EXPIRED');
       let returned: unknown;
       try {
