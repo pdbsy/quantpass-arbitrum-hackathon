@@ -139,30 +139,27 @@ export async function buildLaunchMarketServer(
         bucketSeconds: { type: 'string', pattern: '^[1-9][0-9]{0,4}$' },
       },
     };
-    const ready = () => {
-      if (indexer.status().state !== 'HEALTHY') throw new LaunchMarketError('MARKET_HISTORY_SYNCING', 503);
-    };
     for (const name of ['history', 'holders', 'candles'] as const) {
       app.get<{ Querystring: { strategyId: 'TSLA' | 'AMZN'; limit?: string; bucketSeconds?: string } }>(
         '/api/launch-market/' + name,
         { schema: { querystring: querySchema } },
-        async (request) => {
-          ready();
-          const limit = request.query.limit === undefined ? 100 : Number(request.query.limit);
-          const result =
-            name === 'candles'
-              ? indexer.candles(
-                  request.query.strategyId,
-                  request.query.bucketSeconds === undefined ? 60 : Number(request.query.bucketSeconds),
-                  limit,
-                )
-              : indexer[name](request.query.strategyId, limit);
-          return {
-            [name]: result,
-            location: options.service.projector.latest()!.location,
-            indexer: indexer.status(),
-          };
-        },
+        async (request) =>
+          indexer.readStableHistory(() => {
+            const limit = request.query.limit === undefined ? 100 : Number(request.query.limit);
+            const result =
+              name === 'candles'
+                ? indexer.candles(
+                    request.query.strategyId,
+                    request.query.bucketSeconds === undefined ? 60 : Number(request.query.bucketSeconds),
+                    limit,
+                  )
+                : indexer[name](request.query.strategyId, limit);
+            return {
+              [name]: result,
+              location: options.service.projector.latest()!.location,
+              indexer: indexer.status(),
+            };
+          }),
       );
     }
   }
