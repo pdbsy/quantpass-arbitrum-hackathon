@@ -500,13 +500,10 @@ PRAGMA user_version=1;`);
         this.#state = 'SYNCING';
         return;
       }
-      const snapshot = await this.options.service.snapshot();
-      if (snapshot.location.blockNumber !== latest.number.toString()) {
-        this.#state = 'SYNCING';
-        return;
-      }
-      if (snapshot.location.blockHash !== latest.hash)
-        throw new LaunchMarketError('INDEX_SNAPSHOT_FORK', 503);
+      const snapshot = await this.options.service.readSnapshotAt({
+        blockNumber: latest.number.toString(),
+        blockHash: latest.hash,
+      });
       const claims: IndexedMarketClaim[] = this.db
         .prepare(
           "SELECT payload FROM event_index_events WHERE emitter=? AND name='Claim' AND canonical=1 ORDER BY block_number,log_index",
@@ -523,7 +520,11 @@ PRAGMA user_version=1;`);
             },
           };
         });
-      const result = this.options.service.publish(snapshot, latest.parentHash, latest.hash, claims);
+      const previous = this.options.service.projector.latest();
+      const previousCanonicalHash = previous
+        ? (await this.header(uint(previous.location.blockNumber))).hash
+        : null;
+      const result = this.options.service.publish(snapshot, latest.parentHash, previousCanonicalHash, claims);
       if (this.#resetPending) {
         this.options.service.broker.publish({ type: 'REORG', location: result.location, snapshot: result });
         this.#resetPending = false;

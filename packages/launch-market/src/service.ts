@@ -5,7 +5,7 @@ import { claimVoucherTypes, marketInterfaces, nativeQuoteTypes, validateQuoteTra
 import { ceilDiv, ethSaleOutput, minOutput, mintCost, usdcForEth } from './math.ts';
 import { MarketEventBroker, MarketProjector, type IndexedMarketClaim } from './projection.ts';
 import type { LaunchMarketStore } from './store.ts';
-import type { EthReferenceProvider, MarketChain } from './chain.ts';
+import type { EthReferenceProvider, MarketChain, MarketSnapshotTarget } from './chain.ts';
 import {
   LaunchMarketError,
   type LaunchMarketManifest,
@@ -34,6 +34,8 @@ export interface LaunchMarketServiceOptions {
   readonly claimSigner: MarketQuoteSigner | null;
   readonly now?: () => number;
   readonly broker?: MarketEventBroker;
+  /** The event indexer alone publishes projections; API reads cannot move its checkpoint. */
+  readonly indexedSnapshots?: boolean;
   readonly vaultQuote?: (
     request: QuoteRequest,
     account: MarketAccount,
@@ -74,8 +76,24 @@ export class LaunchMarketService {
       if (this.#refreshing === next) this.#refreshing = null;
     }
   }
+  /** Read the scanner's captured checkpoint without publishing or modifying any projection. */
+  async readSnapshotAt(at: MarketSnapshotTarget): Promise<MarketSnapshot> {
+    const { chain, manifest } = this.deployed();
+    const target = { blockNumber: uint(at.blockNumber).toString(), blockHash: hash(at.blockHash) };
+    const snapshot = await chain.snapshot(target);
+    if (
+      snapshot.location.chainId !== manifest.chainId ||
+      snapshot.location.blockNumber !== target.blockNumber ||
+      snapshot.location.blockHash.toLowerCase() !== target.blockHash
+    )
+      throw new LaunchMarketError('INDEX_SNAPSHOT_FORK', 503);
+    if ((await chain.canonicalBlockHash(target.blockNumber))?.toLowerCase() !== target.blockHash)
+      throw new LaunchMarketError('NON_CANONICAL_MARKET_HEAD', 503);
+    return snapshot;
+  }
   private async refresh(): Promise<MarketSnapshot> {
     const { chain } = this.deployed();
+    if (this.options.indexedSnapshots) return this.readIndexedSnapshot(chain);
     const snapshot = await chain.snapshot();
     if (
       (await chain.canonicalBlockHash(snapshot.location.blockNumber))?.toLowerCase() !==
@@ -113,6 +131,27 @@ export class LaunchMarketService {
         : await chain.canonicalBlockHash((uint(snapshot.location.blockNumber) - 1n).toString());
     if (!parent) throw new LaunchMarketError('BLOCK_UNAVAILABLE', 503);
     return this.projector.commit(snapshot, parent, previousHash);
+  }
+  private async readIndexedSnapshot(chain: MarketChain): Promise<MarketSnapshot> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const indexed = this.projector.latest();
+      const snapshot = indexed ?? (await chain.snapshot());
+      const canonical = await chain.canonicalBlockHash(snapshot.location.blockNumber);
+      const current = this.projector.latest();
+      if (
+        indexed
+          ? current?.location.version !== indexed.location.version ||
+            current.location.blockHash !== indexed.location.blockHash
+          : current !== null
+      )
+        continue;
+      if (canonical?.toLowerCase() !== snapshot.location.blockHash.toLowerCase())
+        throw new LaunchMarketError('NON_CANONICAL_MARKET_HEAD', 503);
+      // A fresh bootstrap read keeps the UI available before the first complete indexed snapshot.
+      // It neither creates a durable projection nor advances the event scanner's checkpoint.
+      return indexed ?? { ...snapshot, location: { ...snapshot.location, version: '0' } };
+    }
+    throw new LaunchMarketError('MARKET_HISTORY_SYNCING', 503);
   }
   /** Root's event scanner supplies verified receipt/log identities for eligibility reconciliation. */
   publish(

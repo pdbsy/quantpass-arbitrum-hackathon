@@ -11,9 +11,13 @@ export interface ObservedMarketReceipt {
   readonly blockHash: string;
   readonly status: 'SUCCESS' | 'REVERTED';
 }
+export interface MarketSnapshotTarget {
+  readonly blockNumber: string;
+  readonly blockHash: string;
+}
 /** Implement with the qualified deployed ABI and canonical RPC reads. It never signs or broadcasts. */
 export interface MarketChain {
-  snapshot(): Promise<MarketSnapshot>;
+  snapshot(at?: MarketSnapshotTarget): Promise<MarketSnapshot>;
   wallet(owner: string): Promise<MarketWalletSnapshot>;
   quoteAmm(
     strategy: StrategyId,

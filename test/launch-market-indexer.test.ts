@@ -9,7 +9,7 @@ import { MarketEventIndexer, marketEventInterface } from '../apps/server/src/lau
 import { buildLaunchMarketServer } from '../apps/server/src/launch-market/server.ts';
 import { LaunchMarketService } from '../packages/launch-market/src/service.ts';
 import { LaunchMarketStore } from '../packages/launch-market/src/store.ts';
-import type { MarketChain } from '../packages/launch-market/src/chain.ts';
+import type { MarketChain, MarketSnapshotTarget } from '../packages/launch-market/src/chain.ts';
 import {
   LaunchMarketError,
   type LaunchMarketManifest,
@@ -98,6 +98,7 @@ class RpcFixture {
   logs: Array<Record<string, unknown>> = [];
   calls = 0;
   injectForeign = false;
+  beforeSnapshot: ((at?: MarketSnapshotTarget) => Promise<void>) | null = null;
   hash(height: number) {
     return h(height + (height >= 2 ? this.fork * 1000 : 0));
   }
@@ -156,7 +157,11 @@ class RpcFixture {
 }
 function chain(rpc: RpcFixture): MarketChain {
   return {
-    snapshot: async () => snapshot(rpc.height, rpc.hash(rpc.height), rpc.claims),
+    snapshot: async (at) => {
+      await rpc.beforeSnapshot?.(at);
+      const height = at ? Number(at.blockNumber) : rpc.height;
+      return snapshot(height, rpc.hash(height), rpc.claims);
+    },
     wallet: async () => {
       throw new Error('Unused');
     },
@@ -174,7 +179,7 @@ function chain(rpc: RpcFixture): MarketChain {
     },
   };
 }
-function fixture() {
+function fixture(maxBlocksPerPoll = 500) {
   const dir = mkdtempSync(join(tmpdir(), 'af-market-index-'));
   const rpc = new RpcFixture();
   const createService = () =>
@@ -185,6 +190,7 @@ function fixture() {
       ethReference: null,
       quoteSigner: null,
       claimSigner: null,
+      indexedSnapshots: true,
       now: () => 1000,
     });
   const service = createService();
@@ -193,6 +199,7 @@ function fixture() {
     manifest,
     provider: rpc,
     service,
+    maxBlocksPerPoll,
   });
   return {
     dir,
@@ -207,6 +214,145 @@ function fixture() {
     },
   };
 }
+
+test('bootstrap reads during partial history catch-up do not publish or advance the indexer cursor', async () => {
+  const f = fixture(1);
+  try {
+    f.rpc.claims = 0;
+    f.rpc.height = 3;
+    await f.indexer.poll();
+    assert.equal(f.indexer.status().state, 'SYNCING');
+    assert.equal(f.indexer.status().blockNumber, '1');
+    assert.equal(f.service.projector.latest(), null);
+    const published: string[] = [];
+    const unsubscribe = f.service.broker.subscribe((event) => published.push(event.type));
+    const current = await f.service.snapshot();
+    unsubscribe();
+    assert.equal(current.location.blockNumber, '3');
+    assert.equal(current.location.version, '0');
+    assert.equal(f.service.projector.latest(), null);
+    assert.equal(f.indexer.status().blockNumber, '1');
+    assert.equal(f.indexer.status().state, 'SYNCING');
+    assert.deepEqual(published, []);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('a moving RPC head publishes the captured checkpoint and bootstrap API reads never persist state', async () => {
+  const f = fixture();
+  try {
+    f.rpc.claims = 0;
+    const initial = await f.service.snapshot();
+    assert.equal(initial.location.blockNumber, '2');
+    assert.equal(initial.location.version, '0');
+    assert.equal(f.service.projector.latest(), null);
+    assert.equal(f.indexer.status().blockNumber, null);
+    assert.notEqual(f.indexer.status().state, 'HEALTHY');
+    f.rpc.beforeSnapshot = async (at) => {
+      if (at) f.rpc.height++;
+    };
+    const versions: string[] = [];
+    const unsubscribe = f.service.broker.subscribe((event) => versions.push(event.location.version));
+    await f.indexer.poll();
+    assert.equal(f.rpc.height, 3);
+    assert.equal(f.indexer.status().state, 'HEALTHY');
+    assert.equal(f.indexer.status().blockNumber, '2');
+    const first = await f.service.snapshot();
+    assert.equal(first.location.blockNumber, '2');
+    assert.equal(first.location.blockHash, f.rpc.hash(2));
+    assert.equal(f.service.projector.latest()?.location.blockNumber, '2');
+    const reads = await Promise.all(Array.from({ length: 20 }, () => f.service.snapshot()));
+    assert.ok(reads.every((value) => value.location.version === first.location.version));
+    assert.equal(versions.length, 1, 'API reads must not publish newer unindexed snapshots');
+    await f.indexer.poll();
+    const second = await f.service.snapshot();
+    assert.equal(f.indexer.status().state, 'HEALTHY');
+    assert.equal(second.location.blockNumber, '3');
+    assert.equal(f.service.projector.latest()?.location.blockNumber, '3');
+    assert.ok(BigInt(second.location.version) > BigInt(first.location.version));
+    assert.equal(versions.length, 2);
+    unsubscribe();
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('concurrent API reads retain the indexed projection during a pinned indexer read', async () => {
+  const f = fixture();
+  let release!: () => void;
+  const pendingRead = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    f.rpc.claims = 0;
+    await f.indexer.poll();
+    const previous = await f.service.snapshot();
+    f.rpc.height = 3;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    f.rpc.beforeSnapshot = async (at) => {
+      if (!at) return;
+      assert.equal(at?.blockNumber, '3');
+      entered();
+      await pendingRead;
+    };
+    const poll = f.indexer.poll();
+    await started;
+    const reads = await Promise.all(Array.from({ length: 20 }, () => f.service.snapshot()));
+    assert.ok(reads.every((value) => value.location.version === previous.location.version));
+    assert.ok(reads.every((value) => value.location.blockNumber === '2'));
+    assert.equal(f.service.projector.latest()?.location.blockNumber, '2');
+    release();
+    await poll;
+    const next = await f.service.snapshot();
+    assert.equal(next.location.blockNumber, '3');
+    assert.equal(next.location.blockHash, f.indexer.status().blockHash);
+    assert.ok(BigInt(next.location.version) > BigInt(previous.location.version));
+  } finally {
+    release();
+    await f.cleanup();
+  }
+});
+
+test('pinned reads reject a different fork and API reads do not roll back projections', async () => {
+  const f = fixture();
+  try {
+    f.rpc.claims = 0;
+    await f.indexer.poll();
+    const previous = f.service.projector.latest()!;
+    f.rpc.fork = 1;
+    await assert.rejects(f.service.snapshot(), /NON_CANONICAL_MARKET_HEAD/);
+    await assert.rejects(
+      f.service.readSnapshotAt({ blockNumber: '2', blockHash: previous.location.blockHash }),
+      /INDEX_SNAPSHOT_FORK/,
+    );
+    assert.deepEqual(f.service.projector.latest(), previous);
+    await f.indexer.poll();
+    const next = await f.service.snapshot();
+    assert.equal(next.location.blockHash, f.rpc.hash(2));
+    assert.ok(BigInt(next.location.version) > BigInt(previous.location.version));
+    assert.equal(f.indexer.status().state, 'HEALTHY');
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('a non-canonical API read never changes the indexed projection', async () => {
+  const f = fixture();
+  try {
+    f.rpc.claims = 0;
+    await f.indexer.poll();
+    const previous = f.service.projector.latest()!;
+    f.service.options.chain!.canonicalBlockHash = async () => h(999);
+    await assert.rejects(f.service.snapshot(), /NON_CANONICAL_MARKET_HEAD/);
+    assert.deepEqual(f.service.projector.latest(), previous);
+  } finally {
+    await f.cleanup();
+  }
+});
 
 test('raw canonical logs discover pools and isolated vaults, and index real transfers and swaps across restart', async () => {
   const f = fixture();
