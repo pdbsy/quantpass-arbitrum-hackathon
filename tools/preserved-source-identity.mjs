@@ -71,3 +71,44 @@ export function verifyPreservedSourceImport(profile, { branch, head, prTitle, pu
   validateCommitSetIdentity({ branch, prTitle, commits: added });
   return { preserved: original.length, added: added.length };
 }
+
+// The repository requires linear master history. Admit only the first exact
+// squash of this assigned import while retaining every original source object
+// through its unchanged source branch; this grants no later master exception.
+export function verifyPreservedMasterImport(profile, { head, git }) {
+  const reject = () => {
+    throw new Error('Preserved master import requires the exact first squash and retained source');
+  };
+  const read = (...args) => git('--no-replace-objects', ...args);
+  if (!/^[a-f0-9]{40}$/.test(head)) reject();
+  if (read('rev-parse', '--verify', 'refs/remotes/origin/master^{commit}') !== head) reject();
+  if (read('rev-list', '--parents', '--max-count=1', head) !== `${head} ${profile.base}`) reject();
+  const sourceHead = read('rev-parse', '--verify', `refs/remotes/origin/${profile.branch}^{commit}`);
+  if (!/^[a-f0-9]{40}$/.test(sourceHead)) reject();
+  const sourceTree = read('rev-parse', '--verify', `${sourceHead}^{tree}`);
+  if (!/^[a-f0-9]{40}$/.test(sourceTree) || read('rev-parse', '--verify', `${head}^{tree}`) !== sourceTree)
+    reject();
+  const records = (base, end) =>
+    read('log', '--format=%H%x00%s%x00%b%x1e', `${base}..${end}`)
+      .split('\x1e')
+      .map((record) => record.trim())
+      .filter(Boolean)
+      .map((record) => {
+        const [sha, subject, body = ''] = record.split('\x00');
+        return { sha, subject, body };
+      });
+  const imported = verifyPreservedSourceImport(profile, {
+    branch: profile.branch,
+    head: sourceHead,
+    prTitle: null,
+    pull: null,
+    commits: records(profile.base, sourceHead),
+    git,
+  });
+  validateCommitSetIdentity({
+    branch: 'master',
+    commits: records(profile.base, head),
+    protectedTarget: true,
+  });
+  return { head, sourceHead, sourceTree, ...imported };
+}

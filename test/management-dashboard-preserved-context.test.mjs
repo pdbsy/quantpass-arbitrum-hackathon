@@ -104,6 +104,49 @@ async function pullLayout(f, parent = FAIR_LAUNCH_IMPORT.base, tree) {
   await writeFile(f.eventPath, JSON.stringify(f.event));
 }
 
+async function masterLayout(f, parent = FAIR_LAUNCH_IMPORT.base, tree) {
+  const head = git(f.root, [
+    'commit-tree',
+    tree ?? git(f.root, ['rev-parse', `${f.head}^{tree}`]),
+    '-p',
+    parent,
+    '-m',
+    'Merge reviewed Fair Launch import using linear history',
+  ]);
+  git(f.root, ['checkout', '--quiet', '-B', 'master', head]);
+  git(f.root, ['update-ref', 'refs/remotes/origin/master', head]);
+  f.event = {
+    ref: 'refs/heads/master',
+    before: FAIR_LAUNCH_IMPORT.base,
+    after: head,
+    repository: { full_name: CANONICAL_REPOSITORY, id: CANONICAL_REPOSITORY_ID },
+  };
+  f.environment = {
+    ...f.environment,
+    GITHUB_REF: f.event.ref,
+    GITHUB_REPOSITORY: CANONICAL_REPOSITORY,
+    GITHUB_REPOSITORY_ID: String(CANONICAL_REPOSITORY_ID),
+    GITHUB_SHA: head,
+  };
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  return head;
+}
+
+function checkIdentity(f, extra = {}) {
+  return fixtureExec(process.execPath, [join(sourceRoot, 'tools/check-agent-identity.mjs')], {
+    cwd: f.root,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      ...f.environment,
+      GIT_DIR: join(f.root, '.git'),
+      GIT_WORK_TREE: f.root,
+      ...extra,
+    },
+  });
+}
+
 const collect = (f, environment = f.environment, recorded = f.recorded) =>
   collectRecordedGitState(f.root, 'master', recorded, { environment });
 async function rejects(f, error, environment, recorded) {
@@ -174,6 +217,87 @@ test('renamed Fair Launch push and PR preserve evidence only for the exact repos
     assert.equal(result.status, 'DATA_SOURCE_ERROR');
     assert.equal(result.commit, undefined);
   }
+});
+
+test('actual first master push verifies all original objects and preserves historical report bytes', async (t) => {
+  const f = await fixture(t);
+  const original = await Promise.all(recordPaths.map((path) => readFile(join(f.root, path))));
+  const master = await masterLayout(f);
+  assert.match(checkIdentity(f), /Preserved master identity: 71 original commits retained/);
+  assert.deepEqual(await collect(f), f.recorded);
+  const snapshot = await checkDashboard(['--check'], { root: f.root, environment: f.environment });
+  assert.equal(snapshot.git.commit, PRESERVED_MANAGEMENT_SNAPSHOT.commit);
+  assert.notEqual(snapshot.git.commit, master);
+  assert.deepEqual(await Promise.all(recordPaths.map((path) => readFile(join(f.root, path)))), original);
+  f.environment.GITHUB_EVENT_NAME = 'workflow_dispatch';
+  f.event.ref = 'master';
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  assert.match(checkIdentity(f), /exact first squash verified/);
+  assert.deepEqual(await collect(f), f.recorded);
+});
+
+test('master admission rejects mismatched hosted identity, event head, and original base', async (t) => {
+  const f = await fixture(t);
+  await masterLayout(f);
+  for (const mutation of [
+    (event) => (event.repository.full_name = 'other/Alphaforge'),
+    (event) => (event.repository.id = CANONICAL_REPOSITORY_ID + 1),
+    (event) => (event.ref = `refs/heads/${FAIR_LAUNCH_IMPORT.branch}`),
+    (event) => (event.after = f.head),
+    (event) => (event.before = FAIR_LAUNCH_IMPORT.source),
+    (event) => {
+      event.before = FAIR_LAUNCH_IMPORT.source;
+      event.after = f.head;
+    },
+    (event) => {
+      event.ref = 'refs/heads/feature/ordinary';
+      event.before = FAIR_LAUNCH_IMPORT.source;
+      event.after = f.head;
+    },
+    (event) => {
+      event.ref = `refs/heads/${FAIR_LAUNCH_IMPORT.branch}`;
+      event.before = FAIR_LAUNCH_IMPORT.source;
+      event.after = f.head;
+    },
+  ]) {
+    const changed = structuredClone(f.event);
+    mutation(changed);
+    await writeFile(f.eventPath, JSON.stringify(changed));
+    assert.throws(() => checkIdentity(f));
+    const result = await collect(f);
+    assert.equal(result.status, 'DATA_SOURCE_ERROR');
+    assert.equal(result.commit, undefined);
+  }
+  await writeFile(f.eventPath, JSON.stringify(f.event));
+  const wrongId = { GITHUB_REPOSITORY_ID: String(CANONICAL_REPOSITORY_ID + 1) };
+  assert.throws(() => checkIdentity(f, wrongId));
+  await rejects(f, 'RECORDED_GIT_CI_CONTEXT_INVALID', { ...f.environment, ...wrongId });
+});
+
+test('master dashboard proof rejects changed tree, wrong parent, and later master history', async (t) => {
+  const f = await fixture(t);
+  await masterLayout(f, FAIR_LAUNCH_IMPORT.source);
+  await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+  await masterLayout(
+    f,
+    FAIR_LAUNCH_IMPORT.base,
+    git(f.root, ['rev-parse', `${FAIR_LAUNCH_IMPORT.base}^{tree}`]),
+  );
+  await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+  const firstMaster = await masterLayout(f);
+  git(f.root, ['update-ref', '-d', `refs/remotes/origin/${FAIR_LAUNCH_IMPORT.branch}`]);
+  await rejects(f, 'RECORDED_GIT_PRESERVED_SOURCE_INVALID');
+  git(f.root, ['update-ref', `refs/remotes/origin/${FAIR_LAUNCH_IMPORT.branch}`, f.head]);
+  git(f.root, ['commit', '--quiet', '--allow-empty', '-m', 'Later ordinary master change']);
+  const later = git(f.root, ['rev-parse', 'HEAD']);
+  git(f.root, ['update-ref', 'refs/remotes/origin/master', later]);
+  await writeFile(f.eventPath, JSON.stringify({ ...f.event, before: firstMaster, after: later }));
+  await rejects(f, 'RECORDED_GIT_CI_CONTEXT_INVALID', { ...f.environment, GITHUB_SHA: later });
+  // A normal later master range gets ordinary identity validation, not an import exemption.
+  assert.match(
+    checkIdentity(f, { GITHUB_SHA: later }),
+    /Identity lifecycle push: 0 worker provenance record/,
+  );
 });
 
 test('preserved dashboard context rejects forks and altered event, base, source, and record identity', async (t) => {

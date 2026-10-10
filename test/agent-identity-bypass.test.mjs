@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateCommitSetIdentity } from '../tools/agent-identity-set.mjs';
-import { verifyPreservedSourceImport } from '../tools/preserved-source-identity.mjs';
+import {
+  verifyPreservedSourceImport,
+  verifyPreservedMasterImport,
+} from '../tools/preserved-source-identity.mjs';
 import { CANONICAL_REPOSITORY, CANONICAL_REPOSITORY_ID } from '../tools/environment/policy.mjs';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -189,4 +192,65 @@ test('source import rejects alternate graft-file ancestry', (t) => {
     if (originalGraftFile === undefined) delete process.env.GIT_GRAFT_FILE;
     else process.env.GIT_GRAFT_FILE = originalGraftFile;
   }
+});
+
+function masterFixture(t) {
+  const f = preservedFixture(t);
+  f.git('commit', '--allow-empty', '-qm', 'Ordinary reviewed source follow-up');
+  const sourceHead = f.git('rev-parse', 'HEAD');
+  f.git('update-ref', `refs/remotes/origin/${f.profile.branch}`, sourceHead);
+  const tree = f.git('rev-parse', `${sourceHead}^{tree}`);
+  const squash = (...args) => {
+    const head = f.git('commit-tree', tree, '-p', f.base, ...args);
+    f.git('update-ref', 'refs/remotes/origin/master', head);
+    return head;
+  };
+  const head = squash('-m', 'Merge reviewed import using linear history');
+  const verify = (candidate = head) =>
+    verifyPreservedMasterImport(f.profile, { head: candidate, git: f.git });
+  return { ...f, sourceHead, tree, squash, head, verify };
+}
+
+test('first master squash proves the entire source tree and retained original history', (t) => {
+  const f = masterFixture(t);
+  assert.deepEqual(f.verify(), {
+    head: f.head,
+    sourceHead: f.sourceHead,
+    sourceTree: f.tree,
+    preserved: 1,
+    added: 1,
+  });
+  f.git('update-ref', '-d', `refs/remotes/origin/${f.profile.branch}`);
+  assert.throws(() => f.verify());
+  // Matching source files cannot replace the pinned original commit graph.
+  const substituted = f.git('commit-tree', f.tree, '-p', f.base, '-m', 'Substituted source history');
+  f.git('update-ref', `refs/remotes/origin/${f.profile.branch}`, substituted);
+  assert.throws(() => f.verify());
+});
+
+test('master squash proof cannot admit another parent, another tree, or a later master commit', (t) => {
+  const f = masterFixture(t);
+  const wrongParent = f.git('commit-tree', f.tree, '-p', f.sourceHead, '-m', 'Wrong squash parent');
+  f.git('update-ref', 'refs/remotes/origin/master', wrongParent);
+  assert.throws(() => f.verify(wrongParent));
+  const merge = f.squash('-p', f.sourceHead, '-m', 'Nonlinear master merge');
+  assert.throws(() => f.verify(merge));
+  const changedTree = f.git('mktree');
+  const changed = f.git('commit-tree', changedTree, '-p', f.base, '-m', 'Changed source tree');
+  f.git('update-ref', 'refs/remotes/origin/master', changed);
+  assert.throws(() => f.verify(changed));
+  const later = f.git('commit-tree', f.tree, '-p', f.head, '-m', 'Later ordinary master commit');
+  f.git('update-ref', 'refs/remotes/origin/master', later);
+  assert.throws(() => f.verify(later));
+});
+
+test('master squash retains ordinary commit identity validation for source and master', (t) => {
+  const f = masterFixture(t);
+  const attributed = f.squash('-m', '[Macbeth01] unvalidated master claim');
+  assert.throws(() => f.verify(attributed));
+  f.git('commit', '--allow-empty', '-qm', 'New source attribution', '-m', 'Agent-ID: Macbeth01');
+  const badSource = f.git('rev-parse', 'HEAD');
+  f.git('update-ref', `refs/remotes/origin/${f.profile.branch}`, badSource);
+  const ordinary = f.squash('-m', 'Ordinary master squash');
+  assert.throws(() => f.verify(ordinary));
 });

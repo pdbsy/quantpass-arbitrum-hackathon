@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { FAIR_LAUNCH_IMPORT, verifyPreservedMasterImport } from '../../tools/preserved-source-identity.mjs';
 
 const path = 'apps/web/prototype/AlphaForge_v3_EN.html';
 const originalCommit = 'ebf8df18647f72afd7dafadf80638ed2f4c7a44b';
@@ -90,7 +91,22 @@ export async function verifiedPrototypeArtifacts(root) {
     }
   };
   const head = commit('HEAD');
-  const required = [...admittedRevisions].reverse().find((revision) => ancestor(revision.commit, head));
+  let nativeSourceImported = false;
+  if (!ancestor(nativeMarketCommit, head)) {
+    try {
+      const preserved = verifyPreservedMasterImport(FAIR_LAUNCH_IMPORT, {
+        head,
+        git: (...args) => git(...args).trim(),
+      });
+      nativeSourceImported = ancestor(nativeMarketCommit, preserved.sourceHead);
+    } catch {
+      // Only the exact retained-source squash may substitute for direct ancestry.
+      // Every other candidate still fails the ordinary source checks below.
+    }
+  }
+  const required = nativeSourceImported
+    ? nativeMarketRevision
+    : [...admittedRevisions].reverse().find((revision) => ancestor(revision.commit, head));
   if (required)
     assert.equal(currentSha256, required.hash, 'a later candidate must not roll back the recorded revision');
   for (let i = 1; i < recorded.length; i++)
@@ -125,7 +141,7 @@ export async function verifiedPrototypeArtifacts(root) {
   );
   if (selected === nativeMarketRevision)
     assert.ok(
-      ancestor(nativeMarketCommit, head),
+      ancestor(nativeMarketCommit, head) || nativeSourceImported,
       'native market bytes require their actual reviewed source ancestry',
     );
   if (

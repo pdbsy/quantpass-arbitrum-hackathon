@@ -680,6 +680,7 @@ export async function collectRecordedGitState(root, baseRef, recorded, options =
       if (currentBranch !== expectedBranch) throw new SourceError('RECORDED_GIT_BRANCH_MISMATCH');
       try {
         logicalHead = verifyPreservedManagementSource(root, context, head, base.commit, recorded);
+        comparisonBaseCommit = context.comparisonBaseCommit ?? comparisonBaseCommit;
       } catch {
         throw new SourceError('RECORDED_GIT_PRESERVED_SOURCE_INVALID');
       }

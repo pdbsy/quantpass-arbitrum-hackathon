@@ -4,7 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { agentForBranch, MANAGER_INTEGRATIONS } from './agent-identity.mjs';
 import { validateCommitSetIdentity } from './agent-identity-set.mjs';
-import { FAIR_LAUNCH_IMPORT, verifyPreservedSourceImport } from './preserved-source-identity.mjs';
+import {
+  FAIR_LAUNCH_IMPORT,
+  verifyPreservedSourceImport,
+  verifyPreservedMasterImport,
+} from './preserved-source-identity.mjs';
+import { CANONICAL_REPOSITORY, hostedRepositoryMatches } from './environment/policy.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 function argument(name) {
@@ -56,6 +61,47 @@ export function check() {
     base = agentForBranch(branch) ? git('merge-base', 'origin/master', head) : git('rev-parse', `${head}^`);
   }
   const prTitle = argument('pr-title') || pull?.title || null;
+  const masterHead =
+    !group && branch === 'master'
+      ? git('--no-replace-objects', 'rev-parse', '--verify', `${head}^{commit}`)
+      : null;
+  const checkoutHead =
+    !group && (branch === 'master' || process.env.GITHUB_REF === 'refs/heads/master')
+      ? git('--no-replace-objects', 'rev-parse', '--verify', 'HEAD^{commit}')
+      : null;
+  const firstSquashParent = (candidate) =>
+    candidate &&
+    git('--no-replace-objects', 'rev-list', '--parents', '--max-count=1', candidate) ===
+      `${candidate} ${FAIR_LAUNCH_IMPORT.base}`;
+  if (
+    !group &&
+    ((branch === 'master' && base === FAIR_LAUNCH_IMPORT.base) ||
+      firstSquashParent(masterHead) ||
+      firstSquashParent(checkoutHead))
+  ) {
+    const exactHead = masterHead;
+    if (
+      branch !== 'master' ||
+      exactHead !== checkoutHead ||
+      base !== FAIR_LAUNCH_IMPORT.base ||
+      !['push', 'workflow_dispatch'].includes(eventName) ||
+      process.env.GITHUB_ACTIONS !== 'true' ||
+      process.env.GITHUB_REF !== 'refs/heads/master' ||
+      process.env.GITHUB_SHA !== exactHead ||
+      (event.ref !== 'refs/heads/master' && !(eventName === 'workflow_dispatch' && event.ref === 'master')) ||
+      process.env.GITHUB_REPOSITORY !== CANONICAL_REPOSITORY ||
+      !hostedRepositoryMatches(CANONICAL_REPOSITORY, process.env.GITHUB_REPOSITORY_ID) ||
+      event.repository?.full_name !== CANONICAL_REPOSITORY ||
+      !hostedRepositoryMatches(CANONICAL_REPOSITORY, event.repository?.id) ||
+      (eventName === 'push' && (event.before !== FAIR_LAUNCH_IMPORT.base || event.after !== exactHead))
+    )
+      throw new Error('Preserved master import requires canonical hosted master context');
+    const result = verifyPreservedMasterImport(FAIR_LAUNCH_IMPORT, { head: exactHead, git });
+    console.log(
+      `Preserved master identity: ${result.preserved} original commits retained at ${result.sourceHead}; exact first squash verified`,
+    );
+    return;
+  }
   if (!group && branch === FAIR_LAUNCH_IMPORT.branch) {
     const exactHead = git('--no-replace-objects', 'rev-parse', '--verify', `${head}^{commit}`);
     const result = verifyPreservedSourceImport(FAIR_LAUNCH_IMPORT, {

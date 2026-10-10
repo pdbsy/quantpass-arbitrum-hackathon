@@ -12,7 +12,7 @@ The Hackathon edition targets **Robinhood Chain Testnet, chain ID 46630**. All m
 Claim AF-USDC → Mint TSLA / Buy PASS → Hold → Use Vault → Sell PASS → Receive ETH
 ```
 
-> **Release status — October 10, 2026:** The Fair Launch implementation, local EVM scenarios, and scoped reviews are available on the [Fair Launch branch](https://github.com/pdbsy/Alphaforge/tree/codex/alphaforge-fair-launch-v3-20261009) in [PR #47](https://github.com/pdbsy/Alphaforge/pull/47). The website is published and target-network deployment is in progress. Complete market activation and real user Testnet acceptance remain pending. Historical test reports identify the source commits they validate; they are not production audit certificates.
+> **Release status — October 10, 2026:** This checkout includes the Fair Launch implementation, local EVM scenarios, and scoped reviews delivered through [PR #47](https://github.com/pdbsy/Alphaforge/pull/47). The website is published and target-network deployment is in progress. Complete market activation and real user Testnet acceptance remain pending. Historical test reports identify the source commits they validate; they are not production audit certificates.
 
 ## Contents
 
@@ -91,8 +91,6 @@ Use the [toolchain guide](docs/DEVELOPMENT-TOOLCHAIN.md) together with its [impl
 ```bash
 git clone https://github.com/pdbsy/Alphaforge.git
 cd Alphaforge
-# Until PR #47 is merged, the market implementation lives on this branch.
-git checkout codex/alphaforge-fair-launch-v3-20261009
 node tools/check-environment.mjs
 npm ci --ignore-scripts
 ```
@@ -147,6 +145,8 @@ npm run build:web
 | `npm run test:fair-launch:browser-evm` | Browser, API, wallet bridge, and local EVM; requires a web build and separately qualified browser tools |
 | `npm run test:fair-launch:load` | Separate 30-minute shared-market load harness with 100 SSE clients and 20 active test wallets |
 | `npm run check` | Full repository checks, including historical modules and governance |
+
+Historical source-admission checks need their retained Git references and qualified CI context. A local clone alone does not grant historical approval; use the focused checks above for routine development.
 
 The [test report](docs/fair-launch/TESTING.md) records actual outcomes, source references, failed runs, and remaining external checks. Local EVM success does not establish target-network deployment, public RPC performance, or live identity/feed availability.
 
@@ -240,6 +240,8 @@ Historical planning and migration documents preserve the assumptions and results
 ## Contributing
 
 Use an isolated checkout and a task branch. Keep the exact toolchain, committed dependency lock, existing design system, and permission boundaries. Run checks for the modules you change; CI retains the repository's required checks. Include reproducible validation and any `NOT_RUN` items in the pull request.
+
+Retain the frozen Fair Launch source branch and historical references used by provenance checks. Start subsequent work on a new branch; deleting or advancing those source references requires a corresponding reviewed provenance update.
 
 For contract or funds-flow changes, describe amounts in integer units, identify the actual asset owner and signer, and provide scoped independent review. Do not replace chain settlement with database balances or silently change PASS supply, LP ownership, or Vault authority.
 

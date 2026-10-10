@@ -1,8 +1,16 @@
 import { execFileSync } from 'node:child_process';
 import { constants, fstatSync, lstatSync, openSync, readSync, closeSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { FAIR_LAUNCH_IMPORT, verifyPreservedSourceImport } from '../preserved-source-identity.mjs';
-import { hostedRepositoryMatches, repositoryNamesMatch } from '../environment/policy.mjs';
+import {
+  FAIR_LAUNCH_IMPORT,
+  verifyPreservedSourceImport,
+  verifyPreservedMasterImport,
+} from '../preserved-source-identity.mjs';
+import {
+  CANONICAL_REPOSITORY,
+  hostedRepositoryMatches,
+  repositoryNamesMatch,
+} from '../environment/policy.mjs';
 
 // This snapshot remains evidence for its original source, never for a newer
 // Fair Launch commit. Its original manifest and closure are immutable objects.
@@ -80,10 +88,13 @@ export function preservedManagementContext(environment, baseBranch, recordedBran
   if (!environment || typeof environment !== 'object' || Array.isArray(environment)) return null;
   const branch = FAIR_LAUNCH_IMPORT.branch;
   const eventName = environment.GITHUB_EVENT_NAME;
+  const squashedMaster =
+    ['push', 'workflow_dispatch'].includes(eventName) && environment.GITHUB_REF === 'refs/heads/master';
   const assigned =
     (['push', 'workflow_dispatch'].includes(eventName) &&
       environment.GITHUB_REF === `refs/heads/${branch}`) ||
-    (eventName === 'pull_request' && environment.GITHUB_HEAD_REF === branch);
+    (eventName === 'pull_request' && environment.GITHUB_HEAD_REF === branch) ||
+    squashedMaster;
   if (!assigned || recordedBranch !== PRESERVED_MANAGEMENT_SNAPSHOT.branch) return null;
   requireContext(environment.GITHUB_ACTIONS === 'true' && baseBranch === 'master');
   requireContext(repositoryNamesMatch(environment.GITHUB_REPOSITORY, FAIR_LAUNCH_IMPORT.repository));
@@ -92,6 +103,29 @@ export function preservedManagementContext(environment, baseBranch, recordedBran
   const event = eventPayload(environment.GITHUB_EVENT_PATH);
   requireContext(event.repository?.full_name === environment.GITHUB_REPOSITORY);
   requireContext(hostedRepositoryMatches(event.repository.full_name, event.repository.id));
+  if (squashedMaster) {
+    requireContext(environment.GITHUB_REPOSITORY === CANONICAL_REPOSITORY);
+    requireContext(
+      [undefined, ''].includes(environment.GITHUB_BASE_REF) &&
+        [undefined, ''].includes(environment.GITHUB_HEAD_REF),
+    );
+    requireContext(
+      event.ref === 'refs/heads/master' || (eventName === 'workflow_dispatch' && event.ref === 'master'),
+    );
+    requireContext(
+      eventName !== 'push' ||
+        (event.before === FAIR_LAUNCH_IMPORT.base && event.after === environment.GITHUB_SHA),
+    );
+    return {
+      kind: 'preserved_source',
+      eventName,
+      branch: 'master',
+      sha: environment.GITHUB_SHA,
+      pull: null,
+      squashedMaster: true,
+      comparisonBaseCommit: FAIR_LAUNCH_IMPORT.base,
+    };
+  }
   if (eventName === 'pull_request') {
     const match = /^refs\/pull\/([1-9][0-9]{0,9})\/merge$/.exec(environment.GITHUB_REF ?? '');
     requireContext(match && event.number === Number(match[1]) && environment.GITHUB_BASE_REF === baseBranch);
@@ -138,13 +172,17 @@ export function verifyPreservedManagementSource(root, context, head, base, recor
     runGit(...args)
       .toString('utf8')
       .trimEnd();
-  requireContext(base === FAIR_LAUNCH_IMPORT.base && context.sha === head);
+  requireContext(context.sha === head);
+  requireContext(context.squashedMaster ? base === head : base === FAIR_LAUNCH_IMPORT.base);
   for (const field of ['branch', 'commit', 'tree'])
     requireContext(recorded[field] === PRESERVED_MANAGEMENT_SNAPSHOT[field]);
-  const sourceHead = context.pull?.head?.sha ?? head;
-  requireContext(
-    git('rev-parse', '--verify', `refs/remotes/origin/${context.branch}^{commit}`) === sourceHead,
-  );
+  const sourceHead = context.squashedMaster
+    ? verifyPreservedMasterImport(FAIR_LAUNCH_IMPORT, { head, git }).sourceHead
+    : (context.pull?.head?.sha ?? head);
+  if (!context.squashedMaster)
+    requireContext(
+      git('rev-parse', '--verify', `refs/remotes/origin/${context.branch}^{commit}`) === sourceHead,
+    );
   if (context.eventName === 'pull_request') {
     requireContext(
       git('rev-parse', '--verify', `refs/remotes/pull/${context.number}/merge^{commit}`) === head,
@@ -152,7 +190,7 @@ export function verifyPreservedManagementSource(root, context, head, base, recor
     requireContext(git('rev-list', '--parents', '--max-count=1', 'HEAD') === `${head} ${base} ${sourceHead}`);
     requireContext(git('rev-parse', 'HEAD^{tree}') === git('rev-parse', `${sourceHead}^{tree}`));
   }
-  const commits = git('log', '--format=%H%x00%s%x00%b%x1e', `${base}..${sourceHead}`)
+  const commits = git('log', '--format=%H%x00%s%x00%b%x1e', `${FAIR_LAUNCH_IMPORT.base}..${sourceHead}`)
     .split('\x1e')
     .map((row) => row.trim())
     .filter(Boolean)
@@ -161,7 +199,7 @@ export function verifyPreservedManagementSource(root, context, head, base, recor
       return { sha, subject, body };
     });
   verifyPreservedSourceImport(FAIR_LAUNCH_IMPORT, {
-    branch: context.branch,
+    branch: FAIR_LAUNCH_IMPORT.branch,
     head: sourceHead,
     prTitle: context.pull?.title ?? null,
     pull: context.pull,
