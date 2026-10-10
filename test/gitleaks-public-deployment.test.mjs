@@ -1,8 +1,17 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  symlinkSync,
+  realpathSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
   PUBLIC_DEPLOYMENT_OCCURRENCE as occurrence,
@@ -10,7 +19,7 @@ import {
   adjudicateGitleaksPublicDeployment,
 } from '../tools/security/gitleaks-public-deployment.mjs';
 
-const root = resolve(new URL('..', import.meta.url).pathname);
+const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const observedAt = new Date('2026-10-10T12:00:00Z');
 const tokenLines = [555, 591, 616, 652, 692, 728, 753, 789, 1003, 1039, 1064, 1100, 1215, 1243];
 const findings = (commit = occurrence.publishedCommit, file = occurrence.file) =>
@@ -169,7 +178,7 @@ test('replacement objects cannot change historical path proof and invented commi
 });
 
 test('current stage uses its exact canonical absolute path and identical approved bytes', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'af-public-deployment-stage-'));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'af-public-deployment-stage-')));
   const stagedRoot = join(dir, 'source');
   const file = join(stagedRoot, occurrence.file);
   mkdirSync(join(stagedRoot, 'docs'), { recursive: true });
@@ -191,6 +200,11 @@ test('current stage uses its exact canonical absolute path and identical approve
     );
     assert.equal(
       adjudicateGitleaksPublicDeployment(scan, proof, { ...options, stagedRoot: join(dir, 'other') }).state,
+      'FAIL',
+    );
+    assert.equal(
+      adjudicateGitleaksPublicDeployment(scan, proof, { ...options, stagedRoot: stagedRoot + '/../source' })
+        .state,
       'FAIL',
     );
     const changed = readFileSync(file, 'utf8').replace(
