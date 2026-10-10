@@ -1,6 +1,8 @@
-import { Interface, JsonRpcProvider, ZeroAddress, keccak256, toBeHex } from 'ethers';
+import { Interface, JsonRpcProvider, ZeroAddress, keccak256, toQuantity } from 'ethers';
+import { setTimeout as delay } from 'node:timers/promises';
 import type {
   MarketChain,
+  MarketSnapshotTarget,
   ObservedMarketReceipt,
   ObservedMarketTransaction,
 } from '../../../../packages/launch-market/src/chain.ts';
@@ -96,6 +98,80 @@ function header(value: unknown): Header {
   return result;
 }
 
+/** Public Testnet providers may lag a newly announced block; retries keep the exact pinned read. */
+class MarketReadProvider extends JsonRpcProvider {
+  constructor(rpcUrl: string) {
+    super(rpcUrl, undefined, { cacheTimeout: -1, batchMaxCount: 3, batchStallTime: 10 });
+  }
+  override async send(method: string, params: unknown[] | Record<string, unknown>): Promise<unknown> {
+    // Keep the complete indexer range, while respecting the public provider's log-query limit.
+    if (method === 'eth_getLogs' && Array.isArray(params) && params.length === 1) {
+      const filter = params[0] as Record<string, unknown> | null;
+      if (
+        filter &&
+        typeof filter.fromBlock === 'string' &&
+        typeof filter.toBlock === 'string' &&
+        /^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/.test(filter.fromBlock) &&
+        /^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/.test(filter.toBlock)
+      ) {
+        const from = BigInt(filter.fromBlock),
+          to = BigInt(filter.toBlock);
+        if (from > to) throw new LaunchMarketError('INDEX_LOG_RANGE_LIMIT', 503);
+        if (to - from >= 100n) {
+          if (to - from >= 2000n) throw new LaunchMarketError('INDEX_LOG_RANGE_LIMIT', 503);
+          const results: unknown[] = [];
+          for (let batch = from; batch <= to; batch += 300n) {
+            const reads: Promise<unknown>[] = [];
+            for (let start = batch; start <= to && start < batch + 300n; start += 100n)
+              reads.push(
+                this.send(method, [
+                  {
+                    ...filter,
+                    fromBlock: toQuantity(start),
+                    toBlock: toQuantity(start + 99n < to ? start + 99n : to),
+                  },
+                ]),
+              );
+            for (const rows of await Promise.all(reads)) {
+              if (!Array.isArray(rows)) throw new LaunchMarketError('INDEX_LOG_RESPONSE', 503);
+              if (results.length + rows.length > 50000)
+                throw new LaunchMarketError('INDEX_LOG_RESPONSE', 503);
+              results.push(...rows);
+            }
+          }
+          return results;
+        }
+      }
+    }
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await super.send(method, params);
+      } catch (error) {
+        const detail =
+          error && typeof error === 'object' && 'error' in error
+            ? (error.error as { code?: unknown; message?: unknown } | undefined)
+            : undefined;
+        const pinned = Array.isArray(params)
+          ? method === 'eth_getBlockByNumber'
+            ? params[0]
+            : params.at(-1)
+          : undefined;
+        if (
+          attempt >= 2 ||
+          !['eth_call', 'eth_getCode', 'eth_getBalance', 'eth_getBlockByNumber'].includes(method) ||
+          typeof pinned !== 'string' ||
+          !/^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/.test(pinned) ||
+          detail?.code !== -32000 ||
+          typeof detail.message !== 'string' ||
+          !/^unsupported block number\b/i.test(detail.message)
+        )
+          throw error;
+        await delay(250);
+      }
+    }
+  }
+}
+
 /** A read-only RPC adapter. It has no signer and never calls a transaction submission RPC. */
 export class RpcMarketChain implements MarketChain {
   readonly manifest: LaunchMarketManifest;
@@ -111,11 +187,7 @@ export class RpcMarketChain implements MarketChain {
       !(url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname))
     )
       throw new LaunchMarketError('RPC_HTTPS_REQUIRED', 400);
-    this.provider = new JsonRpcProvider(rpcUrl, undefined, {
-      cacheTimeout: -1,
-      batchMaxCount: 50,
-      batchStallTime: 10,
-    });
+    this.provider = new MarketReadProvider(rpcUrl);
   }
   async initialize(): Promise<void> {
     if (BigInt(await this.provider.send('eth_chainId', [])) !== 46630n)
@@ -167,9 +239,13 @@ export class RpcMarketChain implements MarketChain {
     if ((await this.canonicalBlockHash(BigInt(block.number).toString())) !== hash(block.hash))
       throw new LaunchMarketError('REORG_DURING_READ', 503);
   }
-  async snapshot(): Promise<MarketSnapshot> {
+  async snapshot(at?: MarketSnapshotTarget): Promise<MarketSnapshot> {
     if (!this.#verified) throw new LaunchMarketError('RPC_NOT_VERIFIED', 503);
-    const block = await this.head();
+    const block = at
+      ? header(await this.provider.send('eth_getBlockByNumber', [toQuantity(uint(at.blockNumber)), false]))
+      : await this.head();
+    if (at && (BigInt(block.number) !== uint(at.blockNumber) || hash(block.hash) !== hash(at.blockHash)))
+      throw new LaunchMarketError('INDEX_SNAPSHOT_FORK', 503);
     if (this.#cache?.hash === block.hash) return this.#cache.pending;
     const pending = this.#snapshot(block);
     this.#cache = { hash: block.hash, pending };
@@ -494,7 +570,7 @@ export class RpcMarketChain implements MarketChain {
       block = await this.head();
     if ((await this.requiredApprovals(tx, owner, block)).length)
       throw new LaunchMarketError('ALLOWANCE_REQUIRED');
-    const input = { from: owner, to: address(tx.to), data: tx.data, value: toBeHex(uint(tx.value)) };
+    const input = { from: owner, to: address(tx.to), data: tx.data, value: toQuantity(uint(tx.value)) };
     await this.provider.send('eth_call', [input, block.number]);
     const gas = BigInt(String(await this.provider.send('eth_estimateGas', [input, block.number])));
     await this.assertCanonical(block);
@@ -530,7 +606,7 @@ export class RpcMarketChain implements MarketChain {
     };
   }
   async canonicalBlockHash(blockNumber: string): Promise<string | null> {
-    const raw = await this.provider.send('eth_getBlockByNumber', [toBeHex(uint(blockNumber)), false]);
+    const raw = await this.provider.send('eth_getBlockByNumber', [toQuantity(uint(blockNumber)), false]);
     return raw ? hash(header(raw).hash) : null;
   }
   async signingPolicy() {

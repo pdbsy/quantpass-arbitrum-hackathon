@@ -61,6 +61,7 @@ export async function startMarketServer(env: Readonly<Record<string, string | un
       chain,
       quoteSigner,
       claimSigner,
+      indexedSnapshots: true,
       ethReference: {
         read: async () => {
           const reference = await feed.read();
@@ -81,6 +82,7 @@ export async function startMarketServer(env: Readonly<Record<string, string | un
         provider: chain.provider,
         service,
         pollIntervalMs: 1500,
+        maxBlocksPerPoll: 2000,
       });
     const server = await buildLaunchMarketServer({
       service,
