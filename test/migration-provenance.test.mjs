@@ -7,7 +7,7 @@ import { resolve, relative, sep, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { verifiedPrototypeArtifacts } from './helpers/prototype-artifact.mjs';
-import { FAIR_LAUNCH_IMPORT, verifyPreservedMasterImport } from '../tools/preserved-source-identity.mjs';
+import { FAIR_LAUNCH_IMPORT, verifyPreservedIntegrationAnchor } from '../tools/preserved-source-identity.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const readJson = async (path) => JSON.parse(await readFile(resolve(root, path), 'utf8'));
 const migrationSnapshot = '802205c02dc27ff0170bede1c8f593348e0147d2';
@@ -28,7 +28,7 @@ function verifiedMigrationSnapshot(directory) {
   } catch (ancestryError) {
     if (ancestryError.status !== 1 || ancestryError.signal) throw ancestryError;
     try {
-      const preserved = verifyPreservedMasterImport(FAIR_LAUNCH_IMPORT, {
+      const preserved = verifyPreservedIntegrationAnchor(FAIR_LAUNCH_IMPORT, {
         head: git('rev-parse', '--verify', 'HEAD').toString().trim(),
         git: (...args) =>
           git(...args)
@@ -138,7 +138,7 @@ test('migration provenance rejects altered historical hashes and candidates outs
   assert.throws(() => verifiedMigrationSnapshot(repository), /Command failed/);
 });
 
-test('master squash preserves native and migration provenance only through its complete retained source tree', async (t) => {
+test('native and migration provenance remain bound to the immutable master integration', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'af-master-import-provenance-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const repository = join(directory, 'repo');
@@ -160,9 +160,11 @@ test('master squash preserves native and migration provenance only through its c
   const git = (...args) => execute(repository, args);
   const sourceRef = `refs/remotes/origin/${FAIR_LAUNCH_IMPORT.branch}`;
   const sourceHead = execute(root, ['rev-parse', '--verify', sourceRef]);
+  assert.equal(sourceHead, FAIR_LAUNCH_IMPORT.integration.sourceHead);
   const masterRef = 'refs/remotes/origin/master';
   execute(directory, ['clone', '--no-hardlinks', '--no-checkout', '--single-branch', root, repository]);
   git('fetch', '--no-tags', root, sourceHead);
+  git('fetch', '--no-tags', root, FAIR_LAUNCH_IMPORT.integration.commit);
   for (const ref of [
     'refs/remotes/origin/macbeth01/account-wallet-eth',
     'refs/remotes/origin/macbeth01/m3-phase1-closeout',
@@ -173,11 +175,7 @@ test('master squash preserves native and migration provenance only through its c
   }
   git('update-ref', sourceRef, sourceHead);
   const sourceTree = git('rev-parse', `${sourceHead}^{tree}`);
-  const squash = execute(
-    repository,
-    ['commit-tree', sourceTree, '-p', FAIR_LAUNCH_IMPORT.base],
-    'feat: integrate the retained Fair Launch source\n',
-  );
+  const squash = FAIR_LAUNCH_IMPORT.integration.commit;
   const install = (head) => {
     git('update-ref', masterRef, head);
     git('checkout', '--force', '--detach', head);
@@ -187,7 +185,7 @@ test('master squash preserves native and migration provenance only through its c
   const artifact = manifest.artifacts[0];
   const prototypePath = join(repository, 'apps/web/prototype/AlphaForge_v3_EN.html');
   const sourceArtifact = await readFile(prototypePath, 'utf8');
-  await t.test('an exact single-parent master squash admits immutable source evidence', async () => {
+  await t.test('the exact recorded master squash admits immutable source evidence', async () => {
     assert.notEqual(git('rev-parse', 'HEAD'), sourceHead);
     verifiedMigrationSnapshot(repository)(artifact.target_path, artifact.migrated_sha256);
     const prototype = await verifiedPrototypeArtifacts(repository);
@@ -250,6 +248,62 @@ test('master squash preserves native and migration provenance only through its c
       await writeFile(prototypePath, sourceArtifact);
     }
   });
+  await t.test('a different same-tree squash cannot replace the recorded integration anchor', async () => {
+    const unrecorded = execute(
+      repository,
+      ['commit-tree', sourceTree, '-p', FAIR_LAUNCH_IMPORT.base],
+      'feat: unrecorded integration fixture\n',
+    );
+    assert.notEqual(unrecorded, squash);
+    install(unrecorded);
+    try {
+      assert.throws(() => verifiedMigrationSnapshot(repository), /Command failed/);
+      await assert.rejects(verifiedPrototypeArtifacts(repository), /actual reviewed source ancestry/);
+    } finally {
+      install(squash);
+    }
+  });
+  await t.test(
+    'ordinary master descendants retain evidence without treating their new tree as imported',
+    async () => {
+      await writeFile(join(repository, 'README.md'), 'Ordinary follow-up documentation fixture\n');
+      git('add', 'README.md');
+      const descendant = execute(
+        repository,
+        ['commit-tree', git('write-tree'), '-p', squash],
+        'docs: ordinary follow-up fixture\n',
+      );
+      install(descendant);
+      try {
+        verifiedMigrationSnapshot(repository)(artifact.target_path, artifact.migrated_sha256);
+        const prototype = await verifiedPrototypeArtifacts(repository);
+        assert.equal(prototype.current, sourceArtifact);
+        assert.equal(prototype.currentSha256, prototype.nativeMarketSha256);
+        const changedSource = execute(
+          repository,
+          ['commit-tree', sourceTree, '-p', sourceHead],
+          'docs: changed frozen source reference fixture\n',
+        );
+        git('update-ref', sourceRef, changedSource);
+        try {
+          assert.throws(() => verifiedMigrationSnapshot(repository), /Command failed/);
+          await assert.rejects(verifiedPrototypeArtifacts(repository), /actual reviewed source ancestry/);
+        } finally {
+          git('update-ref', sourceRef, sourceHead);
+        }
+        const unvalidated = execute(
+          repository,
+          ['commit-tree', git('rev-parse', `${descendant}^{tree}`), '-p', descendant],
+          'Ordinary-looking follow-up fixture\n\nAgent-ID: Macbeth01\n',
+        );
+        install(unvalidated);
+        assert.throws(() => verifiedMigrationSnapshot(repository), /Command failed/);
+        await assert.rejects(verifiedPrototypeArtifacts(repository), /actual reviewed source ancestry/);
+      } finally {
+        install(squash);
+      }
+    },
+  );
   assert.equal(git('status', '--porcelain'), '');
 });
 

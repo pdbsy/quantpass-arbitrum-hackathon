@@ -5,6 +5,7 @@ import {
   FAIR_LAUNCH_IMPORT,
   verifyPreservedSourceImport,
   verifyPreservedMasterImport,
+  verifyPreservedHostedFollowup,
 } from '../preserved-source-identity.mjs';
 import {
   CANONICAL_REPOSITORY,
@@ -90,11 +91,17 @@ export function preservedManagementContext(environment, baseBranch, recordedBran
   const eventName = environment.GITHUB_EVENT_NAME;
   const squashedMaster =
     ['push', 'workflow_dispatch'].includes(eventName) && environment.GITHUB_REF === 'refs/heads/master';
+  const ordinaryBranch =
+    (['push', 'workflow_dispatch'].includes(eventName) &&
+      /^refs\/heads\/.+$/.test(environment.GITHUB_REF ?? '') &&
+      ![`refs/heads/${branch}`, 'refs/heads/master'].includes(environment.GITHUB_REF)) ||
+    (eventName === 'pull_request' && environment.GITHUB_HEAD_REF !== branch);
   const assigned =
     (['push', 'workflow_dispatch'].includes(eventName) &&
       environment.GITHUB_REF === `refs/heads/${branch}`) ||
     (eventName === 'pull_request' && environment.GITHUB_HEAD_REF === branch) ||
-    squashedMaster;
+    squashedMaster ||
+    ordinaryBranch;
   if (!assigned || recordedBranch !== PRESERVED_MANAGEMENT_SNAPSHOT.branch) return null;
   requireContext(environment.GITHUB_ACTIONS === 'true' && baseBranch === 'master');
   requireContext(repositoryNamesMatch(environment.GITHUB_REPOSITORY, FAIR_LAUNCH_IMPORT.repository));
@@ -103,6 +110,62 @@ export function preservedManagementContext(environment, baseBranch, recordedBran
   const event = eventPayload(environment.GITHUB_EVENT_PATH);
   requireContext(event.repository?.full_name === environment.GITHUB_REPOSITORY);
   requireContext(hostedRepositoryMatches(event.repository.full_name, event.repository.id));
+  const firstMaster =
+    squashedMaster &&
+    (event.before === FAIR_LAUNCH_IMPORT.base ||
+      (eventName === 'workflow_dispatch' &&
+        environment.GITHUB_SHA === FAIR_LAUNCH_IMPORT.integration.commit));
+  if (ordinaryBranch || (squashedMaster && !firstMaster)) {
+    requireContext(environment.GITHUB_REPOSITORY === CANONICAL_REPOSITORY);
+    let followupBranch;
+    if (eventName === 'pull_request') {
+      const match = /^refs\/pull\/([1-9][0-9]{0,9})\/merge$/.exec(environment.GITHUB_REF ?? '');
+      followupBranch = event.pull_request?.head?.ref;
+      requireContext(
+        match &&
+          event.number === Number(match[1]) &&
+          environment.GITHUB_BASE_REF === 'master' &&
+          environment.GITHUB_HEAD_REF === followupBranch,
+      );
+      requireContext(
+        typeof followupBranch === 'string' && followupBranch !== 'master' && followupBranch !== branch,
+      );
+    } else {
+      followupBranch = /^refs\/heads\/(.+)$/.exec(environment.GITHUB_REF ?? '')?.[1];
+      requireContext(
+        followupBranch &&
+          [undefined, ''].includes(environment.GITHUB_BASE_REF) &&
+          [undefined, ''].includes(environment.GITHUB_HEAD_REF),
+      );
+      requireContext(
+        event.ref === environment.GITHUB_REF ||
+          (eventName === 'workflow_dispatch' && event.ref === followupBranch),
+      );
+      requireContext(eventName !== 'push' || event.after === environment.GITHUB_SHA);
+    }
+    return {
+      kind: 'preserved_source',
+      eventName,
+      branch: followupBranch,
+      sha: environment.GITHUB_SHA,
+      pull: null,
+      integratedFollowup: true,
+      comparisonBaseCommit: FAIR_LAUNCH_IMPORT.base,
+      environment: Object.fromEntries(
+        [
+          'GITHUB_ACTIONS',
+          'GITHUB_EVENT_NAME',
+          'GITHUB_REF',
+          'GITHUB_BASE_REF',
+          'GITHUB_HEAD_REF',
+          'GITHUB_REPOSITORY',
+          'GITHUB_REPOSITORY_ID',
+          'GITHUB_SHA',
+        ].map((field) => [field, environment[field]]),
+      ),
+      event,
+    };
+  }
   if (squashedMaster) {
     requireContext(environment.GITHUB_REPOSITORY === CANONICAL_REPOSITORY);
     requireContext(
@@ -173,17 +236,29 @@ export function verifyPreservedManagementSource(root, context, head, base, recor
       .toString('utf8')
       .trimEnd();
   requireContext(context.sha === head);
-  requireContext(context.squashedMaster ? base === head : base === FAIR_LAUNCH_IMPORT.base);
+  if (!context.integratedFollowup)
+    requireContext(context.squashedMaster ? base === head : base === FAIR_LAUNCH_IMPORT.base);
   for (const field of ['branch', 'commit', 'tree'])
     requireContext(recorded[field] === PRESERVED_MANAGEMENT_SNAPSHOT[field]);
-  const sourceHead = context.squashedMaster
-    ? verifyPreservedMasterImport(FAIR_LAUNCH_IMPORT, { head, git }).sourceHead
-    : (context.pull?.head?.sha ?? head);
-  if (!context.squashedMaster)
+  const followup = context.integratedFollowup
+    ? verifyPreservedHostedFollowup(FAIR_LAUNCH_IMPORT, {
+        environment: context.environment,
+        event: context.event,
+        head,
+        git,
+      })
+    : null;
+  if (followup) requireContext(followup.masterBase === base && followup.branch === context.branch);
+  const sourceHead =
+    followup?.sourceHead ??
+    (context.squashedMaster
+      ? verifyPreservedMasterImport(FAIR_LAUNCH_IMPORT, { head, git }).sourceHead
+      : (context.pull?.head?.sha ?? head));
+  if (!context.squashedMaster && !followup)
     requireContext(
       git('rev-parse', '--verify', `refs/remotes/origin/${context.branch}^{commit}`) === sourceHead,
     );
-  if (context.eventName === 'pull_request') {
+  if (context.eventName === 'pull_request' && !followup) {
     requireContext(
       git('rev-parse', '--verify', `refs/remotes/pull/${context.number}/merge^{commit}`) === head,
     );
@@ -201,7 +276,7 @@ export function verifyPreservedManagementSource(root, context, head, base, recor
   verifyPreservedSourceImport(FAIR_LAUNCH_IMPORT, {
     branch: FAIR_LAUNCH_IMPORT.branch,
     head: sourceHead,
-    prTitle: context.pull?.title ?? null,
+    prTitle: followup ? null : (context.pull?.title ?? null),
     pull: context.pull,
     commits,
     git,

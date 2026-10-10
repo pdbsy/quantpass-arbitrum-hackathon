@@ -8,6 +8,7 @@ import {
   FAIR_LAUNCH_IMPORT,
   verifyPreservedSourceImport,
   verifyPreservedMasterImport,
+  verifyPreservedHostedFollowup,
 } from './preserved-source-identity.mjs';
 import { CANONICAL_REPOSITORY, hostedRepositoryMatches } from './environment/policy.mjs';
 
@@ -61,6 +62,50 @@ export function check() {
     base = agentForBranch(branch) ? git('merge-base', 'origin/master', head) : git('rev-parse', `${head}^`);
   }
   const prTitle = argument('pr-title') || pull?.title || null;
+  if (!pull && branch === 'master' && commitsInRange(base, head).length === 0)
+    throw new Error('Invalid protected target range');
+  const hostedCheckout =
+    !group &&
+    process.env.GITHUB_ACTIONS === 'true' &&
+    ['push', 'workflow_dispatch', 'pull_request'].includes(eventName)
+      ? git('--no-replace-objects', 'rev-parse', '--verify', 'HEAD^{commit}')
+      : null;
+  let integratedFollowup = false;
+  if (hostedCheckout && hostedCheckout !== FAIR_LAUNCH_IMPORT.integration.commit) {
+    try {
+      git(
+        '--no-replace-objects',
+        'merge-base',
+        '--is-ancestor',
+        FAIR_LAUNCH_IMPORT.integration.commit,
+        hostedCheckout,
+      );
+      integratedFollowup = true;
+    } catch {
+      // Unrelated historical fixtures and original source imports use their
+      // existing admission paths; they cannot qualify as anchored follow-ups.
+    }
+  }
+  if (integratedFollowup) {
+    const result = verifyPreservedHostedFollowup(FAIR_LAUNCH_IMPORT, {
+      environment: process.env,
+      event,
+      head: hostedCheckout,
+      git,
+    });
+    if (
+      branch !== result.branch ||
+      git('--no-replace-objects', 'rev-parse', '--verify', `${head}^{commit}`) !== result.candidate ||
+      ((argument('base') || pull || branch === 'master') &&
+        git('--no-replace-objects', 'rev-parse', '--verify', `${base}^{commit}`) !== result.base) ||
+      prTitle !== (pull?.title ?? null)
+    )
+      throw new Error('Preserved follow-up rejects overridden branch, revisions, or title');
+    console.log(
+      `Integration anchor ${result.integrationHead} verified; ordinary ${eventName} identity: ${result.ordinary.verified} worker provenance record(s)`,
+    );
+    return;
+  }
   const masterHead =
     !group && branch === 'master'
       ? git('--no-replace-objects', 'rev-parse', '--verify', `${head}^{commit}`)

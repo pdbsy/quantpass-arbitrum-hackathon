@@ -1,6 +1,11 @@
 import { validateCommitSetIdentity } from './agent-identity-set.mjs';
+import { MANAGER_INTEGRATIONS } from './agent-identity.mjs';
 import { lstatSync } from 'node:fs';
-import { hostedRepositoryMatches, repositoryNamesMatch } from './environment/policy.mjs';
+import {
+  CANONICAL_REPOSITORY,
+  hostedRepositoryMatches,
+  repositoryNamesMatch,
+} from './environment/policy.mjs';
 
 // The user retired the worker-role requirement for this task. Preserve the
 // already authored source objects; this profile grants no merge or chain rights.
@@ -10,7 +15,24 @@ export const FAIR_LAUNCH_IMPORT = Object.freeze({
   base: '3cb9caa810e34d8ff9f9a6c68b5ef674f489689e',
   source: '223d0d1b417b5b4de42319d3ed6bccbaf9a26126',
   originalCommitCount: 71,
+  integration: Object.freeze({
+    commit: 'd45ac4be5a6269d26f1c642f48fdf6a1f41ddb96',
+    tree: '8b89548b95e857828ae2837af7e5a322b94de821',
+    sourceHead: '2180cea918669d62c0f2e19a93f80ae23b28df81',
+    addedCommitCount: 22,
+  }),
 });
+
+function commitRecords(read, base, head) {
+  return read('log', '--format=%H%x00%s%x00%b%x1e', `${base}..${head}`)
+    .split('\x1e')
+    .map((record) => record.trim())
+    .filter(Boolean)
+    .map((record) => {
+      const [sha, subject, body = ''] = record.split('\x00');
+      return { sha, subject, body };
+    });
+}
 
 export function verifyPreservedSourceImport(profile, { branch, head, prTitle, pull, commits, git }) {
   if (process.env.GIT_GRAFT_FILE) throw new Error('Preserved source import rejects alternate graft files');
@@ -111,4 +133,156 @@ export function verifyPreservedMasterImport(profile, { head, git }) {
     protectedTarget: true,
   });
   return { head, sourceHead, sourceTree, ...imported };
+}
+
+// Preserve the completed, immutable integration as historical evidence. Later
+// work has its own tree and remains subject to normal commit identity checks.
+export function verifyPreservedIntegrationAnchor(profile, { head, git }) {
+  const read = (...args) => git('--no-replace-objects', ...args);
+  const anchor = profile.integration;
+  const requireProof = (condition) => {
+    if (!condition) throw new Error('Preserved integration requires the exact immutable anchor and source');
+  };
+  for (const sha of [head, anchor?.commit, anchor?.tree, anchor?.sourceHead])
+    requireProof(/^[a-f0-9]{40}$/.test(sha ?? ''));
+  requireProof(
+    read('rev-parse', '--verify', `refs/remotes/origin/${profile.branch}^{commit}`) === anchor.sourceHead,
+  );
+  requireProof(
+    read('rev-list', '--parents', '--max-count=1', anchor.commit) === `${anchor.commit} ${profile.base}`,
+  );
+  requireProof(read('rev-parse', '--verify', `${anchor.commit}^{tree}`) === anchor.tree);
+  requireProof(read('rev-parse', '--verify', `${anchor.sourceHead}^{tree}`) === anchor.tree);
+  const imported = verifyPreservedSourceImport(profile, {
+    branch: profile.branch,
+    head: anchor.sourceHead,
+    prTitle: null,
+    pull: null,
+    commits: commitRecords(read, profile.base, anchor.sourceHead),
+    git,
+  });
+  requireProof(imported.added === anchor.addedCommitCount);
+  read('merge-base', '--is-ancestor', anchor.commit, head);
+  read('merge-base', '--is-ancestor', anchor.commit, 'refs/remotes/origin/master');
+  validateCommitSetIdentity({
+    branch: 'master',
+    commits: commitRecords(read, anchor.commit, head),
+    protectedTarget: head !== anchor.commit,
+  });
+  return {
+    head,
+    integrationHead: anchor.commit,
+    sourceHead: anchor.sourceHead,
+    sourceTree: anchor.tree,
+    ...imported,
+  };
+}
+
+// Bind ordinary follow-up evidence to the real hosted checkout and event. This
+// does not exempt any post-integration commits from their normal branch rules.
+export function verifyPreservedHostedFollowup(profile, { environment, event, head, git }) {
+  const read = (...args) => git('--no-replace-objects', ...args);
+  const requireContext = (condition) => {
+    if (!condition)
+      throw new Error('Preserved follow-up requires canonical hosted context and ordinary provenance');
+  };
+  const fullSha = (sha) => /^[a-f0-9]{40}$/.test(sha ?? '');
+  const eventName = environment.GITHUB_EVENT_NAME;
+  requireContext(
+    environment.GITHUB_ACTIONS === 'true' &&
+      ['push', 'workflow_dispatch', 'pull_request'].includes(eventName),
+  );
+  requireContext(
+    environment.GITHUB_REPOSITORY === CANONICAL_REPOSITORY &&
+      hostedRepositoryMatches(CANONICAL_REPOSITORY, environment.GITHUB_REPOSITORY_ID),
+  );
+  requireContext(
+    event.repository?.full_name === CANONICAL_REPOSITORY &&
+      hostedRepositoryMatches(CANONICAL_REPOSITORY, event.repository?.id),
+  );
+  requireContext(
+    fullSha(head) &&
+      environment.GITHUB_SHA === head &&
+      read('rev-parse', '--verify', 'HEAD^{commit}') === head,
+  );
+  const masterBase = read('rev-parse', '--verify', 'refs/remotes/origin/master^{commit}');
+  let branch,
+    base,
+    candidate,
+    prTitle = null;
+  if (eventName === 'pull_request') {
+    const match = /^refs\/pull\/([1-9][0-9]{0,9})\/merge$/.exec(environment.GITHUB_REF ?? '');
+    const pull = event.pull_request;
+    requireContext(match && event.number === Number(match[1]) && environment.GITHUB_BASE_REF === 'master');
+    branch = pull?.head?.ref;
+    candidate = pull?.head?.sha;
+    base = pull?.base?.sha;
+    requireContext(
+      typeof branch === 'string' &&
+        branch !== 'master' &&
+        branch !== profile.branch &&
+        environment.GITHUB_HEAD_REF === branch,
+    );
+    requireContext(fullSha(base) && fullSha(candidate) && pull.base.ref === 'master' && base === masterBase);
+    for (const side of ['head', 'base'])
+      requireContext(
+        pull[side].repo?.full_name === CANONICAL_REPOSITORY &&
+          hostedRepositoryMatches(CANONICAL_REPOSITORY, pull[side].repo?.id),
+      );
+    requireContext(read('rev-parse', '--verify', `refs/remotes/pull/${match[1]}/merge^{commit}`) === head);
+    requireContext(read('rev-list', '--parents', '--max-count=1', head) === `${head} ${base} ${candidate}`);
+    requireContext(
+      read('rev-parse', '--verify', `${head}^{tree}`) ===
+        read('rev-parse', '--verify', `${candidate}^{tree}`),
+    );
+    prTitle = pull.title ?? null;
+  } else {
+    const match = /^refs\/heads\/(.+)$/.exec(environment.GITHUB_REF ?? '');
+    requireContext(
+      match &&
+        [undefined, ''].includes(environment.GITHUB_BASE_REF) &&
+        [undefined, ''].includes(environment.GITHUB_HEAD_REF),
+    );
+    branch = match[1];
+    requireContext(
+      branch !== profile.branch &&
+        (event.ref === environment.GITHUB_REF || (eventName === 'workflow_dispatch' && event.ref === branch)),
+    );
+    candidate = head;
+    requireContext(eventName !== 'push' || event.after === head);
+    if (branch === 'master') {
+      requireContext(masterBase === head);
+      base = eventName === 'push' ? event.before : read('rev-parse', '--verify', `${head}^`);
+      requireContext(fullSha(base));
+      requireContext(read('rev-list', '--min-parents=2', `${base}..${head}`) === '');
+    } else {
+      base = masterBase;
+      if (eventName === 'push' && event.before !== '0'.repeat(40)) {
+        requireContext(fullSha(event.before));
+        read('merge-base', '--is-ancestor', event.before, head);
+      }
+    }
+  }
+  read('check-ref-format', `refs/heads/${branch}`);
+  requireContext(!MANAGER_INTEGRATIONS.some((integration) => integration.branch === branch));
+  requireContext(read('rev-parse', '--verify', `refs/remotes/origin/${branch}^{commit}`) === candidate);
+  read('merge-base', '--is-ancestor', profile.integration.commit, base);
+  read('merge-base', '--is-ancestor', base, candidate);
+  const anchored = verifyPreservedIntegrationAnchor(profile, { head: candidate, git });
+  requireContext(
+    read(
+      'log',
+      '--format=%H',
+      `${profile.integration.commit}..${candidate}`,
+      '--',
+      ...MANAGER_INTEGRATIONS.map(({ task }) => `docs/management/agents/integrations/${task}.json`),
+    ) === '',
+  );
+  const ordinary = validateCommitSetIdentity({
+    branch,
+    prTitle,
+    commits: commitRecords(read, base, candidate),
+    protectedTarget: branch === 'master',
+  });
+  return { ...anchored, head, branch, base, candidate, masterBase, ordinary };
 }
