@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test, type TestContext } from 'node:test';
 import { actionable, inputRaw, poolPrice, rawAmount } from '../apps/web/src/launch-market/presentation.ts';
 import {
   renderMarket,
@@ -10,7 +10,9 @@ import {
   renderVaults,
 } from '../apps/web/src/launch-market/shell.ts';
 import type { LaunchClientState } from '../apps/web/src/launch-market/model.ts';
-import { config, snapshot, wallet, quote, OWNER } from './helpers/launch-market-ui-fixture.ts';
+import { installLaunchMarket, type LaunchProductHost } from '../apps/web/src/launch-market/install.ts';
+import { LaunchMarketClient, MarketApiError } from '../apps/web/src/launch-market/client.ts';
+import { config, snapshot, wallet, quote, fixture, NOW, OWNER } from './helpers/launch-market-ui-fixture.ts';
 function state(): { -readonly [K in keyof LaunchClientState]: LaunchClientState[K] } {
   return {
     enabled: true,
@@ -166,4 +168,161 @@ test('Vault readouts separate real strategy principal and PnL from PASS market p
   assert.match(stale, /Reference price unavailable/);
   assert.match(stale, /9 AF-USDC/);
   assert.equal(actionable(current, 'AMZN', 'SELL', 'AF_USDC'), true);
+});
+
+/** Offline DOM boundary for router installation; no live wallet, login or chain request is used. */
+function installationFixture(context: TestContext, originalMarketLayout = true) {
+  const globals = ['document', 'window', 'location', 'EventSource'] as const;
+  const descriptors = globals.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
+  const documentListeners = new Map<string, ((event: Event) => void)[]>();
+  const windowListeners = new Map<string, (() => void)[]>();
+  const add = <T>(listeners: Map<string, T[]>, type: string, listener: T) =>
+    listeners.set(type, [...(listeners.get(type) ?? []), listener]);
+  Object.defineProperties(globalThis, {
+    document: {
+      configurable: true,
+      value: {
+        querySelector: () => null,
+        querySelectorAll: () => [],
+        addEventListener: (type: string, listener: (event: Event) => void) =>
+          add(documentListeners, type, listener),
+      },
+    },
+    window: {
+      configurable: true,
+      value: {
+        addEventListener: (type: string, listener: () => void) => add(windowListeners, type, listener),
+        setInterval: () => 0,
+      },
+    },
+    location: {
+      configurable: true,
+      value: { hash: '#/account/trades', origin: 'https://example.test' },
+    },
+    EventSource: { configurable: true, value: undefined },
+  });
+  context.after(() => {
+    for (const listener of windowListeners.get('pagehide') ?? []) listener();
+    for (const [key, descriptor] of descriptors) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+  const dialogs: string[] = [];
+  const originals = {
+    market: () => 'ORIGINAL MARKET',
+    trade: (id: string) => `ORIGINAL TRADE ${id}`,
+    account: (tab: string) => `ORIGINAL ACCOUNT ${tab}`,
+    rankings: () => 'ORIGINAL RANKINGS',
+  };
+  const host: LaunchProductHost = {
+    originalMarketLayout,
+    pages: { ...originals },
+    app: { render: () => {}, openDialog: (html) => dialogs.push(html), closeDialog: () => {} },
+  };
+  const f = fixture();
+  const client = new LaunchMarketClient({ api: f.api, provider: f.provider, now: () => NOW });
+  const click = (attribute: string) => {
+    const target = { closest: () => target, hasAttribute: (name: string) => name === attribute };
+    for (const listener of documentListeners.get('click') ?? []) listener({ target } as unknown as Event);
+  };
+  return { host, originals, dialogs, click, client, ...f };
+}
+
+test('preserved home and Trade still route holdings, claims and legacy funds to chain-backed account pages', async (context) => {
+  const f = installationFixture(context);
+  assert.equal(await installLaunchMarket(f.host, f.provider, f.client), f.client);
+  assert.equal(f.host.pages.market, f.originals.market);
+  assert.equal(f.host.pages.trade, f.originals.trade);
+  assert.equal(f.host.pages.rankings, f.originals.rankings);
+  for (const tab of ['', 'passes', 'trades', 'other']) {
+    const html = f.host.pages.account(tab);
+    assert.match(html, /data-launch-account/);
+    assert.match(html, /data-launch-connect/);
+    assert.match(html, /href="#\/account\/trades" class="active" aria-current="page"/);
+    assert.match(html, /href="#\/account\/claim"/);
+    assert.match(html, /href="#\/account\/vaults"/);
+    assert.doesNotMatch(html, /ORIGINAL ACCOUNT/);
+  }
+  assert.match(f.host.pages.account('claim'), /Free AF-USDC/);
+  assert.match(f.host.pages.account('claim'), /href="#\/account\/claim" class="active" aria-current="page"/);
+  for (const tab of ['funds', 'vaults']) {
+    assert.match(f.host.pages.account(tab), /Your Vaults/);
+    assert.match(f.host.pages.account(tab), /href="#\/account\/vaults" class="active" aria-current="page"/);
+    assert.doesNotMatch(f.host.pages.account(tab), /ORIGINAL ACCOUNT/);
+  }
+  for (const tab of ['saved', 'notes', 'settings'])
+    assert.equal(f.host.pages.account(tab), f.originals.account(tab));
+  assert.equal(f.provider.calls.length, 0);
+  f.state.wallet = { ...f.state.wallet, accountId: null };
+  await f.client.connect();
+  assert.match(f.host.pages.account('trades'), /data-launch-bind/);
+  assert.match(f.host.pages.account('claim'), /data-launch-claim disabled/);
+  assert.match(f.host.passMarket!.quoteHtml(), /href="#\/account\/trades">Link verified account/);
+  assert.equal(
+    f.provider.calls.some((call) => call.method === 'eth_sendTransaction'),
+    false,
+  );
+});
+
+test('preserved-layout wallet help exposes Testnet setup and native gas funding without requesting a signature', async (context) => {
+  const f = installationFixture(context);
+  await installLaunchMarket(f.host, f.provider, f.client);
+  f.click('data-launch-connect');
+  const dialog = f.dialogs.at(-1)!;
+  assert.match(dialog, /data-launch-wallet-browser/);
+  assert.match(dialog, /chain ID 46630/);
+  assert.match(dialog, /Native test ETH pays gas; AF-USDC does not pay gas/);
+  assert.match(dialog, /https:\/\/docs\.robinhood\.com\/chain\/add-network-to-wallet\//);
+  assert.match(dialog, /https:\/\/faucet\.testnet\.chain\.robinhood\.com\//);
+  assert.equal((dialog.match(/rel="noopener noreferrer"/g) ?? []).length, 2);
+  assert.equal(f.provider.calls.length, 0);
+});
+
+test('original Trade surfaces escaped wallet notices and no empty or duplicate error feedback', async (context) => {
+  const f = installationFixture(context);
+  await installLaunchMarket(f.host, f.provider, f.client);
+  assert.equal(f.host.passMarket!.quoteHtml(), '');
+  const initial = f.client.state;
+  Object.defineProperty(f.client, 'state', {
+    configurable: true,
+    get: () => ({ ...initial, notice: '<img src=x onerror=alert(1)>', error: 'DO_NOT_REPEAT' }),
+  });
+  const html = f.host.passMarket!.quoteHtml();
+  assert.match(html, /class="launch-feedback" role="status"/);
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(html, /<img|DO_NOT_REPEAT/);
+});
+
+test('undeployed preserved accounts expose real routes and connection while disabling claim and Vault writes', async (context) => {
+  const f = installationFixture(context);
+  f.state.config = { ...f.state.config, deployment: 'NOT_DEPLOYED', manifest: null };
+  await installLaunchMarket(f.host, f.provider, f.client);
+  for (const tab of ['trades', 'claim', 'vaults', 'funds']) {
+    const html = f.host.pages.account(tab);
+    assert.match(html, /NOT_DEPLOYED/);
+    assert.match(html, /data-launch-connect/);
+    assert.doesNotMatch(html, /ORIGINAL ACCOUNT|Mock Wallet|10,000/);
+  }
+  assert.match(f.host.pages.account('claim'), /data-launch-claim disabled/);
+  assert.match(f.host.pages.account('funds'), /data-launch-create-vault="TSLA" disabled/);
+  assert.equal(f.host.passMarket!.quoteHtml(), '');
+  assert.equal(f.state.requests.length, 1);
+  assert.equal(f.provider.calls.length, 0);
+});
+
+test('missing chain mode preserves the full existing router, and replacement layout retains its trade renderer', async (context) => {
+  const f = installationFixture(context, false);
+  const missing = new LaunchMarketClient({
+    api: async () => {
+      throw new MarketApiError('NOT_FOUND', 404);
+    },
+  });
+  assert.equal(await installLaunchMarket(f.host, undefined, missing), null);
+  assert.deepEqual(f.host.pages, f.originals);
+  assert.equal(f.host.passMarket, undefined);
+  await installLaunchMarket(f.host, f.provider, f.client);
+  assert.match(f.host.pages.trade('tsla'), /PUBLIC MINT/);
+  assert.match(f.host.pages.account('claim'), /Free AF-USDC/);
+  assert.equal(f.host.pages.account('settings'), f.originals.account('settings'));
 });

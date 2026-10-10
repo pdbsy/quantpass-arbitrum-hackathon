@@ -283,7 +283,11 @@ export class LaunchMarketClient {
       WALLET_IDENTITY_CHANGED: 'Your wallet changed. Reconnect and review a new quote.',
       WALLET_SIMULATION_FAILED: 'The contract simulation failed. Refresh chain state and review a new quote.',
       VERIFIED_ACCOUNT_REQUIRED: 'Sign in with your verified Google account to continue.',
+      VERIFIED_EMAIL_REQUIRED: 'Sign in with your verified Google account to continue.',
+      ACCOUNT_SESSION_INVALID: 'Your account session expired. Sign in again before continuing.',
       TRUSTED_EMAIL_REQUIRED: 'Sign in with your verified Google account to continue.',
+      NOT_DEPLOYED:
+        'Contracts are not deployed yet. Claims, Mint, trading and Vault funding are unavailable.',
       LINKED_WALLET_REQUIRED: 'Link the connected wallet to your verified account before continuing.',
       ALREADY_CLAIMED: 'This verified account has already claimed its AF-USDC.',
       CLAIM_LIMIT_REACHED: 'All 100 claims have been allocated.',

@@ -1,7 +1,7 @@
 import type { Eip1193Provider } from '../chain-wallet.ts';
 import { LaunchMarketClient } from './client.ts';
 import { MarketActivityClient, renderActivity } from './activity.ts';
-import { actionable, inputRaw } from './presentation.ts';
+import { actionable, escapeHtml, inputRaw } from './presentation.ts';
 import type { LaunchClientState, MarketOperation, PaymentAsset, StrategyId } from './model.ts';
 import {
   renderAccount,
@@ -75,22 +75,36 @@ export async function installLaunchMarket(
         return '<div class="wrap inner-page"><h1>Choose a strategy.</h1><p>This market includes All in TSLA and All in AMZN.</p><a class="text-link" href="#/market">Explore strategies ↗</a></div>';
       return `${renderTrade(client.state, strategy, forms[strategy])}${renderActivity(activity.state[strategy], client.state.config?.deployment === 'CONFIGURED', client.state.config?.manifest?.strategies[strategy].pass)}`;
     };
-    host.pages.account = (tab) =>
-      ['saved', 'notes', 'settings'].includes(tab)
-        ? localAccount(tab)
-        : tab === 'claim'
-          ? renderClaim(client.state)
-          : tab === 'vaults'
-            ? renderVaults(client.state)
-            : renderAccount(client.state);
     host.pages.rankings = () =>
       `<div class="wrap inner-page"><span class="section-label">ONCHAIN TEST MARKET</span><h1>Market activity</h1><p>Strategy performance is separate from PASS market prices. Verified trade history will appear as chain events are indexed.</p>${renderMarket(client.state)}</div>`;
   }
+  // Financial account routes must stay connected even when the original home/Trade design is retained.
+  // Existing account links use passes/funds; keep those aliases on the same chain-backed pages.
+  host.pages.account = (tab) => {
+    if (tab === 'claim') return renderClaim(client.state);
+    if (tab === 'vaults' || tab === 'funds') return renderVaults(client.state);
+    if (['saved', 'notes', 'settings'].includes(tab)) return localAccount(tab);
+    return renderAccount(client.state);
+  };
   host.launchState = client.state;
   host.launchForms = forms;
   host.passMarket = {
     actionable: (strategy, operation, asset) => actionable(client.state, strategy, operation, asset),
-    quoteHtml: () => renderQuote(client.state),
+    quoteHtml: () => {
+      const state = client.state;
+      const notice =
+        host.originalMarketLayout && state.notice
+          ? `<p class="launch-feedback" role="status">${escapeHtml(state.notice)}</p>`
+          : '';
+      const accountLink =
+        host.originalMarketLayout &&
+        state.owner &&
+        state.config?.deployment === 'CONFIGURED' &&
+        !state.wallet?.accountId
+          ? '<p><a class="text-link" href="#/account/trades">Link verified account ↗</a></p>'
+          : '';
+      return `${notice}${accountLink}${renderQuote(state)}`;
+    },
     transactionHtml: () => renderTransaction(client.state),
     candles: (id, range) => {
       const strategy = id.toUpperCase();
@@ -180,7 +194,7 @@ export async function installLaunchMarket(
     if (!target || target.hasAttribute('disabled')) return;
     if (target.hasAttribute('data-launch-connect')) {
       host.app.openDialog(
-        '<span class="section-label">CONNECT YOUR WALLET</span><h2>Connect Wallet</h2><p>Choose your browser wallet to continue.</p><div class="wallet-options"><button class="primary-btn" data-launch-wallet-browser>Browser Wallet <span>Robinhood Chain Testnet</span></button></div><p class="small muted">On mobile, open this page in your wallet’s browser.</p>',
+        '<span class="section-label">CONNECT YOUR WALLET</span><h2>Connect Wallet</h2><p>Choose your browser wallet to continue.</p><div class="wallet-options"><button class="primary-btn" data-launch-wallet-browser>Browser Wallet <span>Robinhood Chain Testnet</span></button></div><p class="small muted">On mobile, open this page in your wallet’s browser.</p><p class="small muted">Use Robinhood Chain Testnet (chain ID 46630). Native test ETH pays gas; AF-USDC does not pay gas.</p><p><a class="text-link" href="https://docs.robinhood.com/chain/add-network-to-wallet/" target="_blank" rel="noopener noreferrer">Set up the Testnet network ↗</a> <a class="text-link" href="https://faucet.testnet.chain.robinhood.com/" target="_blank" rel="noopener noreferrer">Get test ETH from the official faucet ↗</a></p>',
       );
     } else if (target.hasAttribute('data-launch-wallet-browser')) {
       host.app.closeDialog();

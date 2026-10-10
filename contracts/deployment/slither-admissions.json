@@ -1,8 +1,14 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "slitherVersion": "0.11.3",
   "expiresAt": "2026-11-01T00:00:00Z",
   "approvalRef": "docs/specs/AF-TESTNET-SLITHER-REVIEW.md",
+  "approvalScope": {
+    "chainId": 46630,
+    "environment": "ONCHAIN_TESTNET",
+    "mainnetAuthorized": false,
+    "authorization": "RESIDUAL_RISK_ACCEPTANCE_ONLY"
+  },
   "sourceHashes": [
     {
       "path": "contracts/src/AlphaForgeTradingVault.sol",
@@ -27,6 +33,202 @@
     {
       "path": "contracts/src/PassLocker.sol",
       "sha256": "441a82fd4cfa9b986f19a869be61357b49eb40ba01acb1661e7c6c07033cf522"
+    },
+    {
+      "path": "contracts/src/AlphaForgeLiquiditySeeder.sol",
+      "sha256": "bc716b94017131e62603ceec68de3d8f3a503dd201dd0dcecd31bda15023f917"
+    },
+    {
+      "path": "contracts/src/AlphaForgeSwapAdapter.sol",
+      "sha256": "0a4a4d42008f435aeb1c9a9acf4cdc947c6fceb409e3d403e0ca7522281faefa"
+    },
+    {
+      "path": "contracts/src/AlphaForgeTestAsset.sol",
+      "sha256": "b97587fa4d173f35a5a28dfb52546692c62dbcd77bb2a5cfea27fabeee7f0b29"
+    },
+    {
+      "path": "contracts/src/AlphaForgeTestVenue.sol",
+      "sha256": "926b9827b2747029bb6326501229df764a4783a1fdfa5415681151692799e6bb"
+    },
+    {
+      "path": "contracts/src/AlphaForgeVault.sol",
+      "sha256": "ed0ea81003742573f7837ec38e06f5d62ab690a26488ac8ee9898df71ee41145"
+    },
+    {
+      "path": "contracts/src/ProtocolTypes.sol",
+      "sha256": "bbcdf0f0b3d55866d08c09e08977c2dbe1daa20d39c3a7143366d4b11098aed2"
+    },
+    {
+      "path": "contracts/src/StrategyPass.sol",
+      "sha256": "3e1b685ce9405dab08294645af2b89ff7a299b57390c96c52909515f110d16ec"
+    },
+    {
+      "path": "contracts/src/VaultIntentPreview.sol",
+      "sha256": "3e94065e58fd5ef244c0dced559717ee3d2439984b6f90a27028630f95d68b91"
+    },
+    {
+      "path": "contracts/src/interfaces/IAlphaForgeVault.sol",
+      "sha256": "c00a8900e20ac2eb83cbb17d688fb6ba477242b7026dea1298d18b75c431302e"
+    },
+    {
+      "path": "contracts/src/interfaces/ISwapAdapter.sol",
+      "sha256": "4f3352e37a55fa41bdb96a06ba7a988fa17a6ec167f60ef40164672437da66fb"
+    },
+    {
+      "path": "contracts/src/interfaces/ITestVenue.sol",
+      "sha256": "cd697ce42379a7f794fe480cf5aaa00006e291b213bb2991890d231a2fde5f9f"
+    },
+    {
+      "path": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+      "sha256": "50bab2a4462605c1760b42c6ce8c9b2a5a9da0c9d6f03578dd140778f87795d2"
+    },
+    {
+      "path": "contracts/src/market/AlphaForgeClaimReserve.sol",
+      "sha256": "ac31a831eee70a7371ab1c71429c4502b01d3fcc6294fc28ded3585fdb4b6e21"
+    },
+    {
+      "path": "contracts/src/market/AlphaForgeFairLaunch.sol",
+      "sha256": "486b71e62ac7c302560943feace3d977d9520d64639550191063a684c4df6b9b"
+    },
+    {
+      "path": "contracts/src/market/AlphaForgeMarketRouter.sol",
+      "sha256": "eab97285abc31657bb0169525e123235c1b4e8f99de24a1ce78faa58872f6268"
+    },
+    {
+      "path": "contracts/src/market/AlphaForgeNativeReserve.sol",
+      "sha256": "4bd982a8bb4c85d849663d08d8ebab103f218b46fe2729c6920a15ebff09c489"
+    },
+    {
+      "path": "contracts/src/market/AlphaForgePassFactory.sol",
+      "sha256": "47577367c51e09664776c845d9d70bcbfae88776210fd31274abc38797392945"
+    },
+    {
+      "path": "contracts/src/market/AlphaForgePassPool.sol",
+      "sha256": "58e4174562d8342fb2dce4c8370b24c22fd65d3526455cdad6079aa6743587e6"
+    },
+    {
+      "path": "contracts/src/market/MarketTypes.sol",
+      "sha256": "5e5f78f02991bad58fdf41fb55fab2a895b619a19375d2764ea4cc9aef2b0d31"
+    },
+    {
+      "path": "contracts/test/AlphaForgeHarness.reachable.t.sol",
+      "sha256": "ddf475f506008817ed8400bce24bb34d4588ebf24cc9c6865a5926ac872ac389"
+    },
+    {
+      "path": "contracts/test/AlphaForgeLiquiditySeeder.t.sol",
+      "sha256": "3c3c209217eed57343e8d01d0dbcde19a3a0aa9af6e5bfc9dab3a35fe2c3cd5a"
+    },
+    {
+      "path": "contracts/test/AlphaForgeOptional.reachable.t.sol",
+      "sha256": "60e375164507d9c37ae5d0e9d0472753d520b2701254c84376eea2aafa2716c7"
+    },
+    {
+      "path": "contracts/test/AlphaForgeSwapAdapter.t.sol",
+      "sha256": "56224a971875af299e854b242da4a321b70552a2bb85b4d559b405b10de5cfe9"
+    },
+    {
+      "path": "contracts/test/AlphaForgeTestAsset.t.sol",
+      "sha256": "a4841e38aee771cb7043f2eca500f1545c1b4dd5fc2d491da41aa0c9214b2c2a"
+    },
+    {
+      "path": "contracts/test/AlphaForgeTestVenue.invariant.t.sol",
+      "sha256": "debef9175903d58e9b11ad90bbfdeb15dec5e3df9c20480fda3f1a033814d490"
+    },
+    {
+      "path": "contracts/test/AlphaForgeTestVenue.t.sol",
+      "sha256": "708158947a43fa14ed0a641c2c76a393f6bd42e5f1c0a864556d9fd374491e1f"
+    },
+    {
+      "path": "contracts/test/AlphaForgeVault.accounting.invariant.t.sol",
+      "sha256": "71c6a8a7a8dbab5fb426971bda3ca96ad215becb0a29fff56d6a7ddcce490c67"
+    },
+    {
+      "path": "contracts/test/AlphaForgeVault.accounting.t.sol",
+      "sha256": "4aba0698bdf1c075db885aaad4a4102d268cb4978b802b698aad323443d0ccc6"
+    },
+    {
+      "path": "contracts/test/AlphaForgeVault.boundaries.t.sol",
+      "sha256": "7cb04c025c1aca17bcf91704f70763cd41c3725977e17a6094a7e915389dd9eb"
+    },
+    {
+      "path": "contracts/test/AlphaForgeVault.custody.t.sol",
+      "sha256": "31e5874a6039270aba7a2f22f41083e718d37e5248cb7bc24972b2851f7467db"
+    },
+    {
+      "path": "contracts/test/AlphaForgeVault.interface.t.sol",
+      "sha256": "7c2f1df852e900b170b2b6719036f7d127303b77da96f365f0b5001e2af2e08a"
+    },
+    {
+      "path": "contracts/test/AlphaForgeVault.rescue-atomicity.t.sol",
+      "sha256": "f092ccdfa62dae8d35fb76b2155d8c77e2eb32d30cb3128142795b4a21170348"
+    },
+    {
+      "path": "contracts/test/AlphaForgeVault.rescue.t.sol",
+      "sha256": "899b21bb090d21f92f2c1341496ba9ae27886f271842799a7eed73590c85af7f"
+    },
+    {
+      "path": "contracts/test/PassLocker.t.sol",
+      "sha256": "1d5976e5e033693ba1bd468460d617e5bb9f71fb065b63a52c5d8cf3cdbfd539"
+    },
+    {
+      "path": "contracts/test/Phase1DeploymentRehearsal.t.sol",
+      "sha256": "7508fe88617df02ae653fe1c819e7ea0352a98be0561034b65e2e53aa4ea1742"
+    },
+    {
+      "path": "contracts/test/StrategyPass.invariant.t.sol",
+      "sha256": "bc94196ca34677f8c7def0180437552f43043a92bfd516e830338448d4552369"
+    },
+    {
+      "path": "contracts/test/StrategyPass.t.sol",
+      "sha256": "5ea1a990e0b56f5d9f0f66fca98dd20b86a4cc56b6bae4b9fcc3aed402002075"
+    },
+    {
+      "path": "contracts/test/VaultIntentPreview.invariant.t.sol",
+      "sha256": "0798b27cb7b5f17a2bb77f10473253c369a2c5df47c18c6304fd20c2abb1cb49"
+    },
+    {
+      "path": "contracts/test/VaultIntentPreview.t.sol",
+      "sha256": "d6da182f0b47cf37e76be820ac6dbb3f99d114b65f889e27fda12246e2a71d61"
+    },
+    {
+      "path": "contracts/test/fixtures/PinnedV3Bytecode.sol",
+      "sha256": "e4d8b92a625330b97e3f92e0dc12ba0c0d1e99c369bfce4ab75af819450cdcf5"
+    },
+    {
+      "path": "contracts/test/harness/AlphaForgeVaultHarness.sol",
+      "sha256": "67adb21a6aab9bec747b725d001fd6dafd2786543256424dd4b223304079d821"
+    },
+    {
+      "path": "contracts/test/launch-vault/StrategyVault.t.sol",
+      "sha256": "8e732b86b3b91ab7efd65758a2b175ec29b4809a5e2a89afe9b378f6b6983b6a"
+    },
+    {
+      "path": "contracts/test/market/ClaimReserve.t.sol",
+      "sha256": "69bab4c77cd4e92afec3a332c31e3767b5f872b557c3590959e3503aba252f6f"
+    },
+    {
+      "path": "contracts/test/market/FairLaunch.t.sol",
+      "sha256": "1d24b3813744784512ebf7a9e7ba2181e34275599a566a8057ad4013977291e1"
+    },
+    {
+      "path": "contracts/test/market/NativeMarket.t.sol",
+      "sha256": "10caeee08c3eaf43fcb5b851b7e4e8a34c00a32ba04c8c9e633a1673565f5c2b"
+    },
+    {
+      "path": "contracts/test/mocks/ConfigurableAsset.sol",
+      "sha256": "4ab15845656d3128e6d05df5ff3fb222321daedaeb3d8f1e4e9141fc9fdf61fa"
+    },
+    {
+      "path": "contracts/test/mocks/MaliciousVenue.sol",
+      "sha256": "baabb110882e758853df9a66f10580a3a20e9cfbffdd8a3f16e5f7af84a3f231"
+    },
+    {
+      "path": "contracts/test/mocks/ReentrantAsset.sol",
+      "sha256": "8594dbe571394a98b19c2cb6da4a1a72d392152c6496ab118ed95c2ec59d8d10"
+    },
+    {
+      "path": "contracts/test/mocks/ReentrantPass.sol",
+      "sha256": "9b7d810e570d6db48e253e078b9c765b389e980080cff86902b7e5663a765122"
     }
   ],
   "findings": [
@@ -169,6 +371,675 @@
         "contracts/test/AlphaForgeTradingVault.t.sol#test_FutureDuplicateAndZeroReferenceUpdatesReject",
         "contracts/test/AlphaForgeTradingVault.t.sol#test_StalePriceAndForeignAssetNeverMoveFunds"
       ]
+    },
+    {
+      "id": "137ccdc38208685f9424206febe411aed55d4bba5745bd9670598e34c99416f4",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeStrategyVault._swap",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_StalePriceAndInsolventVenueRollback",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ProfitFirstAndPrincipalReleaseUseExistingAccounting"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "1564ef38fb729bdd5cf74eb6ed3c4c7df6845fe80240cfaf8d8d6d22b2f64dd8",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeStockReserve._send",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_StalePriceAndInsolventVenueRollback",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ProfitFirstAndPrincipalReleaseUseExistingAccounting"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "233bc491e7f6f7b937cc6f8e690887e46414ee2c1583c4d2095195df971d3144",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgePassPool._pull",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_NativeBuyAndSellUsesOneAMMAndExactIndependentReserves",
+        "contracts/test/market/NativeMarket.t.sol#test_ETHLiquidityFailurePreservesPASSPoolBalancesAllowanceAndNonce",
+        "contracts/test/market/NativeMarket.t.sol#test_FuzzBuySellConservesSupplyAndNeverDecreasesProduct"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "3be41fe189ab2119eb2a0e5e2fad1e071264fe77b1286c8e6978a098eabc7374",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeStockReserve._pull",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_StalePriceAndInsolventVenueRollback",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ProfitFirstAndPrincipalReleaseUseExistingAccounting"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "5677944bcb5e0c760ae06214bbc620e5a66377c18df24c49d90018d9e05d4e76",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgePassPool._send",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_NativeBuyAndSellUsesOneAMMAndExactIndependentReserves",
+        "contracts/test/market/NativeMarket.t.sol#test_ETHLiquidityFailurePreservesPASSPoolBalancesAllowanceAndNonce",
+        "contracts/test/market/NativeMarket.t.sol#test_FuzzBuySellConservesSupplyAndNeverDecreasesProduct"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "69e3ea05479db540275902128ad0c62de0dbbba818be7fa4e3f8bc0572d4907d",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeMarketRouter.buyNative",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Both residual checks compare ending balances to the same transaction's captured starting balances, rather than to zero. All other equalities compare exact token balance differences to the signed/actual settled amount. The fixed test tokens have no transfer callbacks. Local test test_PreExistingRouterAndPoolDustDoesNotBlockNativeBuyOrSell passed with pre-existing PASS and USDC in both Router and Pool; Router dust remains unchanged after both ETH directions.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_NativeBuyAndSellUsesOneAMMAndExactIndependentReserves",
+        "contracts/test/market/NativeMarket.t.sol#test_ETHLiquidityFailurePreservesPASSPoolBalancesAllowanceAndNonce",
+        "contracts/test/market/NativeMarket.t.sol#test_FuzzBuySellConservesSupplyAndNeverDecreasesProduct"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "82c9e1b44ebdfe51ab519530a25e178d40e2cf35a7de1a693a63673333593edf",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeNativeReserve._sendUsdc",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_NativeBuyAndSellUsesOneAMMAndExactIndependentReserves",
+        "contracts/test/market/NativeMarket.t.sol#test_ETHLiquidityFailurePreservesPASSPoolBalancesAllowanceAndNonce",
+        "contracts/test/market/NativeMarket.t.sol#test_FuzzBuySellConservesSupplyAndNeverDecreasesProduct"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "911e6a560a2c9ee9fefa34ed32b0ffea96743f858b3ff740ae208b151c94e8c2",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeMarketRouter.sellNative",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Both residual checks compare ending balances to the same transaction's captured starting balances, rather than to zero. All other equalities compare exact token balance differences to the signed/actual settled amount. The fixed test tokens have no transfer callbacks. Local test test_PreExistingRouterAndPoolDustDoesNotBlockNativeBuyOrSell passed with pre-existing PASS and USDC in both Router and Pool; Router dust remains unchanged after both ETH directions.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_NativeBuyAndSellUsesOneAMMAndExactIndependentReserves",
+        "contracts/test/market/NativeMarket.t.sol#test_ETHLiquidityFailurePreservesPASSPoolBalancesAllowanceAndNonce",
+        "contracts/test/market/NativeMarket.t.sol#test_FuzzBuySellConservesSupplyAndNeverDecreasesProduct"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "9db04788adbcdc8b6febd4868805e64c70df4e463d75fc964301042c87099936",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeClaimReserve.claim",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/market/ClaimReserve.t.sol#test_BadTokenDeliveryCannotConsumeClaimEntitlement",
+        "contracts/test/market/ClaimReserve.t.sol#test_ClaimSignatureDomainTamperingExpiryEpochAndUnauthorizedControls"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "b3d5f4f0b15510a0a06e9b4e95899866915942d9b5e05ec7386bf219adced92f",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeMarketRouter.sellNative",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Both residual checks compare ending balances to the same transaction's captured starting balances, rather than to zero. All other equalities compare exact token balance differences to the signed/actual settled amount. The fixed test tokens have no transfer callbacks. Local test test_PreExistingRouterAndPoolDustDoesNotBlockNativeBuyOrSell passed with pre-existing PASS and USDC in both Router and Pool; Router dust remains unchanged after both ETH directions.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_NativeBuyAndSellUsesOneAMMAndExactIndependentReserves",
+        "contracts/test/market/NativeMarket.t.sol#test_ETHLiquidityFailurePreservesPASSPoolBalancesAllowanceAndNonce",
+        "contracts/test/market/NativeMarket.t.sol#test_FuzzBuySellConservesSupplyAndNeverDecreasesProduct"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "b5e6ec29f9c6a2dd9f37a86c93146a9c9725acc6516026ce678f5d52bdb9cd3e",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeClaimReserve.fund",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/market/ClaimReserve.t.sol#test_BadTokenDeliveryCannotConsumeClaimEntitlement",
+        "contracts/test/market/ClaimReserve.t.sol#test_ClaimSignatureDomainTamperingExpiryEpochAndUnauthorizedControls"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "c9d8d538a4fc89afcd8f2714152dafa65d6d2073fdc6e36c9eed68bb44a6dd1e",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeFairLaunch._deliver",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/market/FairLaunch.t.sol#test_FinalLaunchFailureRollsBackPaymentDeliveryInventoryAndState",
+        "contracts/test/market/FairLaunch.t.sol#test_NativeFinalMintFailureRollsBackETHAndOracleNonce",
+        "contracts/test/market/FairLaunch.t.sol#test_DonationCannotCreatePoolOrTakeLPAllocation"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "d5300ee99aaffe9283b80dd57a1a35db475ba1b7bd58558855f2b76c5da106df",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeFairLaunch.subscribeUsdc",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/market/FairLaunch.t.sol#test_FinalLaunchFailureRollsBackPaymentDeliveryInventoryAndState",
+        "contracts/test/market/FairLaunch.t.sol#test_NativeFinalMintFailureRollsBackETHAndOracleNonce",
+        "contracts/test/market/FairLaunch.t.sol#test_DonationCannotCreatePoolOrTakeLPAllocation"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "eedcb38dbdd44aeb84dd4720ce07c8232f7e9754a54c9b7aaad79ce3c936f8df",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeFairLaunch._launch",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The reported equality compares protocol getReserves() to the configured initial 500k PASS / 250k USDC and fresh LP ownership to newly minted shares. Pool.initialize accepts physical balance >= configured reserve. Native/USDC pre-donations to the predicted CREATE address leave accounting reserves and LP ownership intact. Local test test_PreFundedPredictedPoolDoesNotBlockFinalMintOrStealInitialLP passed.",
+      "evidence": [
+        "contracts/test/market/FairLaunch.t.sol#test_FinalLaunchFailureRollsBackPaymentDeliveryInventoryAndState",
+        "contracts/test/market/FairLaunch.t.sol#test_NativeFinalMintFailureRollsBackETHAndOracleNonce",
+        "contracts/test/market/FairLaunch.t.sol#test_DonationCannotCreatePoolOrTakeLPAllocation"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "f124e0236d125e0ea5ad8e2434891292c8059724a2b9cd1d06799365437df7df",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeMarketRouter.buyNative",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Both residual checks compare ending balances to the same transaction's captured starting balances, rather than to zero. All other equalities compare exact token balance differences to the signed/actual settled amount. The fixed test tokens have no transfer callbacks. Local test test_PreExistingRouterAndPoolDustDoesNotBlockNativeBuyOrSell passed with pre-existing PASS and USDC in both Router and Pool; Router dust remains unchanged after both ETH directions.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_NativeBuyAndSellUsesOneAMMAndExactIndependentReserves",
+        "contracts/test/market/NativeMarket.t.sol#test_ETHLiquidityFailurePreservesPASSPoolBalancesAllowanceAndNonce",
+        "contracts/test/market/NativeMarket.t.sol#test_FuzzBuySellConservesSupplyAndNeverDecreasesProduct"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "f172a25f92186b83351fd4c5f7a686cb21a3835984dbbc746acdf34209d68388",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgePassFactory.createPool",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The compared LP token is created during this transaction and has zero pre-existing supply; caller initializer and configured recipient are explicit. PASS/USDC transferred before predicted deployment cannot create LP balances. Local predicted-address donation test passed and verified all initial LP supply equals the configured recipient share balance.",
+      "evidence": [
+        "contracts/test/market/FairLaunch.t.sol#test_FinalLaunchFailureRollsBackPaymentDeliveryInventoryAndState",
+        "contracts/test/market/FairLaunch.t.sol#test_NativeFinalMintFailureRollsBackETHAndOracleNonce",
+        "contracts/test/market/FairLaunch.t.sol#test_DonationCannotCreatePoolOrTakeLPAllocation"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "f5af3875f8fd207dca458c0adf59ce5b7072b4d1f37c24e3e862e0dba330da5b",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeMarketRouter.sellNative",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Both residual checks compare ending balances to the same transaction's captured starting balances, rather than to zero. All other equalities compare exact token balance differences to the signed/actual settled amount. The fixed test tokens have no transfer callbacks. Local test test_PreExistingRouterAndPoolDustDoesNotBlockNativeBuyOrSell passed with pre-existing PASS and USDC in both Router and Pool; Router dust remains unchanged after both ETH directions.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_NativeBuyAndSellUsesOneAMMAndExactIndependentReserves",
+        "contracts/test/market/NativeMarket.t.sol#test_ETHLiquidityFailurePreservesPASSPoolBalancesAllowanceAndNonce",
+        "contracts/test/market/NativeMarket.t.sol#test_FuzzBuySellConservesSupplyAndNeverDecreasesProduct"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "f65943201e83c729457e16c1394012c8b9c64895bba7c4b39c25e660b16ae99e",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgePassFactory._pull",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/market/FairLaunch.t.sol#test_FinalLaunchFailureRollsBackPaymentDeliveryInventoryAndState",
+        "contracts/test/market/FairLaunch.t.sol#test_NativeFinalMintFailureRollsBackETHAndOracleNonce",
+        "contracts/test/market/FairLaunch.t.sol#test_DonationCannotCreatePoolOrTakeLPAllocation"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "ffc568684a70437b3c50869856e8bc135a34ce8cdace427b817a0c686307c9c4",
+      "check": "incorrect-equality",
+      "impact": "Medium",
+      "confidence": "High",
+      "function": "AlphaForgeNativeReserve._pullUsdc",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "The equality validates the token balance difference across one exact pull/send, including claim/funding/proceeds/Vault venue paths, rather than an absolute balance. A donation completed before entry increases both sides of the captured baseline and cancels from the difference. Fixed non-rebasing test tokens have no callback that allows a third party to interleave another transaction during settlement; mismatching transfers revert atomically. Existing donation and bad-delivery fixtures and the focused dust tests support this boundary.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_NativeBuyAndSellUsesOneAMMAndExactIndependentReserves",
+        "contracts/test/market/NativeMarket.t.sol#test_ETHLiquidityFailurePreservesPASSPoolBalancesAllowanceAndNonce",
+        "contracts/test/market/NativeMarket.t.sol#test_FuzzBuySellConservesSupplyAndNeverDecreasesProduct"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "a37ad672596d76087a63cbb4f6d106aa5d5a998f86063f4c96161469c0632e71",
+      "check": "reentrancy-no-eth",
+      "impact": "Medium",
+      "confidence": "Medium",
+      "function": "AlphaForgeStrategyVault.execute",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "All externally reachable settlement entries for this reported function use the same pinned OpenZeppelin nonReentrant guard. FairLaunch._launch is private and reached only from guarded subscribeUsdc/subscribeEth. StrategyVault.execute and inherited deposit/withdraw/close share the inherited guard. State writes occur after a guarded trusted-reserve call and revert atomically on failure.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_StalePriceAndInsolventVenueRollback",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ProfitFirstAndPrincipalReleaseUseExistingAccounting"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "ef3f83c701e562a0472f48f4c13ceb90b5afe237d8f90f36558e6346bc3dd877",
+      "check": "reentrancy-no-eth",
+      "impact": "Medium",
+      "confidence": "Medium",
+      "function": "AlphaForgeFairLaunch.subscribeEth",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "All externally reachable settlement entries for this reported function use the same pinned OpenZeppelin nonReentrant guard. FairLaunch._launch is private and reached only from guarded subscribeUsdc/subscribeEth. StrategyVault.execute and inherited deposit/withdraw/close share the inherited guard. State writes occur after a guarded trusted-reserve call and revert atomically on failure.",
+      "evidence": [
+        "contracts/test/market/FairLaunch.t.sol#test_FinalLaunchFailureRollsBackPaymentDeliveryInventoryAndState",
+        "contracts/test/market/FairLaunch.t.sol#test_NativeFinalMintFailureRollsBackETHAndOracleNonce",
+        "contracts/test/market/FairLaunch.t.sol#test_DonationCannotCreatePoolOrTakeLPAllocation"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "31c384885b9a55946e00dcdffea7c85885bc990143cd22d64446d2090d4a7751",
+      "check": "reentrancy-benign",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeFairLaunch._launch",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "All externally reachable settlement entries for this reported function use the same pinned OpenZeppelin nonReentrant guard. FairLaunch._launch is private and reached only from guarded subscribeUsdc/subscribeEth. StrategyVault.execute and inherited deposit/withdraw/close share the inherited guard. State writes occur after a guarded trusted-reserve call and revert atomically on failure.",
+      "evidence": [
+        "contracts/test/market/FairLaunch.t.sol#test_FinalLaunchFailureRollsBackPaymentDeliveryInventoryAndState",
+        "contracts/test/market/FairLaunch.t.sol#test_NativeFinalMintFailureRollsBackETHAndOracleNonce",
+        "contracts/test/market/FairLaunch.t.sol#test_DonationCannotCreatePoolOrTakeLPAllocation"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "6f2c3f7ca6084d6bbf260090befe7e25db8c6c279e2e916348b895bccdda800c",
+      "check": "reentrancy-benign",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeStrategyVault.execute",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "All externally reachable settlement entries for this reported function use the same pinned OpenZeppelin nonReentrant guard. FairLaunch._launch is private and reached only from guarded subscribeUsdc/subscribeEth. StrategyVault.execute and inherited deposit/withdraw/close share the inherited guard. State writes occur after a guarded trusted-reserve call and revert atomically on failure.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_StalePriceAndInsolventVenueRollback",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ProfitFirstAndPrincipalReleaseUseExistingAccounting"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "4a63348ae4726b265c9476bf3022f93ef48e42052256753df65ec84a41f05463",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeStockReserve.swap",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ExecutorLimitsExpiryAndRevoke",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ClosedOrStaleSessionAndRiskPauseRollbackStockTrades"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "5fda3fb48a04088937c1cb21db4d281b5be6a64dd469773d593c132a678d07c2",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeNativeReserve._spendBudget",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_ReplayExpirationWrongPayerRouterChainAndSignerRotationFail",
+        "contracts/test/market/NativeMarket.t.sol#test_DailyLimitUsesStableAccountAcrossReboundWalletsAndResetsNextDay",
+        "contracts/test/market/NativeMarket.t.sol#test_PerTransactionAndGlobalLimitsPreventFreeFundETHDrain"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "6ff9fd9158ca809e61f8392c2d8620de4b2ac2904a8f4a0f0e575408720c0cb6",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeStrategyVault.stockPrice",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ExecutorLimitsExpiryAndRevoke",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ClosedOrStaleSessionAndRiskPauseRollbackStockTrades"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "76d2affa348d7829f578376f9d237612bb7bdea15ab6c499b6841f8861d0463c",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeStrategyVault.configureExecutor",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ExecutorLimitsExpiryAndRevoke",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ClosedOrStaleSessionAndRiskPauseRollbackStockTrades"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "77c053440b1660547d91803f6e019ed266057b38c44c6c97fb2116e8670e383b",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeStrategyReferenceFeed.updateSession",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ExecutorLimitsExpiryAndRevoke",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ClosedOrStaleSessionAndRiskPauseRollbackStockTrades"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "7aa72c63e2c66a31f3527e950472d5ab1cd605450d851cbbb15c14adb8523d4c",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeStrategyReferenceFeed.update",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ExecutorLimitsExpiryAndRevoke",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ClosedOrStaleSessionAndRiskPauseRollbackStockTrades"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "96833d68d0b9a2b5691749efe7fab61b8ecfe277079b7d31ec6d142b86a9fd85",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeFairLaunch._validate",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/market/FairLaunch.t.sol#test_RejectOversellPrecisionDeadlineAndZeroWithoutPayment",
+        "contracts/test/market/FairLaunch.t.sol#test_NativeUnderOverpayAndAlteredSignedAmountFailAtomically"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "b9714ead05dbfef522aef985bb0a9eb477296ee505d370a03917e9f909a4bdd3",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeStrategyReferenceFeed.executionAllowed",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ExecutorLimitsExpiryAndRevoke",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ClosedOrStaleSessionAndRiskPauseRollbackStockTrades"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "c6517fe88fdd8bdad3942ae13722b85c536a647f8995b87e3f52d0ecd8cd2015",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeStockReserve.price",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ExecutorLimitsExpiryAndRevoke",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ClosedOrStaleSessionAndRiskPauseRollbackStockTrades"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "d50548cb33e6d11680ea0437c198b5676ea900a1db3f10e5572b014804db709b",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgePassPool._validate",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_ReplayExpirationWrongPayerRouterChainAndSignerRotationFail",
+        "contracts/test/market/NativeMarket.t.sol#test_DailyLimitUsesStableAccountAcrossReboundWalletsAndResetsNextDay",
+        "contracts/test/market/NativeMarket.t.sol#test_PerTransactionAndGlobalLimitsPreventFreeFundETHDrain"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "e555af105852eb04493ff8bd29cda41c7d136eb6a8c39b1ca6274475564ccc20",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeClaimReserve.claim",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/market/ClaimReserve.t.sol#test_BadTokenDeliveryCannotConsumeClaimEntitlement",
+        "contracts/test/market/ClaimReserve.t.sol#test_ClaimSignatureDomainTamperingExpiryEpochAndUnauthorizedControls"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "ead7f741fc659f96b8ea0adeee6b3a0adbb7013a674b85af04433fa1673ba88e",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeStrategyVault._validateExecution",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ExecutorLimitsExpiryAndRevoke",
+        "contracts/test/launch-vault/StrategyVault.t.sol#test_ClosedOrStaleSessionAndRiskPauseRollbackStockTrades"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "ef640adc4166a72e4eb3fef1522fb83aa305ac91fbb4dea8f3454b8fa1388f9d",
+      "check": "timestamp",
+      "impact": "Low",
+      "confidence": "Medium",
+      "function": "AlphaForgeNativeReserve._consume",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Timestamp is intentionally used for quote expiration, reference/calendar freshness, trade deadline or account/global daily budget. It is not randomness or an asset allocation lottery. L2 timestamp trust and day-boundary rollover are documented protocol assumptions; freshness windows and explicit risk limits remain enforced.",
+      "evidence": [
+        "contracts/test/market/NativeMarket.t.sol#test_ReplayExpirationWrongPayerRouterChainAndSignerRotationFail",
+        "contracts/test/market/NativeMarket.t.sol#test_DailyLimitUsesStableAccountAcrossReboundWalletsAndResetsNextDay",
+        "contracts/test/market/NativeMarket.t.sol#test_PerTransactionAndGlobalLimitsPreventFreeFundETHDrain"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "2f121d22f10a0a9a0492a7f59ce168534bbb7b7efde84307370fa99764fa54c6",
+      "check": "assembly",
+      "impact": "Informational",
+      "confidence": "High",
+      "function": "AlphaForgeStrategyVaultFactory.createVault",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Assembly is limited to validated ECDSA calldata reads or immutable bytecode chunk storage/reconstruction/CREATE. Signature length/low-s/v checks precede ecrecover. Vault factory chunks are created by the constructor, prefixed STOP, and never user selected; CREATE uses fixed reviewed code plus typed configuration with caller owner. No delegatecall or writable user-address target.",
+      "evidence": ["contracts/test/launch-vault/StrategyVault.t.sol#test_FactoryOwnerIsolationAndCodeSize"],
+      "elementType": "function"
+    },
+    {
+      "id": "45ff9f688a936978caf6f89c4eb0a5bb38bae910cda2a501545171d546e2d22c",
+      "check": "assembly",
+      "impact": "Informational",
+      "confidence": "High",
+      "function": "AlphaForgeStrategyVaultFactory.constructor",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Assembly is limited to validated ECDSA calldata reads or immutable bytecode chunk storage/reconstruction/CREATE. Signature length/low-s/v checks precede ecrecover. Vault factory chunks are created by the constructor, prefixed STOP, and never user selected; CREATE uses fixed reviewed code plus typed configuration with caller owner. No delegatecall or writable user-address target.",
+      "evidence": ["contracts/test/launch-vault/StrategyVault.t.sol#test_FactoryOwnerIsolationAndCodeSize"],
+      "elementType": "function"
+    },
+    {
+      "id": "50b4366901aa97c2e0d8c20713deea3c781ed90e013a39b79dbd8329fdf424ff",
+      "check": "assembly",
+      "impact": "Informational",
+      "confidence": "High",
+      "function": "MarketTypes.signer",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Assembly is limited to validated ECDSA calldata reads or immutable bytecode chunk storage/reconstruction/CREATE. Signature length/low-s/v checks precede ecrecover. Vault factory chunks are created by the constructor, prefixed STOP, and never user selected; CREATE uses fixed reviewed code plus typed configuration with caller owner. No delegatecall or writable user-address target.",
+      "evidence": [
+        "contracts/test/market/ClaimReserve.t.sol#test_BadTokenDeliveryCannotConsumeClaimEntitlement",
+        "contracts/test/market/ClaimReserve.t.sol#test_ClaimSignatureDomainTamperingExpiryEpochAndUnauthorizedControls"
+      ],
+      "elementType": "function"
+    },
+    {
+      "id": "7aaf61a54e1767c274d67c6c8ed2dd74ee84757c3fceaba5df607dd3aee7e454",
+      "check": "assembly",
+      "impact": "Informational",
+      "confidence": "High",
+      "function": "AlphaForgeStrategyVaultFactory._creationCode",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Assembly is limited to validated ECDSA calldata reads or immutable bytecode chunk storage/reconstruction/CREATE. Signature length/low-s/v checks precede ecrecover. Vault factory chunks are created by the constructor, prefixed STOP, and never user selected; CREATE uses fixed reviewed code plus typed configuration with caller owner. No delegatecall or writable user-address target.",
+      "evidence": ["contracts/test/launch-vault/StrategyVault.t.sol#test_FactoryOwnerIsolationAndCodeSize"],
+      "elementType": "function"
+    },
+    {
+      "id": "e9a8e345a1b722e30abeccc0065d62958ffe463a5bb4f5ade488e2fa56f24db2",
+      "check": "assembly",
+      "impact": "Informational",
+      "confidence": "High",
+      "function": "AlphaForgeVaultCodePart.constructor",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Assembly is limited to validated ECDSA calldata reads or immutable bytecode chunk storage/reconstruction/CREATE. Signature length/low-s/v checks precede ecrecover. Vault factory chunks are created by the constructor, prefixed STOP, and never user selected; CREATE uses fixed reviewed code plus typed configuration with caller owner. No delegatecall or writable user-address target.",
+      "evidence": ["contracts/test/launch-vault/StrategyVault.t.sol#test_FactoryOwnerIsolationAndCodeSize"],
+      "elementType": "function"
+    },
+    {
+      "id": "986ce0cb4e8b1125b93b4bb75b19d055380e7626cfd5b0f75a1b53af487f15db",
+      "check": "missing-inheritance",
+      "impact": "Informational",
+      "confidence": "High",
+      "function": "AlphaForgeStrategyReferenceFeed",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Contracts implement the read-only interface methods structurally; the report requests explicit inheritance. Call sites verify immutable venue/feed identities. It does not identify an authorization or financial-state bypass.",
+      "evidence": ["contracts/test/launch-vault/StrategyVault.t.sol#test_FactoryOwnerIsolationAndCodeSize"],
+      "elementType": "contract"
+    },
+    {
+      "id": "b41c45933afcac58b27e671597d422452d3e0b88c668158cc87be5175e13afb4",
+      "check": "missing-inheritance",
+      "impact": "Informational",
+      "confidence": "High",
+      "function": "AlphaForgeStockReserve",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "Contracts implement the read-only interface methods structurally; the report requests explicit inheritance. Call sites verify immutable venue/feed identities. It does not identify an authorization or financial-state bypass.",
+      "evidence": ["contracts/test/launch-vault/StrategyVault.t.sol#test_FactoryOwnerIsolationAndCodeSize"],
+      "elementType": "contract"
+    },
+    {
+      "id": "6777c45c6d52daed517650d3c24295ce0604801d859d96291e06b639ccdfd828",
+      "check": "too-many-digits",
+      "impact": "Informational",
+      "confidence": "Medium",
+      "function": "AlphaForgeStrategyVaultFactory.constructor",
+      "reviewState": "APPROVED_BY_USER",
+      "rationale": "This detector reports the compiler-generated fixed Vault creation-code bytes rather than a numeric financial amount. Actual factory/runtime/initcode size was previously measured and locally executed under the pinned compiler.",
+      "evidence": ["contracts/test/launch-vault/StrategyVault.t.sol#test_FactoryOwnerIsolationAndCodeSize"],
+      "elementType": "function"
     }
-  ]
+  ],
+  "findingSourcePaths": {
+    "86cafb9de5f84b0720436d28ec763eb9ea4c6a6e38532b1fda90e58467b84881": "contracts/src/AlphaForgeTradingVault.sol",
+    "9cda1796d6b451e73d9237270392a568e71547e50e4f173022602d64d8996873": "contracts/src/AlphaForgeTradingVault.sol",
+    "36b37c863dc3451668fea95e03fe6d3d95f0709ddcd78286efd6b5fdc3d559af": "contracts/src/AlphaForgeTradingVault.sol",
+    "3aac34772f190dfc0f12b04f8d74a41a82fd555873e9df20d254c7222f6a92a6": "contracts/src/AlphaForgeTradingVault.sol",
+    "92e9196be50053c083c02cc2b06bf046e574f0793ac470295b97a63e4e4f18d6": "contracts/src/AlphaForgeTradingVault.sol",
+    "96f19323b824b754fd96121c7d972d1133014afeeed075577aa3dccc35ccfde5": "contracts/src/AlphaForgeTradingVault.sol",
+    "f26b5d023868cd2d351e272c5cca6acce8c479a1bc0cf5cfa4e4f301a11e812a": "contracts/src/AlphaForgeTradingVault.sol",
+    "f95399654a690c2599d619a20bd7756cf09147c94833e1f02230440f9b19087d": "contracts/src/AlphaForgeTestStock.sol",
+    "f95f7b27409e13962776ecdbbe97f7eb5a923ffbe7ff4fbc22483975eef7896c": "contracts/src/AlphaForgeTradingVault.sol",
+    "137ccdc38208685f9424206febe411aed55d4bba5745bd9670598e34c99416f4": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "1564ef38fb729bdd5cf74eb6ed3c4c7df6845fe80240cfaf8d8d6d22b2f64dd8": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "233bc491e7f6f7b937cc6f8e690887e46414ee2c1583c4d2095195df971d3144": "contracts/src/market/AlphaForgePassPool.sol",
+    "3be41fe189ab2119eb2a0e5e2fad1e071264fe77b1286c8e6978a098eabc7374": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "5677944bcb5e0c760ae06214bbc620e5a66377c18df24c49d90018d9e05d4e76": "contracts/src/market/AlphaForgePassPool.sol",
+    "69e3ea05479db540275902128ad0c62de0dbbba818be7fa4e3f8bc0572d4907d": "contracts/src/market/AlphaForgeMarketRouter.sol",
+    "82c9e1b44ebdfe51ab519530a25e178d40e2cf35a7de1a693a63673333593edf": "contracts/src/market/AlphaForgeNativeReserve.sol",
+    "911e6a560a2c9ee9fefa34ed32b0ffea96743f858b3ff740ae208b151c94e8c2": "contracts/src/market/AlphaForgeMarketRouter.sol",
+    "9db04788adbcdc8b6febd4868805e64c70df4e463d75fc964301042c87099936": "contracts/src/market/AlphaForgeClaimReserve.sol",
+    "b3d5f4f0b15510a0a06e9b4e95899866915942d9b5e05ec7386bf219adced92f": "contracts/src/market/AlphaForgeMarketRouter.sol",
+    "b5e6ec29f9c6a2dd9f37a86c93146a9c9725acc6516026ce678f5d52bdb9cd3e": "contracts/src/market/AlphaForgeClaimReserve.sol",
+    "c9d8d538a4fc89afcd8f2714152dafa65d6d2073fdc6e36c9eed68bb44a6dd1e": "contracts/src/market/AlphaForgeFairLaunch.sol",
+    "d5300ee99aaffe9283b80dd57a1a35db475ba1b7bd58558855f2b76c5da106df": "contracts/src/market/AlphaForgeFairLaunch.sol",
+    "eedcb38dbdd44aeb84dd4720ce07c8232f7e9754a54c9b7aaad79ce3c936f8df": "contracts/src/market/AlphaForgeFairLaunch.sol",
+    "f124e0236d125e0ea5ad8e2434891292c8059724a2b9cd1d06799365437df7df": "contracts/src/market/AlphaForgeMarketRouter.sol",
+    "f172a25f92186b83351fd4c5f7a686cb21a3835984dbbc746acdf34209d68388": "contracts/src/market/AlphaForgePassFactory.sol",
+    "f5af3875f8fd207dca458c0adf59ce5b7072b4d1f37c24e3e862e0dba330da5b": "contracts/src/market/AlphaForgeMarketRouter.sol",
+    "f65943201e83c729457e16c1394012c8b9c64895bba7c4b39c25e660b16ae99e": "contracts/src/market/AlphaForgePassFactory.sol",
+    "ffc568684a70437b3c50869856e8bc135a34ce8cdace427b817a0c686307c9c4": "contracts/src/market/AlphaForgeNativeReserve.sol",
+    "a37ad672596d76087a63cbb4f6d106aa5d5a998f86063f4c96161469c0632e71": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "ef3f83c701e562a0472f48f4c13ceb90b5afe237d8f90f36558e6346bc3dd877": "contracts/src/market/AlphaForgeFairLaunch.sol",
+    "31c384885b9a55946e00dcdffea7c85885bc990143cd22d64446d2090d4a7751": "contracts/src/market/AlphaForgeFairLaunch.sol",
+    "6f2c3f7ca6084d6bbf260090befe7e25db8c6c279e2e916348b895bccdda800c": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "4a63348ae4726b265c9476bf3022f93ef48e42052256753df65ec84a41f05463": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "5fda3fb48a04088937c1cb21db4d281b5be6a64dd469773d593c132a678d07c2": "contracts/src/market/AlphaForgeNativeReserve.sol",
+    "6ff9fd9158ca809e61f8392c2d8620de4b2ac2904a8f4a0f0e575408720c0cb6": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "76d2affa348d7829f578376f9d237612bb7bdea15ab6c499b6841f8861d0463c": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "77c053440b1660547d91803f6e019ed266057b38c44c6c97fb2116e8670e383b": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "7aa72c63e2c66a31f3527e950472d5ab1cd605450d851cbbb15c14adb8523d4c": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "96833d68d0b9a2b5691749efe7fab61b8ecfe277079b7d31ec6d142b86a9fd85": "contracts/src/market/AlphaForgeFairLaunch.sol",
+    "b9714ead05dbfef522aef985bb0a9eb477296ee505d370a03917e9f909a4bdd3": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "c6517fe88fdd8bdad3942ae13722b85c536a647f8995b87e3f52d0ecd8cd2015": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "d50548cb33e6d11680ea0437c198b5676ea900a1db3f10e5572b014804db709b": "contracts/src/market/AlphaForgePassPool.sol",
+    "e555af105852eb04493ff8bd29cda41c7d136eb6a8c39b1ca6274475564ccc20": "contracts/src/market/AlphaForgeClaimReserve.sol",
+    "ead7f741fc659f96b8ea0adeee6b3a0adbb7013a674b85af04433fa1673ba88e": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "ef640adc4166a72e4eb3fef1522fb83aa305ac91fbb4dea8f3454b8fa1388f9d": "contracts/src/market/AlphaForgeNativeReserve.sol",
+    "2f121d22f10a0a9a0492a7f59ce168534bbb7b7efde84307370fa99764fa54c6": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "45ff9f688a936978caf6f89c4eb0a5bb38bae910cda2a501545171d546e2d22c": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "50b4366901aa97c2e0d8c20713deea3c781ed90e013a39b79dbd8329fdf424ff": "contracts/src/market/MarketTypes.sol",
+    "7aaf61a54e1767c274d67c6c8ed2dd74ee84757c3fceaba5df607dd3aee7e454": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "e9a8e345a1b722e30abeccc0065d62958ffe463a5bb4f5ade488e2fa56f24db2": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "986ce0cb4e8b1125b93b4bb75b19d055380e7626cfd5b0f75a1b53af487f15db": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "b41c45933afcac58b27e671597d422452d3e0b88c668158cc87be5175e13afb4": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol",
+    "6777c45c6d52daed517650d3c24295ce0604801d859d96291e06b639ccdfd828": "contracts/src/launch-vault/AlphaForgeStrategyVault.sol"
+  }
 }

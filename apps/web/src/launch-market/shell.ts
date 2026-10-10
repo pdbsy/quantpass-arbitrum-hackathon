@@ -121,7 +121,8 @@ const accountNav = (selected: string): string =>
     ['settings', 'Settings'],
   ]
     .map(
-      ([id, name]) => `<a href="#/account/${id}" ${id === selected ? 'aria-current="page"' : ''}>${name}</a>`,
+      ([id, name]) =>
+        `<a href="#/account/${id}" ${id === selected ? 'class="active" aria-current="page"' : ''}>${name}</a>`,
     )
     .join('')}</nav>`;
 
