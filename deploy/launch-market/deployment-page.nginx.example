@@ -1,0 +1,29 @@
+# Reviewed insertion into the existing approved ikol HTTPS server block.
+# Requires its existing Origin map, /_ikol_check and named login/access-denied locations.
+# The 4191 loopback static service is the inspected current deployment, not a portable default.
+# Preserve the other locations; this allowance applies only to the deployment document.
+# BEGIN AlphaForge personal-wallet official read-only RPC CSP
+location = /alphaforge/deployment.html {
+    if ($ikol_workshop_origin_rejected) { return 403; }
+    auth_request /_ikol_check;
+    error_page 401 = @alphaforge_login;
+    error_page 403 = @access_denied;
+    proxy_pass http://127.0.0.1:4191/deployment.html;
+    proxy_set_header Host 127.0.0.1:4191;
+    proxy_set_header Origin http://127.0.0.1:4191;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 30s;
+    proxy_cookie_flags qp_demo secure httponly samesite=strict;
+    # Replace the upstream self-only policy for this page alone.
+    proxy_hide_header Content-Security-Policy;
+    # Location add_header overrides inheritance; retain the server header set.
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Cache-Control no-store always;
+    add_header Cross-Origin-Opener-Policy same-origin-allow-popups always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://rpc.testnet.chain.robinhood.com; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'" always;
+}
+# END AlphaForge personal-wallet official read-only RPC CSP

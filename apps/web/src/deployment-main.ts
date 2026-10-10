@@ -33,8 +33,12 @@ const esc = (value: unknown): string =>
   );
 function failureMessage(caught: unknown, fallback: string): string {
   if (!(caught instanceof Error)) return fallback;
+  if (caught.message === 'DEPLOYMENT_READ_RPC_UNAVAILABLE')
+    return `Could not read Robinhood Chain Testnet. Keep the saved transaction and try checking confirmations again. Error detail: ${caught.message}`;
+  if (caught.message.startsWith('DEPLOYMENT_READ_RPC_'))
+    return `The chain query could not be verified. Keep the saved transaction; verification has not advanced. Error detail: ${caught.message}`;
   if (caught.message.startsWith('INVALID_WALLET_RPC_RESPONSE:'))
-    return `The wallet returned incomplete or invalid chain data. Keep the saved transaction; verification has not advanced. Error detail: ${caught.message}`;
+    return `The chain query returned incomplete or invalid data. Keep the saved transaction; verification has not advanced. Error detail: ${caught.message}`;
   return caught.message;
 }
 function amount(value: string, decimals: number): string {
@@ -125,6 +129,7 @@ function render() {
       <div class="deployment-actions"><button class="${!connected ? 'deployment-primary' : ''}" data-connect ${busy || !session ? 'disabled' : ''}>${connected ? 'Reconnect approved wallet' : 'Connect approved wallet'}</button>
       <button class="${connected && needsRecovery ? 'deployment-primary' : ''}" data-check ${busy || !connected ? 'disabled' : ''}>Check chain confirmations</button>
       <button class="deployment-primary" data-send ${busy || !connected || !verified || needsRecovery || complete ? 'disabled' : ''}>${busy ? 'Checking wallet / chain…' : 'Review & sign this step'}</button></div>
+      <p class="deployment-note">Chain verification reads directly from the official Robinhood Chain Testnet interface. Your wallet signs and broadcasts each approved step.</p>
       <p class="deployment-note">A step advances after its transaction matches the plan, succeeds, and has 3 L2 blocks including its inclusion block. This does not mean L1 finality. Check confirmations after the wallet submits. Keep the displayed gas and fee values.</p>
       <p class="deployment-note">Open this workflow in one tab. The wallet handles each approval and broadcasts it itself. If an approval remains open past the signing window, reject it in your wallet. After a rejected or uncertain result, stop and check your wallet before continuing.</p>
       ${complete ? '<p>Server activation still requires actual contract, balance, pool, and permission verification. These wallet receipts alone do not mark the market live.</p>' : ''}

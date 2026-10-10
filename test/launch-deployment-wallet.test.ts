@@ -5,6 +5,7 @@ import { DEPLOYMENT_APPROVAL } from '../apps/web/src/deployment-approval.ts';
 import {
   DEPLOYMENT_ADMIN,
   DEPLOYMENT_WALLET_LOCK,
+  createDeploymentReadProvider,
   DeploymentWalletSession,
   parsePinnedDeploymentPayload,
   validateDeploymentPayload,
@@ -141,12 +142,14 @@ function fixture(
     payload?: DeploymentPayload;
     journal?: DeploymentJournal;
     provider?: MockProvider;
+    readProvider?: DeploymentProvider;
   } = {},
 ) {
   const provider = options.provider ?? new MockProvider();
   let saved: DeploymentJournal | undefined;
   const session = new DeploymentWalletSession({
     provider,
+    readProvider: options.readProvider ?? provider,
     payload: options.payload ?? approved,
     payloadSha256: DEPLOYMENT_APPROVAL.payloadSha256,
     now: () => provider.time,
@@ -158,6 +161,254 @@ function fixture(
   });
   return { provider, session, saved: () => saved };
 }
+
+test('fixed official read transport preserves envelope IDs, privacy and bounds; wallet methods reject before HTTP', async () => {
+  const calls: { endpoint: string; init: RequestInit; id: number }[] = [];
+  const fetcher: typeof fetch = async (endpoint, init) => {
+    const body = JSON.parse(String(init!.body)) as {
+      jsonrpc: string;
+      id: number;
+      method: string;
+      params: unknown[];
+    };
+    assert.equal(body.jsonrpc, '2.0');
+    assert.equal(body.method, 'eth_chainId');
+    assert.deepEqual(body.params, []);
+    calls.push({ endpoint: String(endpoint), init: init!, id: body.id });
+    return Response.json({ jsonrpc: '2.0', id: body.id, result: '0xb626' });
+  };
+  const reader = createDeploymentReadProvider(fetcher);
+  assert.equal(await reader.request({ method: 'eth_chainId' }), '0xb626');
+  assert.equal(await reader.request({ method: 'eth_chainId' }), '0xb626');
+  assert.deepEqual(
+    calls.map((call) => call.id),
+    [1, 2],
+  );
+  for (const { endpoint, init } of calls) {
+    assert.equal(endpoint, 'https://rpc.testnet.chain.robinhood.com');
+    assert.equal(init.method, 'POST');
+    assert.equal(init.credentials, 'omit');
+    assert.equal(init.redirect, 'error');
+    assert.equal(init.cache, 'no-store');
+    assert.equal(init.referrerPolicy, 'no-referrer');
+    assert.deepEqual(init.headers, { 'content-type': 'application/json' });
+    assert.ok(init.signal instanceof AbortSignal);
+  }
+  for (const method of [
+    'eth_sendTransaction',
+    'eth_sendRawTransaction',
+    'personal_sign',
+    'eth_signTypedData_v4',
+    'eth_requestAccounts',
+    'wallet_switchEthereumChain',
+    'eth_accounts',
+  ])
+    await assert.rejects(reader.request({ method }), /METHOD_FORBIDDEN/);
+  await assert.rejects(
+    reader.request({ method: 'eth_call', params: [{ data: 'x'.repeat(128 * 1024) }] }),
+    /REQUEST_TOO_LARGE/,
+  );
+  await assert.rejects(reader.request({ method: 'eth_call', params: [1, 2, 3] }), /REQUEST_INVALID/);
+  assert.equal(calls.length, 2);
+});
+
+test('a changing method getter cannot pass the read allowlist and serialize a write request', async () => {
+  let reads = 0,
+    fetches = 0;
+  const input = {
+    get method() {
+      return ++reads === 1 ? 'eth_chainId' : 'eth_sendRawTransaction';
+    },
+  };
+  const reader = createDeploymentReadProvider(async (endpoint, init) => {
+    fetches++;
+    assert.equal(String(endpoint), 'https://rpc.testnet.chain.robinhood.com');
+    const body = JSON.parse(String(init!.body)) as { id: number; method: string };
+    assert.equal(body.method, 'eth_chainId');
+    return Response.json({ jsonrpc: '2.0', id: body.id, result: '0xb626' });
+  });
+  assert.equal(await reader.request(input), '0xb626');
+  assert.equal(reads, 1);
+  assert.equal(fetches, 1);
+});
+
+test('official HTTP errors, timeouts, malformed envelopes, stream failures and oversized bodies fail without exposing raw values', async (t) => {
+  const responses = [
+    () => Response.json({ jsonrpc: '2.0', id: 2, result: '0xb626' }),
+    () => Response.json({ jsonrpc: '1.0', id: 1, result: '0xb626' }),
+    () => Response.json({ jsonrpc: '2.0', id: '1', result: '0xb626' }),
+    () => Response.json({ jsonrpc: '2.0', id: 1 }),
+    () => Response.json({ jsonrpc: '2.0', id: 1, error: { message: 'raw-secret-value' } }),
+    () => Response.json({ jsonrpc: '2.0', id: 1, result: '0xb626', error: null }),
+    () => Response.json([{ jsonrpc: '2.0', id: 1, result: '0xb626' }]),
+    () => new Response('raw-secret-value'),
+    () => new Response(Uint8Array.of(0xff)),
+  ];
+  for (const response of responses) {
+    const reader = createDeploymentReadProvider(async () => response());
+    await assert.rejects(reader.request({ method: 'eth_chainId' }), {
+      message: 'DEPLOYMENT_READ_RPC_RESPONSE_INVALID',
+    });
+  }
+  for (const status of [201, 202, 302, 403, 500]) {
+    const reader = createDeploymentReadProvider(async () => new Response('raw-secret-value', { status }));
+    await assert.rejects(reader.request({ method: 'eth_chainId' }), {
+      message: 'DEPLOYMENT_READ_RPC_UNAVAILABLE',
+    });
+  }
+  let canceled = false;
+  const oversized = createDeploymentReadProvider(
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array(2 * 1024 * 1024 + 1));
+          },
+          cancel() {
+            canceled = true;
+          },
+        }),
+      ),
+  );
+  await assert.rejects(oversized.request({ method: 'eth_chainId' }), /RESPONSE_TOO_LARGE/);
+  assert.equal(canceled, true);
+  const broken = createDeploymentReadProvider(
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(new Error('raw-secret-value'));
+          },
+        }),
+      ),
+  );
+  await assert.rejects(broken.request({ method: 'eth_chainId' }), {
+    message: 'DEPLOYMENT_READ_RPC_UNAVAILABLE',
+  });
+  t.mock.method(AbortSignal, 'timeout', (milliseconds: number) => {
+    assert.equal(milliseconds, 10000);
+    return AbortSignal.abort(new DOMException('raw-secret-value', 'TimeoutError'));
+  });
+  const timedOut = createDeploymentReadProvider(async (_endpoint, init) => {
+    init!.signal!.throwIfAborted();
+    throw new Error('UNREACHABLE');
+  });
+  await assert.rejects(timedOut.request({ method: 'eth_chainId' }), {
+    message: 'DEPLOYMENT_READ_RPC_UNAVAILABLE',
+  });
+});
+
+test('a wrong or unavailable official chain and wallet-only pending nonce stop before signing without wallet read fallback', async () => {
+  for (const failure of ['wrong-chain', 'unavailable', 'wallet-pending', 'wallet-nonce-malformed']) {
+    const wallet = new MockProvider(),
+      chain = new MockProvider();
+    if (failure === 'wrong-chain') chain.chain = 1n;
+    if (failure === 'wallet-pending') wallet.pending = 1n;
+    const readProvider: DeploymentProvider = {
+      request: async (input) => {
+        if (failure === 'unavailable') throw new Error('DEPLOYMENT_READ_RPC_UNAVAILABLE');
+        return chain.request(input);
+      },
+    };
+    if (failure === 'wallet-nonce-malformed') {
+      const original = wallet.request.bind(wallet);
+      wallet.request = async (input) =>
+        input.method === 'eth_getTransactionCount' ? undefined : original(input);
+    }
+    const files = fixture({ provider: wallet, readProvider });
+    await assert.rejects(
+      files.session.sendNext(),
+      failure === 'wrong-chain'
+        ? /READ_RPC_WRONG_NETWORK/
+        : failure === 'unavailable'
+          ? /READ_RPC_UNAVAILABLE/
+          : failure === 'wallet-pending'
+            ? /NONCE_COMPETITION/
+            : /eth_getTransactionCount.result \(missing\)/,
+    );
+    assert.equal(wallet.sends.length, 0);
+    assert.equal(chain.sends.length, 0);
+    assert.equal(
+      wallet.calls.some((call) =>
+        [
+          'eth_getTransactionByHash',
+          'eth_getTransactionReceipt',
+          'eth_getBlockByNumber',
+          'eth_getBalance',
+          'eth_getCode',
+          'eth_estimateGas',
+        ].includes(call.method),
+      ),
+      false,
+    );
+    assert.equal(files.session.journal.entries.length, 0);
+  }
+});
+
+test('every mandatory official transaction and receipt field remains required with unchanged durable recovery state', async () => {
+  for (const target of ['transaction', 'receipt'] as const) {
+    const fields =
+      target === 'transaction'
+        ? [
+            'hash',
+            'from',
+            'to',
+            'chainId',
+            'nonce',
+            'input',
+            'value',
+            'type',
+            'gas',
+            'maxFeePerGas',
+            'maxPriorityFeePerGas',
+            'blockNumber',
+            'blockHash',
+          ]
+        : [
+            'transactionHash',
+            'from',
+            'to',
+            'contractAddress',
+            'blockNumber',
+            'blockHash',
+            'status',
+            'gasUsed',
+            'effectiveGasPrice',
+          ];
+    for (const field of fields) {
+      const files = fixture();
+      await files.session.sendNext();
+      const before = files.session.journal,
+        durableBefore = files.saved(),
+        lastHash = files.session.lastObservedHash;
+      const response =
+        target === 'transaction'
+          ? files.provider.transactions.get(hash(1000))!
+          : files.provider.receipts.get(hash(1000))!;
+      delete response[field];
+      await assert.rejects(files.session.recover(hash(1000)));
+      assert.deepEqual(files.session.journal, before, `${target}.${field}`);
+      assert.deepEqual(files.saved(), durableBefore, `${target}.${field}`);
+      assert.equal(files.session.lastObservedHash, lastHash);
+      assert.equal(files.provider.sends.length, 1);
+      assert.equal(files.session.nextIndex, 0);
+    }
+  }
+});
+
+test('the final wallet nonce conflict guard cannot open a signature prompt after its canonical head becomes stale', async () => {
+  const chain = new MockProvider(),
+    wallet = new MockProvider();
+  wallet.hook = (method, params) => {
+    if (method === 'eth_getTransactionCount' && params?.[1] === 'pending')
+      wallet.time += approved.budget.maxHeadAgeSeconds + 1;
+  };
+  const files = fixture({ provider: wallet, readProvider: chain });
+  await assert.rejects(files.session.sendNext(), /STALE_HEAD/);
+  assert.equal(wallet.sends.length, 0);
+  assert.equal(chain.sends.length, 0);
+  assert.equal(files.session.journal.entries.length, 0);
+});
 
 test('exact approved public bytes are pinned; changed bytes, roles, supply and gas boundaries reject', async () => {
   assert.equal(approved.budget.maxGasPerTransactionRaw, '12000000');
@@ -513,19 +764,45 @@ test('recovery numeric field diagnostics preserve strict parsing, durable state 
   }
 });
 
-test('an omitted transaction chain ID uses checked wallet network and canonical receipts without inferring a field', async () => {
-  const included = fixture();
-  included.provider.hook = (method) => {
-    if (method === 'eth_getTransactionByHash') delete included.provider.transactions.get(hash(1000))!.chainId;
+test('wallet transaction omissions cannot affect official reads, signing intent, pending recovery or canonical confirmation', async () => {
+  const chain = new MockProvider(),
+    wallet = new MockProvider();
+  // This wallet knows only its identity, pending nonce and the result of its own broadcast.
+  wallet.request = async function (input) {
+    this.calls.push(input);
+    if (input.method === 'eth_getTransactionByHash') return { hash: hash(1000) };
+    if (input.method === 'eth_sendTransaction') {
+      const result = await chain.request(input);
+      this.sends.push(copy(input.params![0]) as Record<string, unknown>);
+      this.latest = chain.latest;
+      this.pending = chain.pending;
+      return result;
+    }
+    if (input.method === 'eth_chainId') return hex(this.chain);
+    if (input.method === 'eth_accounts' || input.method === 'eth_requestAccounts') return [this.wallet];
+    if (input.method === 'eth_getTransactionCount')
+      return hex(input.params![1] === 'latest' ? this.latest : this.pending);
+    throw new Error('UNEXPECTED_WALLET_READ:' + input.method);
   };
+  const readProvider: DeploymentProvider = {
+    request: async (input) => {
+      assert.equal(/send|sign|accounts|wallet_/i.test(input.method), false);
+      return chain.request(input);
+    },
+  };
+  const included = fixture({ provider: wallet, readProvider });
   await included.session.sendNext();
   assert.equal(included.session.journal.entries[0]!.state, 'INCLUDED');
-  included.provider.head = 102n;
+  chain.head = 102n;
   const readOnlyStart = included.provider.calls.length;
   await included.session.recover(hash(1000));
   assert.equal(included.session.journal.entries[0]!.state, 'CONFIRMED');
   assert.equal(included.session.nextIndex, 1);
-  assert.equal(Object.hasOwn(included.provider.transactions.get(hash(1000))!, 'chainId'), false);
+  assert.equal(chain.transactions.get(hash(1000))!.chainId, '0xb626');
+  assert.equal(
+    included.provider.calls.some((call) => call.method === 'eth_getTransactionByHash'),
+    false,
+  );
   assert.equal(included.provider.sends.length, 1);
   assert.equal(
     included.provider.calls.slice(readOnlyStart).some((call) => /send|sign/i.test(call.method)),
@@ -535,7 +812,6 @@ test('an omitted transaction chain ID uses checked wallet network and canonical 
     const pending = fixture();
     await pending.session.sendNext();
     const transaction = pending.provider.transactions.get(hash(1000))!;
-    delete transaction.chainId;
     transaction.blockNumber = null;
     transaction.blockHash = null;
     if (!hasReceipt) pending.provider.receipts.delete(hash(1000));
@@ -549,8 +825,9 @@ test('an omitted transaction chain ID uses checked wallet network and canonical 
   }
 });
 
-test('a supplied transaction chain ID must remain canonical and match the approved network', async () => {
+test('the official transaction chain ID is mandatory, canonical and must match the approved network', async () => {
   for (const [value, reason] of [
+    [undefined, /eth_getTransactionByHash\.chainId \(missing\)/],
     [null, /eth_getTransactionByHash\.chainId \(null\)/],
     [46630, /eth_getTransactionByHash\.chainId \(non-string\)/],
     ['0x0b626', /eth_getTransactionByHash\.chainId \(noncanonical\)/],
@@ -575,7 +852,6 @@ test('network or account changes at the final canonical read and postcheck canno
     for (const change of ['network', 'account', 'network-during-accounts-check'] as const) {
       const files = fixture();
       await files.session.sendNext();
-      delete files.provider.transactions.get(hash(1000))!.chainId;
       files.provider.head = 102n;
       const before = files.session.journal,
         durableBefore = files.saved(),

@@ -1,6 +1,6 @@
 import { ROBINHOOD_CHAIN_TESTNET } from '../../../packages/robinhood-chain/src/network.ts';
 
-/** A separate administrator workflow. Balances and confirmation state always come from the wallet RPC. */
+/** A separate administrator workflow. Wallet authorization and canonical chain reads use separate transports. */
 export const DEPLOYMENT_CHAIN_ID = 46630;
 export const DEPLOYMENT_ADMIN = '0x86767116cd40bf6b4f8cf88e08d11e38b04364cf';
 const ORDINARY_USER = '0x5a2acf1a388fe4f19aeffa404e07e916b5b07b77';
@@ -27,6 +27,103 @@ export async function withDeploymentWalletLock<T>(
 export interface DeploymentProvider {
   request(input: { method: string; params?: readonly unknown[] }): Promise<unknown>;
   on?(event: string, listener: (...values: unknown[]) => void): void;
+}
+const DEPLOYMENT_READ_METHODS = new Set([
+  'eth_chainId',
+  'eth_getTransactionByHash',
+  'eth_getTransactionReceipt',
+  'eth_getBlockByNumber',
+  'eth_getTransactionCount',
+  'eth_getBalance',
+  'eth_getCode',
+  'eth_gasPrice',
+  'eth_estimateGas',
+  'eth_call',
+]);
+const MAX_RPC_REQUEST_BYTES = 128 * 1024;
+const MAX_RPC_RESPONSE_BYTES = 2 * 1024 * 1024;
+const DEPLOYMENT_READ_RPC_URL = ROBINHOOD_CHAIN_TESTNET.rpcUrl;
+
+/** This transport has one official endpoint and cannot request wallet access, sign, or broadcast. */
+export function createDeploymentReadProvider(fetcher: typeof fetch = fetch): DeploymentProvider {
+  let nextId = 0;
+  return {
+    async request(input) {
+      const method = input.method;
+      if (!DEPLOYMENT_READ_METHODS.has(method)) fail('DEPLOYMENT_READ_RPC_METHOD_FORBIDDEN');
+      if (input.params !== undefined && (!Array.isArray(input.params) || input.params.length > 2))
+        fail('DEPLOYMENT_READ_RPC_REQUEST_INVALID');
+      if (!Number.isSafeInteger(++nextId)) fail('DEPLOYMENT_READ_RPC_REQUEST_INVALID');
+      const id = nextId;
+      let body: string;
+      try {
+        body = JSON.stringify({ jsonrpc: '2.0', id, method, params: input.params ?? [] });
+      } catch {
+        fail('DEPLOYMENT_READ_RPC_REQUEST_INVALID');
+      }
+      if (new TextEncoder().encode(body).byteLength > MAX_RPC_REQUEST_BYTES)
+        fail('DEPLOYMENT_READ_RPC_REQUEST_TOO_LARGE');
+      let response: Response;
+      try {
+        response = await fetcher(DEPLOYMENT_READ_RPC_URL, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body,
+          credentials: 'omit',
+          referrerPolicy: 'no-referrer',
+          cache: 'no-store',
+          redirect: 'error',
+          signal: AbortSignal.timeout(10000),
+        });
+      } catch {
+        fail('DEPLOYMENT_READ_RPC_UNAVAILABLE');
+      }
+      if (response.status !== 200 || !response.body) fail('DEPLOYMENT_READ_RPC_UNAVAILABLE');
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      const reader = response.body.getReader();
+      try {
+        for (;;) {
+          let part: ReadableStreamReadResult<Uint8Array>;
+          try {
+            part = await reader.read();
+          } catch {
+            fail('DEPLOYMENT_READ_RPC_UNAVAILABLE');
+          }
+          if (part.done) break;
+          size += part.value.byteLength;
+          if (size > MAX_RPC_RESPONSE_BYTES) fail('DEPLOYMENT_READ_RPC_RESPONSE_TOO_LARGE');
+          chunks.push(part.value);
+        }
+      } finally {
+        try {
+          await reader.cancel();
+        } catch {
+          // A closed or aborted network stream needs no further cleanup.
+        }
+      }
+      const responseBytes = new Uint8Array(size);
+      let offset = 0;
+      for (const chunk of chunks) {
+        responseBytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      let envelope: Record<string, unknown>;
+      try {
+        envelope = object(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(responseBytes)));
+      } catch {
+        fail('DEPLOYMENT_READ_RPC_RESPONSE_INVALID');
+      }
+      if (
+        envelope.jsonrpc !== '2.0' ||
+        envelope.id !== id ||
+        !Object.hasOwn(envelope, 'result') ||
+        Object.hasOwn(envelope, 'error')
+      )
+        fail('DEPLOYMENT_READ_RPC_RESPONSE_INVALID');
+      return envelope.result;
+    },
+  };
 }
 export interface DeploymentAction {
   operation: string;
@@ -303,6 +400,7 @@ export class DeploymentWalletSession {
   readonly actions: readonly DeploymentAction[];
   readonly payloadSha256: string;
   readonly #provider: DeploymentProvider;
+  readonly #readProvider: DeploymentProvider;
   readonly #save: (journal: DeploymentJournal) => void;
   readonly #now: () => number;
   #journal: DeploymentJournal;
@@ -312,6 +410,7 @@ export class DeploymentWalletSession {
   lastBalanceRaw: string | null = null;
   constructor(options: {
     provider: DeploymentProvider;
+    readProvider?: DeploymentProvider;
     payload: DeploymentPayload;
     payloadSha256: string;
     save: (journal: DeploymentJournal) => void;
@@ -323,6 +422,7 @@ export class DeploymentWalletSession {
     if (!/^[a-f0-9]{64}$/.test(options.payloadSha256)) fail('DEPLOYMENT_PAYLOAD_PIN_REQUIRED');
     this.payloadSha256 = options.payloadSha256;
     this.#provider = options.provider;
+    this.#readProvider = options.readProvider ?? createDeploymentReadProvider();
     this.#save = options.save;
     this.#now = options.now ?? (() => Math.floor(Date.now() / 1000));
     this.#journal = {
@@ -401,6 +501,10 @@ export class DeploymentWalletSession {
     this.#journal = checked;
   }
   async #identity() {
+    if (
+      quantity(await this.#readProvider.request({ method: 'eth_chainId' }), 'eth_chainId.result') !== 46630n
+    )
+      fail('DEPLOYMENT_READ_RPC_WRONG_NETWORK');
     if (quantity(await this.#provider.request({ method: 'eth_chainId' }), 'eth_chainId.result') !== 46630n)
       fail('DEPLOYMENT_WRONG_NETWORK');
     const accounts = await this.#provider.request({ method: 'eth_accounts' });
@@ -408,6 +512,24 @@ export class DeploymentWalletSession {
       fail('DEPLOYMENT_WRONG_WALLET');
     if (quantity(await this.#provider.request({ method: 'eth_chainId' }), 'eth_chainId.result') !== 46630n)
       fail('DEPLOYMENT_WRONG_NETWORK');
+  }
+  async #walletNonceGuard(index: number) {
+    // The wallet can know about a queued transaction before the public RPC sees its mempool entry.
+    const latest = quantity(
+        await this.#provider.request({
+          method: 'eth_getTransactionCount',
+          params: [DEPLOYMENT_ADMIN, 'latest'],
+        }),
+        'eth_getTransactionCount.result',
+      ),
+      pending = quantity(
+        await this.#provider.request({
+          method: 'eth_getTransactionCount',
+          params: [DEPLOYMENT_ADMIN, 'pending'],
+        }),
+        'eth_getTransactionCount.result',
+      );
+    if (latest !== BigInt(index) || pending !== latest) fail('DEPLOYMENT_NONCE_COMPETITION');
   }
   async connect() {
     await this.#provider.request({ method: 'eth_requestAccounts' });
@@ -454,7 +576,7 @@ export class DeploymentWalletSession {
   }
   async #head() {
     const block = object(
-      await this.#provider.request({ method: 'eth_getBlockByNumber', params: ['latest', false] }),
+      await this.#readProvider.request({ method: 'eth_getBlockByNumber', params: ['latest', false] }),
     );
     const age = this.#now() - Number(quantity(block.timestamp, 'eth_getBlockByNumber.timestamp'));
     if (age < 0 || age > this.payload.budget.maxHeadAgeSeconds) fail('DEPLOYMENT_STALE_HEAD');
@@ -464,7 +586,7 @@ export class DeploymentWalletSession {
     return block;
   }
   async #executionLimit(blockTag: string): Promise<bigint> {
-    const encoded = await this.#provider.request({
+    const encoded = await this.#readProvider.request({
       method: 'eth_call',
       params: [
         {
@@ -491,10 +613,10 @@ export class DeploymentWalletSession {
     const limit = await this.#executionLimit(tag);
     if (raw(budget.maxGasPerTransactionRaw) > limit || raw(entry.gasLimitRaw) > limit)
       fail('DEPLOYMENT_EXECUTION_GAS_LIMIT');
-    const code = await this.#provider.request({ method: 'eth_getCode', params: [DEPLOYMENT_ADMIN, tag] });
+    const code = await this.#readProvider.request({ method: 'eth_getCode', params: [DEPLOYMENT_ADMIN, tag] });
     if (code !== '0x') fail('DEPLOYMENT_ADMIN_MUST_BE_EOA');
     const target = this.actions[index]!;
-    const targetCode = await this.#provider.request({
+    const targetCode = await this.#readProvider.request({
       method: 'eth_getCode',
       params: [target.contractAddress, tag],
     });
@@ -509,7 +631,7 @@ export class DeploymentWalletSession {
           : 'DEPLOYMENT_TARGET_NOT_DEPLOYED',
       );
     const balance = quantity(
-      await this.#provider.request({ method: 'eth_getBalance', params: [DEPLOYMENT_ADMIN, tag] }),
+      await this.#readProvider.request({ method: 'eth_getBalance', params: [DEPLOYMENT_ADMIN, tag] }),
       'eth_getBalance.result',
     );
     this.lastBalanceRaw = balance.toString();
@@ -520,20 +642,20 @@ export class DeploymentWalletSession {
         quantity(head.baseFeePerGas, 'eth_getBlockByNumber.baseFeePerGas') +
           raw(budget.maxPriorityFeePerGasRaw) >
           raw(budget.maxFeePerGasRaw)) ||
-      quantity(await this.#provider.request({ method: 'eth_gasPrice' }), 'eth_gasPrice.result') >
+      quantity(await this.#readProvider.request({ method: 'eth_gasPrice' }), 'eth_gasPrice.result') >
         raw(budget.maxFeePerGasRaw)
     )
       fail('DEPLOYMENT_FEE_CAP_TOO_LOW');
     await this.#identity();
     const latest = quantity(
-        await this.#provider.request({
+        await this.#readProvider.request({
           method: 'eth_getTransactionCount',
           params: [DEPLOYMENT_ADMIN, 'latest'],
         }),
         'eth_getTransactionCount.result',
       ),
       pending = quantity(
-        await this.#provider.request({
+        await this.#readProvider.request({
           method: 'eth_getTransactionCount',
           params: [DEPLOYMENT_ADMIN, 'pending'],
         }),
@@ -543,7 +665,7 @@ export class DeploymentWalletSession {
     const previous = this.#journal.entries.at(-1);
     if (previous) {
       const anchor = object(
-        await this.#provider.request({
+        await this.#readProvider.request({
           method: 'eth_getBlockByNumber',
           params: [hex(raw(previous.blockNumber!)), false],
         }),
@@ -556,7 +678,7 @@ export class DeploymentWalletSession {
         fail('DEPLOYMENT_CONFIRMATION_ANCHOR_CHANGED');
     }
     const canonicalHead = object(
-      await this.#provider.request({ method: 'eth_getBlockByNumber', params: [tag, false] }),
+      await this.#readProvider.request({ method: 'eth_getBlockByNumber', params: [tag, false] }),
     );
     if (
       hash(canonicalHead.hash) !== hash(head.hash) ||
@@ -569,18 +691,23 @@ export class DeploymentWalletSession {
       budget.maxHeadAgeSeconds
     )
       fail('DEPLOYMENT_STALE_HEAD');
+    await this.#walletNonceGuard(index);
+    await this.#identity();
+    if (
+      this.#now() - Number(quantity(head.timestamp, 'eth_getBlockByNumber.timestamp')) >
+      budget.maxHeadAgeSeconds
+    )
+      fail('DEPLOYMENT_STALE_HEAD');
   }
   #matchesTransaction(value: unknown, index: number, entry: DeploymentEntry, transactionHash: string) {
     const transaction = object(value),
       action = this.actions[index]!,
       unsigned = action.unsigned!;
-    // Some wallet providers omit this serialized field; actual network identity brackets the chain reads.
     if (
       hash(transaction.hash) !== transactionHash ||
       address(transaction.from) !== DEPLOYMENT_ADMIN ||
       (unsigned.to === null ? transaction.to !== null : address(transaction.to) !== address(unsigned.to)) ||
-      (transaction.chainId !== undefined &&
-        quantity(transaction.chainId, 'eth_getTransactionByHash.chainId') !== 46630n) ||
+      quantity(transaction.chainId, 'eth_getTransactionByHash.chainId') !== 46630n ||
       quantity(transaction.nonce, 'eth_getTransactionByHash.nonce') !== BigInt(index) ||
       bytes(transaction.input, 65536) !== unsigned.data.toLowerCase() ||
       quantity(transaction.value, 'eth_getTransactionByHash.value') !== raw(unsigned.value) ||
@@ -599,11 +726,11 @@ export class DeploymentWalletSession {
   async #observe(entry: DeploymentEntry): Promise<DeploymentEntry> {
     if (!entry.transactionHash) return { ...entry, state: 'UNKNOWN' };
     const transactionHash = hash(entry.transactionHash),
-      transaction = await this.#provider.request({
+      transaction = await this.#readProvider.request({
         method: 'eth_getTransactionByHash',
         params: [transactionHash],
       }),
-      receiptValue = await this.#provider.request({
+      receiptValue = await this.#readProvider.request({
         method: 'eth_getTransactionReceipt',
         params: [transactionHash],
       });
@@ -627,7 +754,7 @@ export class DeploymentWalletSession {
     )
       fail('DEPLOYMENT_RECEIPT_MISMATCH');
     const canonical = object(
-      await this.#provider.request({ method: 'eth_getBlockByNumber', params: [hex(blockNumber), false] }),
+      await this.#readProvider.request({ method: 'eth_getBlockByNumber', params: [hex(blockNumber), false] }),
     );
     if (quantity(canonical.number, 'eth_getBlockByNumber.number') !== blockNumber)
       fail('DEPLOYMENT_RECEIPT_MISMATCH');
@@ -645,11 +772,11 @@ export class DeploymentWalletSession {
       effectiveGasPrice = quantity(receipt.effectiveGasPrice, 'eth_getTransactionReceipt.effectiveGasPrice');
     if (gasUsed > raw(entry.gasLimitRaw) || effectiveGasPrice > raw(entry.maxFeePerGasRaw))
       fail('DEPLOYMENT_RECEIPT_BUDGET_MISMATCH');
-    // Wallet RPC methods can observe inclusion at different times. Keep the known hash until both agree.
+    // RPC methods can observe inclusion at different times. Keep the known hash until both agree.
     if (transactionPending) return { ...entry, state: 'SUBMITTED' };
     const head = await this.#head();
     const canonicalAgain = object(
-      await this.#provider.request({ method: 'eth_getBlockByNumber', params: [hex(blockNumber), false] }),
+      await this.#readProvider.request({ method: 'eth_getBlockByNumber', params: [hex(blockNumber), false] }),
     );
     if (quantity(canonicalAgain.number, 'eth_getBlockByNumber.number') !== blockNumber)
       fail('DEPLOYMENT_RECEIPT_MISMATCH');
@@ -706,14 +833,14 @@ export class DeploymentWalletSession {
       if (index >= 41) fail('DEPLOYMENT_PLAN_FINISHED');
       if (this.#now() >= this.payload.approvalExpiresAt) fail('DEPLOYMENT_APPROVAL_EXPIRED');
       const latest = quantity(
-          await this.#provider.request({
+          await this.#readProvider.request({
             method: 'eth_getTransactionCount',
             params: [DEPLOYMENT_ADMIN, 'latest'],
           }),
           'eth_getTransactionCount.result',
         ),
         pending = quantity(
-          await this.#provider.request({
+          await this.#readProvider.request({
             method: 'eth_getTransactionCount',
             params: [DEPLOYMENT_ADMIN, 'pending'],
           }),
@@ -723,7 +850,10 @@ export class DeploymentWalletSession {
       const head = await this.#head(),
         budget = this.payload.budget,
         balance = quantity(
-          await this.#provider.request({ method: 'eth_getBalance', params: [DEPLOYMENT_ADMIN, 'latest'] }),
+          await this.#readProvider.request({
+            method: 'eth_getBalance',
+            params: [DEPLOYMENT_ADMIN, 'latest'],
+          }),
           'eth_getBalance.result',
         );
       this.lastBalanceRaw = balance.toString();
@@ -758,7 +888,7 @@ export class DeploymentWalletSession {
         effectiveGasPriceRaw: null,
       };
       const estimate = quantity(
-        await this.#provider.request({
+        await this.#readProvider.request({
           method: 'eth_estimateGas',
           params: [this.#transaction(index, entry)],
         }),
