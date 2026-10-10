@@ -465,7 +465,7 @@ test('missing or malformed block metadata cannot qualify as a pending transactio
 
 test('recovery numeric field diagnostics preserve strict parsing, durable state and read-only recovery', async () => {
   for (const { target, field, value, kind } of [
-    { target: 'transaction', field: 'chainId', value: undefined, kind: 'missing' },
+    { target: 'transaction', field: 'type', value: undefined, kind: 'missing' },
     { target: 'transaction', field: 'maxFeePerGas', value: null, kind: 'null' },
     { target: 'transaction', field: 'nonce', value: 0, kind: 'non-string' },
     { target: 'transaction', field: 'value', value: '0x00', kind: 'noncanonical' },
@@ -510,6 +510,99 @@ test('recovery numeric field diagnostics preserve strict parsing, durable state 
       files.provider.calls.slice(readOnlyStart).some((call) => /send|sign/i.test(call.method)),
       false,
     );
+  }
+});
+
+test('an omitted transaction chain ID uses checked wallet network and canonical receipts without inferring a field', async () => {
+  const included = fixture();
+  included.provider.hook = (method) => {
+    if (method === 'eth_getTransactionByHash') delete included.provider.transactions.get(hash(1000))!.chainId;
+  };
+  await included.session.sendNext();
+  assert.equal(included.session.journal.entries[0]!.state, 'INCLUDED');
+  included.provider.head = 102n;
+  const readOnlyStart = included.provider.calls.length;
+  await included.session.recover(hash(1000));
+  assert.equal(included.session.journal.entries[0]!.state, 'CONFIRMED');
+  assert.equal(included.session.nextIndex, 1);
+  assert.equal(Object.hasOwn(included.provider.transactions.get(hash(1000))!, 'chainId'), false);
+  assert.equal(included.provider.sends.length, 1);
+  assert.equal(
+    included.provider.calls.slice(readOnlyStart).some((call) => /send|sign/i.test(call.method)),
+    false,
+  );
+  for (const hasReceipt of [false, true]) {
+    const pending = fixture();
+    await pending.session.sendNext();
+    const transaction = pending.provider.transactions.get(hash(1000))!;
+    delete transaction.chainId;
+    transaction.blockNumber = null;
+    transaction.blockHash = null;
+    if (!hasReceipt) pending.provider.receipts.delete(hash(1000));
+    pending.provider.head = 102n;
+    await pending.session.recover(hash(1000));
+    assert.equal(pending.session.journal.entries[0]!.state, 'SUBMITTED');
+    assert.equal(pending.session.journal.entries[0]!.transactionHash, hash(1000));
+    assert.equal(pending.session.nextIndex, 0);
+    await assert.rejects(pending.session.sendNext(), /RECOVERY_REQUIRED/);
+    assert.equal(pending.provider.sends.length, 1);
+  }
+});
+
+test('a supplied transaction chain ID must remain canonical and match the approved network', async () => {
+  for (const [value, reason] of [
+    [null, /eth_getTransactionByHash\.chainId \(null\)/],
+    [46630, /eth_getTransactionByHash\.chainId \(non-string\)/],
+    ['0x0b626', /eth_getTransactionByHash\.chainId \(noncanonical\)/],
+    ['0x1', /TRANSACTION_MISMATCH/],
+  ] as const) {
+    const files = fixture();
+    await files.session.sendNext();
+    const before = files.session.journal,
+      durableBefore = files.saved(),
+      lastHash = files.session.lastObservedHash;
+    files.provider.transactions.get(hash(1000))!.chainId = value;
+    await assert.rejects(files.session.recover(hash(1000)), reason);
+    assert.deepEqual(files.session.journal, before);
+    assert.deepEqual(files.saved(), durableBefore);
+    assert.equal(files.session.lastObservedHash, lastHash);
+    assert.equal(files.provider.sends.length, 1);
+  }
+});
+
+test('network or account changes at the final canonical read and postcheck cannot persist recovery or reconciliation', async () => {
+  for (const mode of ['recover', 'reconcile'] as const) {
+    for (const change of ['network', 'account', 'network-during-accounts-check'] as const) {
+      const files = fixture();
+      await files.session.sendNext();
+      delete files.provider.transactions.get(hash(1000))!.chainId;
+      files.provider.head = 102n;
+      const before = files.session.journal,
+        durableBefore = files.saved(),
+        lastHash = files.session.lastObservedHash;
+      let canonicalReads = 0;
+      files.provider.hook = (method, params) => {
+        if (method === 'eth_getBlockByNumber' && params?.[0] === '0x64') {
+          canonicalReads++;
+          if (canonicalReads === 2) {
+            if (change === 'network') files.provider.chain = 1n;
+            if (change === 'account') files.provider.wallet = '0x5a2acf1a388fe4f19aeffa404e07e916b5b07b77';
+          }
+        }
+        if (change === 'network-during-accounts-check' && canonicalReads === 2 && method === 'eth_accounts')
+          files.provider.chain = 1n;
+      };
+      await assert.rejects(
+        mode === 'recover' ? files.session.recover(hash(1000)) : files.session.reconcile(),
+        change === 'account' ? /WRONG_WALLET/ : /WRONG_NETWORK/,
+      );
+      assert.equal(canonicalReads, 2);
+      assert.deepEqual(files.session.journal, before);
+      assert.deepEqual(files.saved(), durableBefore);
+      assert.equal(files.session.lastObservedHash, lastHash);
+      assert.equal(files.session.nextIndex, 0);
+      assert.equal(files.provider.sends.length, 1);
+    }
   }
 });
 

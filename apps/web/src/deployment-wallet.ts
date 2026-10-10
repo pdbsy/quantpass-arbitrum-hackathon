@@ -406,6 +406,8 @@ export class DeploymentWalletSession {
     const accounts = await this.#provider.request({ method: 'eth_accounts' });
     if (!Array.isArray(accounts) || accounts.length === 0 || address(accounts[0]) !== DEPLOYMENT_ADMIN)
       fail('DEPLOYMENT_WRONG_WALLET');
+    if (quantity(await this.#provider.request({ method: 'eth_chainId' }), 'eth_chainId.result') !== 46630n)
+      fail('DEPLOYMENT_WRONG_NETWORK');
   }
   async connect() {
     await this.#provider.request({ method: 'eth_requestAccounts' });
@@ -572,11 +574,13 @@ export class DeploymentWalletSession {
     const transaction = object(value),
       action = this.actions[index]!,
       unsigned = action.unsigned!;
+    // Some wallet providers omit this serialized field; actual network identity brackets the chain reads.
     if (
       hash(transaction.hash) !== transactionHash ||
       address(transaction.from) !== DEPLOYMENT_ADMIN ||
       (unsigned.to === null ? transaction.to !== null : address(transaction.to) !== address(unsigned.to)) ||
-      quantity(transaction.chainId, 'eth_getTransactionByHash.chainId') !== 46630n ||
+      (transaction.chainId !== undefined &&
+        quantity(transaction.chainId, 'eth_getTransactionByHash.chainId') !== 46630n) ||
       quantity(transaction.nonce, 'eth_getTransactionByHash.nonce') !== BigInt(index) ||
       bytes(transaction.input, 65536) !== unsigned.data.toLowerCase() ||
       quantity(transaction.value, 'eth_getTransactionByHash.value') !== raw(unsigned.value) ||
@@ -672,6 +676,7 @@ export class DeploymentWalletSession {
         break;
       }
     }
+    await this.#identity();
     this.#persist(journal);
     const spent = journal.entries.reduce(
       (sum, entry) =>
@@ -821,6 +826,7 @@ export class DeploymentWalletSession {
       const recovered = await this.#observe({ ...entry, transactionHash });
       if (recovered.state === 'UNKNOWN' || recovered.state === 'REORGED')
         fail('DEPLOYMENT_RECOVERY_NOT_VERIFIED');
+      await this.#identity();
       this.lastObservedHash = transactionHash;
       this.#persist({
         ...this.journal,
