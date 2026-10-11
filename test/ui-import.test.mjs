@@ -571,3 +571,128 @@ test('native market admission binds reviewed bytes to their real source history'
   });
   assert.equal(git('status', '--porcelain'), '');
 });
+
+test('ordinary-user admission preserves published source and exact linear integration proof', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'af-wallet-flow-history-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const root = resolve(import.meta.dirname, '..'),
+    cwd = join(directory, 'repo'),
+    admitted = await verifiedPrototypeArtifacts(root),
+    path = 'apps/web/prototype/AlphaForge_v3_EN.html';
+  const env = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    GIT_AUTHOR_NAME: 'UI fixture',
+    GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
+    GIT_COMMITTER_NAME: 'UI fixture',
+    GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
+  };
+  const execute = (at, args, input) =>
+    execFileSync(
+      'git',
+      ['--no-replace-objects', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args],
+      { cwd: at, env, input, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 },
+    ).trim();
+  const git = (...args) => execute(cwd, args);
+  execute(directory, ['clone', '--no-hardlinks', '--no-checkout', '--single-branch', root, cwd]);
+  for (const ref of [
+    'refs/remotes/origin/macbeth01/account-wallet-eth',
+    'refs/remotes/origin/macbeth01/m3-phase1-closeout',
+    'refs/remotes/origin/codex/alphaforge-fair-launch-v3-20261009',
+    'refs/remotes/origin/master',
+  ]) {
+    const source = execute(root, ['rev-parse', '--verify', ref]);
+    git('fetch', '--no-tags', root, source);
+    git('update-ref', ref, source);
+  }
+  const originalMaster = git('rev-parse', 'refs/remotes/origin/master'),
+    prototype = join(cwd, path);
+  git('checkout', '--force', '--detach', admitted.walletFlowCommit);
+  const source = await readFile(prototype, 'utf8');
+  await t.test('exact published source qualifies while retaining all prior identities', async () => {
+    const result = await verifiedPrototypeArtifacts(cwd);
+    assert.equal(result.currentSha256, admitted.walletFlowSha256);
+    assert.equal(result.current, source);
+    assert.equal(git('rev-parse', `${result.walletFlowCommit}^`), result.walletFlowParentCommit);
+    assert.equal(git('rev-parse', `${result.walletFlowCommit}^{tree}`), result.walletFlowTree);
+  });
+  const rebased = execute(
+    cwd,
+    ['commit-tree', admitted.walletFlowTree, '-p', admitted.walletFlowParentCommit],
+    'Exact ordinary-user linear integration fixture\n',
+  );
+  git('update-ref', 'refs/remotes/origin/master', rebased);
+  git('checkout', '--force', '--detach', rebased);
+  await t.test(
+    'exact whole-tree bridge qualifies after linear rebase without direct source ancestry',
+    async () => {
+      assert.notEqual(rebased, admitted.walletFlowCommit);
+      assert.throws(() => git('merge-base', '--is-ancestor', admitted.walletFlowCommit, rebased));
+      assert.equal((await verifiedPrototypeArtifacts(cwd)).currentSha256, admitted.walletFlowSha256);
+    },
+  );
+  await t.test(
+    'matching HTML on a changed source tree cannot substitute for the published bridge',
+    async () => {
+      await writeFile(join(cwd, 'README.md'), 'Different whole-tree fixture\n');
+      git('add', 'README.md');
+      const alteredTree = git('write-tree'),
+        unrelated = execute(
+          cwd,
+          ['commit-tree', alteredTree, '-p', admitted.walletFlowParentCommit],
+          'Different ordinary-user source tree fixture\n',
+        );
+      git('update-ref', 'refs/remotes/origin/master', unrelated);
+      git('checkout', '--force', '--detach', unrelated);
+      try {
+        await assert.rejects(verifiedPrototypeArtifacts(cwd), /must not roll back|published source ancestry/);
+      } finally {
+        git('update-ref', 'refs/remotes/origin/master', rebased);
+        git('checkout', '--force', '--detach', rebased);
+      }
+    },
+  );
+  await t.test('an identical tree without its fixed parent history is rejected', async () => {
+    const wrongParent = execute(
+      cwd,
+      ['commit-tree', admitted.walletFlowTree, '-p', admitted.walletFlowParentCommit + '^'],
+      'Wrong ordinary-user parent fixture\n',
+    );
+    git('update-ref', 'refs/remotes/origin/master', wrongParent);
+    git('checkout', '--force', '--detach', wrongParent);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /must not roll back|published source ancestry/);
+    } finally {
+      git('update-ref', 'refs/remotes/origin/master', rebased);
+      git('checkout', '--force', '--detach', rebased);
+    }
+  });
+  await t.test('a valid new source descendant cannot restore the prior native order defaults', async () => {
+    await writeFile(prototype, execute(cwd, ['show', `${admitted.nativeMarketCommit}:${path}`]) + '\n');
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /must not roll back/);
+    } finally {
+      await writeFile(prototype, source);
+    }
+  });
+  await t.test('new bytes cannot bypass the frozen FAIR_LAUNCH import reference', async () => {
+    const ref = 'refs/remotes/origin/codex/alphaforge-fair-launch-v3-20261009',
+      retained = git('rev-parse', ref);
+    git('update-ref', '-d', ref);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /reviewed source ancestry/);
+    } finally {
+      git('update-ref', ref, retained);
+    }
+  });
+  await t.test('a valid bridge outside actual master history cannot authorize the candidate', async () => {
+    git('update-ref', 'refs/remotes/origin/master', originalMaster);
+    try {
+      await assert.rejects(verifiedPrototypeArtifacts(cwd), /must not roll back|published source ancestry/);
+    } finally {
+      git('update-ref', 'refs/remotes/origin/master', rebased);
+    }
+  });
+  assert.equal(git('status', '--porcelain'), '');
+});

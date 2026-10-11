@@ -112,7 +112,9 @@ test('migration inventory accounts for source versions and validates imported ar
   assert.equal(usdc.sha256, prototype.usdcSha256);
   // This inventory remains evidence of the immutable migration snapshot. The
   // current native source has its own reviewed admission, not a rewritten record.
-  if (prototype.currentSha256 === prototype.nativeMarketSha256)
+  if (prototype.currentSha256 === prototype.walletFlowSha256)
+    assert.equal(prototype.walletFlowCommit, '66816fd0cad4f3370553b4840e3399041bb59efb');
+  else if (prototype.currentSha256 === prototype.nativeMarketSha256)
     assert.equal(prototype.nativeMarketCommit, '6aab8af781100c5156ee5126c36cad486fd35704');
   else assert.equal(prototype.currentSha256, prototype.mockHoldingsSha256);
 });
