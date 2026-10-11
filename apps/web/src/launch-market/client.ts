@@ -38,6 +38,12 @@ import {
   type ExecutorPermission,
 } from './executor.ts';
 import type { StrategyId } from './model.ts';
+import {
+  readStockExecutionSnapshot,
+  reviewStockExecution,
+  stockExecutionReceipt,
+  validateStockExecutionHash,
+} from './stock-execution.ts';
 
 const prefix = '/api/launch-market';
 const tokenInterface = new Interface(['function approve(address spender,uint256 amount) returns (bool)']);
@@ -262,6 +268,7 @@ export class LaunchMarketClient {
   #identityRevision = 0;
   #quoteRevision: number | null = null;
   #executorReviewRevision: number | null = null;
+  #executorReviewEpoch = 0;
   #pendingRegistration: { quote: LaunchQuote; hash: string } | null = null;
   #refreshing = false;
   readonly #journal: Storage | undefined;
@@ -280,6 +287,8 @@ export class LaunchMarketClient {
     quoteRequest: null,
     executorReview: null,
     executorSnapshots: {},
+    stockReview: null,
+    stockSnapshots: {},
     transaction: idleTransaction(),
     error: null,
     notice: null,
@@ -373,6 +382,20 @@ export class LaunchMarketClient {
         'The Vault permission changed or this review expired. Review the permission again.',
       EXECUTOR_RECOVERY_STORAGE_REQUIRED:
         'Allow this site to store transaction recovery information before confirming a Vault permission.',
+      STOCK_REVIEW_EXPIRED:
+        'The stock price or trading session changed or expired. Refresh and review a new stock trade.',
+      STOCK_EXECUTION_UNINITIALIZED:
+        'The chain stock price feed has not been initialized. The authorized keeper must publish a verified price and trading session.',
+      STOCK_EXECUTION_MARKET_CLOSED:
+        'The regular US stock market session is closed. Available Vault cash can still be withdrawn.',
+      STOCK_EXECUTION_STALE_REFERENCE:
+        'The chain stock price has expired. A fresh verified price is required before trading.',
+      STOCK_EXECUTION_STALE_CALENDAR:
+        'The chain trading session has expired. A fresh verified session is required before trading.',
+      STOCK_EXECUTION_PAUSED: 'The stock trading reserve is paused.',
+      INSUFFICIENT_TEST_STOCK_RESERVE:
+        'The separate test stock reserve cannot settle this amount. No stock trade was submitted.',
+      INSUFFICIENT_VAULT_BALANCE: 'This amount exceeds the available tracked Vault cash or stock holdings.',
     };
     // Read failures cannot release the lock held by an outstanding wallet confirmation.
     const identityExpired = [
@@ -396,11 +419,12 @@ export class LaunchMarketClient {
     });
   }
   #invalidateIdentityReviews(): void {
+    ++this.#executorReviewEpoch;
     ++this.#identityRevision;
     this.#quoteRevision = null;
     this.#executorReviewRevision = null;
     // Already submitted transactions and their recovery journals retain their chain evidence.
-    this.#update({ quote: null, quoteRequest: null, executorReview: null });
+    this.#update({ quote: null, quoteRequest: null, executorReview: null, stockReview: null });
   }
   #assertIdentity(owner: string, revision: number, operation?: QuoteRequest['operation']): void {
     const { account, wallet } = this.#state;
@@ -433,6 +457,8 @@ export class LaunchMarketClient {
       quoteRequest: null,
       executorReview: null,
       executorSnapshots: {},
+      stockReview: null,
+      stockSnapshots: {},
       connecting: false,
       transaction: tx.hash && !terminalStates.has(tx.state) ? { ...tx, state: 'RECOVERY_REQUIRED' } : tx,
       notice:
@@ -440,9 +466,10 @@ export class LaunchMarketClient {
     });
   }
   clearQuote(): void {
+    ++this.#executorReviewEpoch;
     this.#quoteRevision = null;
     this.#executorReviewRevision = null;
-    this.#update({ quote: null, quoteRequest: null, executorReview: null });
+    this.#update({ quote: null, quoteRequest: null, executorReview: null, stockReview: null });
   }
 
   async initialize(): Promise<boolean> {
@@ -694,8 +721,12 @@ export class LaunchMarketClient {
             approval: false,
             owner: pending.owner,
             executor: true,
+            stock: pending.kind === 'EXECUTE',
           },
-          notice: 'Recovering an existing executor permission transaction. No new transaction was sent.',
+          notice:
+            pending.kind === 'EXECUTE'
+              ? 'Recovering an existing strategy transaction. No new transaction was sent.'
+              : 'Recovering an existing executor permission transaction. No new transaction was sent.',
         });
         await this.refreshTransaction();
       }
@@ -771,7 +802,14 @@ export class LaunchMarketClient {
     const full: QuoteRequest = { ...request, owner };
     uint(request.amountRaw);
     if (![50, 100, 300].includes(request.slippageBps)) throw new Error('INVALID_SLIPPAGE');
-    this.#update({ busy: true, error: null, quote: null, quoteRequest: null, executorReview: null });
+    this.#update({
+      busy: true,
+      error: null,
+      quote: null,
+      quoteRequest: null,
+      executorReview: null,
+      stockReview: null,
+    });
     try {
       await this.#assertOwner(owner, generation);
       this.#assertIdentity(owner, identityRevision, request.operation);
@@ -874,6 +912,69 @@ export class LaunchMarketClient {
     this.#update({ executorSnapshots: { ...this.#state.executorSnapshots, [strategyId]: snapshot } });
   }
 
+  async refreshStock(strategyId: StrategyId): Promise<void> {
+    const owner = this.#state.owner;
+    const manifest = this.#state.config?.manifest;
+    const vault = this.#state.wallet?.vaults.find(
+      (item) => item.strategyId === strategyId && item.status === 'OPEN',
+    );
+    if (!owner || !manifest || !vault || !this.#provider) throw new Error('WALLET_CONNECTION_REQUIRED');
+    const generation = this.#generation;
+    await this.#assertOwner(owner, generation);
+    const snapshot = await readStockExecutionSnapshot(
+      this.#provider,
+      manifest,
+      owner,
+      vault.address,
+      strategyId,
+    );
+    await this.#assertOwner(owner, generation);
+    this.#update({ stockSnapshots: { ...this.#state.stockSnapshots, [strategyId]: snapshot } });
+  }
+
+  async reviewStock(
+    strategyId: StrategyId,
+    buy: boolean,
+    inputRaw: string,
+    slippageBps: number,
+  ): Promise<void> {
+    if (!actionable(this.#state, strategyId, 'DEPOSIT', 'AF_USDC') || this.#pendingExecutor)
+      throw new Error('MARKET_ACTION_UNAVAILABLE');
+    const owner = this.#state.owner!;
+    const generation = this.#generation;
+    const revision = this.#identityRevision;
+    const epoch = ++this.#executorReviewEpoch;
+    this.#assertIdentity(owner, revision);
+    this.#update({
+      busy: true,
+      error: null,
+      quote: null,
+      quoteRequest: null,
+      executorReview: null,
+      stockReview: null,
+    });
+    try {
+      await this.refreshStock(strategyId);
+      const review = await reviewStockExecution(
+        this.#provider!,
+        this.#state.stockSnapshots![strategyId]!,
+        buy,
+        inputRaw,
+        slippageBps,
+        this.#now(),
+      );
+      await this.#assertOwner(owner, generation);
+      this.#assertIdentity(owner, revision);
+      if (epoch !== this.#executorReviewEpoch) throw new Error('EXECUTOR_REVIEW_EXPIRED');
+      if (review.reviewExpiresAt <= this.#now()) throw new Error('STOCK_REVIEW_EXPIRED');
+      this.#executorReviewRevision = revision;
+      this.#update({ stockReview: review, busy: false });
+    } catch (error) {
+      this.#update({ busy: false });
+      throw error;
+    }
+  }
+
   async reviewExecutorPermission(
     strategyId: StrategyId,
     permission: ExecutorPermission | null,
@@ -883,14 +984,23 @@ export class LaunchMarketClient {
     const owner = this.#state.owner!;
     const generation = this.#generation;
     const identityRevision = this.#identityRevision;
+    const epoch = ++this.#executorReviewEpoch;
     this.#assertIdentity(owner, identityRevision);
-    this.#update({ busy: true, error: null, quote: null, quoteRequest: null, executorReview: null });
+    this.#update({
+      busy: true,
+      error: null,
+      quote: null,
+      quoteRequest: null,
+      executorReview: null,
+      stockReview: null,
+    });
     try {
       await this.refreshExecutor(strategyId);
       const snapshot = this.#state.executorSnapshots![strategyId]!;
       const review = await reviewExecutor(this.#provider!, snapshot, permission, this.#now());
       await this.#assertOwner(owner, generation);
       this.#assertIdentity(owner, identityRevision);
+      if (epoch !== this.#executorReviewEpoch) throw new Error('EXECUTOR_REVIEW_EXPIRED');
       this.#executorReviewRevision = identityRevision;
       this.#update({ executorReview: review, busy: false });
     } catch (error) {
@@ -901,31 +1011,57 @@ export class LaunchMarketClient {
 
   async confirmExecutorPermission(): Promise<void> {
     await this.#refreshConfiguration();
-    const review = this.#state.executorReview;
+    const review = this.#state.stockReview ?? this.#state.executorReview;
     if (!review || !this.#provider || this.#state.busy || this.#pendingExecutor)
       throw new Error('EXECUTOR_REVIEW_REQUIRED');
     const owner = review.snapshot.owner;
     const generation = this.#generation;
     const identityRevision = this.#executorReviewRevision;
+    const epoch = this.#executorReviewEpoch;
     if (identityRevision === null) throw new Error('EXECUTOR_REVIEW_REQUIRED');
     this.#assertIdentity(owner, identityRevision);
     this.#update({ busy: true, error: null });
     try {
       await this.#assertOwner(owner, generation);
-      await this.refreshExecutor(review.snapshot.strategyId);
+      const stock = 'buy' in review;
+      if (stock) await this.refreshStock(review.snapshot.strategyId);
+      else await this.refreshExecutor(review.snapshot.strategyId);
       this.#assertIdentity(owner, identityRevision);
-      const fresh = this.#state.executorSnapshots![review.snapshot.strategyId]!;
+      if (
+        epoch !== this.#executorReviewEpoch ||
+        (this.#state.stockReview ?? this.#state.executorReview) !== review
+      )
+        throw new Error('EXECUTOR_REVIEW_EXPIRED');
+      const fresh = stock
+        ? this.#state.stockSnapshots![review.snapshot.strategyId]!
+        : this.#state.executorSnapshots![review.snapshot.strategyId]!;
       if (
         fresh.version !== review.snapshot.version ||
         fresh.vault !== review.snapshot.vault ||
         review.reviewExpiresAt <= this.#now() ||
-        (review.permission && BigInt(review.permission.expiresAt) <= BigInt(fresh.blockTimestamp))
+        (!stock && review.permission && BigInt(review.permission.expiresAt) <= BigInt(fresh.blockTimestamp))
       )
         throw new Error('EXECUTOR_REVIEW_EXPIRED');
+      if (stock) {
+        const current = this.#state.stockSnapshots![review.snapshot.strategyId]!;
+        if (
+          current.status !== 'READY' ||
+          current.executionCutoff === null ||
+          review.deadline > current.executionCutoff ||
+          review.deadline <= this.#now() ||
+          current.stockPriceUsdcRaw !== review.snapshot.stockPriceUsdcRaw
+        )
+          throw new Error('STOCK_REVIEW_EXPIRED');
+        await this.#provider.request({
+          method: 'eth_call',
+          params: [{ from: owner, to: fresh.vault, data: review.data, value: '0x0' }, 'latest'],
+        });
+      }
+      const kind = stock ? 'EXECUTE' : review.kind;
       const factory = new PreparedActionFactory<typeof review>({
         chainId: LAUNCH_CHAIN_ID,
         target: asAddress(fresh.vault),
-        operationId: () => `executor-${review.kind.toLowerCase()}-${fresh.version}`,
+        operationId: () => `vault-${kind.toLowerCase()}-${fresh.version}`,
         encode: () => ({ data: asHexData(review.data), value: 0n }),
       });
       const wallet = new Eip1193Wallet(this.#provider, {
@@ -942,13 +1078,14 @@ export class LaunchMarketClient {
           approval: false,
           owner,
           executor: true,
+          stock,
         },
       });
       this.#pendingExecutor = {
         owner,
         vault: fresh.vault,
         strategyId: fresh.strategyId,
-        kind: review.kind,
+        kind,
         data: review.data,
         hash: null,
       };
@@ -965,6 +1102,12 @@ export class LaunchMarketClient {
           if (generation !== this.#generation || this.#state.owner?.toLowerCase() !== owner.toLowerCase())
             throw new Error('WALLET_IDENTITY_CHANGED');
           this.#assertIdentity(owner, identityRevision);
+          if (
+            epoch !== this.#executorReviewEpoch ||
+            this.#executorReviewRevision !== identityRevision ||
+            (this.#state.stockReview ?? this.#state.executorReview) !== review
+          )
+            throw new Error('EXECUTOR_REVIEW_EXPIRED');
           if (review.reviewExpiresAt <= this.#now()) throw new Error('EXECUTOR_REVIEW_EXPIRED');
         });
       } catch (error) {
@@ -978,7 +1121,7 @@ export class LaunchMarketClient {
           owner,
           vault: fresh.vault,
           strategyId: fresh.strategyId,
-          kind: review.kind,
+          kind,
           data: review.data,
           hash: submission.txHash,
         };
@@ -994,6 +1137,7 @@ export class LaunchMarketClient {
       this.#update({
         busy: false,
         executorReview: null,
+        stockReview: null,
         transaction: {
           id: null,
           hash: submission.txHash,
@@ -1002,6 +1146,7 @@ export class LaunchMarketClient {
           approval: false,
           owner,
           executor: true,
+          stock,
         },
       });
       await this.refreshTransaction();
@@ -1022,7 +1167,8 @@ export class LaunchMarketClient {
     if (!pending || pending.hash || !this.#provider) throw new Error('EXECUTOR_RECOVERY_NOT_REQUIRED');
     const generation = this.#generation;
     await this.#assertOwner(pending.owner, generation);
-    await validateExecutorHash(this.#provider, pending, hash);
+    if (pending.kind === 'EXECUTE') await validateStockExecutionHash(this.#provider, pending, hash);
+    else await validateExecutorHash(this.#provider, pending, hash);
     await this.#assertOwner(pending.owner, generation);
     this.#pendingExecutor = { ...pending, hash };
     this.#journal?.setItem(executorJournalKey, JSON.stringify(this.#pendingExecutor));
@@ -1035,6 +1181,7 @@ export class LaunchMarketClient {
         approval: false,
         owner: pending.owner,
         executor: true,
+        stock: pending.kind === 'EXECUTE',
       },
     });
     await this.refreshTransaction();
@@ -1144,18 +1291,33 @@ export class LaunchMarketClient {
     const tx = this.#state.transaction;
     if (!tx.hash || terminalStates.has(tx.state)) return;
     if (tx.executor && this.#pendingExecutor && this.#provider) {
-      const result = await executorReceipt(this.#provider, this.#pendingExecutor);
-      this.#update({
-        transaction: {
-          ...tx,
-          ...result,
-          ...(result.state === 'SUBMITTED' && (tx.confirmations > 0 || tx.state === 'REORGED')
-            ? { state: 'REORGED' as const }
-            : {}),
-        },
-      });
+      const pending = this.#pendingExecutor;
+      const generation = this.#generation;
+      const epoch = this.#executorReviewEpoch;
+      const result =
+        pending.kind === 'EXECUTE'
+          ? await stockExecutionReceipt(this.#provider, pending)
+          : await executorReceipt(this.#provider, pending);
+      // A reorganization, wallet change or another poll can invalidate this read while RPC awaits.
+      if (
+        this.#pendingExecutor !== pending ||
+        generation !== this.#generation ||
+        epoch !== this.#executorReviewEpoch ||
+        this.#state.transaction.hash !== tx.hash ||
+        !this.#state.transaction.executor
+      )
+        return;
+      const transaction = {
+        ...tx,
+        ...result,
+        ...(result.state === 'SUBMITTED' && (tx.confirmations > 0 || tx.state === 'REORGED')
+          ? { state: 'REORGED' as const }
+          : {}),
+      };
+      // RPC can discover a reorganization before the event stream reports it.
+      if (transaction.state === 'REORGED') ++this.#executorReviewEpoch;
+      this.#update({ transaction });
       if (result.state === 'COMPLETED' || result.state === 'REVERTED') {
-        const pending = this.#pendingExecutor;
         this.#confirmedExecutor = pending;
         this.#pendingExecutor = null;
         try {
@@ -1164,9 +1326,15 @@ export class LaunchMarketClient {
           /* Receipt remains available from the wallet. */
         }
         if (result.state === 'COMPLETED') {
-          this.#update({ notice: 'Executor permission transaction confirmed. No strategy trade was sent.' });
+          this.#update({
+            notice:
+              pending.kind === 'EXECUTE'
+                ? 'Strategy trade confirmed on chain. Refreshing holdings and AF-USDC cash.'
+                : 'Executor permission transaction confirmed. No strategy trade was sent.',
+          });
           if (this.#state.owner?.toLowerCase() === pending.owner.toLowerCase())
-            await this.refreshExecutor(pending.strategyId);
+            if (pending.kind === 'EXECUTE') await this.refreshStock(pending.strategyId);
+            else await this.refreshExecutor(pending.strategyId);
         }
       }
       return;
@@ -1254,6 +1422,7 @@ export class LaunchMarketClient {
   async stream(update: MarketStreamUpdate): Promise<void> {
     validLocation(update.location);
     if (update.type === 'REORG') {
+      ++this.#executorReviewEpoch;
       if (
         this.#state.transaction.executor &&
         !this.#pendingExecutor &&
@@ -1273,6 +1442,8 @@ export class LaunchMarketClient {
         quoteRequest: null,
         executorReview: null,
         executorSnapshots: {},
+        stockReview: null,
+        stockSnapshots: {},
         transaction: this.#state.transaction.hash
           ? { ...this.#state.transaction, state: 'REORGED', confirmations: 0 }
           : this.#state.transaction,

@@ -5,6 +5,7 @@ import { actionable, escapeHtml, inputRaw } from './presentation.ts';
 import type { LaunchClientState, MarketOperation, PaymentAsset, StrategyId } from './model.ts';
 import { installOrderShortcuts, maxShortcutAmount, shortcutPresets } from './order-shortcuts.ts';
 import { installPaymentEstimates, estimatePassPayment } from './payment-estimate.ts';
+import { installActionAccess } from './action-access.ts';
 import {
   renderAccount,
   renderClaim,
@@ -111,8 +112,14 @@ export async function installLaunchMarket(
   // Existing account links use passes/funds; keep those aliases on the same chain-backed pages.
   host.pages.account = (tab) => {
     if (tab === 'claim') return renderClaim(client.state);
-    if (tab === 'vaults' || tab === 'funds')
-      return renderVaults(client.state, Object.fromEntries(vaultAmounts));
+    if (tab === 'vaults' || tab === 'funds') {
+      const selected = location.hash.split('/')[3]?.toUpperCase();
+      return renderVaults(
+        client.state,
+        Object.fromEntries(vaultAmounts),
+        selected === 'TSLA' || selected === 'AMZN' ? selected : undefined,
+      );
+    }
     if (['saved', 'notes', 'settings'].includes(tab)) return localAccount(tab);
     return renderAccount(client.state);
   };
@@ -120,6 +127,7 @@ export async function installLaunchMarket(
   host.launchForms = forms;
   installOrderShortcuts(host);
   const paymentEstimates = installPaymentEstimates(host, () => client.readEthReference());
+  installActionAccess(host);
   host.passMarket = {
     actionable: (strategy, operation, asset) => actionable(client.state, strategy, operation, asset),
     quoteHtml: () => {
@@ -288,7 +296,7 @@ export async function installLaunchMarket(
 
   document.addEventListener('click', (event) => {
     const target = (event.target as Element | null)?.closest<HTMLElement>(
-      '[data-launch-connect],[data-launch-wallet-browser],[data-launch-refresh],[data-launch-bind],[data-launch-bind-confirm],[data-launch-side],[data-launch-clear],[data-launch-confirm],[data-launch-claim],[data-launch-create-vault],[data-launch-vault-close],[data-launch-executor-refresh],[data-launch-executor-revoke],[data-launch-executor-confirm],[data-launch-shortcut]',
+      '[data-launch-connect],[data-launch-wallet-browser],[data-launch-refresh],[data-launch-bind],[data-launch-bind-confirm],[data-launch-side],[data-launch-clear],[data-launch-confirm],[data-launch-claim],[data-launch-create-vault],[data-launch-vault-close],[data-launch-stock-refresh],[data-launch-stock-buy],[data-launch-stock-sell],[data-launch-executor-refresh],[data-launch-executor-revoke],[data-launch-executor-confirm],[data-launch-shortcut]',
     );
     if (!target || target.hasAttribute('disabled')) return;
     if (target.hasAttribute('data-launch-shortcut')) {
@@ -375,6 +383,27 @@ export async function installLaunchMarket(
     else if (target.hasAttribute('data-launch-executor-confirm'))
       void run(() => client.confirmExecutorPermission());
     else if (
+      target.hasAttribute('data-launch-stock-refresh') ||
+      target.hasAttribute('data-launch-stock-buy') ||
+      target.hasAttribute('data-launch-stock-sell')
+    ) {
+      const strategy =
+        target.dataset.launchStockRefresh ?? target.dataset.launchStockBuy ?? target.dataset.launchStockSell;
+      if (strategy !== 'TSLA' && strategy !== 'AMZN') return;
+      void run(async () => {
+        if (target.hasAttribute('data-launch-stock-refresh')) await client.refreshStock(strategy);
+        else {
+          await client.refreshStock(strategy);
+          const snapshot = client.state.stockSnapshots![strategy]!;
+          await client.reviewStock(
+            strategy,
+            target.hasAttribute('data-launch-stock-buy'),
+            target.hasAttribute('data-launch-stock-buy') ? snapshot.trackedCashRaw : snapshot.trackedStockRaw,
+            100,
+          );
+        }
+      });
+    } else if (
       target.hasAttribute('data-launch-executor-refresh') ||
       target.hasAttribute('data-launch-executor-revoke')
     ) {

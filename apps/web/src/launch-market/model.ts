@@ -19,6 +19,7 @@ import type {
   OperationState,
 } from '../../../../packages/launch-market/src/types.ts';
 import type { ExecutorReview, ExecutorSnapshot } from './executor.ts';
+import type { StockExecutionReview, StockExecutionSnapshot } from './stock-execution.ts';
 
 export type LaunchConfig = MarketConfiguration & { readonly emailVerificationRequired?: boolean };
 export type TransactionState = OperationState | 'IDLE';
@@ -39,6 +40,7 @@ export interface LaunchTransaction {
   readonly approval: boolean;
   readonly owner: string | null;
   readonly executor?: boolean;
+  readonly stock?: boolean;
 }
 export interface LaunchClientState {
   readonly enabled: boolean;
@@ -53,6 +55,8 @@ export interface LaunchClientState {
   readonly quoteRequest: QuoteRequest | null;
   readonly executorReview?: ExecutorReview | null;
   readonly executorSnapshots?: Partial<Record<'TSLA' | 'AMZN', ExecutorSnapshot>>;
+  readonly stockReview?: StockExecutionReview | null;
+  readonly stockSnapshots?: Partial<Record<'TSLA' | 'AMZN', StockExecutionSnapshot>>;
   readonly transaction: LaunchTransaction;
   readonly error: string | null;
   readonly notice: string | null;
