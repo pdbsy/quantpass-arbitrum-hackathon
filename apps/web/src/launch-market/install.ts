@@ -3,6 +3,7 @@ import { LaunchMarketClient } from './client.ts';
 import { MarketActivityClient, renderActivity } from './activity.ts';
 import { actionable, escapeHtml, inputRaw } from './presentation.ts';
 import type { LaunchClientState, MarketOperation, PaymentAsset, StrategyId } from './model.ts';
+import { installOrderShortcuts, maxShortcutAmount, shortcutPresets } from './order-shortcuts.ts';
 import {
   renderAccount,
   renderClaim,
@@ -16,6 +17,7 @@ import {
 
 export interface LaunchProductHost {
   originalMarketLayout?: boolean;
+  trade?: { actionPanel(strategy: { id: string }): string };
   launchState?: LaunchClientState;
   launchForms?: Record<StrategyId, OrderForm>;
   passMarket?: {
@@ -115,6 +117,7 @@ export async function installLaunchMarket(
   };
   host.launchState = client.state;
   host.launchForms = forms;
+  installOrderShortcuts(host);
   host.passMarket = {
     actionable: (strategy, operation, asset) => actionable(client.state, strategy, operation, asset),
     quoteHtml: () => {
@@ -225,9 +228,11 @@ export async function installLaunchMarket(
     }
   };
   let previousTslaState = client.state.snapshot?.markets.TSLA.state;
+  let shortcutRevision = 0;
   client.subscribe((state) => {
     const identity = vaultIdentity(state);
     if (identity !== draftIdentity) {
+      ++shortcutRevision;
       vaultAmounts.clear();
       vaultSubmission = null;
       draftIdentity = identity;
@@ -281,9 +286,53 @@ export async function installLaunchMarket(
 
   document.addEventListener('click', (event) => {
     const target = (event.target as Element | null)?.closest<HTMLElement>(
-      '[data-launch-connect],[data-launch-wallet-browser],[data-launch-refresh],[data-launch-bind],[data-launch-bind-confirm],[data-launch-side],[data-launch-clear],[data-launch-confirm],[data-launch-claim],[data-launch-create-vault],[data-launch-vault-close],[data-launch-executor-refresh],[data-launch-executor-revoke],[data-launch-executor-confirm]',
+      '[data-launch-connect],[data-launch-wallet-browser],[data-launch-refresh],[data-launch-bind],[data-launch-bind-confirm],[data-launch-side],[data-launch-clear],[data-launch-confirm],[data-launch-claim],[data-launch-create-vault],[data-launch-vault-close],[data-launch-executor-refresh],[data-launch-executor-revoke],[data-launch-executor-confirm],[data-launch-shortcut]',
     );
     if (!target || target.hasAttribute('disabled')) return;
+    if (target.hasAttribute('data-launch-shortcut')) {
+      const form = target.closest<HTMLFormElement>('[data-launch-order]');
+      const strategy = form?.dataset.strategy;
+      if (strategy !== 'TSLA' && strategy !== 'AMZN') return;
+      const revision = ++shortcutRevision;
+      const draft = forms[strategy],
+        route = location.hash,
+        identity = vaultIdentity(client.state);
+      const current = () =>
+        revision === shortcutRevision &&
+        location.hash === route &&
+        forms[strategy] === draft &&
+        vaultIdentity(client.state) === identity;
+      const apply = (amount: string) => {
+        if (!current()) return;
+        forms[strategy] = { ...draft, amount };
+        client.clearQuote();
+        render();
+        document
+          .querySelector<HTMLInputElement>('[data-launch-order] input[name="amount"]')
+          ?.focus({ preventScroll: true });
+      };
+      const value = target.dataset.launchShortcut;
+      if (value !== 'max') {
+        if (value && shortcutPresets(draft).some((preset) => preset.value === value)) apply(value);
+      } else {
+        void (async () => {
+          try {
+            const native =
+              draft.asset === 'ETH' && draft.operation !== 'SELL'
+                ? await client.previewNativeMax(
+                    strategy,
+                    draft.operation as 'MINT' | 'BUY',
+                    draft.slippageBps,
+                  )
+                : undefined;
+            if (current()) apply(maxShortcutAmount(client.state, strategy, draft, native));
+          } catch (error) {
+            if (current()) client.setError(error);
+          }
+        })();
+      }
+      return;
+    }
     if (target.hasAttribute('data-launch-connect')) {
       host.app.openDialog(
         '<span class="section-label">CONNECT YOUR WALLET</span><h2>Connect Wallet</h2><p>Choose your browser wallet to continue.</p><div class="wallet-options"><button class="primary-btn" data-launch-wallet-browser>Browser Wallet <span>Robinhood Chain Testnet</span></button></div><p class="small muted">On mobile, open this page in your wallet’s browser.</p><p class="small muted">Use Robinhood Chain Testnet (chain ID 46630). Native test ETH pays gas; AF-USDC does not pay gas.</p><p><a class="text-link" href="https://docs.robinhood.com/chain/add-network-to-wallet/" target="_blank" rel="noopener noreferrer">Set up the Testnet network ↗</a> <a class="text-link" href="https://faucet.testnet.chain.robinhood.com/" target="_blank" rel="noopener noreferrer">Get test ETH from the official faucet ↗</a></p>',
@@ -345,6 +394,7 @@ export async function installLaunchMarket(
         }),
       );
     } else if (target.hasAttribute('data-launch-side')) {
+      ++shortcutRevision;
       const strategy = location.hash.split('/')[2]?.toUpperCase();
       if (strategy !== 'TSLA' && strategy !== 'AMZN') return;
       const operation = target.dataset.launchSide as 'BUY' | 'SELL';
@@ -354,6 +404,7 @@ export async function installLaunchMarket(
     }
   });
   document.addEventListener('input', (event) => {
+    ++shortcutRevision;
     const input = event.target as HTMLInputElement;
     const vaultForm = input.closest<HTMLFormElement>('[data-launch-vault-order]');
     const address = vaultForm?.dataset.vault?.toLowerCase();
@@ -371,6 +422,7 @@ export async function installLaunchMarket(
       forms[strategy] = { ...forms[strategy], amount: input.value };
   });
   document.addEventListener('change', (event) => {
+    ++shortcutRevision;
     const input = event.target as HTMLSelectElement;
     const form = input.closest<HTMLFormElement>('[data-launch-order]');
     const strategy = form?.dataset.strategy;
@@ -448,6 +500,7 @@ export async function installLaunchMarket(
     );
   });
   window.addEventListener('hashchange', () => {
+    ++shortcutRevision;
     client.clearQuote();
     activeTrade();
   });
