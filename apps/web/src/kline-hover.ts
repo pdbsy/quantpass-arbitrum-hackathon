@@ -19,8 +19,28 @@ const number = (value: number, digits: number) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(
     value,
   );
-const money = (value: number | undefined, unit = 'ETH') =>
-  finite(value) ? `${number(value / 100, 2)} ${unit}` : '—';
+/** Keep indexed AF-USDC prices readable down to their six-decimal source precision. */
+export function passPriceDigits(values: readonly (number | undefined)[]): number {
+  for (let digits = 2; digits < 6; digits++) {
+    const scale = 10 ** digits;
+    if (
+      values.every((raw) => {
+        if (!finite(raw)) return true;
+        const value = raw / 100;
+        return (
+          Math.abs(value - Math.round(value * scale) / scale) <=
+          Number.EPSILON * Math.max(1, Math.abs(value)) * 8
+        );
+      })
+    )
+      return digits;
+  }
+  return 6;
+}
+export const formatPassPrice = (value: number | undefined, digits = passPriceDigits([value])) =>
+  finite(value) ? number(value / 100, digits) : '—';
+const money = (value: number | undefined, unit = 'ETH', digits = 2) =>
+  finite(value) ? `${number(value / 100, digits)} ${unit}` : '—';
 const sign = (value: number) => (value > 0 ? '+' : value < 0 ? '−' : '');
 
 export interface CandleInspectionOptions {
@@ -38,25 +58,35 @@ export function candleDetails(row: Candle, options: CandleInspectionOptions = {}
     finite(row.open) && finite(row.high) && finite(row.low) && row.open > 0 && row.high >= row.low
       ? ((row.high - row.low) / row.open) * 100
       : NaN;
+  const digits = unit === 'AF-USDC' ? passPriceDigits([row.open, row.high, row.low, row.close]) : 2;
+  const amount = (value: number | undefined, sharedDigits?: number) =>
+    money(value, unit, sharedDigits ?? (unit === 'AF-USDC' ? passPriceDigits([value]) : 2));
+  const percent = (value: number) =>
+    unit === 'AF-USDC'
+      ? new Intl.NumberFormat('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 6,
+        }).format(value)
+      : number(value, 2);
   return {
     time:
       finite(row.time) && Math.abs(row.time) <= 8.64e15
         ? new Date(row.time).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
         : '—',
-    open: money(row.open, unit),
-    high: money(row.high, unit),
-    low: money(row.low, unit),
-    close: money(row.close, unit),
-    change: finite(change) ? sign(change) + money(Math.abs(change), unit) : '—',
-    changePercent: finite(rate) ? sign(rate) + number(Math.abs(rate), 2) + '%' : '—',
-    amplitude: finite(amplitude) ? number(amplitude, 2) + '%' : '—',
+    open: amount(row.open, digits),
+    high: amount(row.high, digits),
+    low: amount(row.low, digits),
+    close: amount(row.close, digits),
+    change: finite(change) ? sign(change) + amount(Math.abs(change)) : '—',
+    changePercent: finite(rate) ? sign(rate) + percent(Math.abs(rate)) + '%' : '—',
+    amplitude: finite(amplitude) ? percent(amplitude) + '%' : '—',
     volume:
       finite(row.volume) && row.volume >= 0
         ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 8 }).format(row.volume) +
           ' ' +
           (options.volumeUnit ?? 'Pass')
         : '—',
-    turnover: finite(row.quoteVolume) && row.quoteVolume >= 0 ? money(row.quoteVolume, unit) : '—',
+    turnover: finite(row.quoteVolume) && row.quoteVolume >= 0 ? amount(row.quoteVolume) : '—',
   };
 }
 
