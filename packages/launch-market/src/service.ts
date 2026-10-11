@@ -59,6 +59,37 @@ export class LaunchMarketService {
   config() {
     return configuration(this.options.manifest);
   }
+  /** Public indicative price only: does not create an account, order quote or signer nonce. */
+  async ethReference(): Promise<{ ethUsdPriceRaw: string; observedAt: number; validUntil: number }> {
+    const provider = this.options.ethReference;
+    if (!provider) throw new LaunchMarketError('ETH_REFERENCE_NOT_CONFIGURED', 503);
+    let reference;
+    try {
+      reference = await provider.read();
+    } catch {
+      throw new LaunchMarketError('ETH_REFERENCE_UNAVAILABLE', 503);
+    }
+    // Provider latency consumes the same freshness window as a cached price's age.
+    const now = this.now();
+    let price;
+    try {
+      price = uint(reference?.ethUsdPriceRaw);
+    } catch {
+      throw new LaunchMarketError('ETH_REFERENCE_INVALID', 503);
+    }
+    const observedAt = reference.observedAt;
+    if (
+      price === 0n ||
+      !Number.isSafeInteger(observedAt) ||
+      observedAt < 0 ||
+      observedAt > Number.MAX_SAFE_INTEGER - 30
+    )
+      throw new LaunchMarketError('ETH_REFERENCE_INVALID', 503);
+    const validUntil = observedAt + 30;
+    if (!Number.isSafeInteger(now) || now < 0 || observedAt > now || now > validUntil)
+      throw new LaunchMarketError('ETH_REFERENCE_STALE', 503);
+    return { ethUsdPriceRaw: reference.ethUsdPriceRaw, observedAt, validUntil };
+  }
   private deployed() {
     if (!this.options.manifest || !this.options.chain) throw new LaunchMarketError('NOT_DEPLOYED', 503);
     return { manifest: this.options.manifest, chain: this.options.chain };
