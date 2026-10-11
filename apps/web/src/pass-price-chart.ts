@@ -1,10 +1,13 @@
 import { formatPassPrice, passPriceDigits, type Candle, type CandleChartHost } from './kline-hover.ts';
+import type { LaunchClientState } from './launch-market/model.ts';
+import { formatPoolSpotPrice } from './pool-spot-price.ts';
 
 interface PassChartStrategy {
   readonly id: string;
   readonly ink?: string;
 }
 export interface PassPriceChartHost extends CandleChartHost {
+  launchState?: LaunchClientState;
   view: { priceRange: string; priceStyle: string };
   charts: CandleChartHost['charts'] & {
     priceBlock(strategy: PassChartStrategy): string;
@@ -84,22 +87,59 @@ export function installPassPriceChart(host: PassPriceChartHost, doc: Document = 
   host.charts.priceBlock = (strategy) => {
     const html = originalBlock.call(host.charts, strategy);
     const rows = host.marketData.candles(strategy.id, host.view.priceRange);
-    if (!rows.length) return html;
-    const digits = passPriceDigits(rows.flatMap((row) => [row.open, row.high, row.low, row.close]));
     const template = doc.createElement('template');
     template.innerHTML = html;
+    const id = strategy.id.toUpperCase();
+    const market = id === 'AMZN' || id === 'TSLA' ? host.launchState?.snapshot?.markets[id] : undefined;
+    const launched = market?.state === 'LAUNCHED';
+    const reference =
+      market?.state === 'PREPARING' || market?.state === 'MINTING' || market?.state === 'SOLD_OUT';
+    const pool = market?.pool;
+    const price = launched
+      ? typeof pool === 'string' && /^0x[\da-f]{40}$/i.test(pool) && !/^0x0{40}$/i.test(pool)
+        ? formatPoolSpotPrice(market.reserveUsdcRaw, market.reservePassRaw)
+        : null
+      : reference
+        ? formatPoolSpotPrice(market.mintPriceUsdcRaw, String(10n ** 18n))
+        : null;
+    const headline = template.content.querySelector('.quote-headline > strong');
+    const description = reference ? 'Initial reference' : 'Current pool spot';
+    if (headline) {
+      headline.textContent = price ?? '—';
+      headline.setAttribute('title', price ? `${description}: ${price} AF-USDC/PASS` : 'Price unavailable');
+      headline.setAttribute(
+        'aria-label',
+        price ? `${description}: ${price} AF-USDC per PASS` : 'PASS price unavailable',
+      );
+      if (launched && price) {
+        headline.setAttribute('data-pool-reserve-usdc-raw', market.reserveUsdcRaw);
+        headline.setAttribute('data-pool-reserve-pass-raw', market.reservePassRaw);
+      }
+    }
+    const unit = template.content.querySelector('.quote-headline > .price-unit');
+    if (unit) unit.textContent = `AF-USDC / Pass · ${price ? description : 'Price unavailable'}`;
+    if (!rows.length) {
+      const readout = template.content.querySelector('#price-readout');
+      if (readout && launched)
+        readout.textContent = `No indexed swap candles · Pool spot ${price ? 'shown above' : 'unavailable'}`;
+      const method = template.content.querySelector('.chart-source > p');
+      if (method && launched)
+        method.textContent = `The headline shows the current pool spot when reserves are available. Swap candles appear after indexing. ${method.textContent}`;
+      return template.innerHTML;
+    }
+    const digits = passPriceDigits(rows.flatMap((row) => [row.open, row.high, row.low, row.close]));
     const chart = template.content.querySelector('.price-chart-svg');
     if (!chart) return html;
     chart.outerHTML = passPriceSvg(rows, strategy, host.view.priceStyle, mobile(), host.charts.G);
     const readout = template.content.querySelector('#price-readout');
-    if (readout) readout.textContent = priceReadout(rows.at(-1)!, digits);
+    if (readout) readout.textContent = `Execution · ${priceReadout(rows.at(-1)!, digits)}`;
     const note = template.content.querySelector('.chart-bottomnote > span');
     if (note)
       note.textContent = `UTC · 5-minute candles · ${rows.length} indexed interval${rows.length === 1 ? '' : 's'}`;
     const method = template.content.querySelector('.chart-source > p');
     if (method)
       method.textContent =
-        'Each candle contains actual AMM swaps in one 5-minute UTC interval. O = first execution, H = highest, L = lowest, C = last. Empty intervals are omitted; the line connects consecutive intervals only. The price axis spans at least 2% to keep tiny changes in proportion. PASS prices are separate from stock prices.';
+        'The headline is the current pool reserve price, rounded to up to 12 decimals. Each candle contains actual AMM swaps in one 5-minute UTC interval. O = first execution, H = highest, L = lowest, C = last. Empty intervals are omitted; the line connects consecutive intervals only. The price axis spans at least 2% to keep tiny changes in proportion. PASS prices are separate from stock prices.';
     const cells = template.content.querySelectorAll('.chart-data-scroll tbody tr');
     rows.forEach((row, index) => {
       const values = [row.open, row.high, row.low, row.close];
@@ -136,6 +176,6 @@ export function installPassPriceChart(host: PassPriceChartHost, doc: Document = 
     const readout = svg.closest('.terminal-chart')?.querySelector('#price-readout');
     const digits = passPriceDigits(rows.flatMap((item) => [item.open, item.high, item.low, item.close]));
     if (readout)
-      readout.textContent = `${new Date(row.time).toISOString().slice(5, 16).replace('T', ' ')} UTC · ${priceReadout(row, digits)} AF-USDC`;
+      readout.textContent = `${new Date(row.time).toISOString().slice(5, 16).replace('T', ' ')} UTC · Execution · ${priceReadout(row, digits)} AF-USDC`;
   };
 }
