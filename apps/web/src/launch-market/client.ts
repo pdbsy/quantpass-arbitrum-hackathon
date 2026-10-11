@@ -25,6 +25,7 @@ import {
   type QuoteRequest,
 } from './model.ts';
 import { actionable } from './presentation.ts';
+import { nativeMaxPolicy } from './order-shortcuts.ts';
 import {
   executorJournalKey,
   executorReceipt,
@@ -699,6 +700,87 @@ export class LaunchMarketClient {
       }
     } finally {
       this.#refreshing = false;
+    }
+  }
+
+  /** Read-only Max preview. The probe never becomes a confirmable order. */
+  async previewNativeMax(
+    strategyId: StrategyId,
+    operation: 'MINT' | 'BUY',
+    slippageBps: number,
+    policy = nativeMaxPolicy,
+  ): Promise<{ gasReserveRaw: string; ethUsdPriceRaw?: string }> {
+    const owner = this.#state.owner;
+    if (!owner || !this.#provider || !actionable(this.#state, strategyId, operation, 'ETH'))
+      throw new Error('Connect your wallet and start its test session before using ETH Max.');
+    const generation = this.#generation,
+      revision = this.#identityRevision;
+    this.#assertIdentity(owner, revision, operation);
+    if (
+      ![50, 100, 300].includes(slippageBps) ||
+      policy.safetyMultiplier < 1n ||
+      policy.minimumReserveWei <= 0n
+    )
+      throw new Error('Invalid Max gas policy.');
+    this.clearQuote();
+    this.#update({ busy: true, error: null });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await this.#assertOwner(owner, generation);
+      const gasPrice = await Promise.race([
+        this.#provider.request({ method: 'eth_gasPrice' }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('Gas price is unavailable. Enter an amount manually.')),
+            10000,
+          );
+        }),
+      ]);
+      if (typeof gasPrice !== 'string' || !/^0x[1-9a-f][0-9a-f]{0,63}$/i.test(gasPrice))
+        throw new Error('Gas price is unavailable. Enter an amount manually.');
+      const units = operation === 'MINT' ? policy.mintGasUnits : policy.buyGasUnits;
+      if (units <= 0n) throw new Error('Invalid Max gas policy.');
+      const estimate = BigInt(gasPrice) * units * policy.safetyMultiplier;
+      const gasReserveRaw = String(estimate > policy.minimumReserveWei ? estimate : policy.minimumReserveWei);
+      let probe: { quote: LaunchQuote; request: QuoteRequest } | undefined;
+      if (operation === 'MINT') {
+        const market = this.#state.snapshot!.markets[strategyId];
+        const quantum = 10n ** 18n / uint(market.mintPriceUsdcRaw);
+        const request: QuoteRequest = {
+          owner,
+          strategyId,
+          operation,
+          asset: 'ETH',
+          amountRaw: String(quantum),
+          slippageBps,
+        };
+        const quote = await this.#api<LaunchQuote>(`${prefix}/quote`, request);
+        probe = { quote, request };
+      }
+      await this.#assertOwner(owner, generation);
+      this.#assertIdentity(owner, revision, operation);
+      let ethUsdPriceRaw: string | undefined;
+      if (probe) {
+        this.#validateQuote(probe.quote, probe.request);
+        const reference = probe.quote.reference;
+        if (
+          !reference ||
+          uint(reference.ethUsdPriceRaw) === 0n ||
+          !Number.isSafeInteger(reference.observedAt) ||
+          reference.observedAt > this.#now() ||
+          this.#now() - reference.observedAt > 30
+        )
+          throw new Error(
+            'A fresh ETH/USD quote is unavailable. Choose AF-USDC or enter an amount manually.',
+          );
+        ethUsdPriceRaw = reference.ethUsdPriceRaw;
+      }
+      return { gasReserveRaw, ...(ethUsdPriceRaw ? { ethUsdPriceRaw } : {}) };
+    } finally {
+      clearTimeout(timer);
+      // Other wallet operations cannot acquire busy until this preview settles,
+      // including after wallet invalidation. Always release this preview's lock.
+      this.#update({ busy: false });
     }
   }
 
