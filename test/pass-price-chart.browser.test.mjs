@@ -110,6 +110,10 @@ test(
       assert.equal(await chart.locator('rect').count(), 2);
       assert.match(await page.locator('#price-readout').textContent(), /H 0\.500002/);
       assert.match(await page.locator('.chart-data-scroll tbody').textContent(), /0\.500001/);
+      assert.equal(
+        await page.locator('.chart-data-scroll tbody tr').first().locator('td').last().textContent(),
+        '0.01',
+      );
       assert.match(
         await page.locator('.chart-bottomnote').textContent(),
         /5-minute candles · 2 indexed intervals/,

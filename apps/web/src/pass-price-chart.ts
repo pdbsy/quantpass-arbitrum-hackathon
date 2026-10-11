@@ -108,6 +108,9 @@ export function installPassPriceChart(host: PassPriceChartHost, doc: Document = 
         const cell = columns?.[column + 1];
         if (cell) cell.textContent = formatPassPrice(value, digits);
       });
+      const volume = columns?.[5];
+      if (volume && row.volume !== undefined)
+        volume.textContent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(row.volume);
     });
     return template.innerHTML;
   };

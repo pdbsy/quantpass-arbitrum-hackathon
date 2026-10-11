@@ -105,7 +105,8 @@ test(
           response.end(JSON.stringify(await f.api(url.pathname + url.search)));
           return;
         }
-        const file = resolve(webRoot, `.${url.pathname === '/' ? '/index.html' : url.pathname}`);
+        const assetPath = url.pathname.replace(/^\/alphaforge(?=\/)/, '');
+        const file = resolve(webRoot, `.${assetPath === '/' ? '/index.html' : assetPath}`);
         if (!file.startsWith(webRoot + sep)) throw new Error('Invalid asset path');
         response.setHeader(
           'content-type',

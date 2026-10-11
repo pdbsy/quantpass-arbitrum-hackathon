@@ -1,5 +1,7 @@
 import { productSessionPresentation } from './product-session.ts';
 import { installProductNavigation } from './product-navigation.ts';
+import { installLiveRendering } from './product-live-render.ts';
+import { installPassPriceChart } from './pass-price-chart.ts';
 import { installCandleInspection, type CandleChartHost } from './kline-hover.ts';
 import './kline-hover.css';
 import './wallet-account.css';
@@ -39,7 +41,11 @@ import { formatUnits, parseUnits } from '../../../packages/domain/src/money.ts';
 interface Prototype extends CandleChartHost, StockHistoryHost {
   originalMarketLayout?: boolean;
   launchState?: LaunchClientState;
-  charts: CandleChartHost['charts'] & { priceBlock(strategy: { id: string }): string };
+  view: CandleChartHost['view'] & { priceStyle: string };
+  charts: CandleChartHost['charts'] & {
+    priceBlock(strategy: { id: string }): string;
+    pos: { price: number; returns: number };
+  };
   market?: { refresh(): void };
   strategies: { id: string; name: string }[];
   pages: { market: () => string; account: (tab: string) => string; trade: (id: string) => string };
@@ -59,6 +65,8 @@ declare global {
   }
 }
 const AF = window.AF;
+installLiveRendering(AF);
+if (AF.originalMarketLayout) installPassPriceChart(AF);
 // Server configuration selects the canonical chain market. The imported workshop keeps its layout and router.
 installCandleInspection(
   AF,
