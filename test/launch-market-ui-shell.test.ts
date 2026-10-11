@@ -480,32 +480,30 @@ test('missing chain mode preserves the full existing router, and replacement lay
   assert.equal(f.host.pages.account('settings'), f.originals.account('settings'));
 });
 
-test('empty order defaults retain manually entered drafts across sides and currencies', async (context) => {
-  const f = installationFixture(context);
-  await installLaunchMarket(f.host, f.provider, f.client);
-  location.hash = '#/trade/amzn';
-  assert.equal(f.host.launchForms!.AMZN.amount, '');
-  assert.equal(f.host.launchForms!.TSLA.amount, '');
-  f.field('input', 'amount', '0.001');
-  f.click('data-launch-side', { launchSide: 'SELL' });
-  assert.equal(f.host.launchForms!.AMZN.amount, '');
-  f.field('input', 'amount', '0.25');
-  f.field('change', 'asset', 'AF_USDC', 'data-launch-asset');
-  assert.equal(f.host.launchForms!.AMZN.amount, '0.25');
-  f.click('data-launch-side', { launchSide: 'BUY' });
-  assert.equal(f.host.launchForms!.AMZN.amount, '0.001');
-  f.field('change', 'asset', 'AF_USDC', 'data-launch-asset');
-  assert.equal(f.host.launchForms!.AMZN.amount, '');
-  f.field('input', 'amount', '5');
-  f.field('change', 'asset', 'ETH', 'data-launch-asset');
-  assert.equal(f.host.launchForms!.AMZN.amount, '0.001');
-  f.field('change', 'asset', 'AF_USDC', 'data-launch-asset');
-  assert.equal(f.host.launchForms!.AMZN.amount, '5');
-  assert.equal(f.provider.calls.length, 0);
-  assert.match(
-    renderTrade(f.client.state, 'AMZN', { ...f.host.launchForms!.AMZN, amount: '' }),
-    /value="" placeholder="Enter AF-USDC"/,
-  );
+test('order drafts preserve PASS quantities across currencies in the retained layout', async (context) => {
+  for (const originalLayout of [true, false]) {
+    const f = installationFixture(context, originalLayout);
+    await installLaunchMarket(f.host, f.provider, f.client);
+    location.hash = '#/trade/amzn';
+    assert.equal(f.host.launchForms!.AMZN.amount, '');
+    assert.equal(f.host.launchForms!.TSLA.amount, '');
+    f.field('input', 'amount', '0.001');
+    f.click('data-launch-side', { launchSide: 'SELL' });
+    assert.equal(f.host.launchForms!.AMZN.amount, '');
+    f.field('input', 'amount', '0.25');
+    f.field('change', 'asset', 'AF_USDC', 'data-launch-asset');
+    assert.equal(f.host.launchForms!.AMZN.amount, '0.25');
+    f.click('data-launch-side', { launchSide: 'BUY' });
+    assert.equal(f.host.launchForms!.AMZN.amount, '0.001');
+    f.field('change', 'asset', 'AF_USDC', 'data-launch-asset');
+    assert.equal(f.host.launchForms!.AMZN.amount, originalLayout ? '0.001' : '');
+    f.field('input', 'amount', '5');
+    f.field('change', 'asset', 'ETH', 'data-launch-asset');
+    assert.equal(f.host.launchForms!.AMZN.amount, originalLayout ? '5' : '0.001');
+    f.field('change', 'asset', 'AF_USDC', 'data-launch-asset');
+    assert.equal(f.host.launchForms!.AMZN.amount, '5');
+    assert.equal(f.provider.calls.length, 0);
+  }
 });
 
 test('anonymous financial pages show Google login and explicit wallet linkage without asserting verification', () => {

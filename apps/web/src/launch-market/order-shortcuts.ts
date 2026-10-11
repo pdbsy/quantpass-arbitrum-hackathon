@@ -1,5 +1,6 @@
 import type { LaunchClientState, StrategyId } from './model.ts';
 import type { OrderForm } from './shell.ts';
+import { ammQuote, usdcForEth } from '../../../../packages/launch-market/src/math.ts';
 
 const passUnit = 10n ** 18n;
 export const nativeMaxPolicy = {
@@ -16,10 +17,13 @@ export function shortcutInput(raw: bigint, decimals: number): string {
   return `${raw / unit}${fraction ? `.${fraction}` : ''}`;
 }
 
-export function shortcutPresets(form: OrderForm) {
-  const unit = form.operation === 'BUY' ? (form.asset === 'ETH' ? 'ETH' : 'AF-USDC') : 'PASS';
+export function shortcutPresets(form: OrderForm, passQuantity = false) {
+  const unit =
+    form.operation === 'BUY' && !passQuantity ? (form.asset === 'ETH' ? 'ETH' : 'AF-USDC') : 'PASS';
   const values =
-    form.operation === 'BUY' && form.asset === 'ETH' ? ['0.0001', '0.0005', '0.001'] : ['10', '50', '100'];
+    form.operation === 'BUY' && form.asset === 'ETH' && !passQuantity
+      ? ['0.0001', '0.0005', '0.001']
+      : ['10', '50', '100'];
   return values.map((value) => ({ value, label: `${value} ${unit}` }));
 }
 
@@ -28,6 +32,7 @@ export function maxShortcutAmount(
   strategy: StrategyId,
   form: OrderForm,
   native?: { gasReserveRaw: string; ethUsdPriceRaw?: string },
+  passQuantity = false,
 ): string {
   const wallet = state.wallet;
   const market = state.snapshot?.markets[strategy];
@@ -46,15 +51,27 @@ export function maxShortcutAmount(
     if (reserve <= 0n || balance <= reserve)
       throw new Error('Insufficient ETH after leaving a gas buffer. Enter a smaller amount or get test ETH.');
     spend = balance - reserve;
-    if (form.operation === 'BUY') return shortcutInput(spend, 18);
+    if (form.operation === 'BUY' && !passQuantity) return shortcutInput(spend, 18);
     const price = BigInt(native.ethUsdPriceRaw ?? '0');
     if (price <= 0n) throw new Error('A fresh ETH/USD quote is required for Mint Max.');
     // Native Mint pays the recipient directly; it does not charge the conversion-reserve fee.
-    spend = (spend * price) / passUnit;
+    spend =
+      form.operation === 'BUY'
+        ? usdcForEth(spend, price, state.snapshot!.conversion.feeBps)
+        : (spend * price) / passUnit;
+    if (form.operation === 'BUY') {
+      const liquidity = BigInt(state.snapshot!.conversion.usdcReserveRaw);
+      if (spend > liquidity) spend = liquidity;
+    }
   } else if (form.operation === 'BUY') {
     if (spend === 0n) throw new Error('No AF-USDC is available to spend.');
-    return shortcutInput(spend, 6);
+    if (!passQuantity) return shortcutInput(spend, 6);
   }
+  if (form.operation === 'BUY')
+    return shortcutInput(
+      ammQuote(spend, BigInt(market.reserveUsdcRaw), BigInt(market.reservePassRaw), market.ammFeeBps).output,
+      18,
+    );
   const price = BigInt(market.mintPriceUsdcRaw),
     remaining = BigInt(market.remainingRaw);
   if (price <= 0n || passUnit % price !== 0n) throw new Error('Mint price is unavailable.');
@@ -93,7 +110,17 @@ export function installOrderShortcuts(host: ShortcutHost, doc: Document = docume
         state.transaction.state,
       ) &&
       (draft.operation === 'MINT' ? market?.state === 'MINTING' : market?.state === 'LAUNCHED');
-    const presets = shortcutPresets(draft);
+    const form = template.content.querySelector('[data-launch-order]');
+    form?.setAttribute('data-launch-pass-quantity', '');
+    if (draft.operation === 'BUY') {
+      const input = template.content.querySelector<HTMLInputElement>('#pass-qty');
+      if (input) input.placeholder = 'Enter PASS';
+      const unit = template.content.querySelector('.pass-amount-wrap > span');
+      if (unit) unit.textContent = 'PASS';
+      const label = template.content.querySelector('label[for="pass-qty"]');
+      if (label) label.textContent = 'PASS to buy';
+    }
+    const presets = shortcutPresets(draft, true);
     template.content.querySelectorAll<HTMLButtonElement>('[data-pass-shortcut]').forEach((button, index) => {
       button.removeAttribute('data-pass-shortcut');
       button.dataset.launchShortcut = index < presets.length ? presets[index]!.value : 'max';
