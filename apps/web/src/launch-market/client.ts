@@ -575,8 +575,8 @@ export class LaunchMarketClient {
       this.#update({
         busy: false,
         notice: testSession
-          ? 'Your wallet test session is active. Email verification is disabled for this test phase. No assets were transferred.'
-          : 'Your verified account is linked to this wallet. No assets were transferred.',
+          ? 'Your wallet test session is active. Email verification is disabled for this test phase. The sign-in signature only proves wallet control.'
+          : 'Your verified account is linked to this wallet. The sign-in signature only proves wallet control.',
       });
       await this.refresh();
     } catch (error) {

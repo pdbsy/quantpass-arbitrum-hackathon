@@ -68,6 +68,20 @@ export async function installLaunchMarket(
     AMZN: { operation: 'BUY', asset: 'ETH', amount: '', slippageBps: 100 },
   };
   const amounts = new Map<string, string>();
+  const vaultAmounts = new Map<string, string>();
+  const vaultIdentity = (state: LaunchClientState) =>
+    [
+      state.owner?.toLowerCase(),
+      state.account?.id,
+      state.account?.wallet?.toLowerCase(),
+      state.account?.identityKind,
+      state.account?.emailVerified,
+      state.wallet?.accountId,
+      state.config?.emailVerificationRequired !== false,
+    ].join('/');
+  let draftIdentity = vaultIdentity(client.state);
+  let renderedIdentity = draftIdentity;
+  let vaultSubmission: { address: string; amount: string; hash: string | null } | null = null;
   const amountKey = (strategy: StrategyId, form: OrderForm) =>
     `${strategy}/${form.operation}/${form.operation === 'BUY' ? form.asset : 'PASS'}`;
   const changeForm = (strategy: StrategyId, patch: Partial<OrderForm>) => {
@@ -94,7 +108,8 @@ export async function installLaunchMarket(
   // Existing account links use passes/funds; keep those aliases on the same chain-backed pages.
   host.pages.account = (tab) => {
     if (tab === 'claim') return renderClaim(client.state);
-    if (tab === 'vaults' || tab === 'funds') return renderVaults(client.state);
+    if (tab === 'vaults' || tab === 'funds')
+      return renderVaults(client.state, Object.fromEntries(vaultAmounts));
     if (['saved', 'notes', 'settings'].includes(tab)) return localAccount(tab);
     return renderAccount(client.state);
   };
@@ -170,9 +185,30 @@ export async function installLaunchMarket(
   for (const anchor of document.querySelectorAll<HTMLAnchorElement>('[data-nav="trade"]'))
     anchor.href = '#/trade/tsla';
   const render = () => {
+    const active = document.activeElement as HTMLInputElement | null;
+    const address = active?.closest?.<HTMLFormElement>('[data-launch-vault-order]')?.dataset.vault;
+    const restore =
+      active?.name === 'amount' &&
+      address &&
+      renderedIdentity === draftIdentity &&
+      client.state.wallet?.vaults.some(
+        (vault) => vault.status === 'OPEN' && vault.address.toLowerCase() === address,
+      );
+    const selection = restore
+      ? { start: active.selectionStart, end: active.selectionEnd, direction: active.selectionDirection }
+      : null;
     host.launchState = client.state;
     host.launchForms = forms;
     host.app.render({ preserve: true });
+    renderedIdentity = draftIdentity;
+    if (selection) {
+      const input = document.querySelector<HTMLInputElement>(
+        `[data-launch-vault-order][data-vault="${address}"] input[name="amount"]`,
+      );
+      input?.focus({ preventScroll: true });
+      if (selection.start !== null && selection.end !== null)
+        input?.setSelectionRange(selection.start, selection.end, selection.direction ?? undefined);
+    }
   };
   activity.subscribe(render);
   const activeTrade = () => {
@@ -190,6 +226,50 @@ export async function installLaunchMarket(
   };
   let previousTslaState = client.state.snapshot?.markets.TSLA.state;
   client.subscribe((state) => {
+    const identity = vaultIdentity(state);
+    if (identity !== draftIdentity) {
+      vaultAmounts.clear();
+      vaultSubmission = null;
+      draftIdentity = identity;
+    }
+    const openVaults = new Set(
+      state.wallet?.vaults
+        .filter((vault) => vault.status === 'OPEN')
+        .map((vault) => vault.address.toLowerCase()),
+    );
+    for (const address of vaultAmounts.keys()) if (!openVaults.has(address)) vaultAmounts.delete(address);
+    if (vaultSubmission && !openVaults.has(vaultSubmission.address)) vaultSubmission = null;
+    const tx = state.transaction;
+    const quote = state.quote;
+    if (
+      !vaultSubmission &&
+      tx.state === 'AWAITING_WALLET' &&
+      !tx.approval &&
+      !tx.executor &&
+      quote &&
+      (quote.operation === 'DEPOSIT' || quote.operation === 'WITHDRAW')
+    ) {
+      const address = quote.transaction.to.toLowerCase();
+      const amount = vaultAmounts.get(address);
+      try {
+        if (
+          openVaults.has(address) &&
+          amount &&
+          inputRaw(quote.operation, 'AF_USDC', amount) === quote.amountInRaw
+        )
+          vaultSubmission = { address, amount, hash: null };
+      } catch {
+        // A new, unfinished draft must not be cleared by an earlier reviewed amount.
+      }
+    }
+    if (vaultSubmission && !tx.approval && !tx.executor) {
+      if (tx.hash && vaultSubmission.hash === null) vaultSubmission.hash = tx.hash;
+      if (tx.state === 'COMPLETED' && tx.hash === vaultSubmission.hash) {
+        if (vaultAmounts.get(vaultSubmission.address) === vaultSubmission.amount)
+          vaultAmounts.delete(vaultSubmission.address);
+        vaultSubmission = null;
+      } else if (['REJECTED', 'REVERTED', 'EXPIRED', 'DROPPED'].includes(tx.state)) vaultSubmission = null;
+    }
     const next = state.snapshot?.markets.TSLA.state;
     if (next === 'LAUNCHED' && previousTslaState !== 'LAUNCHED')
       changeForm('TSLA', { operation: 'BUY', asset: 'ETH' });
@@ -275,6 +355,16 @@ export async function installLaunchMarket(
   });
   document.addEventListener('input', (event) => {
     const input = event.target as HTMLInputElement;
+    const vaultForm = input.closest<HTMLFormElement>('[data-launch-vault-order]');
+    const address = vaultForm?.dataset.vault?.toLowerCase();
+    if (
+      input.name === 'amount' &&
+      address &&
+      client.state.wallet?.vaults.some(
+        (vault) => vault.status === 'OPEN' && vault.address.toLowerCase() === address,
+      )
+    )
+      vaultAmounts.set(address, input.value);
     const form = input.closest<HTMLFormElement>('[data-launch-order]');
     const strategy = form?.dataset.strategy;
     if (input.name === 'amount' && (strategy === 'TSLA' || strategy === 'AMZN'))

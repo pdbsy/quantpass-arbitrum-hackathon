@@ -19,9 +19,12 @@ import {
   account,
   quote,
   fixture,
+  location as chainLocation,
   NOW,
   OWNER,
+  OTHER,
 } from './helpers/launch-market-ui-fixture.ts';
+import { marketInterfaces } from '../packages/launch-market/src/abi.ts';
 function state(): { -readonly [K in keyof LaunchClientState]: LaunchClientState[K] } {
   return {
     enabled: true,
@@ -241,12 +244,143 @@ function installationFixture(context: TestContext, originalMarketLayout = true) 
       name,
       value,
       hasAttribute: (key: string) => key === attribute,
-      closest: () => ({ dataset: { strategy: 'AMZN', operation: host.launchForms!.AMZN.operation } }),
+      closest: (selector: string) =>
+        selector === '[data-launch-order]'
+          ? { dataset: { strategy: 'AMZN', operation: host.launchForms!.AMZN.operation } }
+          : null,
     };
     for (const listener of documentListeners.get(type) ?? []) listener({ target } as unknown as Event);
   };
-  return { host, originals, dialogs, click, field, client, ...f };
+  const vaultField = (address: string, value: string) => {
+    const target = {
+      name: 'amount',
+      value,
+      closest: (selector: string) =>
+        selector === '[data-launch-vault-order]' ? { dataset: { vault: address } } : null,
+    };
+    for (const listener of documentListeners.get('input') ?? []) listener({ target } as unknown as Event);
+  };
+  return { host, originals, dialogs, click, field, vaultField, client, ...f };
 }
+
+function openVault(address = '0x3333333333333333333333333333333333333333') {
+  return {
+    strategyId: 'AMZN' as const,
+    address,
+    principalBasisRaw: '10000',
+    equityRaw: '10000',
+    cashRaw: '10000',
+    lockedPassRaw: '10000000000000000',
+    realizedPnlRaw: '0',
+    unrealizedPnlRaw: '0',
+    valuationState: 'FRESH' as const,
+    withdrawableProfitRaw: '0',
+    withdrawablePrincipalRaw: '10000',
+    status: 'OPEN' as const,
+    holdings: [],
+  };
+}
+
+test('Vault drafts survive refresh and failed reviews, but clear when identity or Vault generation changes', async (context) => {
+  const f = installationFixture(context);
+  const vault = openVault();
+  f.state.wallet = { ...wallet(), vaults: [vault] };
+  await installLaunchMarket(f.host, f.provider, f.client);
+  await f.client.connect();
+  f.vaultField(vault.address, '0.01');
+  f.client.setError(new Error('QUOTE_EXPIRED'));
+  assert.match(f.host.pages.account('vaults'), /value="0\.01" placeholder="10"/);
+  f.state.wallet = { ...f.state.wallet, location: chainLocation(101) };
+  await f.client.refresh();
+  assert.match(f.host.pages.account('funds'), /value="0\.01" placeholder="10"/);
+  assert.equal(f.host.launchForms!.AMZN.amount, '');
+  f.state.wallet = {
+    ...f.state.wallet,
+    location: chainLocation(102),
+    vaults: [{ ...vault, status: 'CLOSED' }, openVault(OTHER)],
+  };
+  await f.client.refresh();
+  assert.match(f.host.pages.account('vaults'), /value="" placeholder="10"/);
+  assert.doesNotMatch(f.host.pages.account('vaults'), /value="0\.01"/);
+  f.vaultField(OTHER, '0.02');
+  f.state.account = null;
+  f.state.wallet = { ...f.state.wallet, accountId: null, location: chainLocation(103) };
+  await f.client.refresh();
+  assert.doesNotMatch(f.host.pages.account('vaults'), /value="0\.02"/);
+  assert.equal(f.provider.calls.filter((call) => call.method === 'eth_sendTransaction').length, 0);
+});
+
+test('Vault drafts persist through approvals and pending transactions, then clear only the confirmed submitted draft', async (context) => {
+  const f = installationFixture(context);
+  const vault = openVault();
+  f.state.wallet = { ...wallet(), vaults: [vault] };
+  await installLaunchMarket(f.host, f.provider, f.client);
+  await f.client.connect();
+  const request = {
+    owner: OWNER,
+    strategyId: 'AMZN' as const,
+    operation: 'DEPOSIT' as const,
+    asset: 'AF_USDC' as const,
+    amountRaw: '10000',
+    slippageBps: 100,
+  };
+  const ready = {
+    ...quote(request),
+    estimatedOutRaw: '10000',
+    minOutRaw: '10000',
+    transaction: {
+      to: vault.address,
+      data: marketInterfaces.vault.encodeFunctionData('deposit', ['10000']),
+      value: '0',
+    },
+  };
+  f.vaultField(vault.address, '0.01');
+  f.state.quote = {
+    ...ready,
+    simulation: 'APPROVAL_REQUIRED',
+    gasEstimateRaw: null,
+    allowance: { token: config().manifest!.usdc, spender: vault.address, amountRaw: '10000' },
+  };
+  await f.client.review(request);
+  await f.client.confirm();
+  assert.equal(f.client.state.transaction.approval, true);
+  assert.match(f.host.pages.account('vaults'), /value="0\.01" placeholder="10"/);
+  f.provider.receipt = {
+    transactionHash: f.client.state.transaction.hash,
+    blockNumber: '0x64',
+    blockHash: chainLocation().blockHash,
+    status: '0x1',
+    from: OWNER,
+  };
+  await f.client.refreshTransaction();
+  assert.equal(f.client.state.transaction.state, 'COMPLETED');
+  assert.match(f.host.pages.account('vaults'), /value="0\.01" placeholder="10"/);
+  f.state.quote = ready;
+  await f.client.review(request);
+  await f.client.confirm();
+  assert.match(f.host.pages.account('vaults'), /value="0\.01" placeholder="10"/);
+  f.state.operation = {
+    ...f.state.operation,
+    state: 'COMPLETED',
+    confirmations: 3,
+    location: chainLocation(),
+  };
+  await f.client.refreshTransaction();
+  assert.match(f.host.pages.account('vaults'), /value="" placeholder="10"/);
+  f.vaultField(vault.address, '0.01');
+  f.state.operation = { ...f.state.operation, state: 'SUBMITTED', confirmations: 0, location: null };
+  await f.client.review(request);
+  await f.client.confirm();
+  f.vaultField(vault.address, '0.02');
+  f.state.operation = {
+    ...f.state.operation,
+    state: 'COMPLETED',
+    confirmations: 3,
+    location: chainLocation(),
+  };
+  await f.client.refreshTransaction();
+  assert.match(f.host.pages.account('vaults'), /value="0\.02" placeholder="10"/);
+});
 
 test('preserved home and Trade still route holdings, claims and legacy funds to chain-backed account pages', async (context) => {
   const f = installationFixture(context);
