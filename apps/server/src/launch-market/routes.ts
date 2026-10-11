@@ -103,6 +103,7 @@ export function registerLaunchMarketRoutes(app: FastifyInstance, options: Launch
     emailVerificationRequired: await verificationRequired(),
   }));
   app.get('/api/launch-market/snapshot', async () => execute(() => service.snapshot()));
+  app.get('/api/launch-market/eth-reference', async () => execute(() => service.ethReference()));
   app.get('/api/launch-market/account', async (request) =>
     execute(async () => {
       const auth = await authenticated(request);
