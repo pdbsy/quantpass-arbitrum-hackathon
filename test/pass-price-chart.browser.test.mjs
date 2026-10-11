@@ -84,14 +84,29 @@ test(
           close: 50.0001,
         };
         window.chartRows = [first, second];
-        window.AF.passMarket = { candles: () => window.chartRows };
+        window.AF.passMarket = {
+          candles: () => window.chartRows,
+          metrics: () => ({ price: 50, change: null }),
+        };
+        window.AF.launchState = {
+          snapshot: {
+            markets: {
+              AMZN: {
+                state: 'LAUNCHED',
+                pool: '0x0000000000000000000000000000000000000001',
+                reserveUsdcRaw: '250000020097',
+                reservePassRaw: '499999960108008183036872',
+                mintPriceUsdcRaw: '500000',
+              },
+            },
+          },
+        };
         window.AF.view.priceRange = '24h';
         window.AF.view.priceStyle = 'candle';
         const original = window.AF.charts.priceBlock(window.AF.strategy('amzn'));
         const template = document.createElement('template');
         template.innerHTML = original;
         window.originalToolbar = template.content.querySelector('.chart-toolbar').outerHTML;
-        window.originalQuote = template.content.querySelector('.quote-headline').outerHTML;
         window.originalStockChart = window.AF.charts.returnBlock(window.AF.strategy('amzn'));
         window.passChartModules.installPassPriceChart(window.AF);
         window.passChartModules.installCandleInspection(window.AF, document, {
@@ -118,12 +133,25 @@ test(
         await page.locator('.chart-bottomnote').textContent(),
         /5-minute candles · 2 indexed intervals/,
       );
+      const headline = page.locator('.quote-headline > strong');
+      assert.equal(await headline.textContent(), '0.500000080086');
+      assert.match(await headline.getAttribute('title'), /Current pool spot: 0\.500000080086/);
+      assert.match(await headline.getAttribute('aria-label'), /0\.500000080086 AF-USDC per PASS/);
+      assert.equal(await headline.getAttribute('data-pool-reserve-usdc-raw'), '250000020097');
+      assert.match(await page.locator('.price-unit').textContent(), /Current pool spot/);
+      assert.match(await page.locator('#price-readout').textContent(), /^Execution · O 0\.500001/);
+      assert.equal(await page.locator('.change-badge').textContent(), '— 24H');
+      const fits = await headline.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const frame = element.closest('.terminal-chart').getBoundingClientRect();
+        return bounds.left >= frame.left && bounds.right <= frame.right;
+      });
+      assert.ok(fits, 'the full twelve-decimal quote fits the existing desktop/mobile chart width');
       const unchanged = await page.evaluate(() => ({
         toolbar: document.querySelector('.chart-toolbar').outerHTML === window.originalToolbar,
-        headline: document.querySelector('.quote-headline').outerHTML === window.originalQuote,
         stock: window.AF.charts.returnBlock(window.AF.strategy('amzn')) === window.originalStockChart,
       }));
-      assert.deepEqual(unchanged, { toolbar: true, headline: true, stock: true });
+      assert.deepEqual(unchanged, { toolbar: true, stock: true });
       const point = await chart.evaluate((svg) => {
         const g = window.AF.charts.G;
         const local = svg.createSVGPoint();
@@ -151,8 +179,39 @@ test(
       assert.doesNotMatch(path, /L/);
       await page.evaluate(() => {
         window.chartRows = [];
+        window.AF.launchState.snapshot.markets.AMZN.reserveUsdcRaw = '250001000000';
+        window.AF.launchState.snapshot.markets.AMZN.reservePassRaw = '500000000000000000000000';
         window.renderChart();
       });
+      assert.equal(
+        await headline.textContent(),
+        '0.500002',
+        'a fresh pool snapshot updates before candle indexing',
+      );
+      assert.match(await page.locator('#price-readout').textContent(), /No indexed swap candles/);
+      assert.equal(await page.locator('[data-pass-price-chart]').count(), 0);
+      await page.evaluate(() => {
+        window.AF.launchState.snapshot.markets.AMZN.reservePassRaw = '0';
+        window.renderChart();
+      });
+      assert.equal(
+        await headline.textContent(),
+        '—',
+        'a live pool without usable reserves cannot show a reference quote',
+      );
+      assert.match(await page.locator('.price-unit').textContent(), /Price unavailable/);
+      await page.evaluate(() => {
+        window.AF.launchState.snapshot.markets.AMZN.reservePassRaw = '500000000000000000000000';
+        window.AF.launchState.snapshot.markets.AMZN.pool = null;
+        window.renderChart();
+      });
+      assert.equal(await headline.textContent(), '—', 'a missing live pool remains unavailable');
+      await page.evaluate(() => {
+        window.AF.launchState.snapshot.markets.AMZN.state = 'MINTING';
+        window.renderChart();
+      });
+      assert.equal(await headline.textContent(), '0.50');
+      assert.match(await page.locator('.price-unit').textContent(), /Initial reference/);
       assert.equal(await page.locator('[data-price-reference="0.5"]').count(), 1);
       assert.equal(await page.locator('[data-pass-price-chart]').count(), 0);
       assert.match(await page.locator('#price-readout').textContent(), /No executed market price/);
