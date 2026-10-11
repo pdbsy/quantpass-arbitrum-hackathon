@@ -6,6 +6,7 @@ import {
   type QuoteRequest,
   type TrustedEmailIdentity,
   type MarketStreamUpdate,
+  type MarketAccount,
 } from '../../../../packages/launch-market/src/types.ts';
 
 export interface LaunchMarketRoutesOptions {
@@ -14,7 +15,9 @@ export interface LaunchMarketRoutesOptions {
   readonly trustedIdentity: (
     request: FastifyRequest,
   ) => Promise<TrustedEmailIdentity | null> | TrustedEmailIdentity | null;
+  readonly verificationRequired?: () => boolean | Promise<boolean>;
 }
+const testSessionCookie = '__Host-af_market_test';
 const ownerSchema = { type: 'string', pattern: '^0x[0-9a-fA-F]{40}$', maxLength: 42 };
 const idSchema = { type: 'string', minLength: 1, maxLength: 128, pattern: '^[a-zA-Z0-9_-]+$' };
 const rawSchema = { type: 'string', pattern: '^(0|[1-9][0-9]{0,77})$', maxLength: 78 };
@@ -27,10 +30,61 @@ const body = (properties: Record<string, unknown>) => ({
 export function registerLaunchMarketRoutes(app: FastifyInstance, options: LaunchMarketRoutesOptions): void {
   const service = options.service,
     clients = new Set<ServerResponse>();
+  const verificationRequired = async () => {
+    try {
+      return (await options.verificationRequired?.()) !== false;
+    } catch {
+      return true;
+    }
+  };
+  const testSession = (request: FastifyRequest, mutation = !['GET', 'HEAD'].includes(request.method)) => {
+    const token = request.cookies?.[testSessionCookie],
+      csrf = request.headers['x-csrf-token'];
+    if (!token || !/^[A-Za-z0-9_-]{32,128}$/.test(token)) return null;
+    return service.options.store.walletTestSession(
+      token,
+      typeof csrf === 'string' ? csrf : null,
+      service.now(),
+      mutation,
+    );
+  };
+  const authenticated = async (
+    request: FastifyRequest,
+  ): Promise<{
+    current: MarketAccount;
+    emailVerified: boolean;
+    identityKind: 'GOOGLE' | 'WALLET_TEST';
+  } | null> => {
+    // A real test session selects the same account for reads and writes, even with an older Google cookie.
+    // Wrong/missing test CSRF must not silently select a different Google account.
+    if (!(await verificationRequired()) && testSession(request, false)) {
+      const session = testSession(request);
+      return session ? { current: session.account, emailVerified: false, identityKind: 'WALLET_TEST' } : null;
+    }
+    const identity = await options.trustedIdentity(request);
+    return identity
+      ? { current: service.account(identity), emailVerified: true, identityKind: 'GOOGLE' }
+      : null;
+  };
   const account = async (request: FastifyRequest) => {
+    const auth = await authenticated(request);
+    if (!auth)
+      throw new LaunchMarketError(
+        (await verificationRequired()) ? 'VERIFIED_EMAIL_REQUIRED' : 'MARKET_SESSION_REQUIRED',
+        401,
+      );
+    return auth.current;
+  };
+  const verifiedAccount = async (request: FastifyRequest) => {
     const identity = await options.trustedIdentity(request);
     if (!identity) throw new LaunchMarketError('VERIFIED_EMAIL_REQUIRED', 401);
     return service.account(identity);
+  };
+  const requireTestMode = async (request: FastifyRequest) => {
+    if (await verificationRequired()) throw new LaunchMarketError('VERIFIED_EMAIL_REQUIRED', 401);
+    // Pre-session requests have no CSRF yet. Require the exact origin, including when routes are embedded.
+    if (request.headers.origin !== service.options.store.origin)
+      throw new LaunchMarketError('INVALID_REQUEST_ORIGIN', 403);
   };
   const routeError = (error: unknown) => {
     if (error instanceof LaunchMarketError) return error;
@@ -44,18 +98,27 @@ export function registerLaunchMarketRoutes(app: FastifyInstance, options: Launch
       throw routeError(error);
     }
   };
-  app.get('/api/launch-market/config', async () => service.config());
+  app.get('/api/launch-market/config', async () => ({
+    ...service.config(),
+    emailVerificationRequired: await verificationRequired(),
+  }));
   app.get('/api/launch-market/snapshot', async () => execute(() => service.snapshot()));
   app.get('/api/launch-market/account', async (request) =>
     execute(async () => {
-      const current = await account(request),
-        voucher = service.options.store.voucher(current.id);
+      const auth = await authenticated(request);
+      if (!auth)
+        throw new LaunchMarketError(
+          (await verificationRequired()) ? 'VERIFIED_EMAIL_REQUIRED' : 'MARKET_SESSION_REQUIRED',
+          401,
+        );
+      const current = auth.current;
       return {
         id: current.id,
         accountKey: current.accountKey,
         wallet: current.wallet,
-        emailVerified: true,
-        claimStatus: voucher?.status ?? 'ELIGIBLE',
+        emailVerified: auth.emailVerified,
+        identityKind: auth.identityKind,
+        claimStatus: service.options.store.claimStatus(current.id) ?? 'ELIGIBLE',
       };
     }),
   );
@@ -64,9 +127,8 @@ export function registerLaunchMarketRoutes(app: FastifyInstance, options: Launch
     { schema: { querystring: body({ owner: ownerSchema }) } },
     async (request) =>
       execute(async () => {
-        const identity = await options.trustedIdentity(request),
-          current = identity ? service.account(identity) : null;
-        return service.wallet(request.query.owner, current?.id ?? null);
+        const auth = await authenticated(request);
+        return service.wallet(request.query.owner, auth?.current.id ?? null);
       }),
   );
   app.post<{ Body: { owner: string } }>(
@@ -74,7 +136,7 @@ export function registerLaunchMarketRoutes(app: FastifyInstance, options: Launch
     { schema: { body: body({ owner: ownerSchema }) } },
     async (request) =>
       execute(async () => {
-        const current = await account(request);
+        const current = await verifiedAccount(request);
         return service.options.store.bindingChallenge(current.id, request.body.owner, service.now());
       }),
   );
@@ -90,15 +152,65 @@ export function registerLaunchMarketRoutes(app: FastifyInstance, options: Launch
     },
     async (request) =>
       execute(async () => {
-        const current = await account(request),
+        const current = await verifiedAccount(request),
           bound = service.options.store.bindWallet(
             current.id,
             request.body.nonce,
             request.body.signature,
             service.now(),
           );
-        return { id: bound.id, wallet: bound.wallet, emailVerified: true };
+        return { id: bound.id, wallet: bound.wallet, emailVerified: true, identityKind: 'GOOGLE' };
       }),
+  );
+  app.post<{ Body: { owner: string } }>(
+    '/api/launch-market/wallet/test-challenge',
+    { schema: { body: body({ owner: ownerSchema }) } },
+    async (request) =>
+      execute(async () => {
+        await requireTestMode(request);
+        return service.options.store.walletTestChallenge(request.body.owner, service.now());
+      }),
+  );
+  app.post<{ Body: { nonce: string; signature: string } }>(
+    '/api/launch-market/wallet/test-session',
+    {
+      schema: {
+        body: body({
+          nonce: { type: 'string', pattern: '^[a-f0-9]{48}$', maxLength: 48 },
+          signature: { type: 'string', pattern: '^0x[0-9a-fA-F]{130}$', maxLength: 132 },
+        }),
+      },
+    },
+    async (request, reply) =>
+      execute(async () => {
+        await requireTestMode(request);
+        const session = service.options.store.openWalletTestSession(
+          request.body.nonce,
+          request.body.signature,
+          service.now(),
+        );
+        reply.setCookie(testSessionCookie, session.token, {
+          path: '/',
+          secure: true,
+          httpOnly: true,
+          sameSite: 'strict',
+          maxAge: Math.max(0, session.expiresAt - service.now()),
+        });
+        return {
+          id: session.account.id,
+          wallet: session.account.wallet,
+          emailVerified: false,
+          identityKind: 'WALLET_TEST',
+        };
+      }),
+  );
+  app.get('/api/launch-market/wallet/test-session', async (request) =>
+    execute(async () => {
+      if (await verificationRequired()) throw new LaunchMarketError('VERIFIED_EMAIL_REQUIRED', 401);
+      const session = testSession(request);
+      if (!session) throw new LaunchMarketError('MARKET_SESSION_REQUIRED', 401);
+      return { csrfToken: session.csrfToken, identityKind: 'WALLET_TEST', emailVerificationRequired: false };
+    }),
   );
   app.post<{ Body: QuoteRequest }>(
     '/api/launch-market/quote',

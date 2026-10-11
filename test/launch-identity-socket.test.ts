@@ -130,6 +130,34 @@ test('Unix bridge exposes only a verified existing Google identity and applies m
   }
 });
 
+test('trusted socket policy follows the console immediately and fails closed for every unknown value', async () => {
+  const f = await fixture();
+  try {
+    // Missing table and missing row both require verification.
+    assert.equal(await f.client.verificationRequired(), true);
+    f.db.exec('CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT)');
+    assert.equal(await f.client.verificationRequired(), true);
+    for (const value of ['0', '1', '', 'false', '00']) {
+      f.db.prepare('INSERT OR REPLACE INTO metadata VALUES(?,?)').run('access_verification_required', value);
+      assert.equal(await f.client.verificationRequired(), value !== '0');
+    }
+    f.db.prepare('UPDATE metadata SET value=?').run('0');
+    assert.equal(await f.client.verificationRequired(), false);
+    assert.equal((await raw(f.socketPath, '', '/v1/access-policy', 'POST')).status, 400);
+    assert.equal((await raw(f.socketPath, 'body', '/v1/access-policy', 'GET')).status, 400);
+    assert.equal((await raw(f.socketPath, '', '/v1/access-policy?required=false', 'GET')).status, 400);
+    // Neither policy response nor its request contains accounts, emails or credentials.
+    assert.deepEqual(JSON.parse((await raw(f.socketPath, '', '/v1/access-policy', 'GET')).body), {
+      verificationRequired: false,
+    });
+    chmodSync(f.socketPath, 0o666);
+    assert.equal(await f.client.verificationRequired(), true);
+    chmodSync(f.socketPath, 0o660);
+  } finally {
+    await f.close();
+  }
+});
+
 test('no identity cache survives revocation, expiry, whitelist removal or subject change', async () => {
   const f = await fixture();
   try {

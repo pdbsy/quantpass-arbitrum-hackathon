@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { LaunchMarketClient } from '../apps/web/src/launch-market/client.ts';
+import { LaunchMarketClient, MarketApiError } from '../apps/web/src/launch-market/client.ts';
 import { executorInterface, executorJournalKey } from '../apps/web/src/launch-market/executor.ts';
 import { executorFixture, permission, VAULT } from './helpers/launch-market-executor-fixture.ts';
 import { OWNER, OTHER, NOW, BLOCK, HASH } from './helpers/launch-market-ui-fixture.ts';
@@ -221,4 +221,107 @@ test('a later reorg restores confirmed executor evidence and rereads the origina
   assert.equal(f.client.state.transaction.state, 'REORGED');
   assert.match(f.journal.getItem(executorJournalKey)!, /CONFIGURE/);
   assert.equal(f.provider.calls.filter((call) => call.method === 'eth_sendTransaction').length, 1);
+});
+
+test('expired account clears an unsent executor review while submitted recovery evidence remains intact', async () => {
+  const unsent = await setup();
+  await unsent.client.reviewExecutorPermission('AMZN', permission());
+  unsent.client.setError(new MarketApiError('ACCOUNT_SESSION_INVALID', 401));
+  assert.equal(unsent.client.state.executorReview, null);
+  await assert.rejects(unsent.client.confirmExecutorPermission(), /EXECUTOR_REVIEW_REQUIRED/);
+  assert.equal(
+    unsent.provider.calls.some((c) => c.method === 'eth_sendTransaction'),
+    false,
+  );
+  assert.equal(unsent.journal.getItem(executorJournalKey), null);
+
+  const sent = await setup();
+  await sent.client.reviewExecutorPermission('AMZN', permission());
+  await sent.client.confirmExecutorPermission();
+  const journal = sent.journal.getItem(executorJournalKey);
+  sent.client.setError(new MarketApiError('ACCOUNT_SESSION_INVALID', 401));
+  assert.equal(sent.client.state.executorReview, null);
+  assert.equal(sent.client.state.transaction.hash, HASH);
+  assert.equal(sent.journal.getItem(executorJournalKey), journal);
+  await sent.client.refreshTransaction();
+  assert.equal(sent.client.state.transaction.state, 'SUBMITTED');
+  assert.equal(sent.provider.calls.filter((c) => c.method === 'eth_sendTransaction').length, 1);
+});
+
+test('expired identity during executor pre-submit cancels without a broadcast or orphan recovery journal', async () => {
+  const f = await setup();
+  await f.client.reviewExecutorPermission('AMZN', permission());
+  const started = Promise.withResolvers<void>();
+  const simulation = Promise.withResolvers<unknown>();
+  const original = f.provider.request.bind(f.provider);
+  f.provider.request = async (input) => {
+    if (input.method === 'eth_call' && input.params?.[1] === 'latest') {
+      started.resolve();
+      return simulation.promise;
+    }
+    return original(input);
+  };
+  const confirming = f.client.confirmExecutorPermission();
+  const rejected = assert.rejects(confirming, /ACCOUNT_LINKAGE_CHANGED/);
+  await started.promise;
+  f.client.setError(new MarketApiError('ACCOUNT_SESSION_INVALID', 401));
+  simulation.resolve('0x');
+  await rejected;
+  assert.equal(
+    f.provider.calls.some((c) => c.method === 'eth_sendTransaction'),
+    false,
+  );
+  assert.equal(f.journal.getItem(executorJournalKey), null);
+});
+
+test('verification policy changes clear unsent executor reviews and preserve already submitted recovery journals', async () => {
+  for (const submitted of [false, true]) {
+    const f = await setup();
+    f.state.config = { ...f.state.config, emailVerificationRequired: false };
+    await f.client.refresh();
+    await f.client.reviewExecutorPermission('AMZN', permission());
+    if (submitted) await f.client.confirmExecutorPermission();
+    f.state.config = { ...f.state.config, emailVerificationRequired: true };
+    if (!submitted) {
+      await assert.rejects(f.client.confirmExecutorPermission(), /EXECUTOR_REVIEW_REQUIRED/);
+      assert.equal(
+        f.provider.calls.some((c) => c.method === 'eth_sendTransaction'),
+        false,
+      );
+      assert.equal(f.journal.getItem(executorJournalKey), null);
+    } else {
+      const journal = f.journal.getItem(executorJournalKey);
+      await f.client.refresh();
+      assert.equal(f.client.state.transaction.hash, HASH);
+      assert.equal(f.client.state.transaction.state, 'SUBMITTED');
+      assert.equal(f.journal.getItem(executorJournalKey), journal);
+    }
+    assert.equal(f.client.state.executorReview, null);
+  }
+});
+
+test('MARKET_SESSION_REQUIRED invalidates an unsent executor review without erasing broadcast recovery', async () => {
+  for (const submitted of [false, true]) {
+    const f = await setup();
+    f.state.config = { ...f.state.config, emailVerificationRequired: false };
+    await f.client.refresh();
+    await f.client.reviewExecutorPermission('AMZN', permission());
+    if (submitted) await f.client.confirmExecutorPermission();
+    const journal = f.journal.getItem(executorJournalKey);
+    f.client.setError(new MarketApiError('MARKET_SESSION_REQUIRED', 401));
+    assert.equal(f.client.state.account, null);
+    assert.equal(f.client.state.wallet!.accountId, null);
+    assert.equal(f.client.state.executorReview, null);
+    assert.match(f.client.state.error!, /wallet test session/);
+    if (submitted) {
+      assert.equal(f.client.state.transaction.hash, HASH);
+      assert.equal(f.journal.getItem(executorJournalKey), journal);
+    } else {
+      await assert.rejects(f.client.confirmExecutorPermission(), /EXECUTOR_REVIEW_REQUIRED/);
+      assert.equal(
+        f.provider.calls.some((c) => c.method === 'eth_sendTransaction'),
+        false,
+      );
+    }
+  }
 });

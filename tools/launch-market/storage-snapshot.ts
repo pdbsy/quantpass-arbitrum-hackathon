@@ -19,15 +19,16 @@ import { readRegularBytes } from '../../packages/testnet/src/bounded-file.ts';
 
 const capacity = 512 * 1024 * 1024;
 /**
- * Schema-1 pins from LaunchMarketStore and MarketEventIndexer constructors, including SQLite's
+ * Explicit schema pins from LaunchMarketStore (v1/v2) and MarketEventIndexer (v1), including SQLite's
  * constraint autoindexes. Canonical UTF-8 bytes are JSON.stringify() of rows selected in column
  * order type,name,tbl_name,sql, sorted by type COLLATE BINARY,name COLLATE BINARY, with no newline.
  * Any DDL change requires an explicit schema qualification and a new reviewed pin.
  */
 export const expectedSchemaSha256 = {
-  'market.sqlite': 'ebcd5b0c6de108735f97ebbac53d7e7545cfa9c35d0d2a5dc38d7c7d953b64a6',
+  'market.sqlite': '8dc4daab94a91809ee8be9ff08fc3487870b630e6b4e1d76bf07e2f33808f7fe',
   'market-events.sqlite': 'd62a1400b85053ca785dc7a3e6b134b660cf47f92cb603865d03886a51f162e0',
 } as const;
+const legacyMarketSchemaSha256 = 'ebcd5b0c6de108735f97ebbac53d7e7545cfa9c35d0d2a5dc38d7c7d953b64a6';
 const specifications = [
   {
     file: 'market.sqlite',
@@ -96,6 +97,30 @@ const specifications = [
     },
   },
 ] as const;
+const walletTestTables: Readonly<Record<string, readonly string[]>> = {
+  ...specifications[0].tables,
+  market_accounts: [
+    'id',
+    'account_key',
+    'email',
+    'subject',
+    'verified_at',
+    'wallet',
+    'created_at',
+    'identity_kind',
+  ],
+  market_wallet_test_identities: ['wallet', 'account_id', 'created_at'],
+  market_wallet_test_challenges: ['nonce', 'wallet', 'message', 'issued_at', 'expires_at', 'consumed'],
+  market_wallet_test_sessions: [
+    'token_hash',
+    'account_id',
+    'wallet',
+    'csrf_token',
+    'created_at',
+    'expires_at',
+    'identity_kind',
+  ],
+};
 type Specification = (typeof specifications)[number];
 interface NetworkIdentity {
   schemaVersion: 1;
@@ -183,9 +208,10 @@ function encoded(value: unknown): unknown {
   return value;
 }
 function inspect(db: DatabaseSync, spec: Specification): StorageDatabaseEvidence {
+  const version = db.prepare('PRAGMA user_version').get()?.user_version;
   if (
     db.prepare('PRAGMA application_id').get()?.application_id !== spec.applicationId ||
-    db.prepare('PRAGMA user_version').get()?.user_version !== 1
+    (version !== 1 && !(spec.file === 'market.sqlite' && version === 2))
   )
     reject('SNAPSHOT_DATABASE_IDENTITY');
   if (
@@ -201,10 +227,14 @@ function inspect(db: DatabaseSync, spec: Specification): StorageDatabaseEvidence
       'SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type COLLATE BINARY,name COLLATE BINARY',
     )
     .all();
-  if (sha(JSON.stringify(completeSchema)) !== expectedSchemaSha256[spec.file])
-    reject('SNAPSHOT_UNKNOWN_SCHEMA');
+  const pin =
+    spec.file === 'market.sqlite' && version === 1
+      ? legacyMarketSchemaSha256
+      : expectedSchemaSha256[spec.file];
+  if (sha(JSON.stringify(completeSchema)) !== pin) reject('SNAPSHOT_UNKNOWN_SCHEMA');
   const schema = completeSchema.filter((row) => !String(row.name).startsWith('sqlite_'));
-  const expectedTables = Object.keys(spec.tables).sort(),
+  const tableDefinitions = spec.file === 'market.sqlite' && version === 2 ? walletTestTables : spec.tables;
+  const expectedTables = Object.keys(tableDefinitions).sort(),
     tables = schema
       .filter((row) => row.type === 'table')
       .map((row) => String(row.name))
@@ -223,7 +253,7 @@ function inspect(db: DatabaseSync, spec: Specification): StorageDatabaseEvidence
     const columns = db.prepare('PRAGMA table_xinfo("' + table + '")').all();
     if (
       JSON.stringify(columns.map((column) => column.name)) !==
-        JSON.stringify((spec.tables as Record<string, readonly string[]>)[table]) ||
+        JSON.stringify((tableDefinitions as Readonly<Record<string, readonly string[]>>)[table]) ||
       columns.some((column) => column.hidden !== 0) ||
       !String(schema.find((row) => row.name === table)?.sql).endsWith('STRICT')
     )

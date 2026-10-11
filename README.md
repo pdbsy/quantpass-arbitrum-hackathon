@@ -52,7 +52,7 @@ Once a pool is live, PASS prices follow its actual reserves and trades. The init
 - **Fixed supply and exact amounts.** AF-USDC uses six decimals; PASS and native ETH use eighteen. Settlement uses integer units. Each strategy's PASS supply is fixed after deployment.
 - **One market price per strategy.** The same constant-product AMM implementation serves independent PASS/AF-USDC pools. The 0.30% swap fee accrues to pool liquidity under the contract's rules.
 - **Native ETH in both directions.** Buy and Sell default to test ETH. A separate ETH/AF-USDC conversion reserve connects that route to the same PASS pool. Users can also choose AF-USDC. Conversion and market settlement are atomic.
-- **Bounded free test credits.** Up to 100 verified accounts can claim 1,000 AF-USDC each from a separately funded 100,000 AF-USDC reserve. Account-bound vouchers, persistent eligibility, and on-chain replay protection prevent repeat claims after wallet changes or restarts. Email verification does not eliminate multi-account abuse.
+- **Bounded free test credits.** Up to 100 accounts can claim 1,000 AF-USDC each from a separately funded 100,000 AF-USDC reserve. When the operator's verification switch is enabled, a verified email account is required. During the verification-disabled test phase, a real wallet message signature establishes a separate test session with no verified email. Persistent account keys and wallet claim history survive login changes and restarts; the on-chain payout and global cap remain unchanged. Neither email verification nor wallet proof eliminates multi-account abuse.
 - **User-owned Vaults.** Locking 1 PASS supports 1 AF-USDC of principal capacity. Eligible realized cash profit is withdrawn first; principal exits release corresponding PASS. Losses do not automatically release locked capacity. Full closure follows position-settlement and remaining-PASS rules.
 - **Restricted strategy execution.** Each Vault permits only its assigned TEST stock, with owner/executor authorization, order limits, slippage, deadlines, fresh references, and market-session checks.
 - **A shared, recoverable market.** A canonical event indexer tracks transfers, subscriptions, swaps, claims, conversions, and Vault activity. SSE updates all clients; durable projections support replay, reconnects, and reorg recovery.
@@ -78,6 +78,8 @@ flowchart TD
 ```
 
 The server reads chain state and signs narrowly scoped quotes or claim credentials. User wallets authorize and broadcast their own asset transactions. Voucher signers have no administrator transaction capability.
+
+The market reads the existing console's access policy through its trusted identity bridge. Only an explicit verification-disabled policy permits wallet test sessions; missing or unavailable policy requires verification. Test sessions use an expiring, one-time wallet ownership challenge, an HttpOnly cookie, and CSRF protection. Re-enabling verification requires verified email access for new market credentials. Previously issued on-chain credentials retain their original short validity period; the console switch cannot instantly revoke a signature already issued.
 
 Funds have separate owners and reserves: public subscription proceeds, TSLA LP, AMZN LP, free claims, conversion liquidity, user wallets, and user Vaults. Vault principal cannot fund liquidity or ETH payouts. An unavailable ETH route rejects the transaction; it never silently changes the user's chosen output to AF-USDC.
 

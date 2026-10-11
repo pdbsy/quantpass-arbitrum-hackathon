@@ -17,6 +17,7 @@ import {
   LAUNCH_CHAIN_ID,
   type ChainLocation,
   type LaunchClientState,
+  type LaunchAccount,
   type LaunchConfig,
   type LaunchQuote,
   type LaunchSnapshot,
@@ -63,34 +64,53 @@ export class MarketApiError extends Error {
   }
 }
 
-/** The existing website session supplies CSRF; no browser email is an authentication assertion. */
+/** Only the two wallet login endpoints accept a signed nonce without an existing session CSRF. */
 export function createLaunchApi(fetcher: typeof fetch = fetch): LaunchApi {
   let csrf: string | null = null;
+  const loginPaths = new Set([`${prefix}/wallet/test-challenge`, `${prefix}/wallet/test-session`]);
+  const validCsrf = (value: unknown): value is string =>
+    typeof value === 'string' && value.length >= 16 && value.length <= 256;
   return async <T>(path: string, body?: unknown): Promise<T> => {
-    if (body !== undefined && !csrf) {
-      const auth = await fetcher('/auth/me', {
+    const login = body !== undefined && loginPaths.has(path);
+    if (login) csrf = null;
+    if (body !== undefined && !login && !csrf) {
+      const test = await fetcher(`${prefix}/wallet/test-session`, {
         credentials: 'same-origin',
         cache: 'no-store',
         signal: AbortSignal.timeout(10000),
       });
-      if (!auth.ok) throw new MarketApiError('VERIFIED_ACCOUNT_REQUIRED', auth.status);
-      const session = (await auth.json()) as { authKind?: unknown; csrfToken?: unknown } | null;
-      // Website/password sessions also receive CSRF but do not prove a verified email.
-      // The server bridge independently validates the Google identity for every mutation.
-      if (session?.authKind !== 'google') throw new MarketApiError('VERIFIED_ACCOUNT_REQUIRED', 401);
-      if (
-        typeof session.csrfToken !== 'string' ||
-        session.csrfToken.length < 16 ||
-        session.csrfToken.length > 256
-      )
-        throw new MarketApiError('ACCOUNT_SESSION_INVALID', 401);
-      csrf = session.csrfToken;
+      const testSession = test.ok
+        ? ((await test.json()) as {
+            identityKind?: unknown;
+            emailVerificationRequired?: unknown;
+            csrfToken?: unknown;
+          } | null)
+        : null;
+      if (testSession?.identityKind === 'WALLET_TEST' && testSession.emailVerificationRequired === false) {
+        if (!validCsrf(testSession.csrfToken)) throw new MarketApiError('ACCOUNT_SESSION_INVALID', 401);
+        csrf = testSession.csrfToken;
+      } else {
+        const auth = await fetcher('/auth/me', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+          signal: AbortSignal.timeout(10000),
+        });
+        const session = auth.ok
+          ? ((await auth.json()) as { authKind?: unknown; csrfToken?: unknown } | null)
+          : null;
+        if (session?.authKind !== 'google') throw new MarketApiError('VERIFIED_ACCOUNT_REQUIRED', 401);
+        if (!validCsrf(session.csrfToken)) throw new MarketApiError('ACCOUNT_SESSION_INVALID', 401);
+        csrf = session.csrfToken;
+      }
     }
     const response = await fetcher(path, {
       method: body === undefined ? 'GET' : 'POST',
       credentials: 'same-origin',
       cache: 'no-store',
-      headers: body === undefined ? {} : { 'content-type': 'application/json', 'x-csrf-token': csrf! },
+      headers:
+        body === undefined
+          ? {}
+          : { 'content-type': 'application/json', ...(login ? {} : { 'x-csrf-token': csrf! }) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(10000),
     });
@@ -112,6 +132,7 @@ export function createLaunchApi(fetcher: typeof fetch = fetch): LaunchApi {
             : 'MARKET_API_UNAVAILABLE';
       throw new MarketApiError(code, response.status);
     }
+    if (path === `${prefix}/account` || path === `${prefix}/config`) csrf = null;
     return response.json() as Promise<T>;
   };
 }
@@ -198,6 +219,28 @@ function validateWallet(wallet: LaunchWallet, owner: string): void {
   if (!Array.isArray(wallet.vaults)) throw new Error('INVALID_VAULT_SNAPSHOT');
 }
 
+function validateAccount(account: LaunchAccount, config: LaunchConfig | null): void {
+  if (
+    !account ||
+    typeof account.id !== 'string' ||
+    account.id.length === 0 ||
+    account.id.length > 128 ||
+    !/^0x[0-9a-fA-F]{64}$/.test(account.accountKey) ||
+    !(
+      (account.emailVerified === true && account.identityKind !== 'WALLET_TEST') ||
+      (config?.emailVerificationRequired === false &&
+        account.emailVerified === false &&
+        account.identityKind === 'WALLET_TEST')
+    ) ||
+    (account.identityKind !== undefined && !['GOOGLE', 'WALLET_TEST'].includes(account.identityKind)) ||
+    !['ELIGIBLE', 'ISSUED', 'SUBMITTED', 'INCLUDED', 'COMPLETED', 'REORGED', 'REVERTED', 'EXPIRED'].includes(
+      account.claimStatus,
+    )
+  )
+    throw new Error('INVALID_ACCOUNT_STATE');
+  if (account.wallet !== null) asAddress(account.wallet);
+}
+
 const idleTransaction = () => ({
   id: null,
   hash: null,
@@ -214,6 +257,9 @@ export class LaunchMarketClient {
   readonly #origin: string;
   readonly #listeners = new Set<(state: LaunchClientState) => void>();
   #generation = 0;
+  #identityRevision = 0;
+  #quoteRevision: number | null = null;
+  #executorReviewRevision: number | null = null;
   #pendingRegistration: { quote: LaunchQuote; hash: string } | null = null;
   #refreshing = false;
   readonly #journal: Storage | undefined;
@@ -224,6 +270,7 @@ export class LaunchMarketClient {
     config: null,
     snapshot: null,
     wallet: null,
+    account: null,
     owner: null,
     connecting: false,
     busy: false,
@@ -277,19 +324,31 @@ export class LaunchMarketClient {
   }
   setError(error: unknown): void {
     const code = error instanceof Error ? error.message : 'MARKET_REQUEST_FAILED';
+    const testMode = this.#state.config?.emailVerificationRequired === false;
+    const accountRequired = testMode
+      ? 'Start a wallet test session to continue.'
+      : 'Sign in with your verified Google account to continue.';
     const messages: Record<string, string> = {
       WALLET_REJECTED: 'Wallet confirmation cancelled. No transaction was submitted.',
       WALLET_WRONG_CHAIN: 'Switch your wallet to Robinhood Chain Testnet.',
       WALLET_IDENTITY_CHANGED: 'Your wallet changed. Reconnect and review a new quote.',
       WALLET_SIMULATION_FAILED: 'The contract simulation failed. Refresh chain state and review a new quote.',
-      VERIFIED_ACCOUNT_REQUIRED: 'Sign in with your verified Google account to continue.',
-      VERIFIED_EMAIL_REQUIRED: 'Sign in with your verified Google account to continue.',
-      ACCOUNT_SESSION_INVALID: 'Your account session expired. Sign in again before continuing.',
-      TRUSTED_EMAIL_REQUIRED: 'Sign in with your verified Google account to continue.',
+      MARKET_SESSION_REQUIRED: accountRequired,
+      VERIFIED_ACCOUNT_REQUIRED: accountRequired,
+      VERIFIED_EMAIL_REQUIRED: accountRequired,
+      ACCOUNT_SESSION_INVALID: testMode
+        ? 'Your test session expired. Start a new wallet test session.'
+        : 'Your account session expired. Sign in again before continuing.',
+      TRUSTED_EMAIL_REQUIRED: accountRequired,
       NOT_DEPLOYED:
         'Contracts are not deployed yet. Claims, Mint, trading and Vault funding are unavailable.',
-      LINKED_WALLET_REQUIRED: 'Link the connected wallet to your verified account before continuing.',
-      ALREADY_CLAIMED: 'This verified account has already claimed its AF-USDC.',
+      LINKED_WALLET_REQUIRED: testMode
+        ? 'Start a test session with the connected wallet before continuing.'
+        : 'Link the connected wallet to your verified account before continuing.',
+      ACCOUNT_LINKAGE_CHANGED: testMode
+        ? 'Your wallet test session changed. Start your session and review again.'
+        : 'Your account or wallet linkage changed. Sign in, link your wallet and review again.',
+      ALREADY_CLAIMED: 'This account or wallet has already claimed its AF-USDC.',
       CLAIM_LIMIT_REACHED: 'All 100 claims have been allocated.',
       CLAIM_RECONCILIATION_REQUIRED:
         'Claim records are synchronizing with the chain. Refresh after synchronization completes.',
@@ -297,6 +356,9 @@ export class LaunchMarketClient {
         'Claim account records need recovery. New claims are paused; contact the operator.',
       INSUFFICIENT_CONVERSION_RESERVE: 'This ETH conversion path has insufficient liquidity. Choose AF-USDC.',
       ETH_PATH_UNAVAILABLE: 'This ETH conversion path is currently unavailable. Choose AF-USDC.',
+      ETH_CONVERSION_LIQUIDITY: 'This ETH conversion path has insufficient liquidity. Choose AF-USDC.',
+      ETH_SELL_QUOTE_UNAVAILABLE:
+        'The ETH sell quote is unavailable. Try a smaller PASS amount or choose AF-USDC. ETH payouts have per-transaction and daily limits.',
       CLAIM_RECOVERY_REQUIRED:
         'Your previous claim needs chain confirmation or recovery before another claim can be reviewed.',
       QUOTE_REQUEST_MISMATCH: 'The quote does not match your reviewed request. Request a new quote.',
@@ -311,14 +373,60 @@ export class LaunchMarketClient {
         'Allow this site to store transaction recovery information before confirming a Vault permission.',
     };
     // Read failures cannot release the lock held by an outstanding wallet confirmation.
-    this.#update({ error: messages[code] ?? code });
+    const identityExpired = [
+      'MARKET_SESSION_REQUIRED',
+      'VERIFIED_ACCOUNT_REQUIRED',
+      'VERIFIED_EMAIL_REQUIRED',
+      'ACCOUNT_SESSION_INVALID',
+      'TRUSTED_EMAIL_REQUIRED',
+    ].includes(code);
+    if (identityExpired) this.#invalidateIdentityReviews();
+    this.#update({
+      error: messages[code] ?? code,
+      ...(identityExpired
+        ? {
+            account: null,
+            wallet: this.#state.wallet ? { ...this.#state.wallet, accountId: null } : null,
+            quote: null,
+            quoteRequest: null,
+          }
+        : {}),
+    });
+  }
+  #invalidateIdentityReviews(): void {
+    ++this.#identityRevision;
+    this.#quoteRevision = null;
+    this.#executorReviewRevision = null;
+    // Already submitted transactions and their recovery journals retain their chain evidence.
+    this.#update({ quote: null, quoteRequest: null, executorReview: null });
+  }
+  #assertIdentity(owner: string, revision: number, operation?: QuoteRequest['operation']): void {
+    const { account, wallet } = this.#state;
+    if (
+      revision !== this.#identityRevision ||
+      !account ||
+      !(
+        (account.emailVerified === true && account.identityKind !== 'WALLET_TEST') ||
+        (this.#state.config?.emailVerificationRequired === false &&
+          account.emailVerified === false &&
+          account.identityKind === 'WALLET_TEST')
+      ) ||
+      !wallet ||
+      wallet.accountId !== account.id ||
+      wallet.owner.toLowerCase() !== owner.toLowerCase() ||
+      account.wallet?.toLowerCase() !== owner.toLowerCase() ||
+      (operation === 'CLAIM' && !['ELIGIBLE', 'ISSUED'].includes(account.claimStatus))
+    )
+      throw new Error('ACCOUNT_LINKAGE_CHANGED');
   }
   invalidateWallet(): void {
     ++this.#generation;
+    this.#invalidateIdentityReviews();
     const tx = this.#state.transaction;
     this.#update({
       owner: null,
       wallet: null,
+      account: null,
       quote: null,
       quoteRequest: null,
       executorReview: null,
@@ -330,6 +438,8 @@ export class LaunchMarketClient {
     });
   }
   clearQuote(): void {
+    this.#quoteRevision = null;
+    this.#executorReviewRevision = null;
     this.#update({ quote: null, quoteRequest: null, executorReview: null });
   }
 
@@ -337,13 +447,7 @@ export class LaunchMarketClient {
     try {
       const config = await this.#api<LaunchConfig>(`${prefix}/config`);
       if (config.mode !== 'ONCHAIN_TESTNET') return false;
-      if (
-        config.chainId !== LAUNCH_CHAIN_ID ||
-        config.confirmations !== 3 ||
-        (config.deployment === 'CONFIGURED') !== (config.manifest !== null)
-      )
-        throw new Error('INVALID_MARKET_CONFIGURATION');
-      if (config.manifest) validateManifest(config.manifest);
+      this.#validateConfig(config);
       this.#update({ enabled: true, config });
       if (config.deployment === 'CONFIGURED') await this.refresh();
       return true;
@@ -352,6 +456,34 @@ export class LaunchMarketClient {
       this.setError(error);
       return this.#state.enabled;
     }
+  }
+
+  #validateConfig(config: LaunchConfig): void {
+    if (
+      config.mode !== 'ONCHAIN_TESTNET' ||
+      config.chainId !== LAUNCH_CHAIN_ID ||
+      config.confirmations !== 3 ||
+      (config.deployment === 'CONFIGURED') !== (config.manifest !== null) ||
+      (config.emailVerificationRequired !== undefined &&
+        typeof config.emailVerificationRequired !== 'boolean')
+    )
+      throw new Error('INVALID_MARKET_CONFIGURATION');
+    if (config.manifest) validateManifest(config.manifest);
+  }
+  async #refreshConfiguration(): Promise<void> {
+    const config = await this.#api<LaunchConfig>(`${prefix}/config`);
+    this.#validateConfig(config);
+    const changed =
+      (this.#state.config?.emailVerificationRequired !== false) !==
+      (config.emailVerificationRequired !== false);
+    if (changed) {
+      this.#invalidateIdentityReviews();
+      this.#update({
+        account: null,
+        wallet: this.#state.wallet ? { ...this.#state.wallet, accountId: null } : null,
+      });
+    }
+    this.#update({ config });
   }
 
   async #assertOwner(owner: string, generation = this.#generation): Promise<void> {
@@ -365,6 +497,7 @@ export class LaunchMarketClient {
     if (!this.#connection) throw new Error('Open this page in a browser wallet to continue.');
     if (this.#state.busy) throw new Error('TRANSACTION_ALREADY_PENDING');
     const generation = ++this.#generation;
+    this.#invalidateIdentityReviews();
     this.#update({ connecting: true, error: null, quote: null, quoteRequest: null });
     try {
       const session = await this.#connection.connect();
@@ -386,16 +519,22 @@ export class LaunchMarketClient {
     const generation = this.#generation;
     try {
       await this.#assertOwner(owner, generation);
+      await this.#refreshConfiguration();
+      const testSession =
+        this.#state.config?.emailVerificationRequired === false &&
+        this.#state.account?.emailVerified !== true;
       const challenge = await this.#api<{ nonce: string; message: string; expiresAt: number }>(
-        `${prefix}/wallet/challenge`,
+        `${prefix}/wallet/${testSession ? 'test-challenge' : 'challenge'}`,
         { owner },
       );
       const account = /Link this wallet to AlphaForge account ([a-f0-9-]{36})\./.exec(challenge.message)?.[1];
       const issued = /^Issued At: (.+)$/m.exec(challenge.message)?.[1];
       const issuedAt = issued ? Date.parse(issued) / 1000 : NaN;
-      const expected = `${new URL(this.#origin).host} wants you to link your Ethereum account:\n${owner.toLowerCase()}\n\nLink this wallet to AlphaForge account ${account}. This signature authorizes account linkage only. It does not move assets or authorize transactions.\n\nURI: ${this.#origin}\nVersion: 1\nChain ID: ${LAUNCH_CHAIN_ID}\nNonce: ${challenge.nonce}\nIssued At: ${issued}\nExpiration Time: ${new Date(challenge.expiresAt * 1000).toISOString()}`;
+      const expected = testSession
+        ? `${new URL(this.#origin).host} wants you to sign in with your Ethereum account:\n${owner.toLowerCase()}\n\nSign in to AlphaForge wallet-only TESTNET mode. This proves control of this wallet; it does not verify an email, move assets or approve a transaction. Free credits are limited to one claim for this wallet and 100 claims in total.\n\nURI: ${this.#origin}\nVersion: 1\nChain ID: ${LAUNCH_CHAIN_ID}\nNonce: ${challenge.nonce}\nIssued At: ${issued}\nExpiration Time: ${new Date(challenge.expiresAt * 1000).toISOString()}`
+        : `${new URL(this.#origin).host} wants you to link your Ethereum account:\n${owner.toLowerCase()}\n\nLink this wallet to AlphaForge account ${account}. This signature authorizes account linkage only. It does not move assets or authorize transactions.\n\nURI: ${this.#origin}\nVersion: 1\nChain ID: ${LAUNCH_CHAIN_ID}\nNonce: ${challenge.nonce}\nIssued At: ${issued}\nExpiration Time: ${new Date(challenge.expiresAt * 1000).toISOString()}`;
       if (
-        !account ||
+        (!testSession && !account) ||
         !/^[a-f0-9]{48}$/.test(challenge.nonce) ||
         challenge.message.length > 2048 ||
         challenge.message !== expected ||
@@ -425,11 +564,19 @@ export class LaunchMarketClient {
         verifyMessage(challenge.message, signature).toLowerCase() !== owner.toLowerCase()
       )
         throw new Error('WALLET_SIGNATURE_INVALID');
-      await this.#api(`${prefix}/wallet/bind`, { nonce: challenge.nonce, signature });
+      await this.#refreshConfiguration();
+      if (testSession && this.#state.config?.emailVerificationRequired !== false)
+        throw new Error('VERIFIED_ACCOUNT_REQUIRED');
+      await this.#api(`${prefix}/wallet/${testSession ? 'test-session' : 'bind'}`, {
+        nonce: challenge.nonce,
+        signature,
+      });
       await this.#assertOwner(owner, generation);
       this.#update({
         busy: false,
-        notice: 'Your verified account is linked to this wallet. No assets were transferred.',
+        notice: testSession
+          ? 'Your wallet test session is active. Email verification is disabled for this test phase. No assets were transferred.'
+          : 'Your verified account is linked to this wallet. No assets were transferred.',
       });
       await this.refresh();
     } catch (error) {
@@ -443,18 +590,59 @@ export class LaunchMarketClient {
     this.#refreshing = true;
     const generation = this.#generation;
     try {
+      await this.#refreshConfiguration();
+      const initialIdentityRevision = this.#identityRevision;
       const snapshot = await this.#api<LaunchSnapshot>(`${prefix}/snapshot`);
       validateSnapshot(snapshot);
       if (newerLocation(snapshot.location, this.#state.snapshot?.location ?? null))
         this.#update({ snapshot });
+      let account: LaunchAccount | null = null;
+      try {
+        account = await this.#api<LaunchAccount>(`${prefix}/account`);
+        validateAccount(account, this.#state.config);
+      } catch (error) {
+        if (!(error instanceof MarketApiError && error.status === 401)) throw error;
+      }
+      if (generation !== this.#generation || initialIdentityRevision !== this.#identityRevision) return;
+      const changedAccount =
+        this.#state.account?.id !== account?.id ||
+        this.#state.account?.emailVerified !== account?.emailVerified ||
+        this.#state.account?.identityKind !== account?.identityKind;
+      const changedLink = this.#state.account?.wallet?.toLowerCase() !== account?.wallet?.toLowerCase();
+      const blockedClaim =
+        this.#state.account?.claimStatus !== account?.claimStatus &&
+        account !== null &&
+        !['ELIGIBLE', 'ISSUED'].includes(account.claimStatus);
+      if (changedAccount || changedLink || blockedClaim) this.#invalidateIdentityReviews();
+      this.#update({
+        account,
+        ...(changedAccount
+          ? {
+              quote: null,
+              quoteRequest: null,
+              wallet: this.#state.wallet ? { ...this.#state.wallet, accountId: null } : null,
+            }
+          : {}),
+      });
+      const identityRevision = this.#identityRevision;
       const owner = this.#state.owner;
       if (owner) {
         await this.#assertOwner(owner, generation);
         const wallet = await this.#api<LaunchWallet>(`${prefix}/wallet?owner=${encodeURIComponent(owner)}`);
         validateWallet(wallet, owner);
         await this.#assertOwner(owner, generation);
+        if (identityRevision !== this.#identityRevision) return;
+        if (wallet.accountId !== this.#state.wallet?.accountId) this.#invalidateIdentityReviews();
+        if (wallet.accountId !== null && wallet.accountId !== account?.id) {
+          this.#invalidateIdentityReviews();
+          this.#update({ account: null, wallet: { ...wallet, accountId: null } });
+          return;
+        }
+        // Account linkage can change without a new chain block; it is not ordered by chain location.
         if (newerLocation(wallet.location, this.#state.wallet?.location ?? null)) this.#update({ wallet });
-        if (this.#state.transaction.state === 'IDLE') {
+        else if (this.#state.wallet)
+          this.#update({ wallet: { ...this.#state.wallet, accountId: wallet.accountId } });
+        if (this.#state.transaction.state === 'IDLE' && wallet.accountId) {
           const recent = await this.#api<{ operations: MarketTrackedOperation[] }>(
             `${prefix}/operations?owner=${encodeURIComponent(owner)}`,
           );
@@ -519,18 +707,30 @@ export class LaunchMarketClient {
     if (!owner || !actionable(this.#state, request.strategyId, request.operation, request.asset))
       throw new Error('MARKET_ACTION_UNAVAILABLE');
     const generation = this.#generation;
+    const identityRevision = this.#identityRevision;
+    this.#assertIdentity(owner, identityRevision, request.operation);
     const full: QuoteRequest = { ...request, owner };
     uint(request.amountRaw);
     if (![50, 100, 300].includes(request.slippageBps)) throw new Error('INVALID_SLIPPAGE');
     this.#update({ busy: true, error: null, quote: null, quoteRequest: null, executorReview: null });
     try {
       await this.#assertOwner(owner, generation);
+      this.#assertIdentity(owner, identityRevision, request.operation);
       const quote = await this.#api<LaunchQuote>(`${prefix}/quote`, full);
       this.#validateQuote(quote, full);
       await this.#assertOwner(owner, generation);
+      this.#assertIdentity(owner, identityRevision, request.operation);
+      this.#quoteRevision = identityRevision;
       this.#update({ busy: false, quote, quoteRequest: full });
     } catch (error) {
       this.#update({ busy: false });
+      if (
+        request.operation === 'SELL' &&
+        request.asset === 'ETH' &&
+        error instanceof MarketApiError &&
+        error.message === 'MARKET_OPERATION_UNAVAILABLE'
+      )
+        throw new MarketApiError('ETH_SELL_QUOTE_UNAVAILABLE', error.status);
       throw error;
     }
   }
@@ -623,12 +823,16 @@ export class LaunchMarketClient {
       throw new Error('MARKET_ACTION_UNAVAILABLE');
     const owner = this.#state.owner!;
     const generation = this.#generation;
+    const identityRevision = this.#identityRevision;
+    this.#assertIdentity(owner, identityRevision);
     this.#update({ busy: true, error: null, quote: null, quoteRequest: null, executorReview: null });
     try {
       await this.refreshExecutor(strategyId);
       const snapshot = this.#state.executorSnapshots![strategyId]!;
       const review = await reviewExecutor(this.#provider!, snapshot, permission, this.#now());
       await this.#assertOwner(owner, generation);
+      this.#assertIdentity(owner, identityRevision);
+      this.#executorReviewRevision = identityRevision;
       this.#update({ executorReview: review, busy: false });
     } catch (error) {
       this.#update({ busy: false });
@@ -637,15 +841,20 @@ export class LaunchMarketClient {
   }
 
   async confirmExecutorPermission(): Promise<void> {
+    await this.#refreshConfiguration();
     const review = this.#state.executorReview;
     if (!review || !this.#provider || this.#state.busy || this.#pendingExecutor)
       throw new Error('EXECUTOR_REVIEW_REQUIRED');
     const owner = review.snapshot.owner;
     const generation = this.#generation;
+    const identityRevision = this.#executorReviewRevision;
+    if (identityRevision === null) throw new Error('EXECUTOR_REVIEW_REQUIRED');
+    this.#assertIdentity(owner, identityRevision);
     this.#update({ busy: true, error: null });
     try {
       await this.#assertOwner(owner, generation);
       await this.refreshExecutor(review.snapshot.strategyId);
+      this.#assertIdentity(owner, identityRevision);
       const fresh = this.#state.executorSnapshots![review.snapshot.strategyId]!;
       if (
         fresh.version !== review.snapshot.version ||
@@ -696,6 +905,7 @@ export class LaunchMarketClient {
         submission = await wallet.submit(factory.prepare(review, asAddress(owner)), () => {
           if (generation !== this.#generation || this.#state.owner?.toLowerCase() !== owner.toLowerCase())
             throw new Error('WALLET_IDENTITY_CHANGED');
+          this.#assertIdentity(owner, identityRevision);
           if (review.reviewExpiresAt <= this.#now()) throw new Error('EXECUTOR_REVIEW_EXPIRED');
         });
       } catch (error) {
@@ -772,9 +982,13 @@ export class LaunchMarketClient {
   }
 
   async confirm(): Promise<void> {
+    await this.#refreshConfiguration();
     const quote = this.#state.quote;
     const request = this.#state.quoteRequest;
     if (!quote || !request || !this.#provider || this.#state.busy) throw new Error('QUOTE_REVIEW_REQUIRED');
+    const identityRevision = this.#quoteRevision;
+    if (identityRevision === null) throw new Error('QUOTE_REVIEW_REQUIRED');
+    this.#assertIdentity(quote.owner, identityRevision, quote.operation);
     this.#validateQuote(quote, request);
     const approval = quote.allowance !== null;
     const transaction = approval
@@ -812,6 +1026,7 @@ export class LaunchMarketClient {
     });
     try {
       const submission = await wallet.submit(factory.prepare(quote, asAddress(quote.owner)), () => {
+        this.#assertIdentity(quote.owner, identityRevision, quote.operation);
         this.#validateQuote(quote, request);
         if (this.#state.owner?.toLowerCase() !== quote.owner.toLowerCase())
           throw new Error('WALLET_IDENTITY_CHANGED');

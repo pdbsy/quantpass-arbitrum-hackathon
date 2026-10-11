@@ -44,6 +44,18 @@ export class AccessIdentityBridge {
     return { email: row.email, subject: row.subject, verified: true };
   }
 
+  /** The console remains authoritative. Missing, malformed or unavailable policy requires verification. */
+  verificationRequired(): boolean {
+    try {
+      return (
+        this.#db.prepare('SELECT value FROM metadata WHERE key=?').get('access_verification_required')
+          ?.value !== '0'
+      );
+    } catch {
+      return true;
+    }
+  }
+
   close(): void {
     this.#db.close();
   }

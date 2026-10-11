@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Fastify from 'fastify';
+import cookie from '@fastify/cookie';
 import { Wallet, verifyTypedData } from 'ethers';
 import { LaunchMarketStore } from '../packages/launch-market/src/store.ts';
 import { LaunchMarketService } from '../packages/launch-market/src/service.ts';
@@ -521,6 +522,195 @@ test('HTTP routes reject browser-provided email verification and require a trust
       payload: f.request,
     });
     assert.equal(unauthorizedQuote.statusCode, 401);
+  } finally {
+    await app.close();
+    f.close();
+  }
+});
+
+test('wallet test HTTP session requires proof and CSRF, and selects one account across old Google cookies', async () => {
+  const f = await fixture(),
+    app = Fastify(),
+    wallet = new Wallet(h(12));
+  let required = false;
+  await app.register(cookie);
+  app.setErrorHandler((error, _request, reply) =>
+    error instanceof LaunchMarketError
+      ? reply.code(error.statusCode).send({ error: { code: error.code } })
+      : reply.code(503).send({ error: { code: 'UNAVAILABLE' } }),
+  );
+  registerLaunchMarketRoutes(app, {
+    service: f.service,
+    verificationRequired: () => required,
+    trustedIdentity: (request) =>
+      request.cookies['__Host-ikol_session'] === 'unit-google-session' &&
+      (request.method === 'GET' || request.headers['x-csrf-token'] === 'unit-google-csrf')
+        ? f.identity
+        : null,
+  });
+  const origin = 'https://www.ikol.top';
+  try {
+    assert.equal((await app.inject('/api/launch-market/config')).json().emailVerificationRequired, false);
+    assert.equal(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/launch-market/wallet/test-challenge',
+          headers: { origin: 'https://wrong-origin.test' },
+          payload: { owner: wallet.address },
+        })
+      ).statusCode,
+      403,
+    );
+    const challenge = (
+      await app.inject({
+        method: 'POST',
+        url: '/api/launch-market/wallet/test-challenge',
+        headers: { origin },
+        payload: { owner: wallet.address },
+      })
+    ).json();
+    assert.equal(f.store.db.prepare('SELECT count(*) n FROM market_accounts').get()?.n, 1);
+    const signed = await wallet.signMessage(challenge.message);
+    const opened = await app.inject({
+      method: 'POST',
+      url: '/api/launch-market/wallet/test-session',
+      headers: { origin },
+      payload: { nonce: challenge.nonce, signature: signed },
+    });
+    assert.equal(opened.statusCode, 200);
+    assert.equal(opened.json().emailVerified, false);
+    assert.equal(opened.json().identityKind, 'WALLET_TEST');
+    assert.match(String(opened.headers['set-cookie']), /HttpOnly/);
+    assert.match(String(opened.headers['set-cookie']), /Secure/);
+    assert.match(String(opened.headers['set-cookie']), /SameSite=Strict/);
+    const sessionCookie = String(opened.headers['set-cookie']).split(';')[0]!;
+    const mixedCookie = sessionCookie + '; __Host-ikol_session=unit-google-session';
+    const csrfToken = (
+      await app.inject({ url: '/api/launch-market/wallet/test-session', headers: { cookie: mixedCookie } })
+    ).json().csrfToken;
+    const account = (
+      await app.inject({ url: '/api/launch-market/account', headers: { cookie: mixedCookie } })
+    ).json();
+    assert.equal(account.id, opened.json().id);
+    assert.equal(account.emailVerified, false);
+    assert.equal(account.claimStatus, 'ELIGIBLE');
+    assert.equal(
+      (
+        await app.inject({
+          url: '/api/launch-market/wallet?owner=' + wallet.address,
+          headers: { cookie: mixedCookie },
+        })
+      ).json().accountId,
+      account.id,
+    );
+    const request = { ...f.request, owner: wallet.address, amountRaw: '10000000000000' };
+    for (const csrf of [undefined, 'unit-google-csrf', 'wrong']) {
+      assert.equal(
+        (
+          await app.inject({
+            method: 'POST',
+            url: '/api/launch-market/quote',
+            headers: { origin, cookie: mixedCookie, ...(csrf ? { 'x-csrf-token': csrf } : {}) },
+            payload: request,
+          })
+        ).statusCode,
+        401,
+      );
+    }
+    const quote = await app.inject({
+      method: 'POST',
+      url: '/api/launch-market/quote',
+      headers: { origin, cookie: mixedCookie, 'x-csrf-token': csrfToken },
+      payload: request,
+    });
+    assert.equal(quote.statusCode, 200, quote.body);
+    assert.equal(f.store.quote(quote.json().id, account.id).owner, wallet.address.toLowerCase());
+    assert.equal(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/launch-market/wallet/test-session',
+          headers: { origin },
+          payload: { nonce: challenge.nonce, signature: signed },
+        })
+      ).statusCode,
+      401,
+    );
+    required = true;
+    assert.equal((await app.inject('/api/launch-market/config')).json().emailVerificationRequired, true);
+    assert.equal(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/launch-market/wallet/test-challenge',
+          headers: { origin },
+          payload: { owner: wallet.address },
+        })
+      ).statusCode,
+      401,
+    );
+    assert.equal(
+      (await app.inject({ url: '/api/launch-market/wallet/test-session', headers: { cookie: mixedCookie } }))
+        .statusCode,
+      401,
+    );
+    assert.equal(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/launch-market/quote',
+          headers: { origin, cookie: sessionCookie, 'x-csrf-token': csrfToken },
+          payload: request,
+        })
+      ).statusCode,
+      401,
+    );
+    // Verified Google access is restored; the unverified session never becomes a verified identity.
+    const restored = (
+      await app.inject({ url: '/api/launch-market/account', headers: { cookie: mixedCookie } })
+    ).json();
+    assert.equal(restored.id, f.account.id);
+    assert.equal(restored.emailVerified, true);
+    assert.equal(restored.identityKind, 'GOOGLE');
+    const googleQuote = await app.inject({
+      method: 'POST',
+      url: '/api/launch-market/quote',
+      headers: { origin, cookie: mixedCookie, 'x-csrf-token': 'unit-google-csrf' },
+      payload: f.request,
+    });
+    assert.equal(googleQuote.statusCode, 200, googleQuote.body);
+  } finally {
+    await app.close();
+    f.close();
+  }
+});
+
+test('unavailable trusted policy keeps wallet test login and existing test credentials unauthorized', async () => {
+  const f = await fixture(),
+    app = Fastify();
+  await app.register(cookie);
+  registerLaunchMarketRoutes(app, {
+    service: f.service,
+    trustedIdentity: () => null,
+    verificationRequired: () => {
+      throw new Error('UNIT_POLICY_OFFLINE');
+    },
+  });
+  try {
+    assert.equal((await app.inject('/api/launch-market/config')).json().emailVerificationRequired, true);
+    assert.equal(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/launch-market/wallet/test-challenge',
+          headers: { origin: 'https://www.ikol.top' },
+          payload: { owner: f.owner.address },
+        })
+      ).statusCode,
+      401,
+    );
+    assert.equal((await app.inject('/api/launch-market/wallet/test-session')).statusCode, 401);
   } finally {
     await app.close();
     f.close();

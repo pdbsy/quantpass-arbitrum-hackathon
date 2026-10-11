@@ -19,6 +19,8 @@ export interface LaunchMarketServerOptions {
   ) => TrustedEmailIdentity | null | Promise<TrustedEmailIdentity | null>;
   /** Public origin used for host and browser mutation checks; identity callback must also validate CSRF. */
   readonly origin: string;
+  /** Read the trusted console policy for every request. Unavailable policy keeps verification enabled. */
+  readonly verificationRequired?: () => boolean | Promise<boolean>;
   readonly indexer?: MarketEventIndexer;
   readonly webRoot?: string;
   /** Read-only UI references, independent of the trusted stock execution/valuation adapter. */

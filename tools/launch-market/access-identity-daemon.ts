@@ -7,6 +7,7 @@ import { AccessIdentityBridge } from '../../apps/server/src/launch-market-adapte
 import {
   IDENTITY_SOCKET_MAX_BYTES,
   IDENTITY_SOCKET_PATH,
+  ACCESS_POLICY_SOCKET_PATH,
   IDENTITY_SOCKET_TIMEOUT_MS,
   identitySocketDirectory,
   identitySocketQuery,
@@ -59,6 +60,22 @@ export async function startAccessIdentityDaemon(options: AccessIdentityDaemonOpt
     response.end(JSON.stringify({ identity }));
   };
   const handle = async (incoming: IncomingMessage, response: ServerResponse) => {
+    if (
+      active &&
+      incoming.method === 'GET' &&
+      incoming.url === ACCESS_POLICY_SOCKET_PATH &&
+      incoming.headers['transfer-encoding'] === undefined &&
+      (incoming.headers['content-length'] === undefined || incoming.headers['content-length'] === '0') &&
+      incoming.headers['content-encoding'] === undefined
+    ) {
+      response.writeHead(200, {
+        'content-type': 'application/json',
+        'cache-control': 'no-store',
+        connection: 'close',
+      });
+      response.end(JSON.stringify({ verificationRequired: bridge.verificationRequired() }));
+      return;
+    }
     if (
       !active ||
       incoming.method !== 'POST' ||

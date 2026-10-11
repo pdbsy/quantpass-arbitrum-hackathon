@@ -386,3 +386,90 @@ test('target integrity rejects violated CHECK data under the unchanged canonical
     await f.cleanup();
   }
 });
+
+test('schema v2 backup preserves genuine wallet-test sessions and opaque eligibility across restore', async () => {
+  const f = fixture();
+  try {
+    const wallet = Wallet.createRandom(),
+      challenge = f.store.walletTestChallenge(wallet.address, 1000),
+      session = f.store.openWalletTestSession(
+        challenge.nonce,
+        await wallet.signMessage(challenge.message),
+        1000,
+      );
+    f.lease.close();
+    const saved = join(f.parent, 'wallet-backup'),
+      restored = join(f.parent, 'wallet-restored');
+    const copied = await snapshotLaunchStorage({
+      action: 'backup',
+      source: f.source,
+      destination: saved,
+      expectedDigest: digest,
+    });
+    assert.equal(
+      copied.databases[0]?.tables.find((table) => table.name === 'market_wallet_test_sessions')?.count,
+      1,
+    );
+    await snapshotLaunchStorage({
+      action: 'restore',
+      source: saved,
+      destination: restored,
+      expectedDigest: digest,
+    });
+    const recovered = new LaunchMarketStore(join(restored, 'market.sqlite'), origin);
+    try {
+      const login = recovered.walletTestSession(session.token, session.csrfToken, 1001, true);
+      assert.equal(login?.account.id, session.account.id);
+      assert.equal(login?.account.accountKey, session.account.accountKey);
+      assert.equal(login?.account.email, null);
+      assert.equal(login?.account.identityKind, 'WALLET_TEST');
+    } finally {
+      recovered.close();
+    }
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('explicit legacy v1 schema remains admissible for backup before the account migration', async () => {
+  const f = fixture();
+  try {
+    // Empty legacy fixture with the original exact DDL, not an altered production database.
+    f.store.db.exec(`PRAGMA foreign_keys=OFF;
+DROP TABLE market_wallet_test_sessions;
+DROP TABLE market_wallet_test_challenges;
+DROP TABLE market_wallet_test_identities;
+DROP TABLE market_accounts;
+CREATE TABLE market_accounts(id TEXT PRIMARY KEY,account_key TEXT NOT NULL UNIQUE,email TEXT NOT NULL UNIQUE,subject TEXT NOT NULL UNIQUE,verified_at INTEGER NOT NULL,wallet TEXT UNIQUE,created_at INTEGER NOT NULL) STRICT;
+PRAGMA user_version=1;
+PRAGMA foreign_keys=ON;`);
+    f.lease.close();
+    const saved = join(f.parent, 'legacy-backup'),
+      restored = join(f.parent, 'legacy-restored');
+    const copied = await snapshotLaunchStorage({
+      action: 'backup',
+      source: f.source,
+      destination: saved,
+      expectedDigest: digest,
+    });
+    assert.equal(
+      copied.databases[0]?.tables.some((table) => table.name === 'market_wallet_test_sessions'),
+      false,
+    );
+    await snapshotLaunchStorage({
+      action: 'restore',
+      source: saved,
+      destination: restored,
+      expectedDigest: digest,
+    });
+    const recovered = new LaunchMarketStore(join(restored, 'market.sqlite'), origin);
+    try {
+      assert.equal(recovered.db.prepare('PRAGMA user_version').get()?.user_version, 2);
+      assert.equal(recovered.db.prepare('PRAGMA foreign_key_check').get(), undefined);
+    } finally {
+      recovered.close();
+    }
+  } finally {
+    await f.cleanup();
+  }
+});
