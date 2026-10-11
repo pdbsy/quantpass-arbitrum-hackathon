@@ -101,3 +101,62 @@ test('keeper preparation binds actual fresh reference and calendar calldata, nev
     /STOCK_SOURCE_STALE/,
   );
 });
+
+test('source timestamps advancing during a data read are checked against the completion clock', async () => {
+  let now = Date.parse('2026-10-09T15:00:00Z') / 1000;
+  const reader = new VerifiedStockReference({
+    apiKey: 'offline-test-identity',
+    apiSecret: 'offline-test-credential',
+    now: () => now,
+    fetcher: async (input) => {
+      const url = String(input);
+      if (url.includes('/clock')) {
+        now++;
+        return new Response(
+          JSON.stringify({
+            timestamp: new Date(now * 1000).toISOString(),
+            is_open: true,
+            next_close: '2026-10-09T20:00:00Z',
+          }),
+        );
+      }
+      if (url.includes('/calendar'))
+        return new Response(JSON.stringify([{ date: '2026-10-09', open: '09:30', close: '16:00' }]));
+      now++;
+      return new Response(
+        JSON.stringify({ quote: { t: new Date(now * 1000).toISOString(), bp: '100.20', ap: '100.40' } }),
+      );
+    },
+  });
+  const reference = await reader.read('AMZN');
+  assert.equal(reference.status, 'OPEN');
+  assert.equal(reference.observedAt, now);
+  assert.equal(reference.calendarObservedAt, now - 1);
+});
+
+test('a stock quote that arrives after regular close cannot become an executable reference', async () => {
+  let now = Date.parse('2026-10-09T19:59:59Z') / 1000;
+  const reader = new VerifiedStockReference({
+    apiKey: 'offline-test-identity',
+    apiSecret: 'offline-test-credential',
+    now: () => now,
+    fetcher: async (input) => {
+      const url = String(input);
+      if (url.includes('/clock'))
+        return new Response(
+          JSON.stringify({
+            timestamp: '2026-10-09T19:59:59Z',
+            is_open: true,
+            next_close: '2026-10-09T20:00:00Z',
+          }),
+        );
+      if (url.includes('/calendar'))
+        return new Response(JSON.stringify([{ date: '2026-10-09', open: '09:30', close: '16:00' }]));
+      now++;
+      return new Response(
+        JSON.stringify({ quote: { t: new Date(now * 1000).toISOString(), bp: '100.20', ap: '100.40' } }),
+      );
+    },
+  });
+  await assert.rejects(reader.read('TSLA'), /REGULAR_SESSION_REQUIRED/);
+});

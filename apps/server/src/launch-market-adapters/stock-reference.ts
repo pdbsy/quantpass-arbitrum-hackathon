@@ -136,7 +136,8 @@ export class VerifiedStockReference {
     ]);
     const clock = object(rawClock),
       observed = seconds(clock.timestamp);
-    fresh(observed, now);
+    const calendarReadAt = this.#now();
+    fresh(observed, calendarReadAt);
     if (typeof clock.is_open !== 'boolean') throw new Error('INVALID_MARKET_CLOCK');
     const session = bounds(calendar, observed),
       calendarDigest = digest({ clock: rawClock, calendar });
@@ -149,7 +150,7 @@ export class VerifiedStockReference {
       calendarDigest,
       source: 'Alpaca IEX reference for test assets' as const,
     };
-    if (!clock.is_open || !session || now < session.opens || now >= session.closes)
+    if (!clock.is_open || !session || calendarReadAt < session.opens || calendarReadAt >= session.closes)
       return { ...result, status: 'CLOSED', priceRaw: null, sourceDigest: calendarDigest };
     if (seconds(clock.next_close) !== session.closes) throw new Error('CALENDAR_CLOCK_DISAGREE');
     const rawQuote = await this.#get(
@@ -159,8 +160,11 @@ export class VerifiedStockReference {
     const at = seconds(quote.t),
       bid = amount(quote.bp),
       ask = amount(quote.ap);
-    fresh(at, this.#now());
-    fresh(observed, this.#now());
+    const quoteReadAt = this.#now();
+    fresh(at, quoteReadAt);
+    fresh(observed, quoteReadAt);
+    if (quoteReadAt < session.opens || quoteReadAt >= session.closes)
+      throw new Error('REGULAR_SESSION_REQUIRED');
     if (bid === 0n || ask < bid) throw new Error('INVALID_STOCK_SPREAD');
     const price = (bid + ask) / 2n;
     return {

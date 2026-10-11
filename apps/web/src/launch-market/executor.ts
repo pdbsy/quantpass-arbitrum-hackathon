@@ -14,6 +14,7 @@ export const executorInterface = new Interface([
   'function grant() view returns(address executor,uint64 expiresAt,uint256 maxOrderUsdc,uint256 maxTotalBuyUsdc,uint16 maxSlippageBps)',
   'function configureExecutor((address executor,uint64 expiresAt,uint256 maxOrderUsdc,uint256 maxTotalBuyUsdc,uint16 maxSlippageBps) next)',
   'function revokeExecutor()',
+  'function execute(bool buy,uint256 input,uint256 minOutput,uint64 deadline,uint256 expectedVersion) returns(uint256)',
 ]);
 const factoryInterface = new Interface(['function vaults(address owner,uint8 index) view returns(address)']);
 export interface ExecutorPermission {
@@ -47,7 +48,7 @@ export interface ExecutorPending {
   readonly owner: string;
   readonly vault: string;
   readonly strategyId: StrategyId;
-  readonly kind: ExecutorReview['kind'];
+  readonly kind: ExecutorReview['kind'] | 'EXECUTE';
   readonly data: string;
   readonly hash: string | null;
 }
@@ -197,7 +198,7 @@ export function readExecutorJournal(storage: Pick<Storage, 'getItem'> | undefine
     if (!raw || raw.length > 2000) return null;
     const item = JSON.parse(raw) as ExecutorPending;
     if (
-      !['CONFIGURE', 'REVOKE'].includes(item.kind) ||
+      !['CONFIGURE', 'REVOKE', 'EXECUTE'].includes(item.kind) ||
       !['TSLA', 'AMZN'].includes(item.strategyId) ||
       (item.hash !== null && !/^0x[0-9a-fA-F]{64}$/.test(item.hash))
     )
@@ -205,7 +206,15 @@ export function readExecutorJournal(storage: Pick<Storage, 'getItem'> | undefine
     getAddress(item.owner);
     getAddress(item.vault);
     const decoded = executorInterface.parseTransaction({ data: item.data, value: 0 })!;
-    if (decoded.name !== (item.kind === 'CONFIGURE' ? 'configureExecutor' : 'revokeExecutor')) return null;
+    if (
+      decoded.name !==
+      (item.kind === 'CONFIGURE'
+        ? 'configureExecutor'
+        : item.kind === 'EXECUTE'
+          ? 'execute'
+          : 'revokeExecutor')
+    )
+      return null;
     return item;
   } catch {
     return null;
