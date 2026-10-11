@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { id, verifyMessage } from 'ethers';
 import { address, hash, LAUNCH_CHAIN_ID } from './config.ts';
 import {
@@ -26,6 +26,14 @@ export interface WalletBindingChallenge {
   readonly message: string;
   readonly expiresAt: number;
 }
+export interface WalletTestSession {
+  readonly account: MarketAccount;
+  readonly csrfToken: string;
+  readonly expiresAt: number;
+}
+export interface OpenedWalletTestSession extends WalletTestSession {
+  readonly token: string;
+}
 export function normalizeEmail(value: string): string {
   if (typeof value !== 'string') throw new LaunchMarketError('INVALID_EMAIL', 400);
   const pieces = value.trim().split('@');
@@ -37,9 +45,14 @@ export function normalizeEmail(value: string): string {
 function seconds(value: number): void {
   if (!Number.isSafeInteger(value) || value < 0) throw new LaunchMarketError('INVALID_TIME', 400);
 }
+const accountColumns = `id TEXT PRIMARY KEY,account_key TEXT NOT NULL UNIQUE,email TEXT UNIQUE,subject TEXT UNIQUE,verified_at INTEGER,wallet TEXT UNIQUE,created_at INTEGER NOT NULL,identity_kind TEXT NOT NULL CHECK(identity_kind IN('GOOGLE','WALLET_TEST')),CHECK((identity_kind='GOOGLE' AND email IS NOT NULL AND subject IS NOT NULL AND verified_at IS NOT NULL) OR (identity_kind='WALLET_TEST' AND email IS NULL AND subject IS NULL AND verified_at IS NULL AND wallet IS NOT NULL))`;
+const walletTestDdl = `
+CREATE TABLE market_wallet_test_identities(wallet TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES market_accounts(id),created_at INTEGER NOT NULL) STRICT;
+CREATE TABLE market_wallet_test_challenges(nonce TEXT PRIMARY KEY,wallet TEXT NOT NULL,message TEXT NOT NULL,issued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,consumed INTEGER NOT NULL CHECK(consumed IN(0,1))) STRICT;
+CREATE TABLE market_wallet_test_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL UNIQUE REFERENCES market_accounts(id),wallet TEXT NOT NULL,csrf_token TEXT NOT NULL,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,identity_kind TEXT NOT NULL CHECK(identity_kind='WALLET_TEST')) STRICT;`;
 const ddl = `
 CREATE TABLE market_identity(id INTEGER PRIMARY KEY CHECK(id=1),chain_id INTEGER NOT NULL,origin TEXT NOT NULL) STRICT;
-CREATE TABLE market_accounts(id TEXT PRIMARY KEY,account_key TEXT NOT NULL UNIQUE,email TEXT NOT NULL UNIQUE,subject TEXT NOT NULL UNIQUE,verified_at INTEGER NOT NULL,wallet TEXT UNIQUE,created_at INTEGER NOT NULL) STRICT;
+CREATE TABLE "market_accounts"(${accountColumns}) STRICT;
 CREATE TABLE market_wallet_challenges(nonce TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES market_accounts(id),wallet TEXT NOT NULL,message TEXT NOT NULL,expires_at INTEGER NOT NULL,consumed INTEGER NOT NULL CHECK(consumed IN(0,1))) STRICT;
 CREATE TABLE market_claim_vouchers(account_id TEXT PRIMARY KEY REFERENCES market_accounts(id),account_key TEXT NOT NULL UNIQUE,wallet TEXT NOT NULL,nonce TEXT NOT NULL UNIQUE,issued_at INTEGER NOT NULL,deadline INTEGER NOT NULL,status TEXT NOT NULL,transaction_hash TEXT UNIQUE) STRICT;
 CREATE TABLE market_quotes(id TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES market_accounts(id),owner TEXT NOT NULL,payload TEXT NOT NULL,expires_at INTEGER NOT NULL) STRICT;
@@ -50,7 +63,8 @@ CREATE TABLE market_snapshots(chain_id INTEGER NOT NULL,block_number INTEGER NOT
 CREATE UNIQUE INDEX one_canonical_market_height ON market_snapshots(chain_id,block_number) WHERE canonical=1;
 CREATE TABLE market_projection_version(id INTEGER PRIMARY KEY CHECK(id=1),version INTEGER NOT NULL) STRICT;
 INSERT INTO market_projection_version VALUES(1,0);
-PRAGMA user_version=1;`;
+${walletTestDdl}
+PRAGMA user_version=2;`;
 
 /** This DB stores identity and chain projections. Token balances are always obtained from RPC. */
 export class LaunchMarketStore {
@@ -84,16 +98,45 @@ export class LaunchMarketStore {
           this.db.exec(ddl);
           this.db.prepare('INSERT INTO market_identity VALUES(1,?,?)').run(chainId, origin);
         });
-      } else if (version !== 1) throw new LaunchMarketError('UNSUPPORTED_DATABASE_SCHEMA');
+      } else if (version !== 1 && version !== 2) throw new LaunchMarketError('UNSUPPORTED_DATABASE_SCHEMA');
       const identity = this.db.prepare('SELECT chain_id,origin FROM market_identity WHERE id=1').get();
       if (identity?.chain_id !== chainId || identity.origin !== origin)
         throw new LaunchMarketError('DATABASE_IDENTITY_MISMATCH');
+      if (version === 1) this.migrateWalletTestAccounts();
       if (this.db.prepare('PRAGMA quick_check').get()?.quick_check !== 'ok')
         throw new LaunchMarketError('DATABASE_CORRUPT');
+      if (this.db.prepare('PRAGMA foreign_key_check').get())
+        throw new LaunchMarketError('DATABASE_FOREIGN_KEY_CORRUPT');
       this.db.exec('PRAGMA journal_mode=WAL');
     } catch (error) {
       this.db.close();
       throw error;
+    }
+  }
+  private migrateWalletTestAccounts(): void {
+    // SQLite's generalized ALTER TABLE procedure: disable FK enforcement outside
+    // the transaction, copy to a new table, then drop/rename and check before commit.
+    // https://www.sqlite.org/lang_altertable.html#making_other_kinds_of_table_schema_changes
+    const attachments = this.db
+      .prepare(
+        "SELECT sql FROM sqlite_schema WHERE tbl_name='market_accounts' AND type IN('index','trigger') AND sql IS NOT NULL",
+      )
+      .all();
+    this.db.exec('PRAGMA foreign_keys=OFF;');
+    try {
+      this.atomic(() => {
+        this.db.exec(`CREATE TABLE market_accounts_v2(${accountColumns}) STRICT;
+INSERT INTO market_accounts_v2 SELECT id,account_key,email,subject,verified_at,wallet,created_at,'GOOGLE' FROM market_accounts;
+DROP TABLE market_accounts;
+ALTER TABLE market_accounts_v2 RENAME TO market_accounts;`);
+        for (const attachment of attachments) this.db.exec(String(attachment.sql));
+        this.db.exec(walletTestDdl);
+        if (this.db.prepare('PRAGMA foreign_key_check').get())
+          throw new LaunchMarketError('DATABASE_FOREIGN_KEY_CORRUPT');
+        this.db.exec('PRAGMA user_version=2;');
+      });
+    } finally {
+      this.db.exec('PRAGMA foreign_keys=ON;');
     }
   }
   atomic<T>(work: () => T): T {
@@ -112,17 +155,29 @@ export class LaunchMarketStore {
   }
   account(accountId: string): MarketAccount {
     const row = this.db
-      .prepare('SELECT id,account_key,email,wallet FROM market_accounts WHERE id=?')
+      .prepare('SELECT id,account_key,email,wallet,identity_kind FROM market_accounts WHERE id=?')
       .get(accountId);
     if (!row) throw new LaunchMarketError('ACCOUNT_REQUIRED', 401);
     return {
       id: String(row.id),
       accountKey: String(row.account_key),
-      email: String(row.email),
+      email: row.email === null ? null : String(row.email),
+      identityKind: String(row.identity_kind) as 'GOOGLE' | 'WALLET_TEST',
       wallet: row.wallet === null ? null : String(row.wallet),
     };
   }
-  trustedAccount(identity: TrustedEmailIdentity, now: number): MarketAccount {
+  private googleAccount(
+    accountId: string,
+  ): MarketAccount & { readonly email: string; readonly identityKind: 'GOOGLE' } {
+    const account = this.account(accountId);
+    if (account.email === null || account.identityKind !== 'GOOGLE')
+      throw new LaunchMarketError('VERIFIED_EMAIL_REQUIRED', 401);
+    return { ...account, email: account.email, identityKind: 'GOOGLE' };
+  }
+  trustedAccount(
+    identity: TrustedEmailIdentity,
+    now: number,
+  ): MarketAccount & { readonly email: string; readonly identityKind: 'GOOGLE' } {
     seconds(now);
     if (identity.emailVerified !== true || !identity.subject || identity.subject.length > 200)
       throw new LaunchMarketError('VERIFIED_EMAIL_REQUIRED', 401);
@@ -131,16 +186,16 @@ export class LaunchMarketStore {
       const existing = this.db.prepare('SELECT id,subject FROM market_accounts WHERE email=?').get(email);
       if (existing) {
         if (existing.subject !== identity.subject) throw new LaunchMarketError('IDENTITY_CHANGED', 401);
-        return this.account(String(existing.id));
+        return this.googleAccount(String(existing.id));
       }
       if (this.db.prepare('SELECT id FROM market_accounts WHERE subject=?').get(identity.subject))
         throw new LaunchMarketError('IDENTITY_EMAIL_CHANGED', 401);
       const accountId = randomUUID(),
         accountKey = id('AlphaForge verified account:' + accountId);
       this.db
-        .prepare('INSERT INTO market_accounts VALUES(?,?,?,?,?,NULL,?)')
+        .prepare("INSERT INTO market_accounts VALUES(?,?,?,?,?,NULL,?,'GOOGLE')")
         .run(accountId, accountKey, email, identity.subject, now, now);
-      return this.account(accountId);
+      return this.googleAccount(accountId);
     });
   }
   bindingChallenge(accountId: string, walletInput: string, now: number): WalletBindingChallenge {
@@ -149,6 +204,7 @@ export class LaunchMarketStore {
       wallet = address(walletInput),
       nonce = randomBytes(24).toString('hex'),
       expiresAt = now + 300;
+    if (account.identityKind !== 'GOOGLE') throw new LaunchMarketError('VERIFIED_EMAIL_REQUIRED', 401);
     const message = `${new URL(this.origin).host} wants you to link your Ethereum account:\n${wallet}\n\nLink this wallet to AlphaForge account ${account.id}. This signature authorizes account linkage only. It does not move assets or authorize transactions.\n\nURI: ${this.origin}\nVersion: 1\nChain ID: ${this.chainId}\nNonce: ${nonce}\nIssued At: ${new Date(now * 1000).toISOString()}\nExpiration Time: ${new Date(expiresAt * 1000).toISOString()}`;
     this.atomic(() => {
       this.db
@@ -185,12 +241,149 @@ export class LaunchMarketStore {
     if (signer !== row.wallet) throw new LaunchMarketError('WALLET_SIGNATURE_REJECTED', 401);
     return this.atomic(() => {
       const other = this.db
-        .prepare('SELECT id FROM market_accounts WHERE wallet=? AND id<>?')
+        .prepare('SELECT id,identity_kind FROM market_accounts WHERE wallet=? AND id<>?')
         .get(signer, accountId);
-      if (other) throw new LaunchMarketError('WALLET_ALREADY_BOUND');
+      if (other) {
+        const current = this.db
+          .prepare('SELECT email,subject,verified_at,wallet,identity_kind FROM market_accounts WHERE id=?')
+          .get(accountId);
+        const hasHistory =
+          this.db.prepare('SELECT 1 FROM market_claim_vouchers WHERE account_id=?').get(accountId) ||
+          this.db.prepare('SELECT 1 FROM market_quotes WHERE account_id=?').get(accountId) ||
+          this.db.prepare('SELECT 1 FROM market_wallet_test_sessions WHERE account_id=?').get(accountId) ||
+          this.db.prepare('SELECT 1 FROM market_wallet_test_identities WHERE account_id=?').get(accountId) ||
+          this.db
+            .prepare(
+              'SELECT 1 FROM market_claim_events WHERE account_key=(SELECT account_key FROM market_accounts WHERE id=?)',
+            )
+            .get(accountId);
+        if (
+          other.identity_kind !== 'WALLET_TEST' ||
+          current?.identity_kind !== 'GOOGLE' ||
+          current.wallet !== null ||
+          hasHistory
+        )
+          throw new LaunchMarketError('WALLET_ALREADY_BOUND');
+        // Adopt the original account and claim key; only the unused Google shell
+        // is removed. Vouchers, operations and original wallet-session provenance stay.
+        this.db.prepare('DELETE FROM market_wallet_challenges WHERE account_id=?').run(accountId);
+        this.db.prepare('DELETE FROM market_accounts WHERE id=?').run(accountId);
+        this.db
+          .prepare(
+            "UPDATE market_accounts SET email=?,subject=?,verified_at=?,identity_kind='GOOGLE' WHERE id=?",
+          )
+          .run(String(current.email), String(current.subject), Number(current.verified_at), String(other.id));
+        return this.account(String(other.id));
+      }
       this.db.prepare('UPDATE market_accounts SET wallet=? WHERE id=?').run(signer, accountId);
       return this.account(accountId);
     });
+  }
+  /** Available only through server routes whose verified-email policy is explicitly OFF. */
+  walletTestChallenge(walletInput: string, now: number): WalletBindingChallenge {
+    seconds(now);
+    const wallet = address(walletInput),
+      nonce = randomBytes(24).toString('hex'),
+      expiresAt = now + 300;
+    const message = `${new URL(this.origin).host} wants you to sign in with your Ethereum account:\n${wallet}\n\nSign in to AlphaForge wallet-only TESTNET mode. This proves control of this wallet; it does not verify an email, move assets or approve a transaction. Free credits are limited to one claim for this wallet and 100 claims in total.\n\nURI: ${this.origin}\nVersion: 1\nChain ID: ${this.chainId}\nNonce: ${nonce}\nIssued At: ${new Date(now * 1000).toISOString()}\nExpiration Time: ${new Date(expiresAt * 1000).toISOString()}`;
+    this.atomic(() => {
+      this.db
+        .prepare('DELETE FROM market_wallet_test_challenges WHERE wallet=? OR expires_at<=?')
+        .run(wallet, now);
+      if (Number(this.db.prepare('SELECT count(*) n FROM market_wallet_test_challenges').get()!.n) >= 1000)
+        throw new LaunchMarketError('CHALLENGE_LIMIT', 429);
+      this.db
+        .prepare('INSERT INTO market_wallet_test_challenges VALUES(?,?,?,?,?,0)')
+        .run(nonce, wallet, message, now, expiresAt);
+    });
+    return { nonce, message, expiresAt };
+  }
+  openWalletTestSession(nonce: string, signature: string, now: number): OpenedWalletTestSession {
+    seconds(now);
+    if (!/^[a-f0-9]{48}$/.test(nonce) || !/^0x[0-9a-fA-F]{130}$/.test(signature))
+      throw new LaunchMarketError('WALLET_SIGNATURE_REQUIRED', 401);
+    const challenge = this.atomic(() => {
+      const row = this.db
+        .prepare(
+          'SELECT wallet,message FROM market_wallet_test_challenges WHERE nonce=? AND consumed=0 AND issued_at<=? AND expires_at>?',
+        )
+        .get(nonce, now, now);
+      if (!row) throw new LaunchMarketError('WALLET_CHALLENGE_EXPIRED', 401);
+      this.db.prepare('UPDATE market_wallet_test_challenges SET consumed=1 WHERE nonce=?').run(nonce);
+      return row;
+    });
+    let signer: string;
+    try {
+      signer = address(verifyMessage(String(challenge.message), signature));
+    } catch {
+      throw new LaunchMarketError('WALLET_SIGNATURE_REJECTED', 401);
+    }
+    if (signer !== challenge.wallet) throw new LaunchMarketError('WALLET_SIGNATURE_REJECTED', 401);
+    return this.atomic(() => {
+      let accountId = this.db
+        .prepare('SELECT account_id FROM market_wallet_test_identities WHERE wallet=?')
+        .get(signer)?.account_id;
+      accountId ??= this.db.prepare('SELECT id FROM market_accounts WHERE wallet=?').get(signer)?.id;
+      accountId ??= this.db
+        .prepare('SELECT account_id FROM market_claim_vouchers WHERE wallet=?')
+        .get(signer)?.account_id;
+      if (accountId === undefined) {
+        accountId = randomUUID();
+        this.db
+          .prepare("INSERT INTO market_accounts VALUES(?,?,NULL,NULL,NULL,?,?,'WALLET_TEST')")
+          .run(String(accountId), id('AlphaForge wallet test account:' + accountId), signer, now);
+      }
+      if (this.account(String(accountId)).wallet !== signer)
+        throw new LaunchMarketError('LINKED_WALLET_REQUIRED', 403);
+      this.db
+        .prepare('INSERT INTO market_wallet_test_identities VALUES(?,?,?) ON CONFLICT(wallet) DO NOTHING')
+        .run(signer, String(accountId), now);
+      const token = randomBytes(32).toString('base64url'),
+        csrfToken = randomBytes(32).toString('base64url'),
+        expiresAt = now + 3600;
+      this.db
+        .prepare('DELETE FROM market_wallet_test_sessions WHERE account_id=? OR expires_at<=?')
+        .run(String(accountId), now);
+      if (Number(this.db.prepare('SELECT count(*) n FROM market_wallet_test_sessions').get()!.n) >= 10_000)
+        throw new LaunchMarketError('WALLET_SESSION_LIMIT', 429);
+      this.db
+        .prepare("INSERT INTO market_wallet_test_sessions VALUES(?,?,?,?,?,?,'WALLET_TEST')")
+        .run(
+          createHash('sha256').update(token).digest('hex'),
+          String(accountId),
+          signer,
+          csrfToken,
+          now,
+          expiresAt,
+        );
+      return { account: this.account(String(accountId)), token, csrfToken, expiresAt };
+    });
+  }
+  walletTestSession(
+    token: string,
+    csrfToken: string | null | undefined,
+    now: number,
+    mutation: boolean,
+  ): WalletTestSession | null {
+    seconds(now);
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
+    const row = this.db
+      .prepare(
+        'SELECT account_id,wallet,csrf_token,expires_at FROM market_wallet_test_sessions WHERE token_hash=? AND created_at<=? AND expires_at>?',
+      )
+      .get(createHash('sha256').update(token).digest('hex'), now, now);
+    if (!row) return null;
+    const expectedCsrf = String(row.csrf_token);
+    if (
+      mutation &&
+      (typeof csrfToken !== 'string' ||
+        !/^[A-Za-z0-9_-]{43}$/.test(csrfToken) ||
+        !timingSafeEqual(Buffer.from(csrfToken), Buffer.from(expectedCsrf)))
+    )
+      return null;
+    const account = this.account(String(row.account_id));
+    if (account.wallet !== row.wallet) return null;
+    return { account, csrfToken: expectedCsrf, expiresAt: Number(row.expires_at) };
   }
   requireWallet(accountId: string, owner: string): MarketAccount {
     const account = this.account(accountId);
@@ -212,6 +405,26 @@ export class LaunchMarketStore {
         }
       : null;
   }
+  claimStatus(accountId: string): ClaimVoucherRecord['status'] | null {
+    const account = this.account(accountId),
+      own = this.voucher(accountId);
+    if (own?.status === 'COMPLETED') return 'COMPLETED';
+    if (account.wallet !== null) {
+      if (
+        this.db
+          .prepare('SELECT 1 FROM market_claim_events WHERE chain_id=? AND wallet=? AND canonical=1')
+          .get(this.chainId, account.wallet)
+      )
+        return 'COMPLETED';
+      const other = this.db
+        .prepare(
+          "SELECT status FROM market_claim_vouchers WHERE wallet=? AND account_id<>? ORDER BY CASE WHEN status='COMPLETED' THEN 0 ELSE 1 END LIMIT 1",
+        )
+        .get(account.wallet, accountId);
+      if (other) return String(other.status) as ClaimVoucherRecord['status'];
+    }
+    return own?.status ?? null;
+  }
   reserveClaim(
     accountId: string,
     owner: string,
@@ -229,8 +442,8 @@ export class LaunchMarketStore {
       chainSuccessfulClaims > 100
     )
       throw new LaunchMarketError('INVALID_CLAIM_POLICY');
-    const account = this.requireWallet(accountId, owner);
     return this.atomic(() => {
+      const account = this.requireWallet(accountId, owner);
       // A public opaque claim key cannot reconstruct its private email/subject registry.
       // Refuse new vouchers after registry loss or while canonical events lag the RPC head.
       const observedClaims = Number(
@@ -253,6 +466,17 @@ export class LaunchMarketStore {
         )
         .get(this.chainId);
       if (missingRegistry) throw new LaunchMarketError('CLAIM_IDENTITY_RECOVERY_REQUIRED', 503);
+      const walletClaim = this.db
+        .prepare('SELECT 1 FROM market_claim_events WHERE chain_id=? AND wallet=? AND canonical=1')
+        .get(this.chainId, account.wallet);
+      if (walletClaim) throw new LaunchMarketError('ALREADY_CLAIMED');
+      const otherVoucher = this.db
+        .prepare('SELECT status FROM market_claim_vouchers WHERE wallet=? AND account_id<>? LIMIT 1')
+        .get(account.wallet, accountId);
+      if (otherVoucher)
+        throw new LaunchMarketError(
+          otherVoucher.status === 'COMPLETED' ? 'ALREADY_CLAIMED' : 'CLAIM_RECOVERY_REQUIRED',
+        );
       const existing = this.voucher(accountId);
       const unresolved = Number(
         this.db

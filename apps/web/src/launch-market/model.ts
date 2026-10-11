@@ -4,7 +4,6 @@ export type {
   StrategyId,
   SettlementAsset as PaymentAsset,
   MarketOperation,
-  MarketConfiguration as LaunchConfig,
   StrategyMarketSnapshot as LaunchMarket,
   MarketSnapshot as LaunchSnapshot,
   MarketWalletSnapshot as LaunchWallet,
@@ -21,7 +20,17 @@ import type {
 } from '../../../../packages/launch-market/src/types.ts';
 import type { ExecutorReview, ExecutorSnapshot } from './executor.ts';
 
+export type LaunchConfig = MarketConfiguration & { readonly emailVerificationRequired?: boolean };
 export type TransactionState = OperationState | 'IDLE';
+export interface LaunchAccount {
+  readonly id: string;
+  readonly accountKey: string;
+  readonly wallet: string | null;
+  readonly emailVerified: boolean;
+  readonly identityKind?: 'GOOGLE' | 'WALLET_TEST';
+  readonly claimStatus:
+    'ELIGIBLE' | 'ISSUED' | 'SUBMITTED' | 'INCLUDED' | 'COMPLETED' | 'REORGED' | 'REVERTED' | 'EXPIRED';
+}
 export interface LaunchTransaction {
   readonly id: string | null;
   readonly hash: string | null;
@@ -33,9 +42,10 @@ export interface LaunchTransaction {
 }
 export interface LaunchClientState {
   readonly enabled: boolean;
-  readonly config: MarketConfiguration | null;
+  readonly config: LaunchConfig | null;
   readonly snapshot: MarketSnapshot | null;
   readonly wallet: MarketWalletSnapshot | null;
+  readonly account?: LaunchAccount | null;
   readonly owner: string | null;
   readonly connecting: boolean;
   readonly busy: boolean;

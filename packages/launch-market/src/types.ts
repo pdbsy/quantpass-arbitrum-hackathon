@@ -53,6 +53,7 @@ export interface LaunchMarketManifest {
   readonly runtimeCodeHashes: Readonly<Record<string, string>>;
 }
 export interface MarketConfiguration {
+  readonly emailVerificationRequired?: boolean;
   readonly mode: 'ONCHAIN_TESTNET';
   readonly deployment: 'NOT_DEPLOYED' | 'CONFIGURED';
   readonly chainId: number;
@@ -185,7 +186,8 @@ export interface TrustedEmailIdentity {
 export interface MarketAccount {
   readonly id: string;
   readonly accountKey: string;
-  readonly email: string;
+  readonly email: string | null;
+  readonly identityKind?: 'GOOGLE' | 'WALLET_TEST';
   readonly wallet: string | null;
 }
 export class LaunchMarketError extends Error {

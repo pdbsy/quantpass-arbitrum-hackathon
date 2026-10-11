@@ -62,10 +62,22 @@ export async function installLaunchMarket(
     TSLA: {
       operation: client.state.snapshot?.markets.TSLA.state === 'LAUNCHED' ? 'BUY' : 'MINT',
       asset: 'ETH',
-      amount: client.state.snapshot?.markets.TSLA.state === 'LAUNCHED' ? '0.01' : '10',
+      amount: '',
       slippageBps: 100,
     },
-    AMZN: { operation: 'BUY', asset: 'ETH', amount: '0.01', slippageBps: 100 },
+    AMZN: { operation: 'BUY', asset: 'ETH', amount: '', slippageBps: 100 },
+  };
+  const amounts = new Map<string, string>();
+  const amountKey = (strategy: StrategyId, form: OrderForm) =>
+    `${strategy}/${form.operation}/${form.operation === 'BUY' ? form.asset : 'PASS'}`;
+  const changeForm = (strategy: StrategyId, patch: Partial<OrderForm>) => {
+    const previous = forms[strategy];
+    amounts.set(amountKey(strategy, previous), previous.amount);
+    const next = { ...previous, ...patch };
+    forms[strategy] = {
+      ...next,
+      amount: amounts.get(amountKey(strategy, next)) ?? '',
+    };
   };
   if (!host.originalMarketLayout) {
     host.pages.market = () => renderMarket(client.state);
@@ -101,7 +113,7 @@ export async function installLaunchMarket(
         state.owner &&
         state.config?.deployment === 'CONFIGURED' &&
         !state.wallet?.accountId
-          ? '<p><a class="text-link" href="#/account/trades">Link verified account ↗</a></p>'
+          ? `<p><a class="text-link" href="#/account/trades">${state.config.emailVerificationRequired === false && !state.account?.emailVerified ? 'Start test session' : 'Link verified account'} ↗</a></p>`
           : '';
       return `${notice}${accountLink}${renderQuote(state)}`;
     },
@@ -180,9 +192,9 @@ export async function installLaunchMarket(
   client.subscribe((state) => {
     const next = state.snapshot?.markets.TSLA.state;
     if (next === 'LAUNCHED' && previousTslaState !== 'LAUNCHED')
-      forms.TSLA = { operation: 'BUY', asset: 'ETH', amount: '0.01', slippageBps: 100 };
+      changeForm('TSLA', { operation: 'BUY', asset: 'ETH' });
     if (next && next !== 'LAUNCHED' && previousTslaState === 'LAUNCHED')
-      forms.TSLA = { operation: 'MINT', asset: 'ETH', amount: '10', slippageBps: 100 };
+      changeForm('TSLA', { operation: 'MINT', asset: 'ETH' });
     previousTslaState = next;
     render();
   });
@@ -200,8 +212,13 @@ export async function installLaunchMarket(
       host.app.closeDialog();
       void run(() => client.connect());
     } else if (target.hasAttribute('data-launch-bind')) {
+      const testSession =
+        client.state.config?.emailVerificationRequired === false &&
+        client.state.account?.emailVerified !== true;
       host.app.openDialog(
-        '<span class="section-label">LINK YOUR VERIFIED ACCOUNT</span><h2>Link this wallet.</h2><p>A separate message signature links the connected wallet to your verified Google account. It does not move assets or authorize a contract transaction. Assets held by a previous wallet remain with that wallet.</p><button class="primary-btn" data-launch-bind-confirm>Review message in wallet ↗</button><button class="text-link" data-close>Cancel</button>',
+        testSession
+          ? '<span class="section-label">WALLET TEST SESSION</span><h2>Prove wallet ownership.</h2><p>Email verification is disabled for this test phase. A message signature starts a test session with this wallet. It does not move assets or approve transactions.</p><button class="primary-btn" data-launch-bind-confirm>Review message in wallet ↗</button><button class="text-link" data-close>Cancel</button>'
+          : '<span class="section-label">LINK YOUR VERIFIED ACCOUNT</span><h2>Link this wallet.</h2><p>A separate message signature links the connected wallet to your verified Google account. It does not move assets or authorize a contract transaction. Assets held by a previous wallet remain with that wallet.</p><button class="primary-btn" data-launch-bind-confirm>Review message in wallet ↗</button><button class="text-link" data-close>Cancel</button>',
       );
     } else if (target.hasAttribute('data-launch-bind-confirm')) {
       host.app.closeDialog();
@@ -251,12 +268,7 @@ export async function installLaunchMarket(
       const strategy = location.hash.split('/')[2]?.toUpperCase();
       if (strategy !== 'TSLA' && strategy !== 'AMZN') return;
       const operation = target.dataset.launchSide as 'BUY' | 'SELL';
-      forms[strategy] = {
-        ...forms[strategy],
-        operation,
-        asset: 'ETH',
-        amount: operation === 'SELL' ? '10' : '0.01',
-      };
+      changeForm(strategy, { operation, asset: 'ETH' });
       client.clearQuote();
       render();
     }
@@ -275,12 +287,7 @@ export async function installLaunchMarket(
     if (strategy !== 'TSLA' && strategy !== 'AMZN') return;
     if (input.hasAttribute('data-launch-asset')) {
       const asset = input.value as PaymentAsset;
-      const operation = form?.dataset.operation as MarketOperation;
-      forms[strategy] = {
-        ...forms[strategy],
-        asset,
-        amount: operation === 'BUY' ? (asset === 'ETH' ? '0.01' : '10') : forms[strategy].amount,
-      };
+      changeForm(strategy, { asset });
     } else if (input.hasAttribute('data-launch-slippage'))
       forms[strategy] = { ...forms[strategy], slippageBps: Number(input.value) };
     else return;

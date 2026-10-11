@@ -73,6 +73,15 @@ export function actionable(
     !state.snapshot ||
     !state.owner ||
     !state.wallet ||
+    !state.wallet.accountId ||
+    !state.account ||
+    state.account.id !== state.wallet.accountId ||
+    !(
+      (state.account.emailVerified === true && state.account.identityKind !== 'WALLET_TEST') ||
+      (state.config.emailVerificationRequired === false &&
+        state.account.emailVerified === false &&
+        state.account.identityKind === 'WALLET_TEST')
+    ) ||
     state.busy ||
     ['AWAITING_WALLET', 'SUBMITTED', 'INCLUDED', 'CONFIRMED_L2', 'REORGED', 'RECOVERY_REQUIRED'].includes(
       state.transaction.state,
@@ -81,12 +90,17 @@ export function actionable(
     return false;
   if (operation === 'CLAIM')
     return (
-      state.snapshot.claim.funded && state.snapshot.claim.remainingClaims > 0 && !!state.wallet.accountId
+      state.snapshot.claim.funded &&
+      state.snapshot.claim.remainingClaims > 0 &&
+      !!state.wallet.accountId &&
+      !!state.account &&
+      state.account.id === state.wallet.accountId &&
+      ['ELIGIBLE', 'ISSUED'].includes(state.account.claimStatus)
     );
   if (operation === 'CREATE_VAULT')
     return (
       !!state.config.manifest?.vaultFactory &&
-      !state.wallet.vaults.some((vault) => vault.strategyId === strategy)
+      !state.wallet.vaults.some((vault) => vault.strategyId === strategy && vault.status === 'OPEN')
     );
   if (['DEPOSIT', 'WITHDRAW', 'CLOSE'].includes(operation))
     return !!state.wallet.vaults.find((vault) => vault.strategyId === strategy && vault.status === 'OPEN');

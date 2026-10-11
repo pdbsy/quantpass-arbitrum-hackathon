@@ -12,13 +12,23 @@ import {
 import type { LaunchClientState } from '../apps/web/src/launch-market/model.ts';
 import { installLaunchMarket, type LaunchProductHost } from '../apps/web/src/launch-market/install.ts';
 import { LaunchMarketClient, MarketApiError } from '../apps/web/src/launch-market/client.ts';
-import { config, snapshot, wallet, quote, fixture, NOW, OWNER } from './helpers/launch-market-ui-fixture.ts';
+import {
+  config,
+  snapshot,
+  wallet,
+  account,
+  quote,
+  fixture,
+  NOW,
+  OWNER,
+} from './helpers/launch-market-ui-fixture.ts';
 function state(): { -readonly [K in keyof LaunchClientState]: LaunchClientState[K] } {
   return {
     enabled: true,
     config: config(),
     snapshot: snapshot(),
     wallet: wallet(),
+    account: account(),
     owner: OWNER,
     connecting: false,
     busy: false,
@@ -222,11 +232,20 @@ function installationFixture(context: TestContext, originalMarketLayout = true) 
   };
   const f = fixture();
   const client = new LaunchMarketClient({ api: f.api, provider: f.provider, now: () => NOW });
-  const click = (attribute: string) => {
-    const target = { closest: () => target, hasAttribute: (name: string) => name === attribute };
+  const click = (attribute: string, dataset: Record<string, string> = {}) => {
+    const target = { dataset, closest: () => target, hasAttribute: (name: string) => name === attribute };
     for (const listener of documentListeners.get('click') ?? []) listener({ target } as unknown as Event);
   };
-  return { host, originals, dialogs, click, client, ...f };
+  const field = (type: 'input' | 'change', name: string, value: string, attribute?: string) => {
+    const target = {
+      name,
+      value,
+      hasAttribute: (key: string) => key === attribute,
+      closest: () => ({ dataset: { strategy: 'AMZN', operation: host.launchForms!.AMZN.operation } }),
+    };
+    for (const listener of documentListeners.get(type) ?? []) listener({ target } as unknown as Event);
+  };
+  return { host, originals, dialogs, click, field, client, ...f };
 }
 
 test('preserved home and Trade still route holdings, claims and legacy funds to chain-backed account pages', async (context) => {
@@ -325,4 +344,124 @@ test('missing chain mode preserves the full existing router, and replacement lay
   assert.match(f.host.pages.trade('tsla'), /PUBLIC MINT/);
   assert.match(f.host.pages.account('claim'), /Free AF-USDC/);
   assert.equal(f.host.pages.account('settings'), f.originals.account('settings'));
+});
+
+test('empty order defaults retain manually entered drafts across sides and currencies', async (context) => {
+  const f = installationFixture(context);
+  await installLaunchMarket(f.host, f.provider, f.client);
+  location.hash = '#/trade/amzn';
+  assert.equal(f.host.launchForms!.AMZN.amount, '');
+  assert.equal(f.host.launchForms!.TSLA.amount, '');
+  f.field('input', 'amount', '0.001');
+  f.click('data-launch-side', { launchSide: 'SELL' });
+  assert.equal(f.host.launchForms!.AMZN.amount, '');
+  f.field('input', 'amount', '0.25');
+  f.field('change', 'asset', 'AF_USDC', 'data-launch-asset');
+  assert.equal(f.host.launchForms!.AMZN.amount, '0.25');
+  f.click('data-launch-side', { launchSide: 'BUY' });
+  assert.equal(f.host.launchForms!.AMZN.amount, '0.001');
+  f.field('change', 'asset', 'AF_USDC', 'data-launch-asset');
+  assert.equal(f.host.launchForms!.AMZN.amount, '');
+  f.field('input', 'amount', '5');
+  f.field('change', 'asset', 'ETH', 'data-launch-asset');
+  assert.equal(f.host.launchForms!.AMZN.amount, '0.001');
+  f.field('change', 'asset', 'AF_USDC', 'data-launch-asset');
+  assert.equal(f.host.launchForms!.AMZN.amount, '5');
+  assert.equal(f.provider.calls.length, 0);
+  assert.match(
+    renderTrade(f.client.state, 'AMZN', { ...f.host.launchForms!.AMZN, amount: '' }),
+    /value="" placeholder="Enter AF-USDC"/,
+  );
+});
+
+test('anonymous financial pages show Google login and explicit wallet linkage without asserting verification', () => {
+  const current = { ...state(), account: null, wallet: { ...wallet(), accountId: null } };
+  for (const html of [renderAccount(current), renderClaim(current), renderVaults(current)]) {
+    assert.match(html, /href="\/login\/\?next=%2Falphaforge%2F">Sign in with Google/);
+    assert.match(html, /Connect your wallet, then choose Link verified account/);
+    assert.doesNotMatch(html, /data-launch-bind|Your Google account is verified/);
+  }
+  assert.match(renderClaim(current), /Claim status<\/dt><dd>Sign in to check/);
+  assert.match(renderClaim(current), /data-launch-claim disabled/);
+  const verified = { ...current, account: { ...account(), wallet: null } };
+  assert.match(renderAccount(verified), /data-launch-bind/);
+  assert.doesNotMatch(renderAccount(verified), /Sign in with Google ↗/);
+});
+
+test('claim UI shows completed and pending account claims before another review can be requested', () => {
+  const current = state();
+  for (const [status, label] of [
+    ['COMPLETED', 'Claimed'],
+    ['SUBMITTED', 'Pending chain confirmation'],
+    ['INCLUDED', 'Pending chain confirmation'],
+    ['REORGED', 'Recovery required'],
+  ] as const) {
+    current.account = { ...account(), claimStatus: status };
+    assert.match(renderClaim(current), new RegExp('Claim status</dt><dd>' + label));
+    assert.match(renderClaim(current), /data-launch-claim disabled/);
+    assert.equal(actionable(current, 'TSLA', 'CLAIM', 'AF_USDC'), false);
+  }
+});
+
+test('a closed Vault can create its next generation while an open Vault remains exclusive', () => {
+  const current = state();
+  const closed = {
+    strategyId: 'AMZN' as const,
+    address: '0x3333333333333333333333333333333333333333',
+    principalBasisRaw: '0',
+    equityRaw: '0',
+    cashRaw: '0',
+    lockedPassRaw: '0',
+    realizedPnlRaw: '0',
+    unrealizedPnlRaw: '0',
+    valuationState: 'FRESH' as const,
+    withdrawableProfitRaw: '0',
+    withdrawablePrincipalRaw: '0',
+    status: 'CLOSED' as const,
+    holdings: [],
+  };
+  current.wallet = { ...wallet(), vaults: [closed] };
+  assert.equal(actionable(current, 'AMZN', 'CREATE_VAULT', 'AF_USDC'), true);
+  assert.match(renderVaults(current), /Your previous Vault is closed/);
+  assert.match(renderVaults(current), /data-launch-create-vault="AMZN" >/);
+  assert.doesNotMatch(renderVaults(current), /data-launch-vault-order/);
+  current.wallet = { ...wallet(), vaults: [{ ...closed, status: 'OPEN' }] };
+  assert.equal(actionable(current, 'AMZN', 'CREATE_VAULT', 'AF_USDC'), false);
+  assert.doesNotMatch(renderVaults(current), /data-launch-create-vault="AMZN"/);
+});
+
+test('test-phase pages expose wallet ownership sessions without asserting verified email or requiring Google', () => {
+  const current = {
+    ...state(),
+    config: { ...config(), emailVerificationRequired: false },
+    account: null,
+    wallet: { ...wallet(), accountId: null },
+  };
+  for (const html of [renderAccount(current), renderClaim(current), renderVaults(current)]) {
+    assert.match(html, /Email verification is disabled for this test phase/);
+    assert.match(html, /Start test session/);
+    assert.match(html, /data-launch-bind/);
+    assert.doesNotMatch(html, /Sign in with Google|Your Google account is verified/);
+  }
+  assert.match(renderClaim(current), /1,000 AF-USDC per test wallet/);
+  assert.match(renderClaim(current), /Disabled for this test phase/);
+  assert.match(renderClaim(current), /data-launch-claim disabled/);
+  const signed = {
+    ...current,
+    account: { ...account(), emailVerified: false, identityKind: 'WALLET_TEST' as const },
+    wallet: wallet(),
+  };
+  assert.equal(actionable(signed, 'TSLA', 'CLAIM', 'AF_USDC'), true);
+  assert.equal(actionable(signed, 'AMZN', 'BUY', 'ETH'), true);
+  assert.doesNotMatch(renderClaim(signed), /Verified account linked|Your Google account is verified/);
+  assert.match(renderClaim(signed), /100 total successful claims/);
+  assert.equal(
+    actionable(
+      { ...signed, config: { ...signed.config, emailVerificationRequired: true } },
+      'AMZN',
+      'BUY',
+      'ETH',
+    ),
+    false,
+  );
 });

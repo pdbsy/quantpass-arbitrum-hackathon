@@ -9,7 +9,8 @@ import type {
   QuoteRequest,
 } from '../../packages/launch-market/src/types.ts';
 import type { Eip1193Provider, Eip1193Request } from '../../apps/web/src/chain-wallet.ts';
-import type { LaunchApi } from '../../apps/web/src/launch-market/client.ts';
+import { MarketApiError, type LaunchApi } from '../../apps/web/src/launch-market/client.ts';
+import type { LaunchConfig, LaunchAccount } from '../../apps/web/src/launch-market/model.ts';
 export const OWNER = '0x1111111111111111111111111111111111111111';
 export const OTHER = '0x2222222222222222222222222222222222222222';
 export const HASH = `0x${'aa'.repeat(32)}`;
@@ -103,6 +104,15 @@ export function wallet(): MarketWalletSnapshot {
     usdcBalanceRaw: '1000000000',
     passes: { TSLA: pass, AMZN: pass },
     vaults: [],
+  };
+}
+export function account(): LaunchAccount {
+  return {
+    id: 'verified-account',
+    accountKey: HASH,
+    wallet: OWNER,
+    emailVerified: true,
+    claimStatus: 'ELIGIBLE',
   };
 }
 export function quote(request: QuoteRequest): MarketQuote {
@@ -214,9 +224,10 @@ export class ProviderFixture implements Eip1193Provider {
 export function fixture() {
   const provider = new ProviderFixture();
   const state = {
-    config: config(),
+    config: config() as LaunchConfig,
     snapshot: snapshot(),
     wallet: wallet(),
+    account: account() as LaunchAccount | null,
     quote: null as MarketQuote | null,
     operation: {
       id: 'operation_a',
@@ -236,7 +247,10 @@ export function fixture() {
     state.requests.push({ path, ...(body === undefined ? {} : { body }) });
     let result: unknown;
     if (path.endsWith('/config')) result = state.config;
-    else if (path.endsWith('/snapshot')) result = state.snapshot;
+    else if (path.endsWith('/account')) {
+      if (!state.account) throw new MarketApiError('VERIFIED_EMAIL_REQUIRED', 401);
+      result = state.account;
+    } else if (path.endsWith('/snapshot')) result = state.snapshot;
     else if (path.includes('/wallet?')) result = state.wallet;
     else if (path.includes('/operations?')) result = { operations: state.operations };
     else if (path.endsWith('/quote')) result = state.quote ?? quote(body as QuoteRequest);

@@ -95,6 +95,8 @@ export async function startMarketServer(env: Readonly<Record<string, string | un
         const identity = identityClient ? await identityClient.identity(request) : bridge?.identity(request);
         return identity ? { email: identity.email, subject: identity.subject, emailVerified: true } : null;
       },
+      verificationRequired: async () =>
+        identityClient ? identityClient.verificationRequired() : (bridge?.verificationRequired() ?? true),
       dispose: async () => {
         bridge?.close();
         chain?.close();

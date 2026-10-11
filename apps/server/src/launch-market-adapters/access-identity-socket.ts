@@ -5,6 +5,7 @@ import type { FastifyRequest } from 'fastify';
 import type { TrustedVerifiedIdentity } from './access-identity.ts';
 
 export const IDENTITY_SOCKET_PATH = '/v1/identity';
+export const ACCESS_POLICY_SOCKET_PATH = '/v1/access-policy';
 export const IDENTITY_SOCKET_MAX_BYTES = 1024;
 export const IDENTITY_SOCKET_TIMEOUT_MS = 1000;
 const methods = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
@@ -86,6 +87,15 @@ export class AccessIdentitySocketClient {
       csrfToken: typeof csrf === 'string' ? csrf : null,
     });
     if (!query) return null;
+    return identitySocketResponse(await this.#read(IDENTITY_SOCKET_PATH, query));
+  }
+  async verificationRequired(): Promise<boolean> {
+    const result = await this.#read(ACCESS_POLICY_SOCKET_PATH, null);
+    return (
+      !object(result) || !keys(result, ['verificationRequired']) || result.verificationRequired !== false
+    );
+  }
+  async #read(path: string, query: IdentitySocketQuery | null): Promise<unknown> {
     try {
       const parent = identitySocketDirectory(this.#path),
         socket = lstatSync(this.#path);
@@ -98,22 +108,22 @@ export class AccessIdentitySocketClient {
         realpathSync(this.#path) !== this.#path
       )
         return null;
-      const body = Buffer.from(JSON.stringify(query));
+      const body = query === null ? Buffer.alloc(0) : Buffer.from(JSON.stringify(query));
       if (body.length > IDENTITY_SOCKET_MAX_BYTES) return null;
-      return await new Promise<TrustedVerifiedIdentity | null>((complete) => {
+      return await new Promise<unknown>((complete) => {
         let settled = false;
-        const done = (identity: TrustedVerifiedIdentity | null) => {
+        const done = (value: unknown) => {
           if (settled) return;
           settled = true;
           clearTimeout(deadline);
           outgoing.destroy();
-          complete(identity);
+          complete(value);
         };
         const outgoing = httpRequest(
           {
             socketPath: this.#path,
-            method: 'POST',
-            path: IDENTITY_SOCKET_PATH,
+            method: query === null ? 'GET' : 'POST',
+            path,
             agent: false,
             headers: {
               'content-type': 'application/json',
@@ -146,7 +156,7 @@ export class AccessIdentitySocketClient {
             response.on('end', () => {
               try {
                 const text = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks));
-                done(identitySocketResponse(JSON.parse(text)));
+                done(JSON.parse(text));
               } catch {
                 done(null);
               }
