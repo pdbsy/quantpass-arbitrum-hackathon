@@ -14,6 +14,29 @@ test('indexed PASS details use AF-USDC for actual quote prices and recorded turn
   assert.equal(details.turnover, '10.00 AF-USDC');
 });
 
+test('tiny indexed PASS changes retain source precision instead of showing identical 0.50 values', () => {
+  const details = candleDetails(
+    {
+      time: 1791548940000,
+      open: 50,
+      high: 50.0002,
+      low: 50,
+      close: 50.0001,
+      volume: 0.000001,
+      quoteVolume: 0.0001,
+    },
+    { quoteUnit: 'AF-USDC', volumeUnit: 'AF-USDC' },
+  );
+  assert.equal(details.open, '0.500000 AF-USDC');
+  assert.equal(details.high, '0.500002 AF-USDC');
+  assert.equal(details.close, '0.500001 AF-USDC');
+  assert.equal(details.change, '+0.000001 AF-USDC');
+  assert.equal(details.changePercent, '+0.0002%');
+  assert.equal(details.amplitude, '0.0004%');
+  assert.equal(details.turnover, '0.000001 AF-USDC');
+  assert.equal(details.volume, '0.000001 AF-USDC');
+});
+
 const candle = {
   time: Date.UTC(2026, 8, 12, 0),
   open: 10000,
