@@ -12,6 +12,8 @@ import {
   quote,
 } from './helpers/launch-market-ui-fixture.ts';
 import { marketInterfaces } from '../packages/launch-market/src/abi.ts';
+import { ammQuote, minOutput, usdcForEth } from '../packages/launch-market/src/math.ts';
+import { formatUnits } from '../packages/domain/src/money.ts';
 import type { MarketQuote, QuoteRequest } from '../packages/launch-market/src/types.ts';
 
 const browserPackage =
@@ -24,6 +26,7 @@ const available = await Promise.all([
   stat(browserBinary).catch(() => null),
 ]);
 const unit = 10n ** 18n;
+const passInput = (raw: bigint) => formatUnits(String(raw), 18).replace(/\.?0+$/, '');
 
 function freshQuote(input: QuoteRequest): MarketQuote {
   const base = quote(input);
@@ -79,6 +82,33 @@ function freshQuote(input: QuoteRequest): MarketQuote {
       },
     };
   }
+  if (input.operation === 'BUY') {
+    const market = fixture().state.snapshot.markets[input.strategyId];
+    const fill = ammQuote(
+      BigInt(input.amountRaw),
+      BigInt(market.reserveUsdcRaw),
+      BigInt(market.reservePassRaw),
+      market.ammFeeBps,
+    );
+    const minOut = minOutput(fill.output, input.slippageBps);
+    return {
+      ...base,
+      expiresAt: deadline,
+      estimatedOutRaw: String(fill.output),
+      minOutRaw: String(minOut),
+      feeUsdcRaw: String(fill.fee),
+      priceImpactBps: fill.priceImpactBps,
+      transaction: {
+        ...base.transaction,
+        data: marketInterfaces.pool.encodeFunctionData('buy', [
+          input.amountRaw,
+          minOut,
+          input.owner,
+          deadline,
+        ]),
+      },
+    };
+  }
   return {
     ...base,
     expiresAt: deadline,
@@ -114,6 +144,9 @@ test(
     const streams = new Set<ServerResponse>();
     const reviewed: QuoteRequest[] = [];
     const rejectedWrites: string[] = [];
+    let referenceReads = 0;
+    let quoteGate: Promise<void> | null = null;
+    let quoteRequested: (() => void) | undefined;
     const webRoot = resolve('apps/web/dist');
     const reset = () => {
       f = fixture();
@@ -143,6 +176,9 @@ test(
       };
       reviewed.length = 0;
       rejectedWrites.length = 0;
+      referenceReads = 0;
+      quoteGate = null;
+      quoteRequested = undefined;
     };
     const server = createServer(async (request, response) => {
       const url = new URL(request.url!, 'http://localhost');
@@ -179,11 +215,21 @@ test(
           );
           return;
         }
+        if (url.pathname === '/api/launch-market/eth-reference') {
+          ++referenceReads;
+          const now = Math.floor(Date.now() / 1000);
+          response.end(
+            JSON.stringify({ ethUsdPriceRaw: '2000000000', observedAt: now, validUntil: now + 30 }),
+          );
+          return;
+        }
         if (url.pathname === '/api/launch-market/quote') {
           let body = '';
           for await (const chunk of request) body += String(chunk);
           const input = JSON.parse(body) as QuoteRequest;
           reviewed.push(input);
+          quoteRequested?.();
+          if (quoteGate) await quoteGate;
           response.end(JSON.stringify(freshQuote(input)));
           return;
         }
@@ -246,10 +292,17 @@ test(
           },
         });
       }, OWNER);
-      const open = async (strategy: string) => {
+      const open = async (strategy: string, connect = true) => {
         reset();
         await page.goto('about:blank');
         await page.goto(`http://127.0.0.1:${port}/alphaforge/#/trade/${strategy}`);
+        await page.locator('[data-launch-order][data-launch-pass-quantity] input[name="amount"]').waitFor();
+        await page.waitForFunction(
+          () =>
+            (window as unknown as { AF: { launchState: { snapshot: unknown } } }).AF.launchState.snapshot !==
+            null,
+        );
+        if (!connect) return;
         await page.locator('[data-launch-connect]').click();
         await page.locator('[data-launch-wallet-browser]').click();
         await page.waitForFunction(
@@ -266,6 +319,22 @@ test(
       };
       const input = page.locator('[data-launch-order] input[name="amount"]');
       const max = page.locator('[data-launch-shortcut="max"]');
+      const estimate = page.locator('#pass-quote-summary .order-total dd');
+      const ethEstimate = page.locator('#pass-quote-summary [data-estimated-eth]');
+      const waitEstimate = async (value: string) => {
+        await page.waitForFunction(
+          (text: string) =>
+            document.querySelector('#pass-quote-summary .order-total dd')?.textContent?.includes(text),
+          value,
+        );
+      };
+      const waitEthEstimate = async (value: string) => {
+        await page.waitForFunction(
+          (text: string) =>
+            document.querySelector('#pass-quote-summary [data-estimated-eth]')?.textContent?.includes(text),
+          value,
+        );
+      };
       const publish = async (block: number) => {
         f.state.snapshot = { ...f.state.snapshot, location: chainLocation(block) };
         for (const stream of streams)
@@ -296,9 +365,62 @@ test(
       };
 
       await t.test(
-        'preset units, refresh retention, Mint balance/inventory quantum and unlocked fractional Sell Max',
+        'anonymous PASS payment estimates, preset retention, Mint limits and unlocked fractional Sell Max',
         async () => {
-          await open('tsla');
+          await open('tsla', false);
+          assert.equal(await page.locator('.pass-amount-wrap > span').textContent(), 'PASS');
+          await input.fill('50');
+          await waitEstimate('25');
+          assert.match(await estimate.textContent(), /25(?:\.0+)? AF-USDC/);
+          await waitEthEstimate('0.0125');
+          assert.match(await ethEstimate.textContent(), /0\.0125(?:0+)? ETH/);
+          assert.ok(referenceReads > 0);
+          assert.equal(reviewed.length, 0);
+          assert.equal(await page.locator('[data-launch-order] button[type="submit"]').isDisabled(), true);
+          await page.locator('[data-launch-asset]').selectOption('AF_USDC');
+          assert.equal(await input.inputValue(), '50');
+          await waitEstimate('25');
+          assert.match(await estimate.textContent(), /25(?:\.0+)? AF-USDC/);
+          await input.fill('5');
+          const quantityNode = await input.elementHandle();
+          await input.fill('50');
+          await input.evaluate((element: HTMLInputElement) => element.setSelectionRange(1, 1));
+          await waitEstimate('25');
+          assert.equal(
+            await quantityNode!.evaluate(
+              (node: HTMLInputElement) =>
+                node === document.querySelector('[data-launch-order] input[name="amount"]'),
+            ),
+            true,
+          );
+          assert.equal(await input.evaluate((element: HTMLInputElement) => element.selectionStart), 1);
+          await page.locator('[data-launch-shortcut="50"]').click();
+          await waitEstimate('25');
+          assert.match(await estimate.textContent(), /25(?:\.0+)? AF-USDC/);
+          assert.equal(reviewed.length, 0);
+          await route('amzn');
+          assert.equal(await page.locator('.pass-amount-wrap > span').textContent(), 'PASS');
+          await page.locator('[data-launch-shortcut="50"]').click();
+          await waitEstimate('25.153195');
+          assert.match(await estimate.textContent(), /25\.153195 AF-USDC/);
+          await waitEthEstimate('0.0125765975');
+          assert.match(await ethEstimate.textContent(), /0\.0125765975 ETH/);
+          await page.locator('[data-launch-asset]').selectOption('AF_USDC');
+          assert.equal(await input.inputValue(), '50');
+          await waitEstimate('25.077735');
+          assert.match(await estimate.textContent(), /25\.077735 AF-USDC/);
+          assert.equal(await page.locator('[data-launch-order] button[type="submit"]').isDisabled(), true);
+          assert.equal(await max.isDisabled(), true);
+          assert.equal(reviewed.length, 0);
+          await route('tsla');
+          assert.equal(await input.inputValue(), '50');
+          await page.locator('[data-launch-connect]').click();
+          await page.locator('[data-launch-wallet-browser]').click();
+          await page.waitForFunction(
+            () =>
+              (window as unknown as { AF: { launchState: { wallet: unknown } } }).AF.launchState.wallet !==
+              null,
+          );
           for (const value of ['10', '50', '100']) {
             const preset = page.locator(`[data-launch-shortcut="${value}"]`);
             assert.equal(await preset.textContent(), `${value} PASS`);
@@ -338,26 +460,38 @@ test(
           await max.click();
           assert.equal(await input.inputValue(), '100.246914');
           await route('amzn');
-          assert.equal(await page.locator('[data-launch-shortcut="0.0001"]').textContent(), '0.0001 ETH');
-          await page.locator('[data-launch-shortcut="0.0001"]').click();
-          assert.equal(await input.inputValue(), '0.0001');
+          assert.equal(await page.locator('[data-launch-order][data-launch-pass-quantity]').count(), 1);
+          assert.equal(await page.locator('[data-launch-shortcut="10"]').textContent(), '10 PASS');
+          await page.locator('[data-launch-shortcut="50"]').click();
+          assert.equal(await input.inputValue(), '50');
           await page.locator('[data-launch-asset]').selectOption('AF_USDC');
+          assert.equal(await input.inputValue(), '50');
+          await waitEstimate('25.077735');
+          assert.match(await estimate.textContent(), /25\.077735 AF-USDC/);
           for (const value of ['10', '50', '100'])
             assert.equal(
               await page.locator(`[data-launch-shortcut="${value}"]`).textContent(),
-              `${value} AF-USDC`,
+              `${value} PASS`,
             );
+          assert.equal(reviewed.length, 0);
+          await page.locator('[data-launch-order] button[type="submit"]').click();
+          await page.locator('[data-launch-confirm]').waitFor();
+          assert.equal(reviewed.length, 1);
+          assert.equal(reviewed[0]!.operation, 'BUY');
+          assert.equal(reviewed[0]!.asset, 'AF_USDC');
+          assert.equal(reviewed[0]!.amountRaw, '25077735');
+          await page.locator('[data-launch-clear]').click();
           await page.locator('[data-launch-side="SELL"]').click();
           await max.click();
           assert.equal(await input.inputValue(), '12.34567890123456789');
-          assert.equal(reviewed.length, 0);
+          assert.equal(reviewed.length, 1);
           assert.equal(await page.locator('[data-launch-confirm]').count(), 0);
           await noWrites();
         },
       );
 
       await t.test(
-        'native Max leaves gas, probes Mint without confirmation and clears an old review on gas failure',
+        'native Max uses public references, leaves gas and clears an old review on gas failure',
         async () => {
           await open('tsla');
           await max.click();
@@ -365,13 +499,13 @@ test(
             () => !(window as unknown as { AF: { launchState: { busy: boolean } } }).AF.launchState.busy,
           );
           assert.equal(await input.inputValue(), '56');
-          assert.equal(reviewed.length, 1);
-          assert.equal(reviewed[0]!.amountRaw, '2000000000000');
+          assert.equal(reviewed.length, 0);
+          assert.ok(referenceReads > 0);
           assert.equal(await page.locator('[data-launch-confirm]').count(), 0);
           await page.locator('[data-launch-order] button[type="submit"]').click();
           await page.locator('[data-launch-confirm]').waitFor();
-          assert.equal(reviewed.length, 2);
-          assert.equal(reviewed[1]!.amountRaw, String(56n * unit));
+          assert.equal(reviewed.length, 1);
+          assert.equal(reviewed[0]!.amountRaw, String(56n * unit));
           await page.evaluate(() => {
             (window as unknown as { shortcutGasMode: string }).shortcutGasMode = 'fail';
           });
@@ -380,7 +514,7 @@ test(
             () => !(window as unknown as { AF: { launchState: { busy: boolean } } }).AF.launchState.busy,
           );
           assert.equal(await input.inputValue(), '56');
-          assert.equal(reviewed.length, 2);
+          assert.equal(reviewed.length, 1);
           assert.equal(await page.locator('[data-launch-confirm]').count(), 0);
           assert.match(await page.locator('#pass-order-error').textContent(), /Gas price is unavailable/);
           await route('amzn');
@@ -391,16 +525,39 @@ test(
           await page.waitForFunction(
             () => !(window as unknown as { AF: { launchState: { busy: boolean } } }).AF.launchState.busy,
           );
-          assert.equal(await input.inputValue(), '0.018');
-          assert.equal(reviewed.length, 2);
+          const market = f.state.snapshot.markets.AMZN;
+          const spend = usdcForEth(
+            18_000_000_000_000_000n,
+            2_000_000_000n,
+            f.state.snapshot.conversion.feeBps,
+          );
+          const ethMax = ammQuote(
+            spend,
+            BigInt(market.reserveUsdcRaw),
+            BigInt(market.reservePassRaw),
+            market.ammFeeBps,
+          ).output;
+          assert.equal(await input.inputValue(), passInput(ethMax));
+          assert.equal(reviewed.length, 1);
           assert.ok(BigInt('18000000000000000') < BigInt(f.state.wallet.ethBalanceRaw));
           assert.equal(await page.locator('[data-launch-confirm]').count(), 0);
+          await page.locator('[data-launch-asset]').selectOption('AF_USDC');
+          assert.equal(await input.inputValue(), passInput(ethMax));
+          await max.click();
+          const usdcMax = ammQuote(
+            BigInt(f.state.wallet.usdcBalanceRaw),
+            BigInt(market.reserveUsdcRaw),
+            BigInt(market.reservePassRaw),
+            market.ammFeeBps,
+          ).output;
+          assert.equal(await input.inputValue(), passInput(usdcMax));
+          assert.equal(reviewed.length, 1);
           await noWrites();
         },
       );
 
       await t.test(
-        'pending native Max is discarded after route away/back or a later input event',
+        'pending Max and reviewed quotes are discarded after route changes or a later input event',
         async () => {
           await open('amzn');
           await input.fill('0.004');
@@ -449,6 +606,56 @@ test(
           assert.equal(await input.inputValue(), '0.007');
           assert.equal(reviewed.length, 0);
           assert.equal(await page.locator('[data-launch-confirm]').count(), 0);
+          await page.locator('[data-launch-asset]').selectOption('AF_USDC');
+          const delayReview = async () => {
+            let release!: () => void;
+            quoteGate = new Promise<void>((resolve) => {
+              release = resolve;
+            });
+            const arrived = new Promise<void>((resolve) => {
+              quoteRequested = resolve;
+            });
+            await page.locator('[data-launch-order] button[type="submit"]').click();
+            await arrived;
+            return () => {
+              quoteGate = null;
+              quoteRequested = undefined;
+              release();
+            };
+          };
+          await input.fill('50');
+          const releaseInputQuote = await delayReview();
+          await input.evaluate((element: HTMLInputElement) => {
+            element.value = '75';
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+          });
+          releaseInputQuote();
+          await page.waitForFunction(
+            () => !(window as unknown as { AF: { launchState: { busy: boolean } } }).AF.launchState.busy,
+          );
+          assert.equal(await input.inputValue(), '75');
+          assert.equal(await page.locator('[data-launch-confirm]').count(), 0);
+          assert.match(
+            await page.locator('#pass-order-error').textContent(),
+            /order changed while fetching/i,
+          );
+          assert.equal(reviewed.length, 1);
+          await input.fill('50');
+          const releaseRouteQuote = await delayReview();
+          await page.evaluate(() => {
+            location.hash = '#/market';
+          });
+          await page.locator('.market-grid').waitFor();
+          releaseRouteQuote();
+          await page.waitForFunction(() => {
+            const state = (window as unknown as { AF: { launchState: { busy: boolean; quote: unknown } } }).AF
+              .launchState;
+            return !state.busy && state.quote === null;
+          });
+          await route('amzn');
+          assert.equal(await input.inputValue(), '50');
+          assert.equal(await page.locator('[data-launch-confirm]').count(), 0);
+          assert.equal(reviewed.length, 2);
           await noWrites();
         },
       );

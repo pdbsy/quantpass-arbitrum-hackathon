@@ -26,6 +26,7 @@ import {
 } from './model.ts';
 import { actionable } from './presentation.ts';
 import { nativeMaxPolicy } from './order-shortcuts.ts';
+import { validPaymentReference, type PaymentReference } from './payment-estimate.ts';
 import {
   executorJournalKey,
   executorReceipt,
@@ -703,7 +704,12 @@ export class LaunchMarketClient {
     }
   }
 
-  /** Read-only Max preview. The probe never becomes a confirmable order. */
+  /** Public price read for display estimates; this never creates an executable quote. */
+  async readEthReference(): Promise<PaymentReference> {
+    const reference = await this.#api<PaymentReference>(`${prefix}/eth-reference`);
+    return validPaymentReference(reference, this.#now());
+  }
+
   async previewNativeMax(
     strategyId: StrategyId,
     operation: 'MINT' | 'BUY',
@@ -742,40 +748,11 @@ export class LaunchMarketClient {
       if (units <= 0n) throw new Error('Invalid Max gas policy.');
       const estimate = BigInt(gasPrice) * units * policy.safetyMultiplier;
       const gasReserveRaw = String(estimate > policy.minimumReserveWei ? estimate : policy.minimumReserveWei);
-      let probe: { quote: LaunchQuote; request: QuoteRequest } | undefined;
-      if (operation === 'MINT') {
-        const market = this.#state.snapshot!.markets[strategyId];
-        const quantum = 10n ** 18n / uint(market.mintPriceUsdcRaw);
-        const request: QuoteRequest = {
-          owner,
-          strategyId,
-          operation,
-          asset: 'ETH',
-          amountRaw: String(quantum),
-          slippageBps,
-        };
-        const quote = await this.#api<LaunchQuote>(`${prefix}/quote`, request);
-        probe = { quote, request };
-      }
+      const reference = await this.readEthReference();
       await this.#assertOwner(owner, generation);
       this.#assertIdentity(owner, revision, operation);
-      let ethUsdPriceRaw: string | undefined;
-      if (probe) {
-        this.#validateQuote(probe.quote, probe.request);
-        const reference = probe.quote.reference;
-        if (
-          !reference ||
-          uint(reference.ethUsdPriceRaw) === 0n ||
-          !Number.isSafeInteger(reference.observedAt) ||
-          reference.observedAt > this.#now() ||
-          this.#now() - reference.observedAt > 30
-        )
-          throw new Error(
-            'A fresh ETH/USD quote is unavailable. Choose AF-USDC or enter an amount manually.',
-          );
-        ethUsdPriceRaw = reference.ethUsdPriceRaw;
-      }
-      return { gasReserveRaw, ...(ethUsdPriceRaw ? { ethUsdPriceRaw } : {}) };
+      validPaymentReference(reference, this.#now());
+      return { gasReserveRaw, ethUsdPriceRaw: reference.ethUsdPriceRaw };
     } finally {
       clearTimeout(timer);
       // Other wallet operations cannot acquire busy until this preview settles,

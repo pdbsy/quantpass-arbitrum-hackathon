@@ -4,6 +4,7 @@ import { MarketActivityClient, renderActivity } from './activity.ts';
 import { actionable, escapeHtml, inputRaw } from './presentation.ts';
 import type { LaunchClientState, MarketOperation, PaymentAsset, StrategyId } from './model.ts';
 import { installOrderShortcuts, maxShortcutAmount, shortcutPresets } from './order-shortcuts.ts';
+import { installPaymentEstimates, estimatePassPayment } from './payment-estimate.ts';
 import {
   renderAccount,
   renderClaim,
@@ -17,7 +18,7 @@ import {
 
 export interface LaunchProductHost {
   originalMarketLayout?: boolean;
-  trade?: { actionPanel(strategy: { id: string }): string };
+  trade?: { actionPanel(strategy: { id: string }): string; quoteSummary(strategy: { id: string }): string };
   launchState?: LaunchClientState;
   launchForms?: Record<StrategyId, OrderForm>;
   passMarket?: {
@@ -85,7 +86,7 @@ export async function installLaunchMarket(
   let renderedIdentity = draftIdentity;
   let vaultSubmission: { address: string; amount: string; hash: string | null } | null = null;
   const amountKey = (strategy: StrategyId, form: OrderForm) =>
-    `${strategy}/${form.operation}/${form.operation === 'BUY' ? form.asset : 'PASS'}`;
+    `${strategy}/${form.operation}/${form.operation === 'BUY' && !host.originalMarketLayout ? form.asset : 'PASS'}`;
   const changeForm = (strategy: StrategyId, patch: Partial<OrderForm>) => {
     const previous = forms[strategy];
     amounts.set(amountKey(strategy, previous), previous.amount);
@@ -118,6 +119,7 @@ export async function installLaunchMarket(
   host.launchState = client.state;
   host.launchForms = forms;
   installOrderShortcuts(host);
+  const paymentEstimates = installPaymentEstimates(host, () => client.readEthReference());
   host.passMarket = {
     actionable: (strategy, operation, asset) => actionable(client.state, strategy, operation, asset),
     quoteHtml: () => {
@@ -313,7 +315,13 @@ export async function installLaunchMarket(
       };
       const value = target.dataset.launchShortcut;
       if (value !== 'max') {
-        if (value && shortcutPresets(draft).some((preset) => preset.value === value)) apply(value);
+        if (
+          value &&
+          shortcutPresets(draft, !!form?.hasAttribute('data-launch-pass-quantity')).some(
+            (preset) => preset.value === value,
+          )
+        )
+          apply(value);
       } else {
         void (async () => {
           try {
@@ -325,7 +333,16 @@ export async function installLaunchMarket(
                     draft.slippageBps,
                   )
                 : undefined;
-            if (current()) apply(maxShortcutAmount(client.state, strategy, draft, native));
+            if (current())
+              apply(
+                maxShortcutAmount(
+                  client.state,
+                  strategy,
+                  draft,
+                  native,
+                  !!form?.hasAttribute('data-launch-pass-quantity'),
+                ),
+              );
           } catch (error) {
             if (current()) client.setError(error);
           }
@@ -418,8 +435,11 @@ export async function installLaunchMarket(
       vaultAmounts.set(address, input.value);
     const form = input.closest<HTMLFormElement>('[data-launch-order]');
     const strategy = form?.dataset.strategy;
-    if (input.name === 'amount' && (strategy === 'TSLA' || strategy === 'AMZN'))
+    if (input.name === 'amount' && (strategy === 'TSLA' || strategy === 'AMZN')) {
       forms[strategy] = { ...forms[strategy], amount: input.value };
+      if (client.state.quote) client.clearQuote();
+      paymentEstimates.refresh();
+    }
   });
   document.addEventListener('change', (event) => {
     ++shortcutRevision;
@@ -489,15 +509,34 @@ export async function installLaunchMarket(
     if (strategy !== 'TSLA' && strategy !== 'AMZN') return;
     const operation = form.dataset.operation as MarketOperation;
     const selected = forms[strategy];
-    void run(async () =>
-      client.review({
+    const revision = shortcutRevision;
+    void run(async () => {
+      const passQuantity = form.hasAttribute('data-launch-pass-quantity');
+      const target = passQuantity && operation === 'BUY' ? inputRaw('SELL', 'ETH', selected.amount) : null;
+      const reference =
+        target !== null && selected.asset === 'ETH' ? await client.readEthReference() : undefined;
+      if (forms[strategy] !== selected || shortcutRevision !== revision)
+        throw new Error('The order changed. Review the current PASS amount again.');
+      const amountRaw =
+        target !== null
+          ? estimatePassPayment(client.state, strategy, selected, reference).assetInputRaw
+          : inputRaw(operation, selected.asset, selected.amount);
+      await client.review({
         strategyId: strategy,
         operation,
         asset: selected.asset,
-        amountRaw: inputRaw(operation, selected.asset, selected.amount),
+        amountRaw,
         slippageBps: selected.slippageBps,
-      }),
-    );
+      });
+      if (forms[strategy] !== selected || shortcutRevision !== revision) {
+        client.clearQuote();
+        throw new Error('The order changed while fetching its quote. Review it again.');
+      }
+      if (target !== null && BigInt(client.state.quote!.estimatedOutRaw) < BigInt(target)) {
+        client.clearQuote();
+        throw new Error('The market price changed. Review the updated estimate again.');
+      }
+    });
   });
   window.addEventListener('hashchange', () => {
     ++shortcutRevision;
@@ -532,6 +571,7 @@ export async function installLaunchMarket(
       if (polling !== null) clearInterval(polling);
       eventStream?.close();
       activity.dispose();
+      paymentEstimates.dispose();
     },
     { once: true },
   );
